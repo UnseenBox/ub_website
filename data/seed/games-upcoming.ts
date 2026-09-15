@@ -1,0 +1,157 @@
+import type { Game } from "@/types/content";
+import { L, SEED_DATE, gameMedia } from "./helpers";
+
+export const upcomingGames: Game[] = [
+  {
+    id: "game_ashfall",
+    slug: "ashfall-archive",
+    title: "Ashfall Archive",
+    ...gameMedia("ashfall-archive"),
+    tagline: L("Restore the books. Restore the people who wrote them.", "Restaurez les livres. Restaurez ceux qui les ont écrits.", "رمّم الكتب، ترمّم من كتبوها."),
+    summary: L(
+      "A narrative puzzle game set in the library of a civilisation that burned.",
+      "Un jeu narratif de réflexion dans la bibliothèque d'une civilisation partie en fumée.",
+      "لعبة ألغاز سردية تدور في مكتبة حضارة احترقت.",
+    ),
+    description: L(
+      "Ash still falls inside the Great Archive. Every page you piece back together brings a voice back into its halls — and not all of them agree on what happened.\n\nAshfall Archive is our most ambitious narrative project: a library that rebuilds itself around your reading, with a restoration system inspired by real manuscript conservation.",
+      "La cendre tombe encore dans la Grande Archive. Chaque page reconstituée ramène une voix dans ses couloirs — et toutes ne s'accordent pas sur ce qui s'est passé.\n\nAshfall Archive est notre projet narratif le plus ambitieux : une bibliothèque qui se reconstruit autour de votre lecture, avec un système de restauration inspiré de la conservation réelle des manuscrits.",
+      "لا يزال الرماد يتساقط داخل الأرشيف الكبير. كل صفحة تعيد جمعها تُرجع صوتًا إلى أروقته — وليست كل الأصوات متّفقة على ما حدث.\n\nAshfall Archive أكثر مشاريعنا السردية طموحًا: مكتبة تعيد بناء نفسها حول قراءتك، بنظام ترميم مستوحى من صيانة المخطوطات الحقيقية.",
+    ),
+    genre: L("Narrative · Puzzle", "Narratif · Réflexion", "سردية · ألغاز"),
+    platforms: ["pc", "playstation", "xbox"],
+    status: "production",
+    estimatedRelease: L("Autumn 2027", "Automne 2027", "خريف 2027"),
+    progress: 62,
+    trailerUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+    links: [
+      { kind: "steam", url: "https://store.steampowered.com/" },
+      { kind: "discord", url: "https://discord.com/" },
+    ],
+    features: [
+      L("Manuscript restoration puzzles", "Énigmes de restauration de manuscrits", "ألغاز ترميم المخطوطات"),
+      L("A library that changes as you read", "Une bibliothèque qui change à mesure que vous lisez", "مكتبة تتغيّر كلما قرأت"),
+      L("Voices recorded in three languages", "Voix enregistrées en trois langues", "أصوات مسجّلة بثلاث لغات"),
+    ],
+    devNotes: [
+      {
+        id: "note_ash_3",
+        date: "2026-08-28",
+        text: L(
+          "Ash particles now settle on surfaces and react to page turns. 40,000 particles, still 120 fps.",
+          "Les particules de cendre se déposent désormais et réagissent aux pages tournées. 40 000 particules, toujours 120 ips.",
+          "جزيئات الرماد تستقرّ الآن على الأسطح وتتفاعل مع تقليب الصفحات. 40 ألف جزيء وما زلنا عند 120 إطارًا في الثانية.",
+        ),
+      },
+      {
+        id: "note_ash_2",
+        date: "2026-07-09",
+        text: L(
+          "Wing B of the Archive is fully playable. First external playtest: 14 players, 3 cried, 1 asked for a map.",
+          "L'aile B de l'Archive est entièrement jouable. Premier playtest externe : 14 joueurs, 3 ont pleuré, 1 a demandé une carte.",
+          "الجناح B من الأرشيف قابل للّعب بالكامل. أول اختبار خارجي: 14 لاعبًا، بكى 3، وطلب واحد خريطة.",
+        ),
+      },
+      {
+        id: "note_ash_1",
+        date: "2026-05-15",
+        text: L(
+          "Production officially started. We rebuilt the restoration tool from scratch — it finally feels like handling paper.",
+          "Production officiellement lancée. L'outil de restauration a été refait de zéro — on a enfin l'impression de manipuler du papier.",
+          "بدأ الإنتاج رسميًّا. أعدنا بناء أداة الترميم من الصفر — وأخيرًا صار الإحساس كأنك تمسك ورقًا.",
+        ),
+      },
+    ],
+    engine: "Unreal Engine 5",
+    accent: "#ff7a45",
+    featured: true,
+    upcoming: true,
+    order: 10,
+    updatedAt: SEED_DATE,
+  },
+  {
+    id: "game_glasshouse",
+    slug: "glasshouse-protocol",
+    title: "Glasshouse Protocol",
+    ...gameMedia("glasshouse-protocol"),
+    tagline: L("Two players. One greenhouse. A station that is running out of air.", "Deux joueurs. Une serre. Une station qui manque d'air.", "لاعبان، دفيئة واحدة، ومحطة ينفد منها الهواء."),
+    summary: L(
+      "A co-op systems puzzle about keeping a greenhouse alive on a failing space station.",
+      "Un puzzle coopératif de systèmes : garder une serre en vie sur une station spatiale en panne.",
+      "لعبة ألغاز تعاونية عن إبقاء دفيئة حيّة في محطة فضائية تتداعى.",
+    ),
+    description: L(
+      "One of you tends the plants. The other keeps the station breathing. Neither of you can see the other's screen. Glasshouse Protocol is about communication under pressure — and the strange tenderness of growing things in a place that wants them dead.",
+      "L'un s'occupe des plantes. L'autre fait respirer la station. Aucun ne voit l'écran de l'autre. Glasshouse Protocol parle de communication sous pression — et de l'étrange tendresse de faire pousser la vie là où tout veut la tuer.",
+      "أحدكما يرعى النباتات، والآخر يُبقي المحطة تتنفّس، ولا يرى أيٌّ منكما شاشة الآخر. Glasshouse Protocol عن التواصل تحت الضغط — وعن الحنان الغريب في إنماء الحياة في مكان يريد موتها.",
+    ),
+    genre: L("Co-op · Systems", "Coop · Systèmes", "تعاونية · أنظمة"),
+    platforms: ["pc", "switch"],
+    status: "prototype",
+    estimatedRelease: L("2028", "2028", "2028"),
+    progress: 28,
+    links: [{ kind: "discord", url: "https://discord.com/" }],
+    features: [
+      L("Asymmetric online and local co-op", "Coop asymétrique en ligne et en local", "لعب تعاوني غير متماثل عبر الإنترنت ومحليًّا"),
+      L("Procedural plant growth", "Croissance procédurale des plantes", "نموّ إجرائي للنباتات"),
+    ],
+    devNotes: [
+      {
+        id: "note_glass_1",
+        date: "2026-08-02",
+        text: L(
+          "Prototype #4 works: players started naming the tomatoes. That's the signal we were waiting for.",
+          "Le prototype n°4 fonctionne : les joueurs ont commencé à nommer les tomates. C'est le signal qu'on attendait.",
+          "النموذج الرابع ينجح: بدأ اللاعبون يسمّون حبّات الطماطم. هذه هي الإشارة التي كنّا ننتظرها.",
+        ),
+      },
+    ],
+    engine: "Godot",
+    accent: "#7dffb2",
+    featured: false,
+    upcoming: true,
+    order: 11,
+    updatedAt: SEED_DATE,
+  },
+  {
+    id: "game_ninedoors",
+    slug: "nine-doors-down",
+    title: "Nine Doors Down",
+    ...gameMedia("nine-doors-down"),
+    tagline: L("A building that grows one floor deeper every night.", "Un immeuble qui s'enfonce d'un étage chaque nuit.", "مبنى يزداد عمقًا طابقًا كل ليلة."),
+    summary: L(
+      "A quiet VR mystery in an apartment block that keeps growing downward.",
+      "Un mystère VR feutré dans un immeuble qui ne cesse de s'enfoncer.",
+      "لغز هادئ في الواقع الافتراضي داخل عمارة سكنية لا تكفّ عن النموّ نحو الأسفل.",
+    ),
+    description: L(
+      "Knock on nine doors. Behind each one, a neighbour who shouldn't be there — and a floor that didn't exist yesterday. Still very much in the dark; here is what we can show.",
+      "Frappez à neuf portes. Derrière chacune, un voisin qui ne devrait pas être là — et un étage qui n'existait pas hier. Encore très obscur ; voici ce que nous pouvons montrer.",
+      "اطرق تسعة أبواب. خلف كل باب جارٌ لا ينبغي أن يكون هناك — وطابق لم يكن موجودًا بالأمس. ما زال المشروع في العتمة؛ هذا ما يمكننا عرضه.",
+    ),
+    genre: L("VR · Mystery", "VR · Mystère", "واقع افتراضي · غموض"),
+    platforms: ["quest", "visionpro"],
+    status: "concept",
+    estimatedRelease: L("To be announced", "À annoncer", "يُعلن لاحقًا"),
+    progress: 12,
+    links: [],
+    features: [],
+    devNotes: [
+      {
+        id: "note_nine_1",
+        date: "2026-06-20",
+        text: L(
+          "Greybox of floors −1 to −3. Sound design does 80% of the fear. We're keeping it that way.",
+          "Greybox des étages −1 à −3. Le design sonore fait 80 % de la peur. On garde ça comme ça.",
+          "نموذج أوّلي للطوابق من −1 إلى −3. التصميم الصوتي يصنع 80% من الخوف، وسنبقيه كذلك.",
+        ),
+      },
+    ],
+    engine: "Unity",
+    accent: "#a78bfa",
+    featured: false,
+    upcoming: true,
+    order: 12,
+    updatedAt: SEED_DATE,
+  },
+];

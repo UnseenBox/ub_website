@@ -1,0 +1,122 @@
+import type { Service } from "@/types/content";
+import { L } from "./helpers";
+
+export const services: Service[] = [
+  {
+    id: "svc_games",
+    order: 1,
+    glyph: "controller",
+    title: L("Game Development", "Développement de jeux", "تطوير الألعاب"),
+    kicker: L("From first prototype to store page.", "Du premier prototype à la page du store.", "من النموذج الأول حتى صفحة المتجر."),
+    description: L(
+      "Full-cycle development of original or commissioned games — design, art direction, engineering, sound, porting and launch. We can lead the whole project or plug into your team.",
+      "Développement complet de jeux originaux ou commandés — design, direction artistique, programmation, son, portage et lancement. Nous pouvons piloter tout le projet ou rejoindre votre équipe.",
+      "تطوير كامل لألعاب أصلية أو بطلب — التصميم، الإدارة الفنية، البرمجة، الصوت، النقل إلى المنصّات والإطلاق. يمكننا قيادة المشروع كله أو الانضمام إلى فريقك.",
+    ),
+    deliverables: [L("Unity & Godot", "Unity & Godot", "Unity و Godot"), L("PC, console, mobile", "PC, console, mobile", "حاسوب، منصّات، هاتف"), L("Co-development", "Co-développement", "تطوير مشترك")],
+  },
+  {
+    id: "svc_edu",
+    order: 2,
+    glyph: "book",
+    title: L("Educational Games", "Jeux éducatifs", "الألعاب التعليمية"),
+    kicker: L("Learning that doesn't feel like homework.", "Apprendre sans que ça ressemble à des devoirs.", "تعلّم لا يشبه الواجب المنزلي."),
+    description: L(
+      "We co-design with teachers and learners so the mechanic is the lesson. Curriculum-aligned, measurable, and genuinely fun to play twice.",
+      "Nous co-concevons avec enseignants et apprenants pour que la mécanique soit la leçon. Aligné sur les programmes, mesurable, et vraiment amusant à rejouer.",
+      "نصمّم بالشراكة مع المعلّمين والمتعلّمين لتصبح آلية اللعب هي الدرس نفسه. متوافق مع المناهج، قابل للقياس، وممتع حقًّا عند إعادة اللعب.",
+    ),
+    deliverables: [L("Curriculum mapping", "Alignement pédagogique", "مواءمة المناهج"), L("Classroom pilots", "Pilotes en classe", "تجارب صفّية"), L("Learning analytics", "Analyse d'apprentissage", "تحليلات التعلّم")],
+  },
+  {
+    id: "svc_serious",
+    order: 3,
+    glyph: "target",
+    title: L("Serious Games & Simulation", "Serious games & simulation", "الألعاب الجادّة والمحاكاة"),
+    kicker: L("Rehearse the moments that matter.", "Répéter les moments qui comptent.", "تدرّب على اللحظات الحاسمة."),
+    description: L(
+      "Training simulations for safety, health and industry. We turn procedures and hard decisions into scenarios people can practise without real-world risk.",
+      "Simulations de formation pour la sécurité, la santé et l'industrie. Nous transformons procédures et décisions difficiles en scénarios que l'on peut pratiquer sans risque.",
+      "محاكاة تدريبية للسلامة والصحة والصناعة. نحوّل الإجراءات والقرارات الصعبة إلى سيناريوهات يمكن التدرّب عليها دون مخاطر حقيقية.",
+    ),
+    deliverables: [L("Scenario design", "Conception de scénarios", "تصميم السيناريوهات"), L("Assessment logic", "Logique d'évaluation", "منطق التقييم"), L("LMS / SCORM", "LMS / SCORM", "LMS / SCORM")],
+  },
+  {
+    id: "svc_vr",
+    order: 4,
+    glyph: "visor",
+    title: L("VR Development", "Développement VR", "تطوير الواقع الافتراضي"),
+    kicker: L("Presence, handled with care.", "La présence, avec précaution.", "حضور يُصنع بعناية."),
+    description: L(
+      "Comfortable, performant virtual reality for Quest, SteamVR and Vision Pro — games, training, virtual visits and location-based experiences.",
+      "Réalité virtuelle confortable et performante pour Quest, SteamVR et Vision Pro — jeux, formation, visites virtuelles et expériences en lieu.",
+      "واقع افتراضي مريح وعالي الأداء لـ Quest و SteamVR و Vision Pro — ألعاب، تدريب، زيارات افتراضية وتجارب في المواقع.",
+    ),
+    deliverables: [L("Standalone & PC VR", "VR autonome & PC", "واقع افتراضي مستقل وعلى الحاسوب"), L("Hand tracking", "Suivi des mains", "تتبّع اليدين"), L("Comfort testing", "Tests de confort", "اختبارات الراحة")],
+  },
+  {
+    id: "svc_ar",
+    order: 5,
+    glyph: "lens",
+    title: L("AR Development", "Développement AR", "تطوير الواقع المعزّز"),
+    kicker: L("Layers on the real world.", "Des couches sur le monde réel.", "طبقات فوق العالم الحقيقي."),
+    description: L(
+      "Mobile and web AR that respects the place it lives in — museum guides, heritage trails, product stories and location games.",
+      "AR mobile et web qui respecte le lieu où elle vit — guides de musée, parcours patrimoniaux, récits produit et jeux géolocalisés.",
+      "واقع معزّز على الهاتف والويب يحترم المكان الذي يعيش فيه — أدلّة متاحف، مسارات تراثية، قصص منتجات وألعاب مرتبطة بالموقع.",
+    ),
+    deliverables: [L("ARKit / ARCore", "ARKit / ARCore", "ARKit / ARCore"), L("WebXR", "WebXR", "WebXR"), L("Image & place anchors", "Ancrages image & lieu", "مراسٍ للصور والأماكن")],
+  },
+  {
+    id: "svc_install",
+    order: 6,
+    glyph: "installation",
+    title: L("Interactive Installations", "Installations interactives", "المنشآت التفاعلية"),
+    kicker: L("Rooms that respond.", "Des salles qui répondent.", "قاعات تستجيب."),
+    description: L(
+      "Physical-digital work for festivals, museums and brands: projection, sensors, light and sound that react to bodies in a room.",
+      "Œuvres physico-numériques pour festivals, musées et marques : projection, capteurs, lumière et son qui réagissent aux corps.",
+      "أعمال تمزج المادي بالرقمي للمهرجانات والمتاحف والعلامات التجارية: إسقاط ضوئي، حسّاسات، ضوء وصوت يتفاعلون مع الأجساد في المكان.",
+    ),
+    deliverables: [L("Projection mapping", "Projection mapping", "الإسقاط الضوئي"), L("Sensors & hardware", "Capteurs & matériel", "حسّاسات وعتاد"), L("On-site operation", "Exploitation sur site", "التشغيل في الموقع")],
+  },
+  {
+    id: "svc_3d",
+    order: 7,
+    glyph: "cube",
+    title: L("3D & Real-time Experiences", "Expériences 3D temps réel", "تجارب ثلاثية الأبعاد آنية"),
+    kicker: L("Worlds in a browser tab.", "Des mondes dans un onglet.", "عوالم داخل تبويب متصفّح."),
+    description: L(
+      "Real-time 3D for the web and desktop — configurators, virtual exhibitions, interactive stories and digital twins that load fast and look sharp.",
+      "3D temps réel pour le web et le desktop — configurateurs, expositions virtuelles, récits interactifs et jumeaux numériques rapides et nets.",
+      "رسوميات ثلاثية الأبعاد آنية للويب وسطح المكتب — أدوات تخصيص، معارض افتراضية، قصص تفاعلية ونسخ رقمية سريعة التحميل وحادّة المظهر.",
+    ),
+    deliverables: [L("WebGL / WebGPU", "WebGL / WebGPU", "WebGL / WebGPU"), L("Unreal & Unity", "Unreal & Unity", "Unreal و Unity"), L("Performance budgets", "Budgets de performance", "ميزانيات الأداء")],
+  },
+  {
+    id: "svc_gamification",
+    order: 8,
+    glyph: "spark",
+    title: L("Gamification", "Gamification", "التلعيب"),
+    kicker: L("Motivation without manipulation.", "Motiver sans manipuler.", "تحفيز بلا تلاعب."),
+    description: L(
+      "Game design thinking for products, campaigns and communities — honest progression systems that respect people's time.",
+      "Game design appliqué aux produits, campagnes et communautés — des systèmes de progression honnêtes qui respectent le temps des gens.",
+      "تفكير تصميم الألعاب للمنتجات والحملات والمجتمعات — أنظمة تقدّم صادقة تحترم وقت الناس.",
+    ),
+    deliverables: [L("Engagement design", "Design d'engagement", "تصميم التفاعل"), L("Reward economies", "Économies de récompense", "اقتصاديات المكافآت"), L("Playtesting", "Playtests", "اختبارات اللعب")],
+  },
+  {
+    id: "svc_proto",
+    order: 9,
+    glyph: "flask",
+    title: L("Rapid Prototyping", "Prototypage rapide", "النمذجة السريعة"),
+    kicker: L("Find out in two weeks, not two years.", "Savoir en deux semaines, pas en deux ans.", "اعرف خلال أسبوعين، لا خلال عامين."),
+    description: L(
+      "Short, intense sprints that turn an idea into something you can hold, test and pitch. Ideal before funding rounds or big commitments.",
+      "Des sprints courts et intenses qui transforment une idée en quelque chose que l'on peut tenir, tester et présenter. Idéal avant une levée ou un gros engagement.",
+      "دورات عمل قصيرة ومكثّفة تحوّل الفكرة إلى شيء يمكن الإمساك به واختباره وعرضه. مثالية قبل جولات التمويل أو الالتزامات الكبيرة.",
+    ),
+    deliverables: [L("Vertical slices", "Vertical slices", "شرائح عمودية قابلة للّعب"), L("Pitch builds", "Builds de pitch", "نسخ للعرض"), L("Tech feasibility", "Faisabilité technique", "دراسة الجدوى التقنية")],
+  },
+];
