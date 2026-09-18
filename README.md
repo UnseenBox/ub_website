@@ -74,7 +74,7 @@ so changes are live on the next request, with no redeploy. Rows edited straight 
 invalidation and only appear after the next admin save or redeploy — edit through `/admin` instead. In development the
 cache is persisted under `.next/dev/cache`; delete that folder if a page keeps serving a stale row.
 
-**Follow links:** the floating itch.io pill on every public page, and the follow band on the home and community pages,
+**Follow links:** the floating Instagram and itch.io pills on every public page, and the follow band on the home and community pages,
 are built from the social links in Admin → Studio & contact. A platform with no URL simply does not appear, and the
 band hides entirely when Instagram, YouTube and itch.io are all empty.
 

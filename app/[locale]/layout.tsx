@@ -2,7 +2,7 @@ import "../globals.css";
 
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
-import { FloatingItch } from "@/components/layout/floating-itch";
+import { FloatingLinks, type FloatingLink } from "@/components/layout/floating-links";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { MotionRoot } from "@/components/motion/motion-root";
@@ -57,7 +57,12 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const released = games.filter((game) => !game.upcoming);
   const upcoming = games.filter((game) => game.upcoming);
 
-  const itchUrl = studio.socials.find((social) => social.platform === "itch")?.url?.trim();
+  // Follow shortcuts pinned to the corner, from the links set in the admin.
+  const socialUrl = (platform: string) => studio.socials.find((s) => s.platform === platform)?.url?.trim();
+  const floatingLinks: FloatingLink[] = [
+    { kind: "instagram" as const, url: socialUrl("instagram"), label: dict.follow.instagram },
+    { kind: "itch" as const, url: socialUrl("itch"), label: dict.follow.floating },
+  ].filter((link): link is FloatingLink => Boolean(link.url));
 
   const previews: Partial<Record<NavKey, string>> = {
     home: released[0]?.poster,
@@ -90,9 +95,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           {children}
         </main>
         <SiteFooter locale={locale} dict={dict} studio={studio} />
-        {itchUrl && (
-          <FloatingItch url={itchUrl} label={dict.follow.floating} external={dict.a11y.externalLink} />
-        )}
+        <FloatingLinks links={floatingLinks} external={dict.a11y.externalLink} />
         <div className="grain" aria-hidden />
         <MotionRoot />
       </body>
