@@ -26,7 +26,6 @@ export function HeroField({ words }: { words: string[] }) {
     let cols = 0;
     let rows = 0;
     let energy = new Float32Array(0);
-    let seamRow = 0;
 
     const pointer = { x: -9999, y: -9999, lastMove: 0 };
     const light = { x: 0, y: 0 };
@@ -43,7 +42,6 @@ export function HeroField({ words }: { words: string[] }) {
       cols = Math.ceil(width / cell);
       rows = Math.ceil(height / cell);
       energy = new Float32Array(cols * rows);
-      seamRow = Math.round(rows * 0.62);
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       canvas.style.width = `${width}px`;
@@ -69,16 +67,13 @@ export function HeroField({ words }: { words: string[] }) {
       }
     };
 
-    const draw = (time: number) => {
+    const draw = () => {
       ctx.clearRect(0, 0, width, height);
-      const breathe = 0.5 + 0.5 * Math.sin(time / 1400);
       const size = cell - 3;
       for (let y = 0; y < rows; y++) {
-        const seamBoost = y === seamRow ? 0.08 + breathe * 0.1 : 0;
         for (let x = 0; x < cols; x++) {
           const i = y * cols + x;
-          const e = energy[i];
-          const v = e + (seamBoost && (x * 7) % 5 === 0 ? seamBoost : 0);
+          const v = energy[i];
           if (v < 0.02) continue;
           ctx.fillStyle = v > 0.72 ? `rgba(236,226,255,${v})` : `rgba(143,91,255,${Math.min(1, v * 0.95)})`;
           ctx.fillRect(x * cell + 1.5, y * cell + 1.5, size, size);
@@ -109,7 +104,7 @@ export function HeroField({ words }: { words: string[] }) {
       }
       const decay = Math.pow(0.93, dt / 16);
       for (let i = 0; i < energy.length; i++) energy[i] *= decay;
-      draw(time);
+      draw();
     };
 
     const onPointer = (event: PointerEvent) => {
@@ -129,7 +124,7 @@ export function HeroField({ words }: { words: string[] }) {
       inject(light.x, light.y, 160, 0.6);
       root.style.setProperty("--mx", `${light.x}px`);
       root.style.setProperty("--my", `${light.y}px`);
-      draw(0);
+      draw();
       return () => ro.disconnect();
     }
 

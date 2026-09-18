@@ -12,9 +12,8 @@ export function Hero({ locale, dict, foundedYear }: { locale: Locale; dict: Dict
     <section aria-labelledby="hero-title" className="relative isolate flex min-h-[100svh] flex-col overflow-hidden">
       <HeroField words={hero.hidden} />
 
-      {/* The lid seam: a line of light that opens across the void */}
+      {/* A soft pool of light across the middle of the void. */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-[62%] -z-10">
-        <div className="mx-auto h-px w-full origin-center animate-seam bg-gradient-to-r from-transparent via-uv-300 to-transparent [animation-delay:200ms]" />
         <div className="mx-auto h-24 w-3/4 -translate-y-1/2 animate-fade bg-[radial-gradient(50%_50%_at_50%_50%,rgb(143_91_255/0.28),transparent)] [animation-delay:600ms]" />
       </div>
 
