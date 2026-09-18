@@ -234,6 +234,8 @@ export interface StudioInfo {
   name: string;
   /** Custom wordmark/logo image. Empty falls back to the built-in mark. */
   logo?: string;
+  /** Full-width band at the foot of every page. Empty draws the name instead. */
+  footerImage?: string;
   foundedYear: string;
   email: string;
   pressEmail?: string;

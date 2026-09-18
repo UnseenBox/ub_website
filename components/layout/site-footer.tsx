@@ -5,6 +5,8 @@ import { NAV_ITEMS, SOCIAL_LABELS } from "@/lib/navigation";
 import type { StudioInfo } from "@/types/content";
 import { LinkButton } from "@/components/ui/link-button";
 import { ExternalIcon } from "@/components/ui/icons";
+import { SmartImage } from "@/components/ui/smart-image";
+import { resolveImageSrc } from "@/lib/images/drive";
 import { Brand } from "./brand";
 import { LanguageSwitcher } from "./language-switcher";
 import { StudioClock } from "./studio-clock";
@@ -12,6 +14,9 @@ import { StudioClock } from "./studio-clock";
 export function SiteFooter({ locale, dict, studio }: { locale: Locale; dict: Dictionary; studio: StudioInfo }) {
   const socials = studio.socials.filter((social) => social.url.trim());
   const year = new Date().getFullYear();
+  const footerImage = resolveImageSrc(studio.footerImage);
+  // The drawn fallback follows the studio name, so renaming the studio renames it.
+  const wordmark = studio.name.toUpperCase();
 
   return (
     <footer className="relative isolate overflow-hidden border-t border-line bg-void">
@@ -93,11 +98,17 @@ export function SiteFooter({ locale, dict, studio }: { locale: Locale; dict: Dic
         </div>
       </div>
 
-      {/* Wordmark */}
+      {/* Wordmark — an uploaded image when there is one, the drawn name otherwise */}
       <div aria-hidden className="group relative select-none overflow-hidden border-t border-line" dir="ltr">
-        <p className="font-display outline-text whitespace-nowrap px-[2vw] pt-[2vw] text-center text-[17.4vw] leading-[0.78] tracking-[-0.06em] transition-[color] duration-700 group-hover:text-uv-500/15">
-          UNSEENBOX
-        </p>
+        {footerImage ? (
+          <div className="relative aspect-[7/1] w-full">
+            <SmartImage src={studio.footerImage} alt="" sizes="100vw" className="object-contain" />
+          </div>
+        ) : (
+          <p className="font-display outline-text whitespace-nowrap px-[2vw] pt-[2vw] text-center text-[17.4vw] leading-[0.78] tracking-[-0.06em] transition-[color] duration-700 group-hover:text-uv-500/15">
+            {wordmark}
+          </p>
+        )}
         <span className="absolute inset-x-0 top-1/2 h-px origin-left scale-x-0 bg-uv-400 transition-transform duration-1000 ease-expo group-hover:scale-x-100" />
       </div>
 

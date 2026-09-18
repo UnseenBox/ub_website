@@ -53,6 +53,13 @@ export function StudioEditor({ initial }: { initial: StudioInfo }) {
           aspect="aspect-[3/1]"
           hint="Shown in the header and footer. Leave empty to use the built-in UnseenBox mark. A transparent PNG or SVG on a dark background works best."
         />
+        <ImageField
+          label="Footer band image"
+          value={studio.footerImage ?? ""}
+          onChange={(v) => set("footerImage", v)}
+          aspect="aspect-[7/1]"
+          hint="The wide strip at the very bottom of every page. Leave empty to draw the studio name as an outlined wordmark. A wide transparent PNG or SVG (about 7:1) fits best."
+        />
         <div className="grid gap-5 sm:grid-cols-2">
           <LocalizedInput label="City" value={studio.city} onChange={(v) => set("city", v)} />
           <LocalizedInput label="Country" value={studio.country} onChange={(v) => set("country", v)} />

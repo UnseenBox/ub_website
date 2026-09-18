@@ -84,6 +84,9 @@ uploads are not limited by the serverless request size. Accepted: JPEG, PNG, Web
 
 **Logo:** Admin → Studio & contact → *Website logo*. Empty falls back to the built-in vector mark.
 
+**Footer band:** Admin → Studio & contact → *Footer band image* replaces the outlined wordmark at the foot of every
+page. Empty draws the studio name instead. Roughly 7:1 fits the band; anything else is letterboxed rather than cropped.
+
 **Home page wording:** Admin → Studio & contact → *Home page* overrides the hero (channels, headline lines, paragraph,
 buttons) and every section label, heading and paragraph. Overrides live on the studio record as `home`
 (`lib/content/home-copy.ts` merges them over the locale dictionary); any field left empty keeps the built-in copy, and a

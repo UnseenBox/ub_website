@@ -128,6 +128,7 @@ const homeSchema = z.object({
 export const studioSchema = z.object({
   name: z.string().trim().min(1).max(60),
   logo: imageRef.optional(),
+  footerImage: imageRef.optional(),
   foundedYear: z.string().trim().max(12),
   email: z.email("A valid email is required"),
   pressEmail: z.union([z.literal(""), z.email()]).optional(),
