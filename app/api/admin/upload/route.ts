@@ -56,3 +56,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+/** Lets the admin UI show whether uploading is available before offering it. */
+export async function GET(): Promise<NextResponse> {
+  const session = await getAdminSession();
+  if (!session) return NextResponse.json({ enabled: false }, { status: 401 });
+  return NextResponse.json({ enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
+}

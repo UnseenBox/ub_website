@@ -1,10 +1,23 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import type { LocalizedString } from "@/types/content";
 import { extractDriveId, resolveImageSrc } from "@/lib/images/drive";
 import { SmartImage } from "@/components/ui/smart-image";
 import { cn } from "@/lib/utils";
+
+/**
+ * Whether Blob storage is connected. Asked once per page load and shared by
+ * every image field, so the upload button is only offered when it can work.
+ */
+let uploadProbe: Promise<boolean> | undefined;
+function uploadsEnabled(): Promise<boolean> {
+  uploadProbe ??= fetch("/api/admin/upload")
+    .then((response) => (response.ok ? response.json() : { enabled: false }))
+    .then((data: { enabled?: boolean }) => Boolean(data.enabled))
+    .catch(() => false);
+  return uploadProbe;
+}
 
 export const inputClass =
   "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/25";
@@ -216,6 +229,17 @@ export function ImageField({
   const id = useId();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [canUpload, setCanUpload] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void uploadsEnabled().then((enabled) => {
+      if (active) setCanUpload(enabled);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const resolved = resolveImageSrc(value);
   const drive = value ? extractDriveId(value) : null;
   const invalid = value.trim() !== "" && !resolved;
@@ -235,7 +259,12 @@ export function ImageField({
       });
       onChange(blob.url);
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Upload failed.");
+      const message = error instanceof Error ? error.message : "Upload failed.";
+      setUploadError(
+        /client token|501/i.test(message)
+          ? "Uploads need a Blob store: Vercel → Storage → Blob → Create, then redeploy. You can paste an image link instead."
+          : message,
+      );
     } finally {
       setUploading(false);
     }
@@ -267,24 +296,33 @@ export function ImageField({
           className={cn(inputClass, invalid && "border-red-400")}
         />
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <label
-            className={cn(
-              "cursor-pointer rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:border-violet-400",
-              uploading && "pointer-events-none opacity-60",
-            )}
-          >
-            {uploading ? "Uploading…" : "Upload image"}
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              disabled={uploading}
-              onChange={(e) => {
-                void handleFile(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          {canUpload === false ? (
+            <span
+              className="rounded-md border border-dashed border-zinc-300 px-3 py-1.5 text-sm text-zinc-500"
+              title="Create a Blob store in Vercel → Storage to enable uploads."
+            >
+              Uploads off — paste a link
+            </span>
+          ) : (
+            <label
+              className={cn(
+                "cursor-pointer rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:border-violet-400",
+                (uploading || canUpload === null) && "pointer-events-none opacity-60",
+              )}
+            >
+              {uploading ? "Uploading…" : "Upload image"}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                disabled={uploading || canUpload === null}
+                onChange={(e) => {
+                  void handleFile(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
           {value && (
             <button
               type="button"
