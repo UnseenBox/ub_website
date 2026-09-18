@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { z } from "zod";
-import { getStore } from "@/lib/content/store";
+import { addMessage } from "@/lib/content/mutations";
 import { isLocale } from "@/lib/i18n/config";
 import { newId } from "@/lib/utils";
 
@@ -15,7 +15,9 @@ export interface ContactState {
   values?: Partial<Record<ContactField, string>>;
 }
 
-export const TOPICS = ["game", "education", "xr", "installation", "press", "other"] as const;
+// Not exported: a "use server" module may only export async functions, and the
+// labels the form renders come from the locale dictionary, not from here.
+const TOPICS = ["game", "education", "xr", "installation", "press", "other"] as const;
 
 const schema = z.object({
   name: z.string().trim().min(1, "required").max(120),
@@ -68,16 +70,13 @@ export async function submitContact(_prev: ContactState, formData: FormData): Pr
 
   const localeValue = String(formData.get("locale") ?? "en");
   try {
-    const store = getStore();
-    const messages = await store.readMessages();
-    messages.unshift({
+    await addMessage({
       id: newId("msg"),
       ...parsed.data,
       locale: isLocale(localeValue) ? localeValue : "en",
       createdAt: new Date().toISOString(),
       read: false,
     });
-    await store.writeMessages(messages.slice(0, 1000));
     return { status: "success" };
   } catch (error) {
     console.error("[contact] Failed to store message:", error);

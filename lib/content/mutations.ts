@@ -1,100 +1,76 @@
 import "server-only";
 
 import { revalidatePath, updateTag } from "next/cache";
-import type { ContactMessage, Experience, Game, Service, SiteContent, StudioInfo } from "@/types/content";
+import type { ContactMessage, Experience, Game, Service, StudioInfo } from "@/types/content";
 import { CONTENT_TAG, getContentFresh } from "./queries";
 import { getStore } from "./store";
 
-export class ContentConflictError extends Error {}
+export { ContentConflictError } from "./store";
 
-/** Read → mutate → write → invalidate every public page. */
-async function update(mutator: (content: SiteContent) => void | Promise<void>) {
-  const content = await getContentFresh();
-  await mutator(content);
-  content.updatedAt = new Date().toISOString();
-  content.version = (content.version ?? 0) + 1;
-  await getStore().writeContent(content);
+/** Drops the cached copy of every public page after a write. */
+function invalidate() {
   updateTag(CONTENT_TAG);
   revalidatePath("/", "layout");
 }
 
-const upsert = <T extends { id: string }>(list: T[], item: T) => {
-  const index = list.findIndex((entry) => entry.id === item.id);
-  if (index === -1) list.push(item);
-  else list[index] = item;
-};
+async function write(operation: () => Promise<void>) {
+  await operation();
+  invalidate();
+}
 
 export async function saveGame(game: Game) {
-  await update((content) => {
-    if (content.games.some((g) => g.slug === game.slug && g.id !== game.id)) {
-      throw new ContentConflictError(`Another game already uses the slug "${game.slug}".`);
-    }
-    upsert(content.games, { ...game, updatedAt: new Date().toISOString() });
-  });
+  await write(() => getStore().saveGame(game));
 }
 
 export async function deleteGame(id: string) {
-  await update((content) => {
-    content.games = content.games.filter((g) => g.id !== id);
-  });
+  await write(() => getStore().deleteGame(id));
 }
 
 export async function saveService(service: Service) {
-  await update((content) => upsert(content.services, service));
+  await write(() => getStore().saveService(service));
 }
 
 export async function deleteService(id: string) {
-  await update((content) => {
-    content.services = content.services.filter((s) => s.id !== id);
-  });
+  await write(() => getStore().deleteService(id));
 }
 
+/** Swaps a service with its neighbour and renumbers the whole list. */
 export async function moveService(id: string, direction: -1 | 1) {
-  await update((content) => {
-    const sorted = [...content.services].sort((a, b) => a.order - b.order);
-    const index = sorted.findIndex((s) => s.id === id);
-    const target = index + direction;
-    if (index === -1 || target < 0 || target >= sorted.length) return;
-    [sorted[index], sorted[target]] = [sorted[target], sorted[index]];
-    content.services = sorted.map((service, i) => ({ ...service, order: i + 1 }));
-  });
+  const services = [...(await getContentFresh()).services].sort((a, b) => a.order - b.order);
+  const index = services.findIndex((service) => service.id === id);
+  const target = index + direction;
+  if (index === -1 || target < 0 || target >= services.length) return;
+  [services[index], services[target]] = [services[target], services[index]];
+  const renumbered = services.map((service, position) => ({ ...service, order: position + 1 }));
+  await write(() => getStore().saveServices(renumbered));
 }
 
 export async function saveExperience(experience: Experience) {
-  await update((content) => {
-    if (content.experiences.some((e) => e.slug === experience.slug && e.id !== experience.id)) {
-      throw new ContentConflictError(`Another entry already uses the slug "${experience.slug}".`);
-    }
-    upsert(content.experiences, experience);
-  });
+  await write(() => getStore().saveExperience(experience));
 }
 
 export async function deleteExperience(id: string) {
-  await update((content) => {
-    content.experiences = content.experiences.filter((e) => e.id !== id);
-  });
+  await write(() => getStore().deleteExperience(id));
 }
 
 export async function saveStudio(studio: StudioInfo) {
-  await update((content) => {
-    content.studio = studio;
-  });
+  await write(() => getStore().saveStudio(studio));
 }
 
 /* Messages are private and never part of the public cache. */
 
 export async function listMessages(): Promise<ContactMessage[]> {
-  return getStore().readMessages();
+  return getStore().listMessages();
+}
+
+export async function addMessage(message: ContactMessage) {
+  await getStore().addMessage(message);
 }
 
 export async function setMessageRead(id: string, read: boolean) {
-  const store = getStore();
-  const messages = await store.readMessages();
-  await store.writeMessages(messages.map((m) => (m.id === id ? { ...m, read } : m)));
+  await getStore().setMessageRead(id, read);
 }
 
 export async function deleteMessage(id: string) {
-  const store = getStore();
-  const messages = await store.readMessages();
-  await store.writeMessages(messages.filter((m) => m.id !== id));
+  await getStore().deleteMessage(id);
 }

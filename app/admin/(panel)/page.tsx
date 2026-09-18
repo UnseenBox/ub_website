@@ -21,8 +21,8 @@ export default async function DashboardPage() {
   ];
 
   const storageLabel = {
+    postgres: "Neon Postgres",
     file: "Local file (.data/content.json)",
-    redis: "Upstash Redis",
     readonly: "Not connected — read-only",
   }[store.kind];
 

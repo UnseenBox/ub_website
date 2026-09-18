@@ -27,6 +27,7 @@ Open http://localhost:3000 (redirects to your browser language) and http://local
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript (`next typegen` + `tsc`) |
 | `npm run art` | Regenerates the sample artwork in `public/media` |
+| `npm run db:check` | Verifies the Neon connection and prints row counts |
 
 ## Environment variables
 
@@ -36,30 +37,32 @@ Open http://localhost:3000 (redirects to your browser language) and http://local
 | `ADMIN_USERNAME` | yes | Single admin account |
 | `ADMIN_PASSWORD` | yes | Use a long passphrase |
 | `ADMIN_SESSION_SECRET` | production | ≥ 32 random chars. `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | production | Content storage on Vercel (`KV_REST_API_URL` / `KV_REST_API_TOKEN` also work) |
-| `CONTENT_KEY_PREFIX` | no | Namespace for Redis keys (default `unseenbox`) |
+| `DATABASE_URL` | production | Neon Postgres connection string (`POSTGRES_URL` / `NEON_DATABASE_URL` also work) |
 
 Credentials are only read on the server. They never reach client JavaScript.
 
 ## Deploying to Vercel
 
 1. Import the repository in Vercel (framework preset: Next.js).
-2. **Storage:** Vercel's filesystem is read-only, so connect a database for the admin to save to:
-   Project → Storage → Marketplace → **Upstash Redis** → Connect. The env vars are added automatically.
+2. **Database:** Vercel's filesystem is read-only, so connect Postgres for the admin to save to:
+   Project → Storage → Marketplace → **Neon** → Connect. `DATABASE_URL` is added automatically.
    Without it the site still works (it serves the seed content), but the admin runs in read-only mode.
 3. Add `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` and `NEXT_PUBLIC_SITE_URL`.
-4. Deploy. The first admin save copies the seed content into Redis; from then on Redis is the source of truth.
+4. Deploy. On its first query the site creates its tables and imports the seed content; from then on Neon is the
+   source of truth. Nothing to migrate by hand.
 
 ## Content & images
 
 **Architecture:** `types/content.ts` (model) → `data/seed/*` (initial content) → `lib/content/*` (storage, queries,
 mutations) → components → pages. Every editable string is a `{ en, fr, ar }` object; empty translations fall back to English.
 
-**Storage adapters** (`lib/content/store.ts`):
+**Storage adapters** (`lib/content/store.ts`), picked by environment:
 
-- `file` — local dev / self-hosting, writes `.data/content.json` and `.data/messages.json`
-- `redis` — Upstash REST API (no extra dependency)
-- `readonly` — Vercel without storage; seed content only
+- `postgres` — Neon, whenever `DATABASE_URL` is set. One row per game, service, archive entry and message;
+  localized text and short nested lists (links, dev notes, screenshots) live in JSONB columns. Schema in
+  `lib/db/schema.ts`, created and seeded on first use by `ensureReady()`.
+- `file` — local dev without a database, writes `.data/content.json` and `.data/messages.json`
+- `readonly` — deployed without a database; seed content only
 
 Public pages are statically generated and cached with a tag. Each admin save calls `updateTag` + `revalidatePath`,
 so changes are live on the next request, with no redeploy.

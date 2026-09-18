@@ -36,8 +36,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       <div className="min-w-0">
         {!store.writable && (
           <div role="status" className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-900">
-            <strong>Read-only mode.</strong> No storage is connected, so changes cannot be saved. Connect Upstash Redis
-            (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN) in your Vercel project and redeploy.
+            <strong>Read-only mode.</strong> No database is connected, so changes cannot be saved. Add a Neon Postgres
+            database (Vercel → Storage → Neon) so <code>DATABASE_URL</code> is set, then redeploy.
           </div>
         )}
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8">{children}</div>
