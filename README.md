@@ -84,6 +84,11 @@ uploads are not limited by the serverless request size. Accepted: JPEG, PNG, Web
 
 **Logo:** Admin → Studio & contact → *Website logo*. Empty falls back to the built-in vector mark.
 
+**Home page wording:** Admin → Studio & contact → *Home page* overrides the hero (channels, headline lines, paragraph,
+buttons) and every section label, heading and paragraph. Overrides live on the studio record as `home`
+(`lib/content/home-copy.ts` merges them over the locale dictionary); any field left empty keeps the built-in copy, and a
+translation left empty falls back to English like the rest of the site.
+
 **Google Drive images:** upload the file, set sharing to *Anyone with the link*, paste the share link into any image
 field. Links are normalised to `lh3.googleusercontent.com/d/<id>` (`lib/images/drive.ts`), then optimised by
 `next/image` (AVIF/WebP, responsive sizes, 30-day CDN cache). The admin has a link tester under **Images guide**.

@@ -101,6 +101,30 @@ export const experienceSchema = z.object({
 const belief = z.object({ id, title: localizedRequired(120), text: localized(400) });
 const milestone = z.object({ id, year: z.string().trim().min(1).max(12), title: localizedRequired(120), text: localized(400) });
 
+/** Home-page overrides. Every field may be blank: blank means "use the built-in copy". */
+const homeSchema = z.object({
+  heroChannels: z.array(localized(60)).max(4),
+  heroLines: z.array(localized(60)).max(4),
+  heroIntro: localized(600),
+  heroCtaPrimary: localized(40),
+  heroCtaSecondary: localized(40),
+  heroScroll: localized(60),
+  manifestoLabel: localized(40),
+  showcaseLabel: localized(40),
+  showcaseTitle: localized(120),
+  upcomingLabel: localized(40),
+  upcomingTitle: localized(120),
+  upcomingIntro: localized(400),
+  servicesLabel: localized(40),
+  servicesTitle: localized(120),
+  servicesIntro: localized(400),
+  archiveLabel: localized(40),
+  archiveTitle: localized(120),
+  archiveIntro: localized(400),
+  studioLabel: localized(40),
+  studioTitle: localized(160),
+});
+
 export const studioSchema = z.object({
   name: z.string().trim().min(1).max(60),
   logo: imageRef.optional(),
@@ -133,6 +157,7 @@ export const studioSchema = z.object({
     .max(SOCIAL_PLATFORMS.length)
     .transform((list) => list.filter((s) => s.url)),
   availability: localized(160),
+  home: homeSchema.optional(),
 });
 
 export type GameInput = z.input<typeof gameSchema>;

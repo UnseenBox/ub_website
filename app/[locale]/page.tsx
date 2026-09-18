@@ -10,6 +10,7 @@ import { SignalCard } from "@/components/games/signal-card";
 import { ArchiveStrip } from "@/components/experiences/archive-strip";
 import { SectionLabel } from "@/components/ui/section-label";
 import { getContent } from "@/lib/content/queries";
+import { mergeHomeCopy } from "@/lib/content/home-copy";
 import { toArchiveItem, toServiceItem, toShowcaseItem, toSignalItem } from "@/lib/content/present";
 import { isLocale, localePath, t } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
@@ -32,8 +33,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
 
-  const [dict, content] = await Promise.all([getDictionary(locale), getContent()]);
+  const [builtIn, content] = await Promise.all([getDictionary(locale), getContent()]);
   const { studio } = content;
+  // Home-page wording an editor has changed in the admin wins over the built-in copy.
+  const dict = mergeHomeCopy(builtIn, studio, locale);
   const games = [...content.games].sort((a, b) => a.order - b.order);
   const released = games.filter((game) => !game.upcoming);
   const featured = released.filter((game) => game.featured);

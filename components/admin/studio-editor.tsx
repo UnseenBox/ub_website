@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { saveStudioAction } from "@/app/admin/actions";
 import { emptyLocalized } from "@/lib/content/factories";
+import { emptyHomeCopy } from "@/lib/content/home-copy";
 import { newId } from "@/lib/utils";
-import { SOCIAL_PLATFORMS, type StudioInfo } from "@/types/content";
+import { SOCIAL_PLATFORMS, type HomeCopy, type LocalizedString, type StudioInfo } from "@/types/content";
 import { EditorShell } from "./editor-shell";
 import { Card, ImageField, ListEditor, LocalizedInput, TextInput } from "./fields";
 
@@ -16,6 +17,11 @@ const SOCIAL_LABELS: Record<string, string> = {
 export function StudioEditor({ initial }: { initial: StudioInfo }) {
   const [studio, setStudio] = useState<StudioInfo>(initial);
   const set = <K extends keyof StudioInfo>(key: K, value: StudioInfo[K]) => setStudio((s) => ({ ...s, [key]: value }));
+
+  // Home-page overrides: blank fields fall back to the built-in wording.
+  const home = studio.home ?? emptyHomeCopy();
+  const setHome = <K extends keyof HomeCopy>(key: K, value: HomeCopy[K]) =>
+    set("home", { ...home, [key]: value });
 
   const socialUrl = (platform: string) => studio.socials.find((s) => s.platform === platform)?.url ?? "";
   const setSocial = (platform: (typeof SOCIAL_PLATFORMS)[number], url: string) =>
@@ -75,6 +81,70 @@ export function StudioEditor({ initial }: { initial: StudioInfo }) {
         <LocalizedInput label="Introduction" required multiline rows={8} value={studio.intro} onChange={(v) => set("intro", v)} hint="First paragraph is the lede. Separate paragraphs with an empty line." />
         <LocalizedInput label="Approach" multiline rows={5} value={studio.approach} onChange={(v) => set("approach", v)} />
         <LocalizedInput label="Ambition" multiline rows={4} value={studio.ambition} onChange={(v) => set("ambition", v)} />
+      </Card>
+
+      <Card
+        title="Home page"
+        description="The wording on the home page. Leave a field empty to keep the built-in text for that language."
+      >
+        <ListEditor
+          label="Hero channels (the three lines above the title)"
+          items={home.heroChannels}
+          onChange={(v) => setHome("heroChannels", v)}
+          create={() => emptyLocalized()}
+          addLabel="Add channel"
+          hint="Shown as CH.01, CH.02, CH.03. Add up to four."
+          render={(value: LocalizedString, update, i) => (
+            <LocalizedInput label={`Channel ${i + 1}`} value={value} onChange={update} />
+          )}
+        />
+        <ListEditor
+          label="Hero headline (one entry per line)"
+          items={home.heroLines}
+          onChange={(v) => setHome("heroLines", v)}
+          create={() => emptyLocalized()}
+          addLabel="Add line"
+          hint="The last line is highlighted, e.g. “Every world” / “begins” / “unseen.”"
+          render={(value: LocalizedString, update, i) => (
+            <LocalizedInput label={`Line ${i + 1}`} value={value} onChange={update} />
+          )}
+        />
+        <LocalizedInput label="Hero paragraph" multiline rows={3} value={home.heroIntro} onChange={(v) => setHome("heroIntro", v)} />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <LocalizedInput label="Primary button" value={home.heroCtaPrimary} onChange={(v) => setHome("heroCtaPrimary", v)} />
+          <LocalizedInput label="Secondary button" value={home.heroCtaSecondary} onChange={(v) => setHome("heroCtaSecondary", v)} />
+        </div>
+        <LocalizedInput label="Scroll hint" value={home.heroScroll} onChange={(v) => setHome("heroScroll", v)} />
+
+        <LocalizedInput label="Manifesto section label" value={home.manifestoLabel} onChange={(v) => setHome("manifestoLabel", v)} hint="The manifesto text itself is under “About the studio”." />
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <LocalizedInput label="Games section label" value={home.showcaseLabel} onChange={(v) => setHome("showcaseLabel", v)} />
+          <LocalizedInput label="Games section heading" value={home.showcaseTitle} onChange={(v) => setHome("showcaseTitle", v)} />
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <LocalizedInput label="Upcoming section label" value={home.upcomingLabel} onChange={(v) => setHome("upcomingLabel", v)} />
+          <LocalizedInput label="Upcoming section heading" value={home.upcomingTitle} onChange={(v) => setHome("upcomingTitle", v)} />
+        </div>
+        <LocalizedInput label="Upcoming section paragraph" multiline rows={2} value={home.upcomingIntro} onChange={(v) => setHome("upcomingIntro", v)} />
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <LocalizedInput label="Services section label" value={home.servicesLabel} onChange={(v) => setHome("servicesLabel", v)} />
+          <LocalizedInput label="Services section heading" value={home.servicesTitle} onChange={(v) => setHome("servicesTitle", v)} />
+        </div>
+        <LocalizedInput label="Services section paragraph" multiline rows={2} value={home.servicesIntro} onChange={(v) => setHome("servicesIntro", v)} />
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <LocalizedInput label="Archive section label" value={home.archiveLabel} onChange={(v) => setHome("archiveLabel", v)} />
+          <LocalizedInput label="Archive section heading" value={home.archiveTitle} onChange={(v) => setHome("archiveTitle", v)} />
+        </div>
+        <LocalizedInput label="Archive section paragraph" multiline rows={2} value={home.archiveIntro} onChange={(v) => setHome("archiveIntro", v)} />
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <LocalizedInput label="Studio teaser label" value={home.studioLabel} onChange={(v) => setHome("studioLabel", v)} />
+          <LocalizedInput label="Studio teaser heading" value={home.studioTitle} onChange={(v) => setHome("studioTitle", v)} />
+        </div>
       </Card>
 
       <Card title="Beliefs">

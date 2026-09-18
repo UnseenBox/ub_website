@@ -198,6 +198,38 @@ export interface Milestone {
   text: LocalizedString;
 }
 
+/**
+ * Editable copy for the home page's editorial text.
+ *
+ * Every field is optional: an empty value falls back to the built-in wording
+ * in the locale dictionaries, so the page never renders a blank heading while
+ * a translation is still being written.
+ */
+export interface HomeCopy {
+  /** The three channel labels above the hero title. */
+  heroChannels: LocalizedString[];
+  /** The hero headline, one entry per line. */
+  heroLines: LocalizedString[];
+  heroIntro: LocalizedString;
+  heroCtaPrimary: LocalizedString;
+  heroCtaSecondary: LocalizedString;
+  heroScroll: LocalizedString;
+  manifestoLabel: LocalizedString;
+  showcaseLabel: LocalizedString;
+  showcaseTitle: LocalizedString;
+  upcomingLabel: LocalizedString;
+  upcomingTitle: LocalizedString;
+  upcomingIntro: LocalizedString;
+  servicesLabel: LocalizedString;
+  servicesTitle: LocalizedString;
+  servicesIntro: LocalizedString;
+  archiveLabel: LocalizedString;
+  archiveTitle: LocalizedString;
+  archiveIntro: LocalizedString;
+  studioLabel: LocalizedString;
+  studioTitle: LocalizedString;
+}
+
 export interface StudioInfo {
   name: string;
   /** Custom wordmark/logo image. Empty falls back to the built-in mark. */
@@ -221,6 +253,8 @@ export interface StudioInfo {
   timeline: Milestone[];
   socials: SocialLink[];
   availability: LocalizedString;
+  /** Overrides for the home page. Absent means the built-in copy is used. */
+  home?: HomeCopy;
 }
 
 /* ------------------------------------------------------------------ */
