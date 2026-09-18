@@ -48,8 +48,10 @@ Credentials are only read on the server. They never reach client JavaScript.
 2. **Database:** Vercel's filesystem is read-only, so connect Postgres for the admin to save to:
    Project → Storage → Marketplace → **Neon** → Connect. `DATABASE_URL` is added automatically.
    Without it the site still works (it serves the seed content), but the admin runs in read-only mode.
-3. **Image uploads (optional):** Project → Storage → **Blob** → Create. `BLOB_READ_WRITE_TOKEN` is added automatically
-   and the admin's "Upload image" button starts working. Google Drive links keep working either way.
+3. **Image uploads (optional):** Project → Storage → **Blob** → Create, and choose **public** access — a private store
+   cannot serve images to visitors, and uploads fail with "Cannot use public access on a private store".
+   `BLOB_READ_WRITE_TOKEN` is added automatically and the admin's "Upload image" button starts working.
+   Google Drive links keep working either way.
 4. Add `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` and `NEXT_PUBLIC_SITE_URL`.
 5. Deploy. On its first query the site creates its tables and imports the seed content; from then on Neon is the
    source of truth. Nothing to migrate by hand.

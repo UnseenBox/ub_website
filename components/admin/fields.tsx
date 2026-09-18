@@ -275,9 +275,11 @@ export function ImageField({
     } catch (error) {
       const message = error instanceof Error ? error.message : "Upload failed.";
       setUploadError(
-        /client token|501/i.test(message)
-          ? "Uploads need a Blob store: Vercel → Storage → Blob → Create, then redeploy. You can paste an image link instead."
-          : message,
+        /private store|private access/i.test(message)
+          ? "Your Blob store is private, so uploads can't be shown on the website. Create a Blob store with public access in Vercel → Storage and connect it instead."
+          : /client token|501/i.test(message)
+            ? "Uploads need a Blob store: Vercel → Storage → Blob → Create, then redeploy. You can paste an image link instead."
+            : message,
       );
     } finally {
       setUploading(false);
