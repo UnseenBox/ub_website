@@ -65,7 +65,9 @@ mutations) → components → pages. Every editable string is a `{ en, fr, ar }`
 - `readonly` — deployed without a database; seed content only
 
 Public pages are statically generated and cached with a tag. Each admin save calls `updateTag` + `revalidatePath`,
-so changes are live on the next request, with no redeploy.
+so changes are live on the next request, with no redeploy. Rows edited straight in Neon's SQL editor bypass that
+invalidation and only appear after the next admin save or redeploy — edit through `/admin` instead. In development the
+cache is persisted under `.next/dev/cache`; delete that folder if a page keeps serving a stale row.
 
 **Google Drive images:** upload the file, set sharing to *Anyone with the link*, paste the share link into any image
 field. Links are normalised to `lh3.googleusercontent.com/d/<id>` (`lib/images/drive.ts`), then optimised by
