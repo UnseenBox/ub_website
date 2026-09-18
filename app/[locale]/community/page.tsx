@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { ReviewForm } from "@/components/community/review-form";
 import { Stars } from "@/components/community/stars";
 import { StoreLinks } from "@/components/games/store-links";
+import { FollowCta } from "@/components/layout/follow-cta";
 import { PageIntro } from "@/components/ui/page-intro";
 import { SectionLabel } from "@/components/ui/section-label";
-import { getApprovedReviews, getGames, getRatings } from "@/lib/content/queries";
+import { getApprovedReviews, getGames, getRatings, getStudio } from "@/lib/content/queries";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { buildMetadata } from "@/lib/seo";
@@ -27,11 +28,12 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/communit
 export default async function CommunityPage({ params }: PageProps<"/[locale]/community">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  const [dict, games, reviews, ratings] = await Promise.all([
+  const [dict, games, reviews, ratings, studio] = await Promise.all([
     getDictionary(locale),
     getGames(),
     getApprovedReviews(),
     getRatings(),
+    getStudio(),
   ]);
 
   const copy = dict.community;
@@ -121,6 +123,8 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
           />
         </div>
       </section>
+
+      <FollowCta socials={studio.socials} copy={{ ...dict.follow, externalLink: dict.a11y.externalLink }} index="03" />
     </>
   );
 }

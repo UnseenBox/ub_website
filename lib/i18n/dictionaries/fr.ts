@@ -221,6 +221,15 @@ const fr: Dictionary = {
     studioReply: "Réponse d'UnseenBox",
     playCta: "Y jouer",
   },
+  follow: {
+    label: "Restez proches",
+    title: "Suivez le studio.",
+    intro: "Travaux en cours, dates de sortie et quelques regards dans la boîte — en avant-première, sans filtre.",
+    instagram: "Suivre sur Instagram",
+    youtube: "S'abonner sur YouTube",
+    itch: "Jouer sur itch.io",
+    floating: "Nos jeux sur itch.io",
+  },
   footer: {
     closing: "Certains mondes sont encore dans la boîte.",
     cta: "Ouvrons-en un ensemble",

@@ -64,3 +64,36 @@ export function LogoMark({ className }: IconProps) {
     </svg>
   );
 }
+
+/* Social marks. Simplified glyphs, not the brands' official logo files. */
+
+export function InstagramIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden className={cn(base, className)}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function YoutubeIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden className={cn(base, className)}>
+      <rect x="2.5" y="5" width="19" height="14" rx="4" />
+      <path d="M10.4 9.3v5.4l4.6-2.7z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Stands in for itch.io: a controller, not the brand's logo. */
+export function ControllerIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden className={cn(base, className)}>
+      <path d="M7.5 7h9a4.5 4.5 0 0 1 4.4 3.6l.8 4a3.4 3.4 0 0 1-6.2 2.5L14.8 16H9.2l-.7 1.1a3.4 3.4 0 0 1-6.2-2.5l.8-4A4.5 4.5 0 0 1 7.5 7Z" />
+      <path d="M7.4 10.8v2.4M6.2 12h2.4" strokeLinecap="round" />
+      <circle cx="16" cy="11.4" r="1" fill="currentColor" stroke="none" />
+      <circle cx="17.8" cy="13.4" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

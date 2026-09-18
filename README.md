@@ -74,6 +74,10 @@ so changes are live on the next request, with no redeploy. Rows edited straight 
 invalidation and only appear after the next admin save or redeploy — edit through `/admin` instead. In development the
 cache is persisted under `.next/dev/cache`; delete that folder if a page keeps serving a stale row.
 
+**Follow links:** the floating itch.io pill on every public page, and the follow band on the home and community pages,
+are built from the social links in Admin → Studio & contact. A platform with no URL simply does not appear, and the
+band hides entirely when Instagram, YouTube and itch.io are all empty.
+
 **Community reviews:** visitors rate a game 1–5 and write a review at `/community`. Submissions are stored with
 `status: "pending"` and stay invisible until approved under **Admin → Reviews**, where they can also be answered publicly
 or deleted. Approved ratings feed the averages shown on the games list, each game page and the community page.

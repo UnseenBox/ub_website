@@ -221,6 +221,15 @@ const ar: Dictionary = {
     studioReply: "رد UnseenBox",
     playCta: "العب الآن",
   },
+  follow: {
+    label: "ابقَ قريبًا",
+    title: "تابع الاستوديو.",
+    intro: "أعمال قيد التطوير، ومواعيد الإصدار، ولمحات من داخل الصندوق — أولًا وبلا تنميق.",
+    instagram: "تابعنا على إنستغرام",
+    youtube: "اشترك في يوتيوب",
+    itch: "العب على itch.io",
+    floating: "ألعابنا على itch.io",
+  },
   footer: {
     closing: "بعض العوالم لا تزال داخل الصندوق.",
     cta: "افتح واحدًا معنا",

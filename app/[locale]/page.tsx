@@ -6,6 +6,7 @@ import { Manifesto } from "@/components/home/manifesto";
 import { WorldsShowcase } from "@/components/home/worlds-showcase";
 import { ServicesIndex } from "@/components/home/services-index";
 import { StudioTeaser } from "@/components/home/studio-teaser";
+import { FollowCta } from "@/components/layout/follow-cta";
 import { SignalCard } from "@/components/games/signal-card";
 import { ArchiveStrip } from "@/components/experiences/archive-strip";
 import { SectionLabel } from "@/components/ui/section-label";
@@ -145,6 +146,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       <div className="border-t border-line">
         <StudioTeaser locale={locale} dict={dict} studio={studio} image={released[0]?.screenshots[2]} />
       </div>
+
+      <FollowCta socials={studio.socials} copy={{ ...dict.follow, externalLink: dict.a11y.externalLink }} index="06" />
     </>
   );
 }

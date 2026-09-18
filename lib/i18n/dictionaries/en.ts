@@ -223,6 +223,15 @@ const en = {
     studioReply: "UnseenBox replied",
     playCta: "Play it",
   },
+  follow: {
+    label: "Stay close",
+    title: "Follow the studio.",
+    intro: "Work in progress, release dates and the occasional look inside the box — first, and unfiltered.",
+    instagram: "Follow on Instagram",
+    youtube: "Subscribe on YouTube",
+    itch: "Play on itch.io",
+    floating: "Our games on itch.io",
+  },
   footer: {
     closing: "Some worlds are still inside the box.",
     cta: "Open one with us",
