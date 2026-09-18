@@ -199,22 +199,47 @@ export function LocalizedInput({
   );
 }
 
-/** URL/Drive link input with live preview. */
+/** Image reference input: upload a file, or paste a Drive/URL link. */
 export function ImageField({
   label,
   value,
   onChange,
   aspect = "aspect-video",
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   aspect?: string;
+  hint?: string;
 }) {
   const id = useId();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const resolved = resolveImageSrc(value);
   const drive = value ? extractDriveId(value) : null;
   const invalid = value.trim() !== "" && !resolved;
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      // Sent straight from the browser to Blob storage, so large images are
+      // not limited by the serverless request size.
+      const { upload } = await import("@vercel/blob/client");
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        contentType: file.type,
+      });
+      onChange(blob.url);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
@@ -222,12 +247,14 @@ export function ImageField({
         label={label}
         htmlFor={id}
         hint={
-          invalid ? (
+          uploadError ? (
+            <span className="text-red-600">{uploadError}</span>
+          ) : invalid ? (
             <span className="text-red-600">Not a usable image reference.</span>
           ) : drive ? (
             <span className="text-emerald-700">Google Drive file detected ✓ — make sure it is shared with “Anyone with the link”.</span>
           ) : (
-            "Paste a Google Drive share link, a https:// image URL, or a /media/ path."
+            hint ?? "Upload a file, or paste a Google Drive link, a https:// URL or a /media/ path."
           )
         }
       >
@@ -239,6 +266,35 @@ export function ImageField({
           placeholder="https://drive.google.com/file/d/…/view"
           className={cn(inputClass, invalid && "border-red-400")}
         />
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <label
+            className={cn(
+              "cursor-pointer rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:border-violet-400",
+              uploading && "pointer-events-none opacity-60",
+            )}
+          >
+            {uploading ? "Uploading…" : "Upload image"}
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              disabled={uploading}
+              onChange={(e) => {
+                void handleFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {value && (
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="text-sm text-zinc-500 hover:text-red-600"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </Field>
       <div className={cn("relative overflow-hidden rounded-md border border-zinc-200 bg-zinc-100", aspect)}>
         {resolved ? (

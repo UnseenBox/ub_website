@@ -4,7 +4,7 @@ import { LOCALES, localePath } from "@/lib/i18n/config";
 import { languageAlternates } from "@/lib/seo";
 import { siteUrl } from "@/lib/utils";
 
-const STATIC_PATHS = ["/", "/games", "/upcoming", "/services", "/experiences", "/about", "/contact"];
+const STATIC_PATHS = ["/", "/games", "/upcoming", "/services", "/experiences", "/community", "/about", "/contact"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();

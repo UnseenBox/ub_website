@@ -75,6 +75,8 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           city={t(studio.city, locale)}
           timezone={studio.timezone}
           previews={previews}
+          studioName={studio.name}
+          logo={studio.logo}
         />
         <main id="main" tabIndex={-1} className="outline-none">
           {children}

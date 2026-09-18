@@ -10,6 +10,8 @@ import type {
   LocalizedString,
   Locale,
   Platform,
+  Review,
+  ReviewStatus,
   Service,
   StudioInfo,
 } from "@/types/content";
@@ -267,3 +269,59 @@ export function toMessage(row: MessageRow): ContactMessage {
     read: row.read,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Reviews                                                             */
+/* ------------------------------------------------------------------ */
+
+export interface ReviewRow {
+  id: string;
+  game_id: string;
+  game_slug: string;
+  game_title: string;
+  name: string;
+  email: string | null;
+  rating: number;
+  body: string;
+  locale: string;
+  status: string;
+  reply: string | null;
+  created_at: Date | string;
+}
+
+export function toReview(row: ReviewRow): Review {
+  return {
+    id: row.id,
+    gameId: row.game_id,
+    gameSlug: row.game_slug,
+    gameTitle: row.game_title,
+    name: row.name,
+    email: text(row.email),
+    rating: row.rating,
+    body: row.body,
+    locale: row.locale as Locale,
+    status: row.status as ReviewStatus,
+    reply: text(row.reply),
+    createdAt: iso(row.created_at),
+  };
+}
+
+export function reviewParams(review: Review): unknown[] {
+  return [
+    review.id,
+    review.gameId,
+    review.gameSlug,
+    review.gameTitle,
+    review.name,
+    review.email || null,
+    review.rating,
+    review.body,
+    review.locale,
+    review.status,
+    review.reply || null,
+    review.createdAt,
+  ];
+}
+
+export const REVIEW_COLUMNS = `id, game_id, game_slug, game_title, name, email, rating, body,
+  locale, status, reply, created_at`;

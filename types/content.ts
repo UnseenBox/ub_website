@@ -200,6 +200,8 @@ export interface Milestone {
 
 export interface StudioInfo {
   name: string;
+  /** Custom wordmark/logo image. Empty falls back to the built-in mark. */
+  logo?: string;
   foundedYear: string;
   email: string;
   pressEmail?: string;
@@ -232,6 +234,40 @@ export interface SiteContent {
   games: Game[];
   services: Service[];
   experiences: Experience[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Community reviews                                                    */
+/* ------------------------------------------------------------------ */
+
+export const REVIEW_STATUSES = ["pending", "approved"] as const;
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
+
+/** A player's rating of one game. Public only once an admin approves it. */
+export interface Review {
+  id: string;
+  gameId: string;
+  /** Denormalised so a review survives a game being renamed or removed. */
+  gameSlug: string;
+  gameTitle: string;
+  name: string;
+  /** Never shown publicly; lets the studio reply. */
+  email?: string;
+  /** 1–5 stars. */
+  rating: number;
+  body: string;
+  locale: Locale;
+  status: ReviewStatus;
+  createdAt: string;
+  /** Optional public reply from the studio. */
+  reply?: string;
+}
+
+/** Aggregate rating for one game, computed from approved reviews. */
+export interface RatingSummary {
+  gameId: string;
+  average: number;
+  count: number;
 }
 
 export interface ContactMessage {

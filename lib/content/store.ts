@@ -7,6 +7,7 @@ import { ensureReady, getSql, hasDatabase } from "@/lib/db/client";
 import {
   EXPERIENCE_COLUMNS,
   GAME_COLUMNS,
+  REVIEW_COLUMNS,
   SERVICE_COLUMNS,
   experienceParams,
   gameParams,
@@ -15,11 +16,14 @@ import {
   toExperience,
   toGame,
   toMessage,
+  toReview,
   toService,
   toStudio,
+  reviewParams,
   type ExperienceRow,
   type GameRow,
   type MessageRow,
+  type ReviewRow,
   type ServiceRow,
 } from "@/lib/db/rows";
 import { UNIQUE_VIOLATION } from "@/lib/db/schema";
@@ -27,6 +31,7 @@ import {
   TOUCH_META,
   UPSERT_EXPERIENCE,
   UPSERT_GAME,
+  UPSERT_REVIEW,
   UPSERT_SERVICE,
   UPSERT_STUDIO,
 } from "@/lib/db/statements";
@@ -34,6 +39,8 @@ import type {
   ContactMessage,
   Experience,
   Game,
+  Review,
+  ReviewStatus,
   Service,
   SiteContent,
   StudioInfo,
@@ -68,6 +75,13 @@ export interface ContentStore {
   addMessage(message: ContactMessage): Promise<void>;
   setMessageRead(id: string, read: boolean): Promise<void>;
   deleteMessage(id: string): Promise<void>;
+
+  /** Newest first. Without a status filter, pending and approved are returned. */
+  listReviews(status?: ReviewStatus): Promise<Review[]>;
+  addReview(review: Review): Promise<void>;
+  setReviewStatus(id: string, status: ReviewStatus): Promise<void>;
+  setReviewReply(id: string, reply: string): Promise<void>;
+  deleteReview(id: string): Promise<void>;
 }
 
 export class StorageNotConfiguredError extends Error {
@@ -87,6 +101,9 @@ export class ContentConflictError extends Error {
 
 /** Keeps the inbox bounded; older messages are pruned on insert. */
 export const MESSAGE_LIMIT = 1000;
+
+/** Upper bound on reviews read at once, newest first. */
+export const REVIEW_LIMIT = 500;
 
 /* ------------------------------------------------------------------ */
 /* Neon                                                                */
@@ -221,6 +238,34 @@ class PostgresStore implements ContentStore {
   async deleteMessage(id: string) {
     await this.run(`delete from messages where id = $1`, [id]);
   }
+
+  async listReviews(status?: ReviewStatus) {
+    const rows = status
+      ? await this.run<ReviewRow>(
+          `select ${REVIEW_COLUMNS} from reviews where status = $1 order by created_at desc limit ${REVIEW_LIMIT}`,
+          [status],
+        )
+      : await this.run<ReviewRow>(
+          `select ${REVIEW_COLUMNS} from reviews order by created_at desc limit ${REVIEW_LIMIT}`,
+        );
+    return rows.map(toReview);
+  }
+
+  async addReview(review: Review) {
+    await this.run(UPSERT_REVIEW, reviewParams(review));
+  }
+
+  async setReviewStatus(id: string, status: ReviewStatus) {
+    await this.run(`update reviews set status = $2 where id = $1`, [id, status]);
+  }
+
+  async setReviewReply(id: string, reply: string) {
+    await this.run(`update reviews set reply = $2 where id = $1`, [id, reply || null]);
+  }
+
+  async deleteReview(id: string) {
+    await this.run(`delete from reviews where id = $1`, [id]);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -342,6 +387,42 @@ class FileStore implements ContentStore {
     const messages = await this.listMessages();
     await this.writeMessages(messages.filter((message) => message.id !== id));
   }
+
+  private async allReviews() {
+    return (await this.readJson<Review[]>("reviews.json")) ?? [];
+  }
+
+  private async writeReviews(reviews: Review[]) {
+    await this.writeJson("reviews.json", reviews.slice(0, REVIEW_LIMIT));
+  }
+
+  async listReviews(status?: ReviewStatus) {
+    const reviews = await this.allReviews();
+    return (status ? reviews.filter((review) => review.status === status) : reviews).sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    );
+  }
+
+  async addReview(review: Review) {
+    await this.writeReviews([review, ...(await this.allReviews())]);
+  }
+
+  async setReviewStatus(id: string, status: ReviewStatus) {
+    const reviews = await this.allReviews();
+    await this.writeReviews(reviews.map((review) => (review.id === id ? { ...review, status } : review)));
+  }
+
+  async setReviewReply(id: string, reply: string) {
+    const reviews = await this.allReviews();
+    await this.writeReviews(
+      reviews.map((review) => (review.id === id ? { ...review, reply: reply || undefined } : review)),
+    );
+  }
+
+  async deleteReview(id: string) {
+    const reviews = await this.allReviews();
+    await this.writeReviews(reviews.filter((review) => review.id !== id));
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -392,6 +473,21 @@ class ReadOnlyStore implements ContentStore {
     this.reject();
   }
   async deleteMessage() {
+    this.reject();
+  }
+  async listReviews() {
+    return [];
+  }
+  async addReview() {
+    this.reject();
+  }
+  async setReviewStatus() {
+    this.reject();
+  }
+  async setReviewReply() {
+    this.reject();
+  }
+  async deleteReview() {
     this.reject();
   }
 }

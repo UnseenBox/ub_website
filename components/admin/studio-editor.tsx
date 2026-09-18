@@ -6,7 +6,7 @@ import { emptyLocalized } from "@/lib/content/factories";
 import { newId } from "@/lib/utils";
 import { SOCIAL_PLATFORMS, type StudioInfo } from "@/types/content";
 import { EditorShell } from "./editor-shell";
-import { Card, ListEditor, LocalizedInput, TextInput } from "./fields";
+import { Card, ImageField, ListEditor, LocalizedInput, TextInput } from "./fields";
 
 const SOCIAL_LABELS: Record<string, string> = {
   instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", x: "X", linkedin: "LinkedIn", discord: "Discord",
@@ -40,6 +40,13 @@ export function StudioEditor({ initial }: { initial: StudioInfo }) {
           <TextInput label="Phone" dir="ltr" value={studio.phone} onChange={(v) => set("phone", v)} placeholder="Optional" />
           <TextInput label="Time zone (studio clock)" dir="ltr" value={studio.timezone} onChange={(v) => set("timezone", v)} hint="IANA name, e.g. Africa/Algiers, Europe/Paris." />
         </div>
+        <ImageField
+          label="Website logo"
+          value={studio.logo ?? ""}
+          onChange={(v) => set("logo", v)}
+          aspect="aspect-[3/1]"
+          hint="Shown in the header and footer. Leave empty to use the built-in UnseenBox mark. A transparent PNG or SVG on a dark background works best."
+        />
         <div className="grid gap-5 sm:grid-cols-2">
           <LocalizedInput label="City" value={studio.city} onChange={(v) => set("city", v)} />
           <LocalizedInput label="Country" value={studio.country} onChange={(v) => set("country", v)} />

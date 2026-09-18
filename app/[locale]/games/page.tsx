@@ -4,10 +4,11 @@ import { notFound } from "next/navigation";
 import { PageIntro } from "@/components/ui/page-intro";
 import { SmartImage } from "@/components/ui/smart-image";
 import { ArrowIcon } from "@/components/ui/icons";
-import { getGames } from "@/lib/content/queries";
+import { getGames, getRatings } from "@/lib/content/queries";
 import { platformList } from "@/lib/content/present";
 import { isLocale, localePath, t } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { Stars } from "@/components/community/stars";
 import { buildMetadata } from "@/lib/seo";
 import { cn, pad } from "@/lib/utils";
 import { releaseYear } from "@/lib/games";
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/games">)
 export default async function GamesPage({ params }: PageProps<"/[locale]/games">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  const [dict, games] = await Promise.all([getDictionary(locale), getGames()]);
+  const [dict, games, ratings] = await Promise.all([getDictionary(locale), getGames(), getRatings()]);
   const released = games.filter((game) => !game.upcoming);
   const upcoming = games.filter((game) => game.upcoming);
 
@@ -67,6 +68,18 @@ export default async function GamesPage({ params }: PageProps<"/[locale]/games">
                       <span className="font-pixel text-uv-400">{pad(i + 1)}</span>
                       <span>{t(game.genre, locale)}</span>
                       <span className="text-fog">{releaseYear(game)}</span>
+                      {ratings.get(game.id) && (
+                        <span className="flex items-center gap-1.5 normal-case tracking-normal">
+                          <Stars
+                            value={ratings.get(game.id)!.average}
+                            label={`${ratings.get(game.id)!.average.toFixed(1)} ${dict.community.outOf}`}
+                            starClassName="size-3.5"
+                          />
+                          <span className="font-mono text-xs text-bone">
+                            {ratings.get(game.id)!.average.toFixed(1)}
+                          </span>
+                        </span>
+                      )}
                     </p>
                     <h2 className="font-display mt-3 text-title transition-colors duration-500 group-hover:text-uv-300">
                       <span className="glitch" data-text={game.title}>

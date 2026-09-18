@@ -3,10 +3,11 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { seedContent } from "@/data/seed";
-import type { Experience, Game, Service, SiteContent } from "@/types/content";
+import type { Experience, Game, RatingSummary, Review, Service, SiteContent } from "@/types/content";
 import { getStore } from "./store";
 
 export const CONTENT_TAG = "site-content";
+export const REVIEWS_TAG = "site-reviews";
 
 /**
  * Public read path. Cached across requests with a tag so admin saves can
@@ -68,4 +69,41 @@ export async function getExperiences(): Promise<Experience[]> {
 
 export async function getExperienceBySlug(slug: string): Promise<Experience | undefined> {
   return (await getContent()).experiences.find((item) => item.slug === slug);
+}
+
+/* ------------------------------------------------------------------ */
+/* Community reviews                                                   */
+/* ------------------------------------------------------------------ */
+
+/** Approved reviews only — the pending queue is admin-side. */
+const readCachedReviews = unstable_cache(
+  async (): Promise<Review[]> => {
+    try {
+      return await getStore().listReviews("approved");
+    } catch (error) {
+      console.error("[reviews] Could not load reviews:", error);
+      return [];
+    }
+  },
+  ["site-reviews-v1"],
+  { tags: [REVIEWS_TAG] },
+);
+
+export const getApprovedReviews = cache(readCachedReviews);
+
+export async function getReviewsForGame(gameId: string): Promise<Review[]> {
+  return (await getApprovedReviews()).filter((review) => review.gameId === gameId);
+}
+
+/** Average rating per game, keyed by game id. */
+export async function getRatings(): Promise<Map<string, RatingSummary>> {
+  const summaries = new Map<string, RatingSummary>();
+  for (const review of await getApprovedReviews()) {
+    const current = summaries.get(review.gameId) ?? { gameId: review.gameId, average: 0, count: 0 };
+    const total = current.average * current.count + review.rating;
+    current.count += 1;
+    current.average = total / current.count;
+    summaries.set(review.gameId, current);
+  }
+  return summaries;
 }

@@ -15,7 +15,7 @@ import { SESSION_COOKIE, SESSION_TTL_SECONDS, createSessionToken, getSessionSecr
 import { StorageNotConfiguredError } from "@/lib/content/store";
 import * as mutations from "@/lib/content/mutations";
 import { experienceSchema, formatIssues, gameSchema, serviceSchema, studioSchema } from "@/lib/validation/schemas";
-import type { Experience, Game, Service, StudioInfo } from "@/types/content";
+import type { Experience, Game, ReviewStatus, Service, StudioInfo } from "@/types/content";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string; issues?: string[] };
 
@@ -180,6 +180,52 @@ export async function deleteMessageAction(id: string): Promise<ActionResult> {
   try {
     await mutations.deleteMessage(id);
     revalidatePath("/admin/messages");
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function restoreStarterContentAction(): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await mutations.restoreStarterContent();
+    revalidatePath("/admin", "layout");
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/* ------------------------------------------------------------------ reviews */
+
+export async function setReviewStatusAction(id: string, status: ReviewStatus): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await mutations.setReviewStatus(id, status);
+    revalidatePath("/admin/reviews");
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function replyToReviewAction(id: string, reply: string): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await mutations.setReviewReply(id, reply.trim().slice(0, 1000));
+    revalidatePath("/admin/reviews");
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function deleteReviewAction(id: string): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await mutations.deleteReview(id);
+    revalidatePath("/admin/reviews");
     return { ok: true };
   } catch (error) {
     return failure(error);

@@ -91,10 +91,27 @@ export const SCHEMA_STATEMENTS: string[] = [
      read boolean not null default false
    )`,
 
+  `create table if not exists reviews (
+     id text primary key,
+     game_id text not null,
+     game_slug text not null default '',
+     game_title text not null default '',
+     name text not null,
+     email text,
+     rating integer not null check (rating between 1 and 5),
+     body text not null default '',
+     locale text not null default 'en',
+     status text not null default 'pending',
+     reply text,
+     created_at timestamptz not null default now()
+   )`,
+
   `create index if not exists games_sort_order_idx on games (sort_order)`,
   `create index if not exists services_sort_order_idx on services (sort_order)`,
   `create index if not exists experiences_date_idx on experiences (date desc, sort_order)`,
   `create index if not exists messages_created_at_idx on messages (created_at desc)`,
+  `create index if not exists reviews_game_status_idx on reviews (game_id, status)`,
+  `create index if not exists reviews_created_at_idx on reviews (created_at desc)`,
 ];
 
 /** Postgres error code for a unique-constraint violation (duplicate slug). */

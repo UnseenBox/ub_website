@@ -71,11 +71,17 @@ const OPTIMISABLE_HOSTS = new Set([
   "i.ytimg.com",
 ]);
 
+/** Images uploaded from the admin live on a per-store Blob subdomain. */
+const BLOB_HOST = /\.public\.blob\.vercel-storage\.com$/;
+
 export function canOptimise(src: string): boolean {
   if (src.startsWith("/")) return !src.endsWith(".svg");
   try {
     const url = new URL(src);
-    return OPTIMISABLE_HOSTS.has(url.hostname) && !url.search;
+    if (url.search) return false;
+    // SVGs are served as-is: next/image refuses to optimise them.
+    if (url.pathname.endsWith(".svg")) return false;
+    return OPTIMISABLE_HOSTS.has(url.hostname) || BLOB_HOST.test(url.hostname);
   } catch {
     return false;
   }

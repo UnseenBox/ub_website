@@ -7,7 +7,7 @@ import { localePath, type Locale } from "@/lib/i18n/config";
 import { NAV_ITEMS, activeNavKey, type NavKey } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { SmartImage } from "@/components/ui/smart-image";
-import { LogoMark } from "@/components/ui/icons";
+import { Brand } from "./brand";
 import { LanguageSwitcher } from "./language-switcher";
 import { StudioClock } from "./studio-clock";
 
@@ -23,9 +23,11 @@ interface SiteHeaderProps {
   city: string;
   timezone: string;
   previews: Partial<Record<NavKey, string>>;
+  studioName: string;
+  logo?: string;
 }
 
-export function SiteHeader({ locale, copy, email, city, timezone, previews }: SiteHeaderProps) {
+export function SiteHeader({ locale, copy, email, city, timezone, previews, studioName, logo }: SiteHeaderProps) {
   const pathname = usePathname() || `/${locale}`;
   const active = activeNavKey(pathname);
   const current = NAV_ITEMS.find((item) => item.key === active)!;
@@ -126,10 +128,15 @@ export function SiteHeader({ locale, copy, email, city, timezone, previews }: Si
           <Link
             href={localePath(locale)}
             className="group flex items-center gap-3 justify-self-start"
-            aria-label="UnseenBox"
+            aria-label={studioName}
           >
-            <LogoMark className="size-7 text-bone transition-transform duration-500 ease-expo group-hover:rotate-90" />
-            <span className="hidden font-display text-[1.05rem] tracking-[-0.02em] sm:inline">UnseenBox</span>
+            <Brand
+              logo={logo}
+              name={studioName}
+              markClassName="size-7 text-bone transition-transform duration-500 ease-expo group-hover:rotate-90"
+              wordmarkClassName="text-[1.05rem] tracking-[-0.02em]"
+              hideWordmarkOnMobile
+            />
           </Link>
 
           <p className="label flex items-center gap-3 max-md:invisible" aria-live="polite">

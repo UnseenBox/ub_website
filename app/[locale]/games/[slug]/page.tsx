@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Stars } from "@/components/community/stars";
 import { StoreLinks } from "@/components/games/store-links";
 import { Gallery } from "@/components/media/gallery";
 import { Trailer } from "@/components/media/trailer";
 import { ArrowIcon } from "@/components/ui/icons";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SmartImage } from "@/components/ui/smart-image";
-import { getContent, getGameBySlug, getGames } from "@/lib/content/queries";
+import { getContent, getGameBySlug, getGames, getRatings, getReviewsForGame } from "@/lib/content/queries";
 import { platformList } from "@/lib/content/present";
 import { parseTrailer, statusStage } from "@/lib/games";
 import { LOCALES, isLocale, localePath, t } from "@/lib/i18n/config";
@@ -38,9 +39,16 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/games/[s
 export default async function GamePage({ params }: PageProps<"/[locale]/games/[slug]">) {
   const { locale, slug } = await params;
   if (!isLocale(locale)) notFound();
-  const [dict, game, games] = await Promise.all([getDictionary(locale), getGameBySlug(slug), getGames()]);
+  const [dict, game, games, ratings] = await Promise.all([
+    getDictionary(locale),
+    getGameBySlug(slug),
+    getGames(),
+    getRatings(),
+  ]);
   if (!game) notFound();
 
+  const rating = ratings.get(game.id);
+  const reviews = (await getReviewsForGame(game.id)).slice(0, 6);
   const trailer = parseTrailer(game.trailerUrl);
   const siblings = games.filter((g) => g.upcoming === game.upcoming);
   const next = siblings[(siblings.findIndex((g) => g.id === game.id) + 1) % siblings.length];
@@ -129,6 +137,18 @@ export default async function GamePage({ params }: PageProps<"/[locale]/games/[s
               <p className="mt-6 max-w-2xl animate-fade text-xl text-bone/90 [animation-delay:300ms] sm:text-2xl">
                 {t(game.tagline, locale)}
               </p>
+              {rating && (
+                <Link
+                  href={localePath(locale, "/community")}
+                  className="mt-6 inline-flex animate-fade items-center gap-3 [animation-delay:400ms] hover:text-uv-300"
+                >
+                  <Stars value={rating.average} label={`${rating.average.toFixed(1)} ${dict.community.outOf}`} starClassName="size-5" />
+                  <span className="font-mono text-sm text-bone">{rating.average.toFixed(1)}</span>
+                  <span className="label">
+                    {rating.count} {rating.count === 1 ? dict.community.reviewCountOne : dict.community.reviewCount}
+                  </span>
+                </Link>
+              )}
               <div className="mt-10 animate-fade [animation-delay:450ms]">
                 <StoreLinks links={game.links} dict={dict} />
               </div>
@@ -264,6 +284,44 @@ export default async function GamePage({ params }: PageProps<"/[locale]/games/[s
               {dict.game.screenshots}
             </h2>
             <Gallery images={game.screenshots} altPrefix={game.title} copy={dict.a11y} />
+          </div>
+        </section>
+      )}
+
+      {/* What players say */}
+      {!game.upcoming && (
+        <section aria-labelledby="reviews" className="border-t border-line py-24 sm:py-32">
+          <div className="shell">
+            <div className="flex flex-wrap items-end justify-between gap-6">
+              <h2 id="reviews" className="label">
+                {dict.community.reviewsTitle}
+              </h2>
+              <Link href={localePath(locale, "/community")} className="label hover:text-uv-300">
+                {dict.community.formTitle} →
+              </Link>
+            </div>
+
+            {reviews.length === 0 ? (
+              <p className="mt-8 text-mist">{dict.community.emptyForGame}</p>
+            ) : (
+              <ul className="mt-10 grid gap-px bg-line sm:grid-cols-2">
+                {reviews.map((review) => (
+                  <li key={review.id} className="bg-void p-6">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Stars value={review.rating} label={`${review.rating} ${dict.community.outOf}`} />
+                      <span className="font-display text-lg">{review.name}</span>
+                    </div>
+                    <p className="mt-3 whitespace-pre-line leading-relaxed text-mist">{review.body}</p>
+                    {review.reply && (
+                      <div className="mt-4 border-s-2 border-uv-500/60 ps-4">
+                        <p className="label text-uv-300">{dict.community.studioReply}</p>
+                        <p className="mt-1.5 leading-relaxed text-mist">{review.reply}</p>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </section>
       )}

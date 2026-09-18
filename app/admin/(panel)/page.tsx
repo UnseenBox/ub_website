@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { RestoreContent } from "@/components/admin/restore-content";
 import { requireAdmin } from "@/lib/auth/guard";
 import { listMessages } from "@/lib/content/mutations";
 import { getContentFresh } from "@/lib/content/queries";
@@ -55,7 +56,13 @@ export default async function DashboardPage() {
             <li><Link className="text-violet-700 hover:underline" href="/admin/experiences/new">+ Add an archive entry</Link></li>
             <li><Link className="text-violet-700 hover:underline" href="/admin/studio">Edit about text, contact & social links</Link></li>
             <li><Link className="text-violet-700 hover:underline" href="/admin/media">How to use Google Drive images</Link></li>
+            <li><Link className="text-violet-700 hover:underline" href="/admin/reviews">Moderate player reviews</Link></li>
           </ul>
+          {store.kind === "postgres" && (
+            <div className="mt-5 border-t border-zinc-100 pt-4">
+              <RestoreContent />
+            </div>
+          )}
         </section>
 
         <section className="rounded-lg border border-zinc-200 bg-white p-5">

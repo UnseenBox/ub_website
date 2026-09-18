@@ -4,7 +4,8 @@ import { localePath, t, type Locale } from "@/lib/i18n/config";
 import { NAV_ITEMS, SOCIAL_LABELS } from "@/lib/navigation";
 import type { StudioInfo } from "@/types/content";
 import { LinkButton } from "@/components/ui/link-button";
-import { ExternalIcon, LogoMark } from "@/components/ui/icons";
+import { ExternalIcon } from "@/components/ui/icons";
+import { Brand } from "./brand";
 import { LanguageSwitcher } from "./language-switcher";
 import { StudioClock } from "./studio-clock";
 
@@ -37,9 +38,8 @@ export function SiteFooter({ locale, dict, studio }: { locale: Locale; dict: Dic
       {/* Index */}
       <div className="shell grid gap-12 border-t border-line py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="flex flex-col gap-5">
-          <Link href={localePath(locale)} className="flex items-center gap-3" aria-label="UnseenBox">
-            <LogoMark className="size-8" />
-            <span className="font-display text-xl">UnseenBox</span>
+          <Link href={localePath(locale)} className="flex items-center gap-3" aria-label={studio.name}>
+            <Brand logo={studio.logo} name={studio.name} markClassName="size-8" wordmarkClassName="text-xl" />
           </Link>
           <p className="max-w-xs text-sm leading-relaxed text-mist">{t(studio.tagline, locale)}</p>
           <a href={`mailto:${studio.email}`} className="font-mono text-sm text-bone underline-offset-4 hover:text-uv-300 hover:underline" dir="ltr">

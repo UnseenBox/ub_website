@@ -103,6 +103,7 @@ const milestone = z.object({ id, year: z.string().trim().min(1).max(12), title: 
 
 export const studioSchema = z.object({
   name: z.string().trim().min(1).max(60),
+  logo: imageRef.optional(),
   foundedYear: z.string().trim().max(12),
   email: z.email("A valid email is required"),
   pressEmail: z.union([z.literal(""), z.email()]).optional(),

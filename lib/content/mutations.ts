@@ -1,8 +1,9 @@
 import "server-only";
 
 import { revalidatePath, updateTag } from "next/cache";
-import type { ContactMessage, Experience, Game, Service, StudioInfo } from "@/types/content";
-import { CONTENT_TAG, getContentFresh } from "./queries";
+import type { ContactMessage, Experience, Game, Review, ReviewStatus, Service, StudioInfo } from "@/types/content";
+import { importSeed } from "@/lib/db/client";
+import { CONTENT_TAG, REVIEWS_TAG, getContentFresh } from "./queries";
 import { getStore } from "./store";
 
 export { ContentConflictError } from "./store";
@@ -57,6 +58,18 @@ export async function saveStudio(studio: StudioInfo) {
   await write(() => getStore().saveStudio(studio));
 }
 
+/**
+ * Re-imports the built-in starter content. Every write is an upsert keyed by
+ * id, so items you have edited are restored to their starter text and items
+ * you added are left untouched — nothing is deleted.
+ */
+export async function restoreStarterContent() {
+  if (getStore().kind !== "postgres") {
+    throw new Error("Starter content can only be re-imported into a database. Locally, delete .data/content.json instead.");
+  }
+  await write(() => importSeed());
+}
+
 /* Messages are private and never part of the public cache. */
 
 export async function listMessages(): Promise<ContactMessage[]> {
@@ -73,4 +86,35 @@ export async function setMessageRead(id: string, read: boolean) {
 
 export async function deleteMessage(id: string) {
   await getStore().deleteMessage(id);
+}
+
+/* Community reviews. New ones arrive pending, so nothing public changes
+   until an admin approves them. */
+
+export async function listReviews(status?: ReviewStatus): Promise<Review[]> {
+  return getStore().listReviews(status);
+}
+
+export async function addReview(review: Review) {
+  await getStore().addReview(review);
+}
+
+function invalidateReviews() {
+  updateTag(REVIEWS_TAG);
+  revalidatePath("/", "layout");
+}
+
+export async function setReviewStatus(id: string, status: ReviewStatus) {
+  await getStore().setReviewStatus(id, status);
+  invalidateReviews();
+}
+
+export async function setReviewReply(id: string, reply: string) {
+  await getStore().setReviewReply(id, reply);
+  invalidateReviews();
+}
+
+export async function deleteReview(id: string) {
+  await getStore().deleteReview(id);
+  invalidateReviews();
 }

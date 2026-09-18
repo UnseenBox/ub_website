@@ -1,4 +1,4 @@
-import { EXPERIENCE_COLUMNS, GAME_COLUMNS, SERVICE_COLUMNS } from "./rows";
+import { EXPERIENCE_COLUMNS, GAME_COLUMNS, REVIEW_COLUMNS, SERVICE_COLUMNS } from "./rows";
 
 /**
  * Upsert statements, derived from the column lists so the placeholders can
@@ -34,3 +34,5 @@ export const UPSERT_STUDIO = `insert into studio (singleton, data, updated_at)
 export const TOUCH_META = `insert into site_meta (singleton, version, updated_at)
   values (true, 1, now())
   on conflict (singleton) do update set version = site_meta.version + 1, updated_at = now()`;
+
+export const UPSERT_REVIEW = upsert("reviews", REVIEW_COLUMNS);

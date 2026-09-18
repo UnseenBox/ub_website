@@ -4,8 +4,9 @@ export const NAV_ITEMS = [
   { key: "upcoming", path: "/upcoming", index: "02" },
   { key: "services", path: "/services", index: "03" },
   { key: "experiences", path: "/experiences", index: "04" },
-  { key: "about", path: "/about", index: "05" },
-  { key: "contact", path: "/contact", index: "06" },
+  { key: "community", path: "/community", index: "05" },
+  { key: "about", path: "/about", index: "06" },
+  { key: "contact", path: "/contact", index: "07" },
 ] as const;
 
 export type NavKey = (typeof NAV_ITEMS)[number]["key"];

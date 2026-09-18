@@ -2,14 +2,18 @@ import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { LogoMark } from "@/components/ui/icons";
 import { requireAdmin } from "@/lib/auth/guard";
-import { listMessages } from "@/lib/content/mutations";
+import { listMessages, listReviews } from "@/lib/content/mutations";
 import { getStore } from "@/lib/content/store";
 import { logoutAction } from "../actions";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAdmin();
   const store = getStore();
-  const unread = (await listMessages().catch(() => [])).filter((m) => !m.read).length;
+  const [messages, reviews] = await Promise.all([
+    listMessages().catch(() => []),
+    listReviews("pending").catch(() => []),
+  ]);
+  const unread = messages.filter((message) => !message.read).length;
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[15rem_1fr]">
@@ -20,7 +24,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             <span className="font-semibold">UnseenBox</span>
             <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[0.65rem] font-medium text-zinc-500">admin</span>
           </Link>
-          <AdminNav unread={unread} />
+          <AdminNav unread={unread} pendingReviews={reviews.length} />
           <div className="mt-auto hidden space-y-3 border-t border-zinc-200 pt-4 text-sm lg:block">
             <a href="/" target="_blank" className="block rounded-md px-2 py-1.5 text-zinc-600 hover:bg-zinc-100">
               View site ↗

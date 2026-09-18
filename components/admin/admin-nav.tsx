@@ -11,10 +11,11 @@ const ITEMS = [
   { href: "/admin/experiences", label: "Archive" },
   { href: "/admin/studio", label: "Studio & contact" },
   { href: "/admin/messages", label: "Messages" },
+  { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/media", label: "Images guide" },
 ];
 
-export function AdminNav({ unread }: { unread: number }) {
+export function AdminNav({ unread, pendingReviews }: { unread: number; pendingReviews: number }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Admin">
@@ -34,6 +35,9 @@ export function AdminNav({ unread }: { unread: number }) {
                 {item.label}
                 {item.href === "/admin/messages" && unread > 0 && (
                   <span className="rounded-full bg-violet-600 px-1.5 text-xs font-medium text-white">{unread}</span>
+                )}
+                {item.href === "/admin/reviews" && pendingReviews > 0 && (
+                  <span className="rounded-full bg-amber-500 px-1.5 text-xs font-medium text-white">{pendingReviews}</span>
                 )}
               </Link>
             </li>
