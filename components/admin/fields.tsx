@@ -10,14 +10,27 @@ import { cn } from "@/lib/utils";
  * Whether Blob storage is connected. Asked once per page load and shared by
  * every image field, so the upload button is only offered when it can work.
  */
-let uploadProbe: Promise<boolean> | undefined;
-function uploadsEnabled(): Promise<boolean> {
+type UploadStatus = { enabled: boolean; where?: "local" | "deployed" | "signedOut" };
+
+let uploadProbe: Promise<UploadStatus> | undefined;
+function uploadStatus(): Promise<UploadStatus> {
   uploadProbe ??= fetch("/api/admin/upload")
-    .then((response) => (response.ok ? response.json() : { enabled: false }))
-    .then((data: { enabled?: boolean }) => Boolean(data.enabled))
-    .catch(() => false);
+    .then(async (response) => {
+      const data = (await response.json().catch(() => ({}))) as UploadStatus;
+      return { enabled: Boolean(data.enabled), where: data.where };
+    })
+    .catch(() => ({ enabled: false }) as UploadStatus);
   return uploadProbe;
 }
+
+/** What to tell an editor when the upload button cannot work here. */
+const UPLOAD_HINTS: Record<string, string> = {
+  local:
+    "Uploads are off in local development: add BLOB_READ_WRITE_TOKEN to .env.local (Vercel → Storage → your Blob store → .env.local) and restart npm run dev.",
+  deployed:
+    "Uploads are off: connect a Blob store in Vercel → Storage, then redeploy so BLOB_READ_WRITE_TOKEN reaches the running site.",
+  signedOut: "Session expired — sign in again to upload.",
+};
 
 export const inputClass =
   "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/25";
@@ -229,12 +242,13 @@ export function ImageField({
   const id = useId();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [canUpload, setCanUpload] = useState<boolean | null>(null);
+  const [upload, setUpload] = useState<UploadStatus | null>(null);
+  const canUpload = upload ? upload.enabled : null;
 
   useEffect(() => {
     let active = true;
-    void uploadsEnabled().then((enabled) => {
-      if (active) setCanUpload(enabled);
+    void uploadStatus().then((status) => {
+      if (active) setUpload(status);
     });
     return () => {
       active = false;
@@ -278,6 +292,8 @@ export function ImageField({
         hint={
           uploadError ? (
             <span className="text-red-600">{uploadError}</span>
+          ) : canUpload === false ? (
+            <span className="text-amber-700">{UPLOAD_HINTS[upload?.where ?? "deployed"]}</span>
           ) : invalid ? (
             <span className="text-red-600">Not a usable image reference.</span>
           ) : drive ? (
@@ -299,9 +315,9 @@ export function ImageField({
           {canUpload === false ? (
             <span
               className="rounded-md border border-dashed border-zinc-300 px-3 py-1.5 text-sm text-zinc-500"
-              title="Create a Blob store in Vercel → Storage to enable uploads."
+              title={UPLOAD_HINTS[upload?.where ?? "deployed"]}
             >
-              Uploads off — paste a link
+              {upload?.where === "local" ? "Uploads off locally — paste a link" : "Uploads off — paste a link"}
             </span>
           ) : (
             <label

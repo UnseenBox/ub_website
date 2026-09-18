@@ -57,9 +57,15 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
-/** Lets the admin UI show whether uploading is available before offering it. */
+/**
+ * Lets the admin UI show whether uploading is available before offering it,
+ * and — when it is not — which of the two setups is missing here.
+ */
 export async function GET(): Promise<NextResponse> {
   const session = await getAdminSession();
-  if (!session) return NextResponse.json({ enabled: false }, { status: 401 });
-  return NextResponse.json({ enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
+  if (!session) return NextResponse.json({ enabled: false, where: "signedOut" }, { status: 401 });
+  return NextResponse.json({
+    enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    where: process.env.VERCEL ? "deployed" : "local",
+  });
 }
