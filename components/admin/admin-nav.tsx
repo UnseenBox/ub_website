@@ -13,6 +13,7 @@ const ITEMS = [
   { href: "/admin/messages", label: "Messages" },
   { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/media", label: "Images guide" },
+  { href: "/admin/settings", label: "Settings" },
 ];
 
 export function AdminNav({ unread, pendingReviews }: { unread: number; pendingReviews: number }) {

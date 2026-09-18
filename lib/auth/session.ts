@@ -81,7 +81,8 @@ export async function verifySessionToken(token: string | undefined): Promise<Ses
     if (!valid) return null;
     const payload = JSON.parse(new TextDecoder().decode(fromBase64url(body))) as SessionPayload;
     if (typeof payload.exp !== "number" || payload.exp < Math.floor(Date.now() / 1000)) return null;
-    if (payload.sub !== process.env.ADMIN_USERNAME) return null;
+    // Whether `sub` still names the admin is checked in lib/auth/guard.ts,
+    // which can read the stored credentials; here only the signature counts.
     return payload;
   } catch {
     return null;

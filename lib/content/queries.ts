@@ -3,11 +3,12 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { seedContent } from "@/data/seed";
-import type { Experience, Game, RatingSummary, Review, Service, SiteContent } from "@/types/content";
+import type { Experience, Game, PublicSettings, RatingSummary, Review, Service, SiteContent } from "@/types/content";
 import { getStore } from "./store";
 
 export const CONTENT_TAG = "site-content";
 export const REVIEWS_TAG = "site-reviews";
+export const SETTINGS_TAG = "site-settings";
 
 /**
  * Public read path. Cached across requests with a tag so admin saves can
@@ -107,3 +108,27 @@ export async function getRatings(): Promise<Map<string, RatingSummary>> {
   }
   return summaries;
 }
+
+/* ------------------------------------------------------------------ */
+/* Site settings                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Only the fields a page may render. The admin credentials in the same row
+ * never leave this module — see lib/auth/credentials.ts for those.
+ */
+const readCachedSettings = unstable_cache(
+  async (): Promise<PublicSettings> => {
+    try {
+      const settings = await getStore().readSettings();
+      return { favicon: settings?.favicon, shareImage: settings?.shareImage };
+    } catch (error) {
+      console.error("[settings] Could not load settings:", error);
+      return {};
+    }
+  },
+  ["site-settings-v1"],
+  { tags: [SETTINGS_TAG] },
+);
+
+export const getPublicSettings = cache(readCachedSettings);

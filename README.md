@@ -96,6 +96,19 @@ translation left empty falls back to English like the rest of the site.
 field. Links are normalised to `lh3.googleusercontent.com/d/<id>` (`lib/images/drive.ts`), then optimised by
 `next/image` (AVIF/WebP, responsive sizes, 30-day CDN cache). The admin has a link tester under **Images guide**.
 
+## Settings
+
+**Admin → Settings** changes, without a redeploy:
+
+- **Favicon** — replaces `/icon.svg` in browser tabs, bookmarks and the web manifest.
+- **Default share image** — the Open Graph/Twitter image for pages that have no artwork of their own.
+- **Admin username and password** — the current password is always required. The new pair is stored in the database
+  (`settings` row; the password as a scrypt hash) and takes precedence over `ADMIN_USERNAME` / `ADMIN_PASSWORD`.
+  Locked out? Delete `adminUsername` and `adminPasswordHash` from that row and the environment variables take over again.
+
+`ADMIN_SESSION_SECRET`, `NEXT_PUBLIC_SITE_URL`, `DATABASE_URL` and `BLOB_READ_WRITE_TOKEN` stay environment-only; the
+page lists them for reference.
+
 ## Authentication
 
 A single admin account, checked with a constant-time comparison. On success the server issues an HMAC-signed,

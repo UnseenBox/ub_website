@@ -30,6 +30,10 @@ export const UPSERT_STUDIO = `insert into studio (singleton, data, updated_at)
   values (true, $1, now())
   on conflict (singleton) do update set data = excluded.data, updated_at = now()`;
 
+export const UPSERT_SETTINGS = `insert into settings (singleton, data, updated_at)
+  values (true, $1, now())
+  on conflict (singleton) do update set data = excluded.data, updated_at = now()`;
+
 /** Bumps the content version and stamps the time of the change. */
 export const TOUCH_META = `insert into site_meta (singleton, version, updated_at)
   values (true, 1, now())

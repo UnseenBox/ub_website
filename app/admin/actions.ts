@@ -14,7 +14,15 @@ import {
 import { SESSION_COOKIE, SESSION_TTL_SECONDS, createSessionToken, getSessionSecret } from "@/lib/auth/session";
 import { StorageNotConfiguredError } from "@/lib/content/store";
 import * as mutations from "@/lib/content/mutations";
-import { experienceSchema, formatIssues, gameSchema, serviceSchema, studioSchema } from "@/lib/validation/schemas";
+import { saveCredentials } from "@/lib/auth/credentials";
+import {
+  experienceSchema,
+  formatIssues,
+  gameSchema,
+  serviceSchema,
+  siteOptionsSchema,
+  studioSchema,
+} from "@/lib/validation/schemas";
 import type { Experience, Game, ReviewStatus, Service, StudioInfo } from "@/types/content";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string; issues?: string[] };
@@ -34,7 +42,7 @@ export interface LoginState {
 }
 
 export async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
-  if (!adminConfigured()) return { error: "Admin credentials are not configured on the server." };
+  if (!(await adminConfigured())) return { error: "Admin credentials are not configured on the server." };
   if (!getSessionSecret()) return { error: "ADMIN_SESSION_SECRET is missing (32+ characters required in production)." };
 
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
@@ -42,7 +50,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   const username = String(formData.get("username") ?? "");
   const password = String(formData.get("password") ?? "");
-  if (!checkCredentials(username, password)) {
+  if (!(await checkCredentials(username, password))) {
     recordFailedAttempt(ip);
     await new Promise((resolve) => setTimeout(resolve, 600));
     return { error: "Invalid username or password." };
@@ -226,6 +234,67 @@ export async function deleteReviewAction(id: string): Promise<ActionResult> {
   try {
     await mutations.deleteReview(id);
     revalidatePath("/admin/reviews");
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/* ------------------------------------------------------------------ settings */
+
+export async function saveSiteOptionsAction(options: { favicon: string; shareImage: string }): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    const parsed = siteOptionsSchema.safeParse(options);
+    if (!parsed.success) return { ok: false, error: formatIssues(parsed.error).join("\n") };
+    await mutations.saveSiteOptions(parsed.data);
+    revalidatePath("/admin/settings");
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * Changes the admin username and/or password. The current password is always
+ * required, so a borrowed open session cannot lock the owner out.
+ */
+export async function updateAccountAction(input: {
+  currentPassword: string;
+  username: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<ActionResult> {
+  const session = await requireAdmin();
+  try {
+    const username = input.username.trim();
+    if (username.length < 3) return { ok: false, error: "The username needs at least 3 characters." };
+    if (!(await checkCredentials(session.sub, input.currentPassword))) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      return { ok: false, error: "That is not your current password." };
+    }
+    if (input.newPassword || input.confirmPassword) {
+      if (input.newPassword.length < 12) {
+        return { ok: false, error: "The new password needs at least 12 characters." };
+      }
+      if (input.newPassword !== input.confirmPassword) {
+        return { ok: false, error: "The two new passwords do not match." };
+      }
+    }
+
+    await saveCredentials(username, input.newPassword || undefined);
+
+    // The session names the old username, so re-issue it rather than
+    // signing the admin out mid-edit.
+    const token = await createSessionToken(username);
+    (await cookies()).set(SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_TTL_SECONDS,
+    });
+    revalidatePath("/admin", "layout");
     return { ok: true };
   } catch (error) {
     return failure(error);

@@ -24,6 +24,12 @@ export const SCHEMA_STATEMENTS: string[] = [
      updated_at timestamptz not null default now()
    )`,
 
+  `create table if not exists settings (
+     singleton boolean primary key default true check (singleton),
+     data jsonb not null,
+     updated_at timestamptz not null default now()
+   )`,
+
   `create table if not exists games (
      id text primary key,
      slug text not null unique,

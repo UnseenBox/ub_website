@@ -5,11 +5,12 @@ import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { MotionRoot } from "@/components/motion/motion-root";
-import { getContent } from "@/lib/content/queries";
+import { getContent, getPublicSettings } from "@/lib/content/queries";
 import { fontVariables } from "@/lib/fonts";
 import { LOCALES, dirOf, isLocale, t } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import type { NavKey } from "@/lib/navigation";
+import { resolveImageSrc } from "@/lib/images/drive";
 import { buildMetadata } from "@/lib/seo";
 import { siteUrl } from "@/lib/utils";
 
@@ -25,9 +26,12 @@ export const viewport: Viewport = {
 export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
-  const dict = await getDictionary(locale);
+  const [dict, settings] = await Promise.all([getDictionary(locale), getPublicSettings()]);
+  const favicon = resolveImageSrc(settings.favicon);
   return {
     metadataBase: new URL(siteUrl()),
+    // A favicon set in the admin replaces the built-in mark everywhere.
+    icons: favicon ? { icon: favicon, shortcut: favicon, apple: favicon } : undefined,
     title: { default: dict.meta.homeTitle, template: "%s — UnseenBox" },
     applicationName: "UnseenBox",
     creator: "UnseenBox",
@@ -37,6 +41,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
       path: "/",
       title: dict.meta.homeTitle,
       description: dict.meta.homeDescription,
+      image: settings.shareImage,
       absoluteTitle: true,
     }),
   };

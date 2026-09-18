@@ -33,6 +33,7 @@ import {
   UPSERT_GAME,
   UPSERT_REVIEW,
   UPSERT_SERVICE,
+  UPSERT_SETTINGS,
   UPSERT_STUDIO,
 } from "@/lib/db/statements";
 import type {
@@ -43,6 +44,7 @@ import type {
   ReviewStatus,
   Service,
   SiteContent,
+  SiteSettings,
   StudioInfo,
 } from "@/types/content";
 
@@ -75,6 +77,10 @@ export interface ContentStore {
   addMessage(message: ContactMessage): Promise<void>;
   setMessageRead(id: string, read: boolean): Promise<void>;
   deleteMessage(id: string): Promise<void>;
+
+  /** Admin credentials and site-wide options. Null until something is saved. */
+  readSettings(): Promise<SiteSettings | null>;
+  writeSettings(settings: SiteSettings): Promise<void>;
 
   /** Newest first. Without a status filter, pending and approved are returned. */
   listReviews(status?: ReviewStatus): Promise<Review[]>;
@@ -239,6 +245,15 @@ class PostgresStore implements ContentStore {
     await this.run(`delete from messages where id = $1`, [id]);
   }
 
+  async readSettings() {
+    const rows = await this.run<{ data: unknown }>(`select data from settings`);
+    return (rows[0]?.data as SiteSettings | undefined) ?? null;
+  }
+
+  async writeSettings(settings: SiteSettings) {
+    await this.run(UPSERT_SETTINGS, [json(settings)]);
+  }
+
   async listReviews(status?: ReviewStatus) {
     const rows = status
       ? await this.run<ReviewRow>(
@@ -388,6 +403,14 @@ class FileStore implements ContentStore {
     await this.writeMessages(messages.filter((message) => message.id !== id));
   }
 
+  readSettings() {
+    return this.readJson<SiteSettings>("settings.json");
+  }
+
+  async writeSettings(settings: SiteSettings) {
+    await this.writeJson("settings.json", settings);
+  }
+
   private async allReviews() {
     return (await this.readJson<Review[]>("reviews.json")) ?? [];
   }
@@ -473,6 +496,12 @@ class ReadOnlyStore implements ContentStore {
     this.reject();
   }
   async deleteMessage() {
+    this.reject();
+  }
+  async readSettings() {
+    return null;
+  }
+  async writeSettings(): Promise<void> {
     this.reject();
   }
   async listReviews() {

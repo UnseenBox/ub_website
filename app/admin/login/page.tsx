@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
   if (await getAdminSession()) redirect("/admin");
-  const configured = adminConfigured();
+  const configured = await adminConfigured();
 
   return (
     <main className="grid min-h-dvh place-items-center bg-zinc-950 px-4">

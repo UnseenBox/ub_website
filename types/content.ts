@@ -306,6 +306,32 @@ export interface RatingSummary {
   count: number;
 }
 
+/* ------------------------------------------------------------------ */
+/* Site settings                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Settings an admin can change without a redeploy. Stored as one row, kept
+ * apart from page content because it holds the admin credentials.
+ */
+export interface SiteSettings {
+  /** Overrides ADMIN_USERNAME once an admin changes it in the panel. */
+  adminUsername?: string;
+  /** scrypt hash of the password. Never sent to the browser. */
+  adminPasswordHash?: string;
+  /** Browser tab icon. Empty uses the built-in mark. */
+  favicon?: string;
+  /** Image used when a page is shared, unless the page has its own. */
+  shareImage?: string;
+  updatedAt: string;
+}
+
+/** The half of the settings that may safely reach a page. */
+export interface PublicSettings {
+  favicon?: string;
+  shareImage?: string;
+}
+
 export interface ContactMessage {
   id: string;
   name: string;

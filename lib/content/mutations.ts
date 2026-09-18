@@ -1,9 +1,18 @@
 import "server-only";
 
 import { revalidatePath, revalidateTag } from "next/cache";
-import type { ContactMessage, Experience, Game, Review, ReviewStatus, Service, StudioInfo } from "@/types/content";
+import type {
+  ContactMessage,
+  Experience,
+  Game,
+  Review,
+  ReviewStatus,
+  Service,
+  SiteSettings,
+  StudioInfo,
+} from "@/types/content";
 import { importSeed } from "@/lib/db/client";
-import { CONTENT_TAG, REVIEWS_TAG, getContentFresh } from "./queries";
+import { CONTENT_TAG, REVIEWS_TAG, SETTINGS_TAG, getContentFresh } from "./queries";
 import { getStore } from "./store";
 
 export { ContentConflictError } from "./store";
@@ -75,6 +84,22 @@ export async function restoreStarterContent() {
     throw new Error("Starter content can only be re-imported into a database. Locally, delete .data/content.json instead.");
   }
   await write(() => importSeed());
+}
+
+/* Site settings. The credentials stored alongside them are written by
+   lib/auth/credentials.ts, which reads and writes the same row. */
+
+export async function getSettings(): Promise<SiteSettings | null> {
+  return getStore().readSettings();
+}
+
+/** Saves the site-wide options, leaving the stored credentials untouched. */
+export async function saveSiteOptions(options: Pick<SiteSettings, "favicon" | "shareImage">) {
+  const store = getStore();
+  const current = (await store.readSettings()) ?? { updatedAt: new Date().toISOString() };
+  await store.writeSettings({ ...current, ...options, updatedAt: new Date().toISOString() });
+  revalidateTag(SETTINGS_TAG, "max");
+  revalidatePath("/", "layout");
 }
 
 /* Messages are private and never part of the public cache. */

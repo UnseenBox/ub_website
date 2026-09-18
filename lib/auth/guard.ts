@@ -1,34 +1,25 @@
 import "server-only";
 
-import { createHash, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { credentialsConfigured, currentUsername, verifyCredentials } from "./credentials";
 import { SESSION_COOKIE, verifySessionToken, type SessionPayload } from "./session";
 
-/** Constant-time comparison that does not leak length. */
-function safeEqual(a: string, b: string): boolean {
-  const ha = createHash("sha256").update(a).digest();
-  const hb = createHash("sha256").update(b).digest();
-  return timingSafeEqual(ha, hb);
-}
+export const adminConfigured = credentialsConfigured;
+export const checkCredentials = verifyCredentials;
 
-export function adminConfigured(): boolean {
-  return Boolean(process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD);
-}
-
-export function checkCredentials(username: string, password: string): boolean {
-  const expectedUser = process.env.ADMIN_USERNAME;
-  const expectedPass = process.env.ADMIN_PASSWORD;
-  if (!expectedUser || !expectedPass) return false;
-  // Evaluate both to avoid short-circuit timing differences.
-  const userOk = safeEqual(username, expectedUser);
-  const passOk = safeEqual(password, expectedPass);
-  return userOk && passOk;
-}
-
+/**
+ * A session is valid when its signature holds AND it names the current admin,
+ * so changing the username in Settings signs the old sessions out. proxy.ts
+ * only checks the signature — it runs before the database is reachable — which
+ * is why the identity check lives here, in front of every admin page.
+ */
 export async function getAdminSession(): Promise<SessionPayload | null> {
   const store = await cookies();
-  return verifySessionToken(store.get(SESSION_COOKIE)?.value);
+  const session = await verifySessionToken(store.get(SESSION_COOKIE)?.value);
+  if (!session) return null;
+  const expected = await currentUsername();
+  return expected && session.sub === expected ? session : null;
 }
 
 /**

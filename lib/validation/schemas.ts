@@ -161,6 +161,12 @@ export const studioSchema = z.object({
   home: homeSchema.optional(),
 });
 
+/** Site-wide options from the Settings page. Credentials are handled separately. */
+export const siteOptionsSchema = z.object({
+  favicon: imageRef,
+  shareImage: imageRef,
+});
+
 export type GameInput = z.input<typeof gameSchema>;
 
 /** Flatten zod issues to "path: message" strings for the admin UI. */
