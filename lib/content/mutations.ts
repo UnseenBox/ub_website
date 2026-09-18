@@ -1,6 +1,6 @@
 import "server-only";
 
-import { revalidatePath, updateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import type { ContactMessage, Experience, Game, Review, ReviewStatus, Service, StudioInfo } from "@/types/content";
 import { importSeed } from "@/lib/db/client";
 import { CONTENT_TAG, REVIEWS_TAG, getContentFresh } from "./queries";
@@ -8,9 +8,16 @@ import { getStore } from "./store";
 
 export { ContentConflictError } from "./store";
 
-/** Drops the cached copy of every public page after a write. */
+/**
+ * Drops the cached copy of every public page after a write.
+ *
+ * `revalidateTag` — not `updateTag` — is what clears an `unstable_cache`
+ * entry in a project without Cache Components; `updateTag` left the cached
+ * content in place, so pages regenerated with the same stale data. The
+ * "max" profile purges immediately rather than serving stale first.
+ */
 function invalidate() {
-  updateTag(CONTENT_TAG);
+  revalidateTag(CONTENT_TAG, "max");
   revalidatePath("/", "layout");
 }
 
@@ -100,7 +107,7 @@ export async function addReview(review: Review) {
 }
 
 function invalidateReviews() {
-  updateTag(REVIEWS_TAG);
+  revalidateTag(REVIEWS_TAG, "max");
   revalidatePath("/", "layout");
 }
 
