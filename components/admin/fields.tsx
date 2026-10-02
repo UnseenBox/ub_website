@@ -354,7 +354,8 @@ export function ImageField({
       </Field>
       <div className={cn("relative overflow-hidden rounded-md border border-zinc-200 bg-zinc-100", aspect)}>
         {resolved ? (
-          <SmartImage key={resolved} src={value} alt="" sizes="9rem" />
+          // Contained, not cropped: a portrait screenshot should preview whole.
+          <SmartImage key={resolved} src={value} alt="" sizes="9rem" className="object-contain" />
         ) : (
           <span className="absolute inset-0 grid place-items-center text-xs text-zinc-400">No image</span>
         )}

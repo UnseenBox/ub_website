@@ -12,11 +12,31 @@ interface GalleryProps {
   layout?: "strip" | "grid";
 }
 
-/** Lazy thumbnails + an accessible <dialog> lightbox with keyboard and swipe support. */
+/** Until a file has loaded, assume the common case so nothing jumps far. */
+const DEFAULT_RATIO = 16 / 9;
+
+/**
+ * Lazy thumbnails + an accessible <dialog> lightbox with keyboard and swipe
+ * support.
+ *
+ * Each thumbnail is shown at the file's own aspect ratio, measured when it
+ * loads, so a phone game's portrait screenshots are not cropped to landscape.
+ * In the strip layout every item shares one height and varies in width, which
+ * keeps a mixed set of orientations looking deliberate.
+ */
 export function Gallery({ images, altPrefix, copy, layout = "strip" }: GalleryProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [index, setIndex] = useState<number | null>(null);
+  const [ratios, setRatios] = useState<Record<string, number>>({});
   const touchX = useRef<number | null>(null);
+
+  const measure = (src: string) => (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = event.currentTarget;
+    if (!naturalWidth || !naturalHeight) return;
+    setRatios((current) =>
+      current[src] ? current : { ...current, [src]: naturalWidth / naturalHeight },
+    );
+  };
 
   const open = (i: number) => {
     setIndex(i);
@@ -53,19 +73,27 @@ export function Gallery({ images, altPrefix, copy, layout = "strip" }: GalleryPr
         aria-label={copy.gallery}
         className={cn(
           layout === "strip"
-            ? "scrollbar-none -mx-[clamp(1rem,4vw,3.5rem)] flex snap-x gap-4 overflow-x-auto px-[clamp(1rem,4vw,3.5rem)] pb-4"
-            : "grid gap-4 sm:grid-cols-2",
+            ? "scrollbar-none -mx-[clamp(1rem,4vw,3.5rem)] flex snap-x items-stretch gap-4 overflow-x-auto px-[clamp(1rem,4vw,3.5rem)] pb-4"
+            : "grid items-start gap-4 sm:grid-cols-2",
         )}
       >
         {images.map((src, i) => (
           <li
             key={`${src}-${i}`}
-            className={cn(layout === "strip" ? "w-[85vw] shrink-0 snap-start sm:w-[42rem]" : i === 0 && "sm:col-span-2")}
+            className={cn(
+              layout === "strip"
+                ? "h-[58vw] max-h-[24rem] shrink-0 snap-start sm:h-[26rem] sm:max-h-none"
+                : i === 0 && "sm:col-span-2",
+            )}
           >
             <button
               type="button"
               onClick={() => open(i)}
-              className="group frame relative block aspect-video w-full overflow-hidden bg-ink-800"
+              style={{ aspectRatio: ratios[src] ?? DEFAULT_RATIO }}
+              className={cn(
+                "group frame relative block overflow-hidden bg-ink-800",
+                layout === "strip" ? "h-full w-auto" : "w-full",
+              )}
               aria-label={`${copy.image} ${i + 1} ${copy.of} ${images.length}`}
               data-cursor="+"
             >
@@ -73,6 +101,7 @@ export function Gallery({ images, altPrefix, copy, layout = "strip" }: GalleryPr
                 src={src}
                 alt={`${altPrefix} — ${copy.image} ${i + 1}`}
                 sizes={layout === "strip" ? "(min-width: 640px) 42rem, 85vw" : "(min-width: 640px) 50vw, 100vw"}
+                onLoad={measure(src)}
                 className="transition-transform duration-[1200ms] ease-expo group-hover:scale-[1.03]"
               />
               <span className="font-pixel absolute bottom-3 end-3 bg-void/70 px-2 py-1 text-[0.65rem]" dir="ltr">

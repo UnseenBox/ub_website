@@ -71,6 +71,10 @@ export interface DevNote {
   text: LocalizedString;
 }
 
+export const SCREENSHOT_SHAPES = ["auto", "landscape", "portrait", "square"] as const;
+/** The frame screenshots are shown in: phone games are usually portrait. */
+export type ScreenshotShape = (typeof SCREENSHOT_SHAPES)[number];
+
 export interface Game {
   id: string;
   slug: string;
@@ -90,6 +94,8 @@ export interface Game {
   poster: string;
   cover: string;
   screenshots: string[];
+  /** Defaults to "auto", which measures each file as it loads. */
+  screenshotShape?: ScreenshotShape;
   trailerUrl?: string;
   links: ExternalLink[];
   features: LocalizedString[];

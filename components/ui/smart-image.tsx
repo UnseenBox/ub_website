@@ -14,6 +14,8 @@ interface SmartImageProps {
   preload?: boolean;
   quality?: 60 | 75 | 90;
   loading?: "lazy" | "eager";
+  /** Lets a caller read the file's natural size once it has loaded. */
+  onLoad?: (event: React.SyntheticEvent<HTMLImageElement>) => void;
 }
 
 /**
@@ -31,6 +33,7 @@ export function SmartImage({
   preload,
   quality = 75,
   loading,
+  onLoad,
 }: SmartImageProps) {
   const resolved = resolveImageSrc(src);
 
@@ -59,6 +62,7 @@ export function SmartImage({
       preload={preload}
       loading={preload ? undefined : loading}
       unoptimized={!canOptimise(resolved)}
+      onLoad={onLoad}
       className={cn("object-cover", className)}
       {...dimensions}
     />

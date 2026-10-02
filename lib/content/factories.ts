@@ -20,6 +20,7 @@ export function newGame(order: number): Game {
     poster: "",
     cover: "",
     screenshots: [],
+    screenshotShape: "auto",
     trailerUrl: "",
     links: [],
     features: [],

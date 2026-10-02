@@ -46,6 +46,7 @@ export const SCHEMA_STATEMENTS: string[] = [
      poster text not null default '',
      cover text not null default '',
      screenshots jsonb not null default '[]'::jsonb,
+     screenshot_shape text not null default 'auto',
      trailer_url text,
      links jsonb not null default '[]'::jsonb,
      features jsonb not null default '[]'::jsonb,
@@ -111,6 +112,9 @@ export const SCHEMA_STATEMENTS: string[] = [
      reply text,
      created_at timestamptz not null default now()
    )`,
+
+  // Added after the first release, so existing databases get the column too.
+  `alter table games add column if not exists screenshot_shape text not null default 'auto'`,
 
   `create index if not exists games_sort_order_idx on games (sort_order)`,
   `create index if not exists services_sort_order_idx on services (sort_order)`,

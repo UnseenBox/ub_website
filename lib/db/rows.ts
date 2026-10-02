@@ -11,6 +11,7 @@ import type {
   Locale,
   Platform,
   Review,
+  ScreenshotShape,
   ReviewStatus,
   Service,
   StudioInfo,
@@ -62,6 +63,7 @@ export interface GameRow {
   poster: string;
   cover: string;
   screenshots: unknown;
+  screenshot_shape: string | null;
   trailer_url: string | null;
   links: unknown;
   features: unknown;
@@ -91,6 +93,7 @@ export function toGame(row: GameRow): Game {
     poster: row.poster,
     cover: row.cover,
     screenshots: list<string>(row.screenshots),
+    screenshotShape: (row.screenshot_shape as ScreenshotShape) || "auto",
     trailerUrl: text(row.trailer_url),
     links: list<ExternalLink>(row.links),
     features: list<LocalizedString>(row.features),
@@ -122,6 +125,7 @@ export function gameParams(game: Game): unknown[] {
     game.poster,
     game.cover,
     json(game.screenshots),
+    game.screenshotShape || "auto",
     game.trailerUrl || null,
     json(game.links),
     json(game.features),
@@ -136,8 +140,8 @@ export function gameParams(game: Game): unknown[] {
 }
 
 export const GAME_COLUMNS = `id, slug, title, status, release_date, estimated_release, progress,
-  tagline, summary, description, genre, platforms, poster, cover, screenshots, trailer_url,
-  links, features, dev_notes, engine, accent, featured, upcoming, sort_order, updated_at`;
+  tagline, summary, description, genre, platforms, poster, cover, screenshots, screenshot_shape,
+  trailer_url, links, features, dev_notes, engine, accent, featured, upcoming, sort_order, updated_at`;
 
 /* ------------------------------------------------------------------ */
 /* Services                                                            */

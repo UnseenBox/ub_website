@@ -5,6 +5,7 @@ import {
   GLYPHS,
   LINK_KINDS,
   PLATFORMS,
+  SCREENSHOT_SHAPES,
   SOCIAL_PLATFORMS,
 } from "@/types/content";
 
@@ -56,6 +57,7 @@ export const gameSchema = z.object({
   poster: imageRef,
   cover: imageRef,
   screenshots: z.array(imageRef).max(40).transform((list) => list.filter(Boolean)),
+  screenshotShape: z.enum(SCREENSHOT_SHAPES).optional(),
   trailerUrl: optionalUrl.optional(),
   links: z
     .array(z.object({ kind: z.enum(LINK_KINDS), url: httpUrl, label: text(40).optional() }))
