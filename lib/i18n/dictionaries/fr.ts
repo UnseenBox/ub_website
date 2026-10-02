@@ -19,6 +19,8 @@ const fr: Dictionary = {
     contactDescription: "Lancer un projet, proposer une idée ou simplement dire bonjour à UnseenBox.",
     community: "Communauté",
     communityDescription: "Avis et notes des joueurs sur les jeux UnseenBox — lisez les retours et laissez le vôtre.",
+    play: "Jouez à nos jeux",
+    playDescription: "Des jeux UnseenBox gratuits, jouables dans le navigateur. Sans téléchargement, sans compte — sur téléphone ou ordinateur.",
     notFound: "Signal perdu",
   },
   a11y: {
@@ -56,6 +58,8 @@ const fr: Dictionary = {
     contactNote: "Envoyer un signal",
     community: "Communauté",
     communityNote: "La parole aux joueurs",
+    play: "Jouer",
+    playNote: "Dans votre navigateur, tout de suite",
     localTime: "Heure du studio",
   },
   hero: {
@@ -84,6 +88,20 @@ const fr: Dictionary = {
     status: "Statut",
     released: "Sortie",
     selectorLabel: "Choisir un jeu",
+  },
+  play: {
+    label: "Jouer",
+    title: "Jouez à nos jeux.",
+    intro: "Des jeux gratuits qui tournent ici même, dans votre navigateur. Sans téléchargement, sans compte. Sur téléphone ou ordinateur.",
+    count: "Jouables maintenant",
+    start: "Jouer",
+    fullscreen: "Plein écran",
+    newTab: "Ouvrir dans un nouvel onglet",
+    close: "Fermer",
+    computer: "Sur ordinateur",
+    phone: "Sur téléphone",
+    tags: ["Gratuit", "Sans téléchargement", "Téléphone et ordinateur"],
+    more: "D’autres jeux jouables arrivent.",
   },
   upcoming: {
     label: "Dans le noir",

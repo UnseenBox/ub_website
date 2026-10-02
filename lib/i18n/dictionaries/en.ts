@@ -21,6 +21,8 @@ const en = {
     contactDescription: "Start a project, pitch an idea or say hello to UnseenBox.",
     community: "Community",
     communityDescription: "Player reviews and ratings of UnseenBox games — read what people think, and leave your own.",
+    play: "Play Our Games",
+    playDescription: "Free browser games from UnseenBox. No download, no account — press play on your phone or computer.",
     notFound: "Signal lost",
   },
   a11y: {
@@ -58,6 +60,8 @@ const en = {
     contactNote: "Send a signal",
     community: "Community",
     communityNote: "What players say",
+    play: "Play",
+    playNote: "In your browser, right now",
     localTime: "Studio time",
   },
   hero: {
@@ -86,6 +90,20 @@ const en = {
     status: "Status",
     released: "Released",
     selectorLabel: "Choose a game",
+  },
+  play: {
+    label: "Play",
+    title: "Play our games.",
+    intro: "Free games that run right here in your browser. No download, no account. Phone or computer.",
+    count: "Playable now",
+    start: "Play now",
+    fullscreen: "Full screen",
+    newTab: "Open in a new tab",
+    close: "Close",
+    computer: "On a computer",
+    phone: "On a phone",
+    tags: ["Free", "No download", "Phone & computer"],
+    more: "More playable games are on the way.",
   },
   upcoming: {
     label: "In the dark",

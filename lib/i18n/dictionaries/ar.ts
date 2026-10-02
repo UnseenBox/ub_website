@@ -19,6 +19,8 @@ const ar: Dictionary = {
     contactDescription: "ابدأ مشروعًا، اعرض فكرة، أو ألقِ التحية على UnseenBox.",
     community: "المجتمع",
     communityDescription: "آراء اللاعبين وتقييماتهم لألعاب UnseenBox — اقرأ ما يقولونه واترك رأيك.",
+    play: "العب ألعابنا",
+    playDescription: "ألعاب مجانية من UnseenBox تعمل في المتصفح. بلا تحميل وبلا حساب — على الهاتف أو الحاسوب.",
     notFound: "انقطعت الإشارة",
   },
   a11y: {
@@ -56,6 +58,8 @@ const ar: Dictionary = {
     contactNote: "أرسل إشارة",
     community: "المجتمع",
     communityNote: "ما يقوله اللاعبون",
+    play: "العب",
+    playNote: "في متصفحك، الآن",
     localTime: "توقيت الاستوديو",
   },
   hero: {
@@ -84,6 +88,20 @@ const ar: Dictionary = {
     status: "الحالة",
     released: "تاريخ الإصدار",
     selectorLabel: "اختر لعبة",
+  },
+  play: {
+    label: "العب",
+    title: "العب ألعابنا.",
+    intro: "ألعاب مجانية تعمل هنا مباشرة في متصفحك. بلا تحميل وبلا حساب. على الهاتف أو الحاسوب.",
+    count: "متاحة للعب الآن",
+    start: "العب الآن",
+    fullscreen: "ملء الشاشة",
+    newTab: "افتح في تبويب جديد",
+    close: "إغلاق",
+    computer: "على الحاسوب",
+    phone: "على الهاتف",
+    tags: ["مجانية", "بلا تحميل", "هاتف وحاسوب"],
+    more: "ألعاب أخرى قابلة للعب في الطريق.",
   },
   upcoming: {
     label: "في العتمة",

@@ -7,6 +7,7 @@ export const NAV_ITEMS = [
   { key: "community", path: "/community", index: "05" },
   { key: "about", path: "/about", index: "06" },
   { key: "contact", path: "/contact", index: "07" },
+  { key: "play", path: "/play", index: "08" },
 ] as const;
 
 export type NavKey = (typeof NAV_ITEMS)[number]["key"];
