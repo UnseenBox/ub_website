@@ -1,13 +1,13 @@
 export const NAV_ITEMS = [
   { key: "home", path: "/", index: "00" },
   { key: "games", path: "/games", index: "01" },
-  { key: "upcoming", path: "/upcoming", index: "02" },
-  { key: "services", path: "/services", index: "03" },
-  { key: "experiences", path: "/experiences", index: "04" },
-  { key: "community", path: "/community", index: "05" },
-  { key: "about", path: "/about", index: "06" },
-  { key: "contact", path: "/contact", index: "07" },
-  { key: "play", path: "/play", index: "08" },
+  { key: "play", path: "/play", index: "02" },
+  { key: "upcoming", path: "/upcoming", index: "03" },
+  { key: "services", path: "/services", index: "04" },
+  { key: "experiences", path: "/experiences", index: "05" },
+  { key: "community", path: "/community", index: "06" },
+  { key: "about", path: "/about", index: "07" },
+  { key: "contact", path: "/contact", index: "08" },
 ] as const;
 
 export type NavKey = (typeof NAV_ITEMS)[number]["key"];

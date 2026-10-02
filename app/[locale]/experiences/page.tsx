@@ -28,7 +28,7 @@ export default async function ExperiencesPage({ params }: PageProps<"/[locale]/e
 
   return (
     <>
-      <PageIntro index="04" label={dict.experiences.label} title={dict.experiences.title} lede={dict.experiences.intro} />
+      <PageIntro index="05" label={dict.experiences.label} title={dict.experiences.title} lede={dict.experiences.intro} />
       <section className="shell py-16 sm:py-24" aria-label={dict.experiences.label}>
         <ArchiveGrid
           items={experiences.map((item) => toArchiveItem(item, locale, dict))}

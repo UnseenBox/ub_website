@@ -46,7 +46,7 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
 
   return (
     <>
-      <PageIntro index="05" label={copy.label} title={copy.title} lede={copy.intro} />
+      <PageIntro index="06" label={copy.label} title={copy.title} lede={copy.intro} />
 
       {/* Ratings per game */}
       <section className="shell py-20 sm:py-24" aria-label={copy.averageTitle}>

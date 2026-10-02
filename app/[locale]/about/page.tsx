@@ -27,7 +27,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
 
   return (
     <>
-      <PageIntro index="05" label={dict.about.label} title={dict.about.title} lede={lede} />
+      <PageIntro index="07" label={dict.about.label} title={dict.about.title} lede={lede} />
 
       {/* Manifesto + story */}
       <section className="shell grid gap-14 py-24 sm:py-32 lg:grid-cols-[1.3fr_1fr] lg:gap-24">

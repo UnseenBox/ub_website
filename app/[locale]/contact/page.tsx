@@ -31,7 +31,7 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
       <div className="shell grid gap-16 pb-28 pt-32 sm:pt-44 lg:grid-cols-[1fr_1.1fr] lg:gap-24">
         <div className="flex flex-col">
           <div className="animate-fade">
-            <SectionLabel index="06">{dict.contact.label}</SectionLabel>
+            <SectionLabel index="08">{dict.contact.label}</SectionLabel>
           </div>
           <h1 className="font-display mt-8 text-mega">
             <span className="line-mask">

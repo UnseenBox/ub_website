@@ -30,7 +30,7 @@ export default async function PlayPage({ params }: PageProps<"/[locale]/play">) 
   return (
     <>
       <PageIntro
-        index="08"
+        index="02"
         label={copy.label}
         title={copy.title}
         lede={copy.intro}

@@ -24,7 +24,7 @@ export default async function UpcomingPage({ params }: PageProps<"/[locale]/upco
   return (
     <>
       <PageIntro
-        index="02"
+        index="03"
         label={dict.upcoming.label}
         title={dict.upcoming.title}
         lede={dict.upcoming.intro}

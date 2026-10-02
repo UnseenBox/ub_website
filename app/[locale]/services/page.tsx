@@ -25,7 +25,7 @@ export default async function ServicesPage({ params }: PageProps<"/[locale]/serv
 
   return (
     <>
-      <PageIntro index="03" label={dict.services.label} title={dict.services.title} lede={dict.services.intro} />
+      <PageIntro index="04" label={dict.services.label} title={dict.services.title} lede={dict.services.intro} />
 
       <section className="shell py-20 sm:py-28" aria-label={dict.services.label}>
         <ServicesIndex
