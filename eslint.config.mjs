@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Prebuilt browser games served as static files.
+    "public/arcade/**",
   ]),
 ]);
 
