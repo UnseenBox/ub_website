@@ -19,19 +19,19 @@ export interface PlayableGame {
 
 export const PLAYABLE_GAMES: PlayableGame[] = [
   {
-    slug: "everything-is-a-weapon",
-    title: "Everything Is A Weapon",
-    src: "/arcade/everything-is-a-weapon/index.html",
-    poster: "/arcade/everything-is-a-weapon/poster.jpg",
+    slug: "throw-the-toaster",
+    title: "Throw The Toaster",
+    src: "/arcade/throw-the-toaster/index.html",
+    poster: "/arcade/throw-the-toaster/poster.jpg",
     genre: {
       en: "Physics action sandbox",
       fr: "Bac à sable d’action physique",
       ar: "أكشن فيزيائي حرّ",
     },
     summary: {
-      en: "Intruders break in at 3 a.m. You have no weapon. Good — the room is full of them. Throw the chair, topple the lamp into the puddle, and find all 52 ways it can go wrong for them.",
-      fr: "Des intrus débarquent à 3 h du matin. Vous n’avez pas d’arme. Tant mieux : la pièce en est pleine. Lancez la chaise, faites tomber la lampe dans la flaque et découvrez les 52 façons dont ça peut mal tourner pour eux.",
-      ar: "يقتحم الدخلاء المكان في الثالثة فجراً. لا تملك سلاحاً. جيد — فالغرفة مليئة بالأسلحة. ارمِ الكرسي، أسقط المصباح في بركة الماء، واكتشف 52 طريقة تسوء بها الأمور عليهم.",
+      en: "Living cardboard boxes break in at 3 a.m. to move you out. You have no weapon. Good — the flat is full of them. Throw the toaster, topple the lamp into the puddle, and find over 70 ways it can go wrong for them.",
+      fr: "Des cartons vivants débarquent à 3 h du matin pour vous déménager de force. Vous n’avez pas d’arme. Tant mieux : l’appartement en est plein. Lancez le grille-pain, faites tomber la lampe dans la flaque et découvrez plus de 70 façons dont ça peut mal tourner pour eux.",
+      ar: "صناديق كرتونية حيّة تقتحم شقتك في الثالثة فجراً لتُخرجك منها. لا تملك سلاحاً. جيد — فالشقة مليئة بالأسلحة. ارمِ محمصة الخبز، أسقط المصباح في بركة الماء، واكتشف أكثر من 70 طريقة تسوء بها الأمور عليهم.",
     },
     desktopControls: {
       en: "WASD to move · click to grab · hold and release to throw · space to dodge",
