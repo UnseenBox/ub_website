@@ -8,7 +8,7 @@ import { isLocale } from "@/lib/i18n/config";
 import { newId } from "@/lib/utils";
 
 export type ReviewField = "game" | "rating" | "name" | "email" | "body";
-export type ReviewErrorCode = "required" | "invalidEmail" | "tooShort" | "noRating";
+type ReviewErrorCode = "required" | "invalidEmail" | "tooShort" | "noRating";
 
 export interface ReviewState {
   status: "idle" | "success" | "error";

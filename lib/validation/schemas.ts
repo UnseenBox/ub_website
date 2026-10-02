@@ -11,10 +11,10 @@ import {
 
 const text = (max: number) => z.string().trim().max(max).default("");
 
-export const localized = (max = 4000) => z.object({ en: text(max), fr: text(max), ar: text(max) });
+const localized = (max = 4000) => z.object({ en: text(max), fr: text(max), ar: text(max) });
 
 /** English is the fallback language, so it is required where content is essential. */
-export const localizedRequired = (max = 4000) =>
+const localizedRequired = (max = 4000) =>
   z.object({ en: z.string().trim().min(1, "English text is required").max(max), fr: text(max), ar: text(max) });
 
 const imageRef = z
@@ -168,8 +168,6 @@ export const siteOptionsSchema = z.object({
   favicon: imageRef,
   shareImage: imageRef,
 });
-
-export type GameInput = z.input<typeof gameSchema>;
 
 /** Flatten zod issues to "path: message" strings for the admin UI. */
 export function formatIssues(error: z.ZodError): string[] {

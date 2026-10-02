@@ -47,10 +47,6 @@ export function extractDriveId(input: string): string | null {
   return null;
 }
 
-export function isDriveSource(input: string): boolean {
-  return extractDriveId(input) !== null;
-}
-
 /** Resolve an editor-provided image reference to a URL next/image accepts. */
 export function resolveImageSrc(input: string | undefined | null): string | null {
   if (!input) return null;

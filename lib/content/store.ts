@@ -106,10 +106,10 @@ export class ContentConflictError extends Error {
 }
 
 /** Keeps the inbox bounded; older messages are pruned on insert. */
-export const MESSAGE_LIMIT = 1000;
+const MESSAGE_LIMIT = 1000;
 
 /** Upper bound on reviews read at once, newest first. */
-export const REVIEW_LIMIT = 500;
+const REVIEW_LIMIT = 500;
 
 /* ------------------------------------------------------------------ */
 /* Neon                                                                */

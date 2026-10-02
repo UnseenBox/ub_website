@@ -7,7 +7,7 @@ import { isLocale } from "@/lib/i18n/config";
 import { newId } from "@/lib/utils";
 
 export type ContactField = "name" | "email" | "topic" | "message";
-export type ContactErrorCode = "required" | "invalidEmail" | "tooShort";
+type ContactErrorCode = "required" | "invalidEmail" | "tooShort";
 
 export interface ContactState {
   status: "idle" | "success" | "error";
