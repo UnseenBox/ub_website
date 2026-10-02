@@ -11,9 +11,10 @@ interface PageMetaInput {
   description: string;
   image?: string;
   type?: "website" | "article";
-  /** Use the title as-is instead of applying the "— UnseenBox" template. */
-  absoluteTitle?: boolean;
 }
+
+/** What the browser tab shows on every public page. */
+export const TAB_TITLE = "UnseenBox";
 
 export function languageAlternates(path: string) {
   const languages: Record<string, string> = {};
@@ -29,12 +30,13 @@ export function buildMetadata({
   description,
   image,
   type = "website",
-  absoluteTitle,
 }: PageMetaInput): Metadata {
   const resolved = resolveImageSrc(image) ?? "/media/og/default.png";
   const url = localePath(locale, path);
   return {
-    title: absoluteTitle ? { absolute: title } : title,
+    // The tab only ever says the studio name; the page title still describes
+    // the page on share cards, where there is room for it.
+    title: { absolute: TAB_TITLE },
     description,
     alternates: { canonical: url, languages: languageAlternates(path) },
     openGraph: {
