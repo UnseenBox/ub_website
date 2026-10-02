@@ -19,10 +19,10 @@ export interface PlayableGame {
 
 export const PLAYABLE_GAMES: PlayableGame[] = [
   {
-    slug: "throw-the-toaster",
-    title: "Throw The Toaster",
-    src: "/arcade/throw-the-toaster/index.html",
-    poster: "/arcade/throw-the-toaster/poster.jpg",
+    slug: "bonk",
+    title: "BONK!",
+    src: "/arcade/bonk/index.html",
+    poster: "/arcade/bonk/poster.jpg",
     genre: {
       en: "Physics action sandbox",
       fr: "Bac à sable d’action physique",
