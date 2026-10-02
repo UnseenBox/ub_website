@@ -11,7 +11,7 @@ import { Brand } from "./brand";
 import { LanguageSwitcher } from "./language-switcher";
 import { StudioClock } from "./studio-clock";
 
-export interface HeaderCopy {
+interface HeaderCopy {
   nav: Record<NavKey | "menu" | "close" | "localTime" | `${NavKey}Note`, string>;
   a11y: { skip: string; openMenu: string; closeMenu: string; language: string; mainNav: string };
 }

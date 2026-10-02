@@ -26,7 +26,6 @@ export async function generateMetadata({ params }: PageProps<"/[locale]">): Prom
     path: "/",
     title: dict.meta.homeTitle,
     description: dict.meta.homeDescription,
-    absoluteTitle: true,
   });
 }
 

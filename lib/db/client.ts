@@ -17,7 +17,7 @@ import { TOUCH_META, UPSERT_EXPERIENCE, UPSERT_GAME, UPSERT_SERVICE, UPSERT_STUD
  * works without renaming anything.
  */
 
-export function databaseUrl(): string | undefined {
+function databaseUrl(): string | undefined {
   return (
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||

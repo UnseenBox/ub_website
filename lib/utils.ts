@@ -66,10 +66,6 @@ export function paragraphs(text: string): string[] {
     .filter(Boolean);
 }
 
-export function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
 export function siteUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL;
   if (explicit) return explicit.replace(/\/$/, "");

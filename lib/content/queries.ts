@@ -46,10 +46,6 @@ export async function getGames(): Promise<Game[]> {
   return [...(await getContent()).games].sort(byOrder);
 }
 
-export async function getReleasedGames(): Promise<Game[]> {
-  return (await getGames()).filter((game) => !game.upcoming);
-}
-
 export async function getUpcomingGames(): Promise<Game[]> {
   return (await getGames()).filter((game) => game.upcoming);
 }

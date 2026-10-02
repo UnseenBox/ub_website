@@ -12,7 +12,7 @@ import { LOCALES, dirOf, isLocale, t } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import type { NavKey } from "@/lib/navigation";
 import { resolveImageSrc } from "@/lib/images/drive";
-import { buildMetadata } from "@/lib/seo";
+import { TAB_TITLE, buildMetadata } from "@/lib/seo";
 import { siteUrl } from "@/lib/utils";
 
 export function generateStaticParams() {
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
     metadataBase: new URL(siteUrl()),
     // A favicon set in the admin replaces the built-in mark everywhere.
     icons: favicon ? { icon: favicon, shortcut: favicon, apple: favicon } : undefined,
-    title: { default: dict.meta.homeTitle, template: "%s — UnseenBox" },
+    title: TAB_TITLE,
     applicationName: "UnseenBox",
     creator: "UnseenBox",
     formatDetection: { telephone: false, email: false },
@@ -43,7 +43,6 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
       title: dict.meta.homeTitle,
       description: dict.meta.homeDescription,
       image: settings.shareImage,
-      absoluteTitle: true,
     }),
   };
 }
