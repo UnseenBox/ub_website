@@ -209,6 +209,7 @@ const fr: Dictionary = {
     averageTitle: "Notes jusqu'ici",
     noRatings: "Aucune note pour l'instant — soyez le premier.",
     reviewsTitle: "Avis",
+    allReviews: "Tous les avis",
     empty: "Aucun avis pour l'instant. Le vôtre serait le premier.",
     emptyForGame: "Aucun avis sur ce jeu pour l'instant.",
     filterAll: "Tous les jeux",

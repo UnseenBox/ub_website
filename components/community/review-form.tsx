@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { submitReview, type ReviewField, type ReviewState } from "@/app/[locale]/community/actions";
 import type { Locale } from "@/types/content";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,9 @@ export function ReviewForm({
   const [state, action, pending] = useActionState(submitReview, initial);
   const [startedAt] = useState(() => Date.now());
   const [rating, setRating] = useState(0);
+  // A page can carry several forms (one per game on /play), so ids must be unique.
+  const uid = useId();
+  const idFor = (field: string) => `${uid}-${field}`;
 
   if (state.status === "success") {
     return (
@@ -76,23 +79,28 @@ export function ReviewForm({
         </label>
       </div>
 
-      <Field id="gameId" label={copy.game} error={error("game")}>
-        <select
-          id="gameId"
-          name="gameId"
-          required
-          defaultValue={state.values?.game || defaultGameId || ""}
-          aria-invalid={!!error("game")}
-          className={cn(fieldClass, "[&>option]:bg-ink-950")}
-        >
-          <option value="">{copy.chooseGame}</option>
-          {games.map((game) => (
-            <option key={game.id} value={game.id}>
-              {game.title}
-            </option>
-          ))}
-        </select>
-      </Field>
+      {/* On a game's own page there is nothing to choose: the review is for that game. */}
+      {games.length === 1 ? (
+        <input type="hidden" name="gameId" value={games[0].id} />
+      ) : (
+        <Field id={idFor("gameId")} label={copy.game} error={error("game")}>
+          <select
+            id={idFor("gameId")}
+            name="gameId"
+            required
+            defaultValue={state.values?.game || defaultGameId || ""}
+            aria-invalid={!!error("game")}
+            className={cn(fieldClass, "[&>option]:bg-ink-950")}
+          >
+            <option value="">{copy.chooseGame}</option>
+            {games.map((game) => (
+              <option key={game.id} value={game.id}>
+                {game.title}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       <fieldset>
         <legend className="label">{copy.rating}</legend>
@@ -140,9 +148,9 @@ export function ReviewForm({
       </fieldset>
 
       <div className="grid gap-8 sm:grid-cols-2">
-        <Field id="name" label={copy.name} error={error("name")}>
+        <Field id={idFor("name")} label={copy.name} error={error("name")}>
           <input
-            id="name"
+            id={idFor("name")}
             name="name"
             autoComplete="name"
             required
@@ -151,9 +159,9 @@ export function ReviewForm({
             className={fieldClass}
           />
         </Field>
-        <Field id="email" label={copy.email} error={error("email")} hint={copy.emailHint}>
+        <Field id={idFor("email")} label={copy.email} error={error("email")} hint={copy.emailHint}>
           <input
-            id="email"
+            id={idFor("email")}
             name="email"
             type="email"
             dir="ltr"
@@ -165,9 +173,9 @@ export function ReviewForm({
         </Field>
       </div>
 
-      <Field id="body" label={copy.review} error={error("body")}>
+      <Field id={idFor("body")} label={copy.review} error={error("body")}>
         <textarea
-          id="body"
+          id={idFor("body")}
           name="body"
           rows={5}
           required
@@ -213,7 +221,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid content-start gap-2">
       <label htmlFor={id} className="label">
         {label}
       </label>
