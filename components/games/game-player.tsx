@@ -51,7 +51,7 @@ export function GamePlayer({ title, src, poster, copy }: GamePlayerProps) {
             type="button"
             onClick={start}
             data-cursor={copy.start}
-            aria-label={`${copy.start} — ${title}`}
+            aria-label={`${copy.start}: ${title}`}
             className="group absolute inset-0 block size-full cursor-pointer text-start"
           >
             <SmartImage

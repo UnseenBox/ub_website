@@ -66,7 +66,7 @@ const fr: Dictionary = {
     channels: ["Développement de jeux", "Technologie créative", "Imagination"],
     lines: ["Chaque monde", "naît dans", "l'invisible."],
     intro:
-      "UnseenBox est un studio indépendant qui construit des jeux, des mondes virtuels et augmentés, et des lieux interactifs — des choses qu'il faut jouer pour y croire.",
+      "UnseenBox est un studio indépendant qui construit des jeux, des mondes virtuels et augmentés, et des lieux interactifs, des choses qu'il faut jouer pour y croire.",
     ctaPrimary: "Entrer dans les mondes",
     ctaSecondary: "Travailler avec nous",
     scroll: "Défilez pour ouvrir la boîte",
@@ -130,7 +130,7 @@ const fr: Dictionary = {
     process: [
       { title: "Signal", text: "Une conversation, pas un cahier des charges. Nous trouvons la question jouable au cœur de votre idée." },
       { title: "Prototype", text: "En deux à quatre semaines, vous tenez quelque chose de réel, testé avec de vraies personnes." },
-      { title: "Production", text: "Cycles courts, builds partagés chaque semaine, aucune boîte noire — ironiquement." },
+      { title: "Production", text: "Cycles courts, builds partagés chaque semaine, aucune boîte noire, ironiquement." },
       { title: "Sortie", text: "Lancement, installation ou déploiement en classe. Puis nous mesurons ce qui s'est vraiment passé." },
     ],
     all: "Tous les services",
@@ -192,7 +192,7 @@ const fr: Dictionary = {
       other: "Autre chose",
     },
     message: "Message",
-    messagePlaceholder: "L'idée, le contexte, le calendrier — tout ce que vous avez.",
+    messagePlaceholder: "L'idée, le contexte, le calendrier, tout ce que vous avez.",
     send: "Envoyer le signal",
     sending: "Transmission…",
     success: "Signal reçu. Nous revenons vers vous très vite.",
@@ -207,7 +207,7 @@ const fr: Dictionary = {
     intro:
       "Chaque monde que nous publions appartient à celles et ceux qui y jouent. Notez un jeu, laissez quelques mots, dites-nous ce que la boîte a réussi ou raté.",
     averageTitle: "Notes jusqu'ici",
-    noRatings: "Aucune note pour l'instant — soyez le premier.",
+    noRatings: "Aucune note pour l'instant. Soyez le premier.",
     reviewsTitle: "Avis",
     allReviews: "Tous les avis",
     empty: "Aucun avis pour l'instant. Le vôtre serait le premier.",
@@ -243,7 +243,7 @@ const fr: Dictionary = {
   follow: {
     label: "Restez proches",
     title: "Suivez le studio.",
-    intro: "Travaux en cours, dates de sortie et quelques regards dans la boîte — en avant-première, sans filtre.",
+    intro: "Travaux en cours, dates de sortie et quelques regards dans la boîte, en avant-première, sans filtre.",
     instagram: "Suivre sur Instagram",
     youtube: "S'abonner sur YouTube",
     itch: "Jouer sur itch.io",
@@ -312,7 +312,7 @@ const fr: Dictionary = {
   },
   notFound: {
     title: "Cette pièce est vide.",
-    text: "La page que vous cherchez n'a jamais été construite — ou elle est encore dans le noir.",
+    text: "La page que vous cherchez n'a jamais été construite, ou elle est encore dans le noir.",
     cta: "Retour à l'entrée",
   },
   error: {

@@ -10,7 +10,7 @@ export const experiences: Experience[] = [
     date: "2024-11",
     ...experienceMedia("lumen-hall"),
     title: L("Lumen Hall", "Lumen Hall", "قاعة لومن"),
-    location: L("Algiers — Digital Arts Festival", "Alger — Festival des arts numériques", "الجزائر — مهرجان الفنون الرقمية"),
+    location: L("Algiers, Digital Arts Festival", "Alger, Festival des arts numériques", "الجزائر، مهرجان الفنون الرقمية"),
     summary: L(
       "A 40-metre corridor of light that remembers the people who walked through it.",
       "Un couloir de lumière de 40 mètres qui se souvient de ceux qui l'ont traversé.",
@@ -30,7 +30,7 @@ export const experiences: Experience[] = [
     date: "2024-05",
     client: "A coastal heritage museum",
     ...experienceMedia("museum-of-tides"),
-    title: L("Museum of Tides — AR Guide", "Musée des Marées — guide AR", "متحف المدّ — دليل الواقع المعزّز"),
+    title: L("Museum of Tides: AR Guide", "Musée des Marées : guide AR", "متحف المدّ: دليل الواقع المعزّز"),
     location: L("Mediterranean coast", "Côte méditerranéenne", "الساحل المتوسطي"),
     summary: L(
       "Point your phone at an empty dock and watch the 1920s harbour return.",
@@ -50,7 +50,7 @@ export const experiences: Experience[] = [
     type: "event",
     date: "2025-01",
     ...experienceMedia("global-game-jam-2025"),
-    title: L("Global Game Jam 2025 — Host site", "Global Game Jam 2025 — site hôte", "Global Game Jam 2025 — موقع مستضيف"),
+    title: L("Global Game Jam 2025: Host site", "Global Game Jam 2025 : site hôte", "Global Game Jam 2025: موقع مستضيف"),
     location: L("Algiers", "Alger", "الجزائر"),
     summary: L(
       "86 jammers, 48 hours, 19 games and one very tired coffee machine.",
@@ -91,7 +91,7 @@ export const experiences: Experience[] = [
     type: "experiment",
     date: "2025-06",
     ...experienceMedia("shader-studies"),
-    title: L("Shader Studies #01–#12", "Études de shaders #01–#12", "دراسات المُظلِّلات #01–#12"),
+    title: L("Shader Studies #01-#12", "Études de shaders #01-#12", "دراسات المُظلِّلات #01-#12"),
     location: L("Studio R&D", "R&D du studio", "البحث والتطوير في الاستوديو"),
     summary: L(
       "Twelve weeks, twelve small visual experiments about light that behaves badly.",

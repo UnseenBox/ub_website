@@ -42,7 +42,7 @@ export default async function GamesPage({ params }: PageProps<"/[locale]/games">
       />
 
       {released.length === 0 ? (
-        <p className="shell py-32 text-mist">—</p>
+        <p className="shell py-32 text-mist">…</p>
       ) : (
         <ol className="shell pb-24">
           {released.map((game, i) => {

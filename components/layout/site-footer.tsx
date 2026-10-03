@@ -114,7 +114,7 @@ export function SiteFooter({ locale, dict, studio }: { locale: Locale; dict: Dic
 
       <div className="shell flex flex-col gap-3 border-t border-line py-6 text-xs text-fog sm:flex-row sm:items-center sm:justify-between">
         <p>
-          © {studio.foundedYear}–{year} {studio.name}. {dict.footer.rights}
+          © {studio.foundedYear}-{year} {studio.name}. {dict.footer.rights}
         </p>
         <a href="#top" className="label hover:text-bone">
           {dict.footer.backToTop} ↑

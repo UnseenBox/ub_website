@@ -99,7 +99,7 @@ export function Gallery({ images, altPrefix, copy, layout = "strip" }: GalleryPr
             >
               <SmartImage
                 src={src}
-                alt={`${altPrefix} — ${copy.image} ${i + 1}`}
+                alt={`${altPrefix}: ${copy.image} ${i + 1}`}
                 sizes={layout === "strip" ? "(min-width: 640px) 42rem, 85vw" : "(min-width: 640px) 50vw, 100vw"}
                 onLoad={measure(src)}
                 className="transition-transform duration-[1200ms] ease-expo group-hover:scale-[1.03]"
@@ -149,7 +149,7 @@ export function Gallery({ images, altPrefix, copy, layout = "strip" }: GalleryPr
             <SmartImage
               key={images[index]}
               src={images[index]}
-              alt={`${altPrefix} — ${copy.image} ${index + 1}`}
+              alt={`${altPrefix}: ${copy.image} ${index + 1}`}
               sizes="100vw"
               quality={90}
               className="animate-fade object-contain"

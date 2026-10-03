@@ -14,19 +14,19 @@ export const studio: StudioInfo = {
     "استوديو مستقل لتطوير الألعاب والتقنيات الإبداعية.",
   ),
   intro: L(
-    "UnseenBox is a small, stubborn studio that builds games, virtual and augmented worlds, and interactive places. We work where play, craft and technology overlap — and where nobody has quite looked yet.\n\nSome of what we make ships on Steam. Some of it lives in a museum for three months. Some of it teaches a twelve-year-old how gravity works without ever saying the word. All of it starts the same way: as something unseen.",
-    "UnseenBox est un petit studio obstiné qui fabrique des jeux, des mondes virtuels et augmentés, et des lieux interactifs. Nous travaillons là où le jeu, l'artisanat et la technologie se croisent — là où personne n'a encore vraiment regardé.\n\nCertaines de nos créations sortent sur Steam. D'autres vivent trois mois dans un musée. D'autres encore apprennent à un enfant de douze ans comment fonctionne la gravité sans jamais prononcer le mot. Toutes commencent de la même façon : invisibles.",
-    "UnseenBox استوديو صغير وعنيد يصنع الألعاب والعوالم الافتراضية والمعزّزة والأماكن التفاعلية. نعمل حيث يلتقي اللعب بالحِرفة والتقنية — في المساحات التي لم ينظر إليها أحد بعد.\n\nبعض ما نصنعه يُطلق على Steam، وبعضه يعيش ثلاثة أشهر داخل متحف، وبعضه يعلّم طفلًا في الثانية عشرة كيف تعمل الجاذبية دون أن يذكر الكلمة. لكن كل ما نصنعه يبدأ بالطريقة نفسها: خفيًّا.",
+    "UnseenBox is a small, stubborn studio that builds games, virtual and augmented worlds, and interactive places. We work where play, craft and technology overlap, and where nobody has quite looked yet.\n\nSome of what we make ships on Steam. Some of it lives in a museum for three months. Some of it teaches a twelve-year-old how gravity works without ever saying the word. All of it starts the same way: as something unseen.",
+    "UnseenBox est un petit studio obstiné qui fabrique des jeux, des mondes virtuels et augmentés, et des lieux interactifs. Nous travaillons là où le jeu, l'artisanat et la technologie se croisent, là où personne n'a encore vraiment regardé.\n\nCertaines de nos créations sortent sur Steam. D'autres vivent trois mois dans un musée. D'autres encore apprennent à un enfant de douze ans comment fonctionne la gravité sans jamais prononcer le mot. Toutes commencent de la même façon : invisibles.",
+    "UnseenBox استوديو صغير وعنيد يصنع الألعاب والعوالم الافتراضية والمعزّزة والأماكن التفاعلية. نعمل حيث يلتقي اللعب بالحِرفة والتقنية، في المساحات التي لم ينظر إليها أحد بعد.\n\nبعض ما نصنعه يُطلق على Steam، وبعضه يعيش ثلاثة أشهر داخل متحف، وبعضه يعلّم طفلًا في الثانية عشرة كيف تعمل الجاذبية دون أن يذكر الكلمة. لكن كل ما نصنعه يبدأ بالطريقة نفسها: خفيًّا.",
   ),
   manifesto: L(
-    "We don't make content. We make places — small, strange, deliberate places you can walk into, break, learn from, and leave slightly changed.",
-    "Nous ne produisons pas du contenu. Nous construisons des lieux — petits, étranges, précis — où l'on entre, que l'on casse, dont on apprend, et d'où l'on repart un peu changé.",
-    "لا نصنع محتوى. نبني أماكن — صغيرة، غريبة، مقصودة — تدخلها، تكسرها، تتعلّم منها، ثم تغادرها وقد تغيّرتَ قليلًا.",
+    "We don't make content. We make places: small, strange, deliberate places you can walk into, break, learn from, and leave slightly changed.",
+    "Nous ne produisons pas du contenu. Nous construisons des lieux, petits, étranges, précis, où l'on entre, que l'on casse, dont on apprend, et d'où l'on repart un peu changé.",
+    "لا نصنع محتوى. نبني أماكن، صغيرة، غريبة، مقصودة، تدخلها، تكسرها، تتعلّم منها، ثم تغادرها وقد تغيّرتَ قليلًا.",
   ),
   approach: L(
-    "Every project begins with a playable question, not a slide deck. We prototype in days, test with real people early, and throw away more than we keep. Art, code, sound and design sit at the same table from the first sketch to the final build — so the thing we ship feels like one idea, not a committee.",
-    "Chaque projet commence par une question jouable, pas par une présentation. Nous prototypons en quelques jours, testons tôt avec de vraies personnes et jetons plus que nous ne gardons. Art, code, son et design partagent la même table du premier croquis à la version finale — pour que ce que nous livrons ressemble à une seule idée, pas à un comité.",
-    "يبدأ كل مشروع بسؤال قابل للّعب، لا بعرض تقديمي. نصنع النماذج الأولية في أيام، ونختبرها مع أشخاص حقيقيين مبكرًا، ونتخلّى عن أكثر مما نحتفظ به. الفن والبرمجة والصوت والتصميم يجلسون إلى الطاولة نفسها من أول رسم حتى النسخة النهائية — ليبدو ما نطلقه فكرة واحدة، لا قرار لجنة.",
+    "Every project begins with a playable question, not a slide deck. We prototype in days, test with real people early, and throw away more than we keep. Art, code, sound and design sit at the same table from the first sketch to the final build, so the thing we ship feels like one idea, not a committee.",
+    "Chaque projet commence par une question jouable, pas par une présentation. Nous prototypons en quelques jours, testons tôt avec de vraies personnes et jetons plus que nous ne gardons. Art, code, son et design partagent la même table du premier croquis à la version finale, pour que ce que nous livrons ressemble à une seule idée, pas à un comité.",
+    "يبدأ كل مشروع بسؤال قابل للّعب، لا بعرض تقديمي. نصنع النماذج الأولية في أيام، ونختبرها مع أشخاص حقيقيين مبكرًا، ونتخلّى عن أكثر مما نحتفظ به. الفن والبرمجة والصوت والتصميم يجلسون إلى الطاولة نفسها من أول رسم حتى النسخة النهائية، ليبدو ما نطلقه فكرة واحدة، لا قرار لجنة.",
   ),
   ambition: L(
     "In ten years we want a shelf of games people still talk about, a handful of spaces that changed how a city learns, and a studio in North Africa that young developers see as proof it can be done from here.",
@@ -65,9 +65,9 @@ export const studio: StudioInfo = {
       id: "belief_honest",
       title: L("Technology is a material.", "La technologie est une matière.", "التقنية مادّة خام."),
       text: L(
-        "VR, AR, sensors, shaders — we use them like clay, never like a sticker that says 'innovative'.",
-        "VR, AR, capteurs, shaders — nous les travaillons comme de l'argile, jamais comme un autocollant « innovant ».",
-        "الواقع الافتراضي، الواقع المعزّز، الحسّاسات، المُظلِّلات — نستخدمها كالطين، لا كملصق يقول «مبتكر».",
+        "VR, AR, sensors, shaders, we use them like clay, never like a sticker that says 'innovative'.",
+        "VR, AR, capteurs, shaders, nous les travaillons comme de l'argile, jamais comme un autocollant « innovant ».",
+        "الواقع الافتراضي، الواقع المعزّز، الحسّاسات، المُظلِّلات، نستخدمها كالطين، لا كملصق يقول «مبتكر».",
       ),
     },
     {
@@ -96,9 +96,9 @@ export const studio: StudioInfo = {
       year: "2021",
       title: L("First commission", "Première commande", "أول طلب عمل"),
       text: L(
-        "An educational pilot with three schools turns into our first real contract — and a studio name.",
-        "Un pilote éducatif avec trois écoles devient notre premier vrai contrat — et un nom de studio.",
-        "مشروع تعليمي تجريبي مع ثلاث مدارس يتحوّل إلى أول عقد حقيقي لنا — وإلى اسم للاستوديو.",
+        "An educational pilot with three schools turns into our first real contract, and a studio name.",
+        "Un pilote éducatif avec trois écoles devient notre premier vrai contrat, et un nom de studio.",
+        "مشروع تعليمي تجريبي مع ثلاث مدارس يتحوّل إلى أول عقد حقيقي لنا، وإلى اسم للاستوديو.",
       ),
     },
     {

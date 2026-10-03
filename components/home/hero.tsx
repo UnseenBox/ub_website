@@ -70,7 +70,7 @@ export function Hero({ locale, dict, foundedYear }: { locale: Locale; dict: Dict
 
         <div className="label mt-10 flex animate-fade items-center justify-between gap-4 border-t border-line pt-5 [animation-delay:1200ms]">
           <span>
-            N°001 — {hero.est} {foundedYear}
+            N°001 · {hero.est} {foundedYear}
           </span>
           <a href="#manifesto" className="group hidden items-center gap-2 transition-colors hover:text-bone sm:flex">
             <ArrowDownIcon className="size-3.5 transition-transform duration-500 group-hover:translate-y-1" />

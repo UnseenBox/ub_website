@@ -68,7 +68,7 @@ const en = {
     channels: ["Game development", "Creative technology", "Imagination"],
     lines: ["Every world", "begins", "unseen."],
     intro:
-      "UnseenBox is an independent studio building games, virtual and augmented worlds, and interactive places — things you have to play to believe.",
+      "UnseenBox is an independent studio building games, virtual and augmented worlds, and interactive places, things you have to play to believe.",
     ctaPrimary: "Enter the worlds",
     ctaSecondary: "Work with us",
     scroll: "Scroll to open the box",
@@ -132,7 +132,7 @@ const en = {
     process: [
       { title: "Signal", text: "A conversation, not a brief. We find the playable question inside your idea." },
       { title: "Prototype", text: "In two to four weeks you hold something real, and we test it with real people." },
-      { title: "Build", text: "Short cycles, shared builds every week, no black boxes — ironically." },
+      { title: "Build", text: "Short cycles, shared builds every week, no black boxes, ironically." },
       { title: "Release", text: "Launch, installation or classroom rollout. Then we measure what actually happened." },
     ],
     all: "All services",
@@ -194,7 +194,7 @@ const en = {
       other: "Something else",
     },
     message: "Message",
-    messagePlaceholder: "The idea, the context, the timing — whatever you have.",
+    messagePlaceholder: "The idea, the context, the timing, whatever you have.",
     send: "Send signal",
     sending: "Transmitting…",
     success: "Signal received. We'll get back to you soon.",
@@ -209,7 +209,7 @@ const en = {
     intro:
       "Every world we release belongs to the people who play it. Rate a game, leave a few words, and tell us what the box got right or wrong.",
     averageTitle: "Ratings so far",
-    noRatings: "No ratings yet — be the first.",
+    noRatings: "No ratings yet. Be the first.",
     reviewsTitle: "Reviews",
     allReviews: "All reviews",
     empty: "No reviews yet. Yours would be the first.",
@@ -245,7 +245,7 @@ const en = {
   follow: {
     label: "Stay close",
     title: "Follow the studio.",
-    intro: "Work in progress, release dates and the occasional look inside the box — first, and unfiltered.",
+    intro: "Work in progress, release dates and the occasional look inside the box, first, and unfiltered.",
     instagram: "Follow on Instagram",
     youtube: "Subscribe on YouTube",
     itch: "Play on itch.io",
@@ -314,7 +314,7 @@ const en = {
   },
   notFound: {
     title: "This room is empty.",
-    text: "The page you're looking for was never built — or it's still in the dark.",
+    text: "The page you're looking for was never built, or it's still in the dark.",
     cta: "Back to the entrance",
   },
   error: {

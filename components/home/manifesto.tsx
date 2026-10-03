@@ -11,7 +11,7 @@ export function Manifesto({ dict, text, foundedYear }: { dict: Dictionary; text:
         <SectionLabel index="∎">{dict.manifesto.label}</SectionLabel>
         <ScrollWords text={text} className="font-display mt-10 max-w-[18ch] text-title text-balance sm:max-w-6xl" />
         <p className="label mt-10">
-          — UnseenBox, {dict.hero.est} {foundedYear}
+          UnseenBox, {dict.hero.est} {foundedYear}
         </p>
       </div>
 

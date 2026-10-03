@@ -87,7 +87,7 @@ export default async function GamePage({ params }: PageProps<"/[locale]/games/[s
       ? {
           trailer: {
             "@type": "VideoObject",
-            name: `${game.title} — ${dict.game.trailer}`,
+            name: `${game.title}: ${dict.game.trailer}`,
             embedUrl: `https://www.youtube.com/embed/${trailer.id}`,
             thumbnailUrl: `https://i.ytimg.com/vi/${trailer.id}/hqdefault.jpg`,
             uploadDate: game.updatedAt,

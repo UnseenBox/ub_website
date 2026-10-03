@@ -44,7 +44,7 @@ export function toSignalItem(game: Game, locale: Locale, dict: Dictionary): Sign
     tagline: t(game.tagline, locale),
     statusLabel: dict.game.statuses[game.status],
     stage: statusStage(game.status),
-    eta: t(game.estimatedRelease, locale) || "—",
+    eta: t(game.estimatedRelease, locale) || "…",
     progress: Math.max(0, Math.min(100, game.progress ?? 0)),
     cover: game.cover,
     href: localePath(locale, `/games/${game.slug}`),
