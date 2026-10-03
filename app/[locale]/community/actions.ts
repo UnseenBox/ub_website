@@ -5,6 +5,7 @@ import { z } from "zod";
 import { addReview } from "@/lib/content/mutations";
 import { getContent } from "@/lib/content/queries";
 import { isLocale } from "@/lib/i18n/config";
+import { findPlayableByReviewId, playReviewId } from "@/lib/play";
 import { newId } from "@/lib/utils";
 
 export type ReviewField = "game" | "rating" | "name" | "email" | "body";
@@ -32,6 +33,12 @@ function limited(ip: string) {
   recent.push(now);
   hits.set(ip, recent);
   return recent.length > 5;
+}
+
+/** A browser game from the /play page, in the shape a review records. */
+function reviewablePlayable(id: string) {
+  const game = findPlayableByReviewId(id);
+  return game && { id: playReviewId(game), slug: game.slug, title: game.title };
 }
 
 export async function submitReview(_prev: ReviewState, formData: FormData): Promise<ReviewState> {
@@ -84,7 +91,9 @@ export async function submitReview(_prev: ReviewState, formData: FormData): Prom
   try {
     // Reviews name the game they belong to, so they stay readable even if the
     // game is later renamed or removed.
-    const game = (await getContent()).games.find((entry) => entry.id === parsed.data.gameId);
+    const game =
+      (await getContent()).games.find((entry) => entry.id === parsed.data.gameId) ??
+      reviewablePlayable(parsed.data.gameId);
     if (!game) return { status: "error", errors: { game: "required" }, values };
 
     await addReview({

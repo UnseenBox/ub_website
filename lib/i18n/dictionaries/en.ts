@@ -211,6 +211,7 @@ const en = {
     averageTitle: "Ratings so far",
     noRatings: "No ratings yet — be the first.",
     reviewsTitle: "Reviews",
+    allReviews: "All reviews",
     empty: "No reviews yet. Yours would be the first.",
     emptyForGame: "No reviews for this game yet.",
     filterAll: "All games",

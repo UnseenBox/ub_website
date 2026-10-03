@@ -209,6 +209,7 @@ const ar: Dictionary = {
     averageTitle: "التقييمات حتى الآن",
     noRatings: "لا توجد تقييمات بعد — كن الأول.",
     reviewsTitle: "المراجعات",
+    allReviews: "كل المراجعات",
     empty: "لا توجد مراجعات بعد. مراجعتك ستكون الأولى.",
     emptyForGame: "لا توجد مراجعات لهذه اللعبة بعد.",
     filterAll: "كل الألعاب",

@@ -10,6 +10,7 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { getApprovedReviews, getGames, getRatings, getStudio } from "@/lib/content/queries";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { PLAYABLE_GAMES, playReviewId, reviewGamePath } from "@/lib/play";
 import { buildMetadata } from "@/lib/seo";
 import { formatDate } from "@/lib/utils";
 
@@ -37,8 +38,14 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
   ]);
 
   const copy = dict.community;
-  const released = games.filter((game) => !game.upcoming);
-  const rated = released
+  // Everything a player can review: released catalogue games and the browser games on /play.
+  const reviewable = [
+    ...games
+      .filter((game) => !game.upcoming)
+      .map((game) => ({ id: game.id, title: game.title, path: `/games/${game.slug}`, links: game.links })),
+    ...PLAYABLE_GAMES.map((game) => ({ id: playReviewId(game), title: game.title, path: `/play#${game.slug}`, links: null })),
+  ];
+  const rated = reviewable
     .map((game) => ({ game, summary: ratings.get(game.id) }))
     .sort((a, b) => (b.summary?.average ?? -1) - (a.summary?.average ?? -1));
 
@@ -54,7 +61,7 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
         <ul className="mt-10 grid gap-px overflow-hidden border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
           {rated.map(({ game, summary }) => (
             <li key={game.id} className="flex flex-col gap-4 bg-ink-950 p-6">
-              <Link href={localePath(locale, `/games/${game.slug}`)} className="font-display text-2xl hover:text-uv-300">
+              <Link href={localePath(locale, game.path)} className="font-display text-2xl hover:text-uv-300">
                 {game.title}
               </Link>
               {summary ? (
@@ -72,7 +79,7 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
               ) : (
                 <p className="text-sm text-fog">{copy.noRatings}</p>
               )}
-              <StoreLinks links={game.links} dict={dict} className="mt-auto pt-2" />
+              {game.links && <StoreLinks links={game.links} dict={dict} className="mt-auto pt-2" />}
             </li>
           ))}
         </ul>
@@ -98,7 +105,7 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
                     </time>
                   </div>
                   <p className="mt-2 font-mono text-xs uppercase tracking-[0.14em] text-uv-300">
-                    <Link href={localePath(locale, `/games/${review.gameSlug}`)} className="hover:underline">
+                    <Link href={localePath(locale, reviewGamePath(review))} className="hover:underline">
                       {review.gameTitle}
                     </Link>
                   </p>
@@ -119,7 +126,7 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
           <ReviewForm
             copy={copy}
             locale={locale}
-            games={released.map((game) => ({ id: game.id, title: game.title }))}
+            games={reviewable.map((game) => ({ id: game.id, title: game.title }))}
           />
         </div>
       </section>
