@@ -2,15 +2,15 @@ import type { Dictionary } from "./en";
 
 const fr: Dictionary = {
   meta: {
-    homeTitle: "UnseenBox — Studio indépendant de jeux vidéo et de technologies créatives",
+    homeTitle: "UnseenBox: Studio indépendant de jeux vidéo et de technologies créatives",
     homeDescription:
       "UnseenBox crée des jeux, des mondes VR et AR et des lieux interactifs. Un studio indépendant là où le jeu, l'artisanat et la technologie se croisent.",
     games: "Jeux",
-    gamesDescription: "Les mondes publiés par UnseenBox — aventures narratives, VR, jeux éducatifs et arcade.",
-    upcoming: "Dans le noir — À venir",
+    gamesDescription: "Les mondes publiés par UnseenBox: aventures narratives, VR, jeux éducatifs et arcade.",
+    upcoming: "Dans le noir: À venir",
     upcomingDescription: "Les jeux en développement chez UnseenBox. Avancement, journaux de développement et premiers aperçus.",
     services: "Services",
-    servicesDescription: "Développement de jeux, jeux éducatifs et sérieux, VR, AR, installations et 3D temps réel — construits avec vous.",
+    servicesDescription: "Développement de jeux, jeux éducatifs et sérieux, VR, AR, installations et 3D temps réel, construits avec vous.",
     experiences: "Archives",
     experiencesDescription: "Projets clients, installations, événements et expériences du journal du studio UnseenBox.",
     about: "Studio",
@@ -18,9 +18,9 @@ const fr: Dictionary = {
     contact: "Contact",
     contactDescription: "Lancer un projet, proposer une idée ou simplement dire bonjour à UnseenBox.",
     community: "Communauté",
-    communityDescription: "Avis et notes des joueurs sur les jeux UnseenBox — lisez les retours et laissez le vôtre.",
+    communityDescription: "Avis et notes des joueurs sur les jeux UnseenBox, lisez les retours et laissez le vôtre.",
     play: "Jouez à nos jeux",
-    playDescription: "Des jeux UnseenBox gratuits, jouables dans le navigateur. Sans téléchargement, sans compte — sur téléphone ou ordinateur.",
+    playDescription: "Des jeux UnseenBox gratuits, jouables dans le navigateur. Sans téléchargement, sans compte, sur téléphone ou ordinateur.",
     notFound: "Signal perdu",
   },
   a11y: {

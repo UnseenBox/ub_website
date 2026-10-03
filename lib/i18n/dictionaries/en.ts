@@ -4,15 +4,15 @@
  */
 const en = {
   meta: {
-    homeTitle: "UnseenBox — Independent game & creative technology studio",
+    homeTitle: "UnseenBox: Independent game & creative technology studio",
     homeDescription:
       "UnseenBox builds games, VR and AR worlds, and interactive places. An independent studio working where play, craft and technology overlap.",
     games: "Games",
-    gamesDescription: "Released worlds from UnseenBox — narrative adventures, VR, educational and arcade games.",
-    upcoming: "In the Dark — Upcoming",
+    gamesDescription: "Released worlds from UnseenBox: narrative adventures, VR, educational and arcade games.",
+    upcoming: "In the Dark: Upcoming",
     upcomingDescription: "Games currently in development at UnseenBox. Progress, development notes and first glimpses.",
     services: "Services",
-    servicesDescription: "Game development, educational and serious games, VR, AR, installations and real-time 3D — built with you.",
+    servicesDescription: "Game development, educational and serious games, VR, AR, installations and real-time 3D, built with you.",
     experiences: "Archive",
     experiencesDescription: "Client projects, installations, events and experiments from the UnseenBox studio journal.",
     about: "Studio",
@@ -20,9 +20,9 @@ const en = {
     contact: "Contact",
     contactDescription: "Start a project, pitch an idea or say hello to UnseenBox.",
     community: "Community",
-    communityDescription: "Player reviews and ratings of UnseenBox games — read what people think, and leave your own.",
+    communityDescription: "Player reviews and ratings of UnseenBox games, read what people think, and leave your own.",
     play: "Play Our Games",
-    playDescription: "Free browser games from UnseenBox. No download, no account — press play on your phone or computer.",
+    playDescription: "Free browser games from UnseenBox. No download, no account, press play on your phone or computer.",
     notFound: "Signal lost",
   },
   a11y: {

@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/games/[s
   return buildMetadata({
     locale,
     path: `/games/${game.slug}`,
-    title: `${game.title} — ${t(game.genre, locale)}`,
+    title: `${game.title}: ${t(game.genre, locale)}`,
     description: t(game.summary, locale),
     image: game.cover,
   });
