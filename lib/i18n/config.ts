@@ -26,7 +26,20 @@ export function dirOf(locale: Locale) {
 /** Read a localized field, falling back to English, then any non-empty value. */
 export function t(value: LocalizedString | undefined, locale: Locale): string {
   if (!value) return "";
-  return value[locale]?.trim() || value.en?.trim() || value.fr?.trim() || value.ar?.trim() || "";
+  return undash(value[locale]?.trim() || value.en?.trim() || value.fr?.trim() || value.ar?.trim() || "");
+}
+
+/**
+ * The site shows no dashes. Text saved in the admin before that rule (or pasted in later)
+ * may still contain them, so they are turned into commas on the way out rather than by
+ * rewriting what is stored.
+ */
+function undash(text: string): string {
+  if (!/[–—]/.test(text)) return text;
+  const comma = /[؀-ۿ]/.test(text) ? "، " : ", ";
+  return text
+    .replace(/(\d)\s*[–—]\s*(?=[\d#])/g, "$1-")
+    .replace(/\s*[–—]\s*/g, comma);
 }
 
 /** Prefix an internal path with the locale: ("fr", "/games") -> "/fr/games". */
