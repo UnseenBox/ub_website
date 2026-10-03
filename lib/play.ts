@@ -29,9 +29,9 @@ export const PLAYABLE_GAMES: PlayableGame[] = [
       ar: "أكشن فيزيائي حرّ",
     },
     summary: {
-      en: "Living cardboard boxes break in at 3 a.m. to move you out. You have no weapon. Good — the flat is full of them. Throw the toaster, topple the lamp into the puddle, and find over 100 ways it can go wrong for them.",
-      fr: "Des cartons vivants débarquent à 3 h du matin pour vous déménager de force. Vous n’avez pas d’arme. Tant mieux : l’appartement en est plein. Lancez le grille-pain, faites tomber la lampe dans la flaque et découvrez plus de 100 façons dont ça peut mal tourner pour eux.",
-      ar: "صناديق كرتونية حيّة تقتحم شقتك في الثالثة فجراً لتُخرجك منها. لا تملك سلاحاً. جيد — فالشقة مليئة بالأسلحة. ارمِ محمصة الخبز، أسقط المصباح في بركة الماء، واكتشف أكثر من 100 طريقة تسوء بها الأمور عليهم.",
+      en: "Living cardboard boxes break in at 3 a.m. to move you out. You have no weapon. Good — the flat is full of them. Throw the toaster, topple the lamp into the puddle, and find over 130 ways it can go wrong for them.",
+      fr: "Des cartons vivants débarquent à 3 h du matin pour vous déménager de force. Vous n’avez pas d’arme. Tant mieux : l’appartement en est plein. Lancez le grille-pain, faites tomber la lampe dans la flaque et découvrez plus de 130 façons dont ça peut mal tourner pour eux.",
+      ar: "صناديق كرتونية حيّة تقتحم شقتك في الثالثة فجراً لتُخرجك منها. لا تملك سلاحاً. جيد — فالشقة مليئة بالأسلحة. ارمِ محمصة الخبز، أسقط المصباح في بركة الماء، واكتشف أكثر من 130 طريقة تسوء بها الأمور عليهم.",
     },
     desktopControls: {
       en: "WASD to move · click to grab · hold and release to throw · space to dodge",
