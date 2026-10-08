@@ -19,6 +19,32 @@ export interface PlayableGame {
 
 export const PLAYABLE_GAMES: PlayableGame[] = [
   {
+    slug: "dont-let-it-see-you",
+    title: "DON’T LET IT SEE YOU",
+    src: "/arcade/dont-let-it-see-you/index.html",
+    poster: "/arcade/dont-let-it-see-you/poster.jpg",
+    genre: {
+      en: "Stealth horror puzzle",
+      fr: "Infiltration et horreur",
+      ar: "تسلّل ورعب وألغاز",
+    },
+    summary: {
+      en: "The thing in the room cannot see your body. It can see your cursor. Walk right past it and nothing happens; point at it and it knows in under two seconds. Twelve rooms, nine creatures, and one rule you will learn the hard way.",
+      fr: "La chose dans la pièce ne voit pas votre corps. Elle voit votre curseur. Passez juste à côté et rien ne se produit ; pointez-la et elle le sait en moins de deux secondes. Douze pièces, neuf créatures, et une règle que vous apprendrez à vos dépens.",
+      ar: "الكائن في الغرفة لا يرى جسدك، لكنه يرى مؤشّرك. امشِ بجانبه فلا يحدث شيء، وأشِر إليه فيعرف في أقل من ثانيتين. اثنتا عشرة غرفة، وتسعة كائنات، وقاعدة واحدة ستتعلّمها بالطريقة الصعبة.",
+    },
+    desktopControls: {
+      en: "WASD to move · shift to sneak · click to use what you point at · E to reach for something without looking at it · space to hide · R to restart",
+      fr: "ZQSD pour bouger · maj pour se faufiler · clic pour utiliser ce que vous pointez · E pour attraper sans regarder · espace pour se cacher · R pour recommencer",
+      ar: "WASD للحركة · Shift للتسلّل · انقر لاستخدام ما تشير إليه · E للوصول إلى شيء دون النظر إليه · المسافة للاختباء · R لإعادة المحاولة",
+    },
+    phoneControls: {
+      en: "Best on a computer, since the whole game is about a mouse cursor. On a phone, turn it sideways: left thumb walks, right thumb drags your attention around, tap to use.",
+      fr: "Mieux sur ordinateur, puisque tout le jeu repose sur un curseur de souris. Sur téléphone, mettez-le en paysage : le pouce gauche marche, le pouce droit déplace votre attention, touchez pour utiliser.",
+      ar: "أفضل على الحاسوب، فاللعبة كلّها قائمة على مؤشّر الفأرة. على الهاتف، أدِره أفقيًّا: الإبهام الأيسر يمشي، والأيمن يحرّك انتباهك، والنقر للاستخدام.",
+    },
+  },
+  {
     slug: "bonk",
     title: "BONK!",
     src: "/arcade/bonk/index.html",
