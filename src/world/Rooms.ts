@@ -44,8 +44,8 @@ const ROOM_1: RoomDefinition = {
   playerSpawn: { x: 92, y: 462 },
   walls: [...frame(), wall(300, T, 18, 118), wall(620, 394, 18, 118)],
   lights: [
-    { id: 'main', x: 470, y: 170, radius: 440, intensity: 0.62, tint: '#cfe3ff', flicker: 0.015 },
-    { id: 'lamp-1', x: 702, y: 452, radius: 150, intensity: 0.5, tint: '#ffc889' },
+    { id: 'main', x: 470, y: 170, radius: 440, intensity: 0.81, tint: '#ffb13c', flicker: 0.015 , fixture: { w: 220, h: 22, x: 470, y: 48 } },
+    { id: 'lamp-1', x: 702, y: 452, radius: 150, intensity: 0.65, tint: '#ff9d3c' },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 270, requires: 'key', hint: 'LOCKED' },
@@ -86,8 +86,8 @@ const ROOM_2: RoomDefinition = {
   playerSpawn: { x: 92, y: 110 },
   walls: [...frame(), wall(318, T, 18, 196), wall(318, 348, 18, 164), wall(600, 120, 18, 300)],
   lights: [
-    { id: 'main', x: 200, y: 270, radius: 360, intensity: 0.55, tint: '#cfe3ff' },
-    { id: 'desk-lamp', x: 700, y: 268, radius: 190, intensity: 0.55, tint: '#ffd09a', flicker: 0.04 },
+    { id: 'main', x: 200, y: 270, radius: 360, intensity: 0.72, tint: '#8fc6ff' , fixture: { w: 190, h: 22, x: 160, y: 48 } },
+    { id: 'desk-lamp', x: 700, y: 268, radius: 190, intensity: 0.72, tint: '#ffab4e', flicker: 0.04 },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 452 },
@@ -122,8 +122,8 @@ const ROOM_3: RoomDefinition = {
   playerSpawn: { x: 92, y: 470 },
   walls: [...frame(), wall(T, 250, 230, 18), wall(430, 120, 18, 240), wall(600, 392, 300, 18)],
   lights: [
-    { id: 'main', x: 480, y: 250, radius: 430, intensity: 0.58, tint: '#cfe3ff' },
-    { id: 'hall', x: 760, y: 160, radius: 200, intensity: 0.5, tint: '#ffd09a', flicker: 0.05 },
+    { id: 'main', x: 480, y: 250, radius: 430, intensity: 0.75, tint: '#5cff9b' , fixture: { w: 220, h: 22, x: 480, y: 48 } },
+    { id: 'hall', x: 760, y: 160, radius: 200, intensity: 0.65, tint: '#ffab4e', flicker: 0.05 },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 470 },
@@ -159,8 +159,8 @@ const ROOM_4: RoomDefinition = {
   playerSpawn: { x: 92, y: 474 },
   walls: [...frame(), wall(240, T, 18, 170), wall(240, 330, 18, 182), wall(690, 170, 18, 200)],
   lights: [
-    { id: 'main', x: 480, y: 270, radius: 420, intensity: 0.5, tint: '#bcd6f5' },
-    { id: 'cage', x: 820, y: 130, radius: 190, intensity: 0.55, tint: '#ffc889', flicker: 0.07 },
+    { id: 'main', x: 480, y: 270, radius: 420, intensity: 0.65, tint: '#ff8a3c' , fixture: { w: 220, h: 22, x: 480, y: 48 } },
+    { id: 'cage', x: 820, y: 130, radius: 190, intensity: 0.72, tint: '#ff9d3c', flicker: 0.07 },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 452, requires: 'key' },
@@ -207,8 +207,8 @@ const ROOM_5: RoomDefinition = {
   playerSpawn: { x: 92, y: 430 },
   walls: [...frame(), wall(T, 160, 190, 18), wall(740, 160, 192, 18), wall(470, 360, 18, 152)],
   lights: [
-    { id: 'main', x: 480, y: 290, radius: 330, intensity: 0.42, tint: '#b9cfe8' },
-    { id: 'desk-lamp', x: 230, y: 130, radius: 150, intensity: 0.55, tint: '#ffc889' },
+    { id: 'main', x: 480, y: 290, radius: 330, intensity: 0.55, tint: '#49e8dd' , fixture: { w: 220, h: 22, x: 480, y: 48 } },
+    { id: 'desk-lamp', x: 230, y: 130, radius: 150, intensity: 0.72, tint: '#ff9d3c' },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 290, requires: 'key' },
@@ -259,8 +259,8 @@ const ROOM_6: RoomDefinition = {
     wall(660, 200, 220, 18),
   ],
   lights: [
-    { id: 'main', x: 400, y: 280, radius: 420, intensity: 0.5, tint: '#c4daf5' },
-    { id: 'back', x: 790, y: 410, radius: 210, intensity: 0.5, tint: '#ffc889', flicker: 0.05 },
+    { id: 'main', x: 400, y: 280, radius: 420, intensity: 0.65, tint: '#7dff9e' , fixture: { w: 190, h: 22, x: 580, y: 48 } },
+    { id: 'back', x: 790, y: 410, radius: 210, intensity: 0.65, tint: '#ff9d3c', flicker: 0.05 },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 470, requires: 'key' },
@@ -309,9 +309,9 @@ const ROOM_7: RoomDefinition = {
   playerSpawn: { x: 92, y: 470 },
   walls: [...frame(), wall(260, 140, 18, 240), wall(420, T, 18, 120), wall(620, 300, 240, 18)],
   lights: [
-    { id: 'main', x: 480, y: 220, radius: 440, intensity: 0.6, tint: '#cfe3ff' },
-    { id: 'strip', x: 760, y: 440, radius: 220, intensity: 0.5, tint: '#ffc889' },
-    { id: 'cold', x: 180, y: 180, radius: 200, intensity: 0.42, tint: '#9fd8ff', flicker: 0.1 },
+    { id: 'main', x: 480, y: 220, radius: 440, intensity: 0.78, tint: '#e8f4ff' , fixture: { w: 190, h: 22, x: 620, y: 48 } },
+    { id: 'strip', x: 760, y: 440, radius: 220, intensity: 0.65, tint: '#ff9d3c' },
+    { id: 'cold', x: 180, y: 180, radius: 200, intensity: 0.55, tint: '#58c4ff', flicker: 0.1 },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 170 },
@@ -359,8 +359,8 @@ const ROOM_8: RoomDefinition = {
     wall(520, 400, 18, 112),
   ],
   lights: [
-    { id: 'main', x: 420, y: 270, radius: 450, intensity: 0.52, tint: '#c4daf5' },
-    { id: 'hall', x: 830, y: 270, radius: 160, intensity: 0.5, tint: '#ffc889', flicker: 0.08 },
+    { id: 'main', x: 420, y: 270, radius: 450, intensity: 0.68, tint: '#6effb4' , fixture: { w: 190, h: 22, x: 380, y: 48 } },
+    { id: 'hall', x: 830, y: 270, radius: 160, intensity: 0.65, tint: '#ff9d3c', flicker: 0.08 },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 910, y: 270 },
@@ -426,9 +426,9 @@ const ROOM_9: RoomDefinition = {
   playerSpawn: { x: 92, y: 270 },
   walls: [...frame(), wall(300, T, 18, 160), wall(300, 356, 18, 156), wall(560, 160, 18, 220)],
   lights: [
-    { id: 'main', x: 420, y: 270, radius: 420, intensity: 0.48, tint: '#c4daf5' },
-    { id: 'spot', x: 840, y: 290, radius: 190, intensity: 0.6, tint: '#ffd09a' },
-    { id: 'proj', x: 200, y: 460, radius: 120, intensity: 0.35, tint: '#9fd8ff' },
+    { id: 'main', x: 420, y: 270, radius: 420, intensity: 0.62, tint: '#5fc8ff' , fixture: { w: 190, h: 22, x: 560, y: 48 } },
+    { id: 'spot', x: 840, y: 290, radius: 190, intensity: 0.78, tint: '#ffab4e' },
+    { id: 'proj', x: 200, y: 460, radius: 120, intensity: 0.45, tint: '#58c4ff' },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 470, requires: 'key' },
@@ -473,9 +473,9 @@ const ROOM_10: RoomDefinition = {
     wall(640, 220, 18, 180),
   ],
   lights: [
-    { id: 'main', x: 440, y: 230, radius: 440, intensity: 0.5, tint: '#c4daf5' },
-    { id: 'warm', x: 780, y: 440, radius: 200, intensity: 0.5, tint: '#ffc889', flicker: 0.06 },
-    { id: 'cold', x: 150, y: 160, radius: 180, intensity: 0.4, tint: '#9fd8ff' },
+    { id: 'main', x: 440, y: 230, radius: 440, intensity: 0.65, tint: '#ffae3c' , fixture: { w: 190, h: 22, x: 540, y: 48 } },
+    { id: 'warm', x: 780, y: 440, radius: 200, intensity: 0.65, tint: '#ff9d3c', flicker: 0.06 },
+    { id: 'cold', x: 150, y: 160, radius: 180, intensity: 0.52, tint: '#58c4ff' },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 110, requires: 'key' },
@@ -540,8 +540,8 @@ const ROOM_11: RoomDefinition = {
     wall(700, 350, 18, 162),
   ],
   lights: [
-    { id: 'main', x: 480, y: 270, radius: 470, intensity: 0.5, tint: '#c4daf5' },
-    { id: 'warm', x: 840, y: 430, radius: 180, intensity: 0.45, tint: '#ffc889' },
+    { id: 'main', x: 480, y: 270, radius: 470, intensity: 0.65, tint: '#dff0ff' , fixture: { w: 220, h: 22, x: 480, y: 48 } },
+    { id: 'warm', x: 840, y: 430, radius: 180, intensity: 0.59, tint: '#ff9d3c' },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 110 },
@@ -597,8 +597,8 @@ const ROOM_12: RoomDefinition = {
   playerSpawn: { x: 92, y: 470 },
   walls: [...frame(), wall(300, 200, 18, 312), wall(560, T, 18, 240), wall(700, 330, 232, 18)],
   lights: [
-    { id: 'main', x: 440, y: 260, radius: 430, intensity: 0.46, tint: '#bcd6f5' },
-    { id: 'red', x: 820, y: 170, radius: 200, intensity: 0.45, tint: '#ffb0a0', flicker: 0.12 },
+    { id: 'main', x: 440, y: 260, radius: 430, intensity: 0.6, tint: '#ff7a6a' , fixture: { w: 200, h: 22, x: 440, y: 48 } },
+    { id: 'red', x: 820, y: 170, radius: 200, intensity: 0.59, tint: '#ff8a74', flicker: 0.12 },
   ],
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 450, requires: 'key' },

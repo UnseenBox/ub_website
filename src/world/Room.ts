@@ -3,6 +3,7 @@ import { clamp01, dist, type Rect } from '../core/Mathx';
 import type { EnemySpawn } from '../enemies/Enemy';
 import { Enemy } from '../enemies/Enemy';
 import type { ObjectiveSpec } from '../gameplay/ObjectiveSystem';
+import type { BloodDecal } from '../rendering/SceneArt';
 import { WorldObject, type ObjectSpawn } from './WorldObject';
 
 export interface LightSpec {
@@ -19,6 +20,11 @@ export interface LightSpec {
   flicker?: number;
   /** A cone instead of a disc: facing in radians plus half-angle. */
   cone?: { facing: number; spread: number };
+  /**
+   * Draw the lamp itself: a lit ceiling panel at the light's position. A room
+   * reads as lit rather than merely tinted when you can see what is doing it.
+   */
+  fixture?: { w: number; h: number; x?: number; y?: number };
 }
 
 export interface RoomEventSpec {
@@ -68,6 +74,11 @@ export interface RoomDefinition {
   readonly events?: readonly RoomEventSpec[];
   /** Hidden extras worth score, referenced by object id. */
   readonly secrets?: readonly string[];
+  /**
+   * Dried blood left by whoever was here before you. Pure set dressing, and the
+   * only red in a room until you make some of your own.
+   */
+  readonly blood?: readonly { x: number; y: number; size: number; seed?: number }[];
 }
 
 export class Light {
@@ -80,6 +91,7 @@ export class Light {
   on: boolean;
   readonly flickerAmount: number;
   readonly cone: { facing: number; spread: number } | undefined;
+  readonly fixture: { w: number; h: number; x?: number; y?: number } | undefined;
   /** Live multiplier, 1 normally, wobbling when the room is tense. */
   flicker = 1;
   private phase = Math.random() * 100;
@@ -94,6 +106,7 @@ export class Light {
     this.on = spec.on ?? true;
     this.flickerAmount = spec.flicker ?? 0;
     this.cone = spec.cone;
+    this.fixture = spec.fixture;
   }
 
   update(dt: number, tension: number): void {
@@ -135,6 +148,7 @@ export class Room {
   readonly objects: WorldObject[] = [];
   readonly enemies: Enemy[] = [];
   readonly lights: Light[] = [];
+  readonly blood: BloodDecal[] = [];
 
   /** 0..1 how worked up the room is. Drives flicker, ambience and vignette. */
   tension = 0;
@@ -154,6 +168,15 @@ export class Room {
     for (const spec of definition.lights) this.lights.push(new Light(spec));
     for (const spawn of definition.objects) this.objects.push(new WorldObject(spawn));
     for (const spawn of definition.enemies) this.enemies.push(new Enemy(spawn));
+    for (let i = 0; i < (definition.blood?.length ?? 0); i++) {
+      const b = definition.blood![i];
+      this.blood.push({ x: b.x, y: b.y, size: b.size, seed: b.seed ?? 1000 + i * 97, fresh: 0 });
+    }
+  }
+
+  /** Leave a mark. Fresh blood is brighter than what was already on the floor. */
+  addBlood(x: number, y: number, size: number): void {
+    this.blood.push({ x, y, size, seed: (Math.random() * 1e6) | 0, fresh: 1 });
   }
 
   get ambient(): number {

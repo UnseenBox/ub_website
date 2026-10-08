@@ -35,6 +35,7 @@ import { AdManager } from '../ads/AdManager';
 import { AnalyticsManager } from '../analytics/AnalyticsManager';
 import { DebugOverlay } from '../debug/DebugOverlay';
 import { UIManager } from '../ui/UIManager';
+import type { ThreatMark } from '../ui/HUD';
 import type { ScreenName, UICallbacks } from '../ui/Screens';
 
 type Mode = 'menu' | 'intro' | 'playing' | 'paused' | 'screen' | 'results' | 'dead' | 'mouse-lost';
@@ -109,6 +110,8 @@ export class Game {
   private lastNearMissLine = -1;
   private pendingRestores: { at: number; run: () => void }[] = [];
   private hintText = '';
+  /** Reused each frame so the HUD sweep never allocates. */
+  private readonly threats: ThreatMark[] = [];
   private killedBy = '';
   private audioUnlocked = false;
 
@@ -797,6 +800,8 @@ export class Game {
     this.renderer.camera.kick(9);
     this.audio.play('fail', { gain: 0.8 });
     this.particles.burst(this.player.x, this.player.y, 18, 'spark');
+    // The room keeps the mark. Restart it and you will see where you died.
+    this.room?.addBlood(this.player.x, this.player.y, 38);
     this.bus.emit('PLAYER_KILLED', { enemyId: e.id });
     this.save.noteDeath();
     this.analytics.track('player_killed', {
@@ -1073,6 +1078,17 @@ export class Game {
 
   private updateHud(room: Room, session: RoomSession): void {
     this.hintText = this.save.settings.showHints ? this.currentHint(room, session) : '';
+
+    this.threats.length = 0;
+    for (const e of room.enemies) {
+      this.threats.push({
+        x: e.x,
+        tell: e.tell,
+        hunting: e.state.current === 'PURSUING',
+        asleep: e.looksAsleep && e.state.current === 'IDLE',
+      });
+    }
+
     this.ui.updateHud({
       roomLabel: session.isCampaign
         ? `ROOM ${String(session.index + 1).padStart(2, '0')}`
@@ -1082,12 +1098,14 @@ export class Game {
       roomName: session.def.name,
       objective: this.objective?.currentText ?? '',
       seconds: this.roomTime,
-      score: 0,
       heat: clamp01(this.cursor.displayHeat),
       cursorState: this.cursor.state,
       detections: this.detections,
       hint: this.hintText,
       carrying: this.player.inventory.has('key'),
+      sneaking: this.player.sneaking && !this.player.hidden,
+      hidden: this.player.hidden,
+      threats: this.threats,
       modifiers: session.modifiers.ids,
     });
   }

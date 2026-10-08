@@ -177,6 +177,40 @@ game is built around is *oh no, wait, I can still get out of this*.
 
 ---
 
+## Art direction
+
+The room is a photograph taken in one colour.
+
+Rendering runs in four passes, and the order *is* the art direction:
+
+1. **Lit.** Floor, walls, props, the character and the creatures' bodies, all
+   painted in pale neutral greys. These are not what you see; they are what the
+   light has to work with.
+2. **Light.** A half-resolution light map is built — near black where nothing
+   reaches, saturated colour where a lamp does — and multiplied over the scene.
+   Unlit geometry collapses to true black, and lit geometry is *stained* rather
+   than tinted. Each room burns in its own hue: sodium amber, toxic green,
+   sickly cyan, clinical white.
+3. **Emissive.** Everything light cannot dim: the creatures' apertures, the
+   ceiling panels, gold, the way out, and blood. A creature's body is drawn in
+   pass one and its eye in pass three, which is why it reads as a hole in the
+   room with something lit inside it.
+4. **Frame.** Vignette, fixed-pattern film grain, and the red bleed that only
+   appears at real danger.
+
+Geometry is read almost entirely from **rim light**: the bright edge a surface
+catches on the side facing the strongest lamp (`rimLightRect` / `rimLightCircle`).
+Three things are allowed to keep their own colour through the light pass: the
+cursor, gold, and red. Red is violence and nothing else.
+
+The interface is a surveillance logbook somebody has been scratching notes in.
+Every stroke goes through one SVG displacement filter (`src/ui/Ink.ts`) so lines
+come out slightly wrong, the way a line drawn by hand against a ruler does. The
+HUD is a ruled sweep across the top of the frame with a mark for each creature,
+placed by where it stands and lit by how interested it is: it tells you the one
+thing the world cannot, which is that something off to your right, outside the
+light, has started paying attention.
+
 ## Architecture
 
 ```
@@ -222,12 +256,12 @@ src/
     NoiseSystem.ts         sound as a gameplay object
   particles/ParticleSystem.ts
   rendering/
-    Renderer.ts            canvas, DPR, letterboxing, draw order
-    SceneArt.ts            room, props, character, creatures
+    Renderer.ts            canvas, DPR, letterboxing, the four draw passes
+    SceneArt.ts            room, props, character, creatures, blood, fixtures
     CursorArt.ts           the cursor, its trail, and decoys
-    Lighting.ts            darkness mask and additive glow
+    Lighting.ts            the light map, bloom, vignette and grain
     Camera.ts              shake and small push
-    DrawUtils.ts           palette and primitives
+    DrawUtils.ts           palette, rim light, survey marks
   audio/
     AudioManager.ts        buses, room tone, heartbeat
     SoundLibrary.ts        every sound, synthesised
@@ -238,7 +272,10 @@ src/
     ChallengeSystem.ts     modifiers, daily challenge
     PatternMemory.ts       deterministic habit counters
     ReplaySystem.ts        seeded input recording
-  ui/                      DOM overlay: HUD, menus, results
+  ui/
+    Ink.ts                 the hand-drawn filter and the drawn icon set
+    HUD.ts                 the ruled threat sweep and status icons
+    Screens.ts             menus, results, discoveries
   save/SaveManager.ts      versioned LocalStorage
   ads/                     AdManager plus a mock provider
   analytics/               AnalyticsManager plus a console sink

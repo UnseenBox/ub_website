@@ -4,6 +4,7 @@ import type { RunStats, ScoreResult } from '../gameplay/ScoreSystem';
 import type { SaveManager, Settings } from '../save/SaveManager';
 import { ROOMS } from '../world/Rooms';
 import { el, formatTime, menuButton, panel, sliderRow, statRow, toggleRow } from './Dom';
+import { INK, svg } from './Ink';
 
 export interface UICallbacks {
   onContinue(): void;
@@ -61,11 +62,43 @@ function screen(extraClass = ''): HTMLElement {
   return el('div', `screen${extraClass ? ` ${extraClass}` : ''}`);
 }
 
+/**
+ * The ruled divider that runs under the title and under section headings: a
+ * surveyor's scale, which is the same motif as the crosses on the floor.
+ */
+function ruledLine(width = 520): SVGSVGElement {
+  const node = svg('svg', {
+    viewBox: `0 0 ${width} 10`,
+    width: '100%',
+    height: 10,
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-linecap': 'round',
+  });
+  node.append(svg('path', { d: `M2 7 L${width - 2} 7`, 'stroke-width': 1.2, opacity: 0.5 }));
+  for (let i = 0; i <= 24; i++) {
+    const x = 2 + (i / 24) * (width - 4);
+    const major = i % 6 === 0;
+    node.append(
+      svg('path', {
+        d: `M${x.toFixed(1)} 7 L${x.toFixed(1)} ${major ? 1 : 4}`,
+        'stroke-width': major ? 1.3 : 0.8,
+        opacity: major ? 0.75 : 0.35,
+      }),
+    );
+  }
+  node.style.filter = INK.roughSoft;
+  return node;
+}
+
 export function mainMenu(save: SaveManager, discovery: DiscoverySystem, cb: UICallbacks): HTMLElement {
   const s = screen();
   const title = el('h1', 'title');
   title.innerHTML = 'DON&rsquo;T LET IT <span class="eye">SEE</span> YOU';
   s.append(title);
+  const rule = el('div', 'title-rule');
+  rule.append(ruledLine());
+  s.append(rule);
   s.append(el('p', 'tagline', 'IT CANNOT SEE YOU. IT CAN SEE WHAT YOU ARE LOOKING AT.'));
 
   const completed = ROOMS.filter((r) => save.record(r.id).completed).length;
@@ -96,6 +129,7 @@ export function roomSelect(save: SaveManager, cb: UICallbacks): HTMLElement {
   const s = screen('is-quiet');
   s.append(el('h2', 'subtitle', 'Rooms'));
   const p = panel('THE BUILDING');
+  p.classList.add('wide');
   const grid = el('div', 'grid-cards');
 
   ROOMS.forEach((room, i) => {
@@ -131,6 +165,7 @@ export function challenges(save: SaveManager, cb: UICallbacks): HTMLElement {
   let roomIndex = 0;
 
   const modPanel = panel('RULES');
+  modPanel.classList.add('wide');
   const chips = el('div', 'chip-row');
   for (const mod of MODIFIERS) {
     const chip = el('button', 'chip', mod.name);
@@ -149,6 +184,7 @@ export function challenges(save: SaveManager, cb: UICallbacks): HTMLElement {
   modPanel.append(chips, note);
 
   const roomPanel = panel('ROOM');
+  roomPanel.classList.add('wide');
   const grid = el('div', 'grid-cards');
   const cards: HTMLButtonElement[] = [];
   ROOMS.forEach((room, i) => {
@@ -194,7 +230,7 @@ export function discoveries(discovery: DiscoverySystem, cb: UICallbacks): HTMLEl
     el('p', 'tagline', `${discovery.count} OF ${DISCOVERIES.length} FOUND`),
   );
 
-  const wrap = el('div', 'panel');
+  const wrap = el('div', 'panel wide');
   for (const group of discovery.grouped()) {
     wrap.append(el('h3', undefined, group.group));
     for (const entry of group.entries) {
