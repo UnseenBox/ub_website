@@ -12,8 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Prebuilt browser games served as static files.
+    // Prebuilt browser games served as static files, and their sources,
+    // which are separate Vite projects with their own tooling.
     "public/arcade/**",
+    "games/**",
   ]),
 ]);
 
