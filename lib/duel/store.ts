@@ -6,8 +6,10 @@ import { ensureReady, getSql } from "@/lib/db/client";
 /**
  * CRAZY GOAL duels.
  *
- * A duel is five rounds between two players. In each round both players set a
- * trap in front of their own goal, then each takes one shot at the other's.
+ * A duel is ten rounds between two players. Each round is one street, the same
+ * for both, and each player takes one shot at it. A shot can carry a card:
+ * a boost for that shot, or a trick that lands on the other player's next one.
+ * A round opens once both shots of the round before are in.
  * Nothing here is real time: every move is one write, and clients poll.
  *
  * Players are anonymous. A browser asks for an id once and keeps the secret
@@ -16,14 +18,21 @@ import { ensureReady, getSql } from "@/lib/db/client";
  * is a scoreboard for friends, not an anti-cheat system.
  */
 
-export const DUEL_ROUNDS = 5;
+export const DUEL_ROUNDS = 10;
+/**
+ * The shape of a duel's stored state. Duels from before the cards (five rounds,
+ * with traps) are version-less; they are simply no longer listed or opened.
+ */
+const STATE_VERSION = 2;
 
 /** No look-alike characters, so an id can be read out loud or typed from a screenshot. */
 const ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const PLAYER_ID_LENGTH = 6;
-const PIECE_TYPES = new Set(["tyre", "crate", "car", "glass"]);
-const MAX_PIECES = 4;
+/** Each card can be played once per player per duel. */
+const CARDS = new Set(["fire", "magnet", "rubber", "cat", "shutter", "smoke"]);
 const MAX_PATH_NUMBERS = 900;
+const MAX_EVENT_NUMBERS = 160;
+const MAX_MOVER_NUMBERS = 24;
 const MAX_NEW_DUELS_PER_HOUR = 30;
 
 export class DuelError extends Error {
@@ -40,12 +49,6 @@ export interface DuelPlayer {
   name: string;
 }
 
-interface Piece {
-  type: string;
-  x: number;
-  y: number;
-}
-
 interface Shot {
   goal: boolean;
   score: number;
@@ -53,10 +56,15 @@ interface Shot {
   path: (number | null)[];
   /** Where the keeper stood at each path point, when there was one. */
   keeper: (number | null)[];
+  /** The card played with this shot, if any. */
+  card: string | null;
+  /** What the street did during the shot, for the replay (groups of four numbers). */
+  events: number[];
+  /** Where the moving things were when the ball was struck, for the replay. */
+  movers: number[];
 }
 
 interface Round {
-  def: [Piece[] | null, Piece[] | null];
   shot: [Shot | null, Shot | null];
 }
 
@@ -184,7 +192,7 @@ export async function challenge(input: { id?: unknown; secret?: unknown; opponen
   )) as { count: string }[];
   if (Number(count) >= MAX_NEW_DUELS_PER_HOUR) throw new DuelError("slow_down", 429);
 
-  const rounds: Round[] = Array.from({ length: DUEL_ROUNDS }, () => ({ def: [null, null], shot: [null, null] }));
+  const rounds: Round[] = Array.from({ length: DUEL_ROUNDS }, () => ({ shot: [null, null] }));
   const id = randomId(10);
   const seed = randomBytes(4).readUInt32BE(0) & 0x7fffffff;
   await sql.query(`insert into duels (id, player_a, player_b, seed, state) values ($1, $2, $3, $4, $5::jsonb)`, [
@@ -192,16 +200,16 @@ export async function challenge(input: { id?: unknown; secret?: unknown; opponen
     me.id,
     opponent,
     seed,
-    JSON.stringify({ rounds }),
+    JSON.stringify({ v: STATE_VERSION, rounds }),
   ]);
   return getDuel(id, me.id);
 }
 
 async function getDuel(duelId: string, playerId: string): Promise<Duel> {
-  const rows = (await getSql().query(`${SELECT_DUEL} where d.id = $1 and (d.player_a = $2 or d.player_b = $2)`, [
-    duelId,
-    playerId,
-  ])) as DuelRow[];
+  const rows = (await getSql().query(
+    `${SELECT_DUEL} where d.id = $1 and (d.player_a = $2 or d.player_b = $2) and d.state->>'v' = $3`,
+    [duelId, playerId, String(STATE_VERSION)],
+  )) as DuelRow[];
   if (rows.length === 0) throw new DuelError("no_such_duel", 404);
   return toDuel(rows[0]);
 }
@@ -217,28 +225,27 @@ export async function list(input: { id?: unknown; secret?: unknown }): Promise<D
   await ensureReady();
   const me = await authenticate(input.id, input.secret);
   const rows = (await getSql().query(
-    `${SELECT_DUEL} where d.player_a = $1 or d.player_b = $1 order by d.updated_at desc limit 12`,
-    [me.id],
+    `${SELECT_DUEL} where (d.player_a = $1 or d.player_b = $1) and d.state->>'v' = $2 order by d.updated_at desc limit 12`,
+    [me.id, String(STATE_VERSION)],
   )) as DuelRow[];
   return rows.map(toDuel);
 }
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
-function parseDefence(data: unknown): Piece[] {
-  if (!Array.isArray(data) || data.length > MAX_PIECES) throw new DuelError("bad_move");
-  return data.map((piece: unknown) => {
-    const p = piece as Partial<Piece> | null;
-    if (!p || typeof p.type !== "string" || !PIECE_TYPES.has(p.type) || !finite(p.x) || !finite(p.y)) {
-      throw new DuelError("bad_move");
-    }
-    return { type: p.type, x: Math.round(p.x), y: Math.round(p.y) };
-  });
-}
-
 function parseNumbers(data: unknown, max: number): (number | null)[] {
   if (!Array.isArray(data) || data.length > max) throw new DuelError("bad_move");
   return data.map((v: unknown) => (finite(v) ? Math.round(v) : null));
+}
+
+/** Like parseNumbers, for lists that have no gaps in them. */
+function parseWholeNumbers(data: unknown, max: number): number[] {
+  if (data === undefined || data === null) return [];
+  if (!Array.isArray(data) || data.length > max) throw new DuelError("bad_move");
+  return data.map((v: unknown) => {
+    if (!finite(v)) throw new DuelError("bad_move");
+    return Math.round(v);
+  });
 }
 
 function parseShot(data: unknown): Shot {
@@ -249,20 +256,22 @@ function parseShot(data: unknown): Shot {
     score: s.goal ? Math.max(0, Math.min(200000, Math.round(s.score))) : 0,
     path: parseNumbers(s.path, MAX_PATH_NUMBERS),
     keeper: parseNumbers(s.keeper ?? [], MAX_PATH_NUMBERS / 2),
+    card: typeof s.card === "string" && CARDS.has(s.card) ? s.card : null,
+    events: parseWholeNumbers(s.events, MAX_EVENT_NUMBERS),
+    movers: parseWholeNumbers(s.movers, MAX_MOVER_NUMBERS),
   };
 }
 
 /**
- * Records a trap or a shot. Each slot can be written once: the update only
- * lands while the slot is still empty, so a double submit or a second tab
- * cannot change a move that was already made.
+ * Records a player's shot of a round. Each slot can be written once: the update
+ * only lands while the slot is still empty, so a double submit or a second tab
+ * cannot change a shot that was already taken.
  */
 export async function move(input: {
   id?: unknown;
   secret?: unknown;
   duel?: unknown;
   round?: unknown;
-  kind?: unknown;
   data?: unknown;
 }): Promise<Duel> {
   await ensureReady();
@@ -274,24 +283,21 @@ export async function move(input: {
   if (typeof round !== "number" || !Number.isInteger(round) || round < 0 || round >= DUEL_ROUNDS) {
     throw new DuelError("bad_move");
   }
-
-  let value: Piece[] | Shot;
-  if (input.kind === "def") {
-    value = parseDefence(input.data);
-  } else if (input.kind === "shot") {
-    // You can only shoot at a trap that exists.
-    if (!duel.rounds[round].def[1 - side]) throw new DuelError("too_early", 409);
-    value = parseShot(input.data);
-  } else {
-    throw new DuelError("bad_move");
+  // Rounds go in order: this one opens when both shots of every earlier one are in.
+  for (let r = 0; r < round; r++) {
+    if (!duel.rounds[r].shot[0] || !duel.rounds[r].shot[1]) throw new DuelError("too_early", 409);
   }
 
-  const path = ["rounds", String(round), input.kind, String(side)];
+  const shot = parseShot(input.data);
+  // A card works once. Played a second time, the shot still counts; the card does not.
+  if (shot.card && duel.rounds.some((r) => r.shot[side]?.card === shot.card)) shot.card = null;
+
+  const path = ["rounds", String(round), "shot", String(side)];
   await sql.query(
     `update duels
         set state = jsonb_set(state, $2::text[], $3::jsonb), updated_at = now()
       where id = $1 and state #> $2::text[] = 'null'::jsonb`,
-    [duel.id, path, JSON.stringify(value)],
+    [duel.id, path, JSON.stringify(shot)],
   );
   return getDuel(duel.id, me.id);
 }
