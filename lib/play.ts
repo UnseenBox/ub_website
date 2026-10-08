@@ -70,6 +70,32 @@ export const PLAYABLE_GAMES: PlayableGame[] = [
       ar: "الإبهام الأيسر للحركة · المس الجهة اليمنى للإمساك · اضغط مطولاً للرمي",
     },
   },
+  {
+    slug: "chronodle",
+    title: "CHRONODLE",
+    src: "/arcade/chronodle/index.html",
+    poster: "/arcade/chronodle/poster.jpg",
+    genre: {
+      en: "Daily history puzzle",
+      fr: "Puzzle historique quotidien",
+      ar: "لغز تاريخي يومي",
+    },
+    summary: {
+      en: "Five moments from history, one right order. Put them oldest to newest in four tries: green locks in, yellow points the way. A new puzzle every day for everyone, a streak to protect, and an endless practice mode with puzzles you can send to a friend. In English.",
+      fr: "Cinq moments de l’histoire, un seul bon ordre. Classez-les du plus ancien au plus récent en quatre essais : le vert se verrouille, le jaune indique la direction. Un nouveau puzzle chaque jour, le même pour tout le monde, une série à protéger et un mode entraînement sans fin dont vous pouvez envoyer les puzzles à un ami. En anglais.",
+      ar: "خمس لحظات من التاريخ وترتيب صحيح واحد. رتّبها من الأقدم إلى الأحدث في أربع محاولات: الأخضر يثبت في مكانه، والأصفر يدلّك على الاتجاه. لغز جديد كل يوم للجميع، وسلسلة انتصارات تحافظ عليها، ووضع تدريب لا ينتهي يمكنك إرسال ألغازه إلى صديق. باللغة الإنجليزية.",
+    },
+    desktopControls: {
+      en: "Click two cards to swap them, or use the ▲▼ arrows · Submit to check your order",
+      fr: "Cliquez sur deux cartes pour les échanger, ou utilisez les flèches ▲▼ · Valider pour vérifier votre ordre",
+      ar: "انقر على بطاقتين لتبديلهما، أو استخدم السهمين ▲▼ · اضغط Submit للتحقق من ترتيبك",
+    },
+    phoneControls: {
+      en: "Made for phones: tap two cards to swap them, then tap Submit",
+      fr: "Pensé pour le téléphone : touchez deux cartes pour les échanger, puis Submit",
+      ar: "مصمَّمة للهاتف: المس بطاقتين لتبديلهما، ثم المس Submit",
+    },
+  },
 ];
 
 /*

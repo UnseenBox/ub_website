@@ -1,0 +1,21 @@
+{
+  "name": "chronodle",
+  "version": "1.0.0",
+  "description": "Daily history puzzle: put 5 events in chronological order.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build:arcade": "tsc --noEmit && vite build --outDir ../../public/arcade/chronodle --emptyOutDir"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4",
+    "vitest": "^3.2.7"
+  },
+  "private": true,
+  "type": "module"
+}
