@@ -19,6 +19,32 @@ export interface PlayableGame {
 
 export const PLAYABLE_GAMES: PlayableGame[] = [
   {
+    slug: "crazy-goal",
+    title: "CRAZY GOAL",
+    src: "/arcade/crazy-goal/index.html",
+    poster: "/arcade/crazy-goal/poster.jpg",
+    genre: {
+      en: "Physics trick shot football",
+      fr: "Football de tirs acrobatiques",
+      ar: "كرة قدم بتسديدات فيزيائية",
+    },
+    summary: {
+      en: "A football, a goal, and a wall in the way. Drag back, let go, and bank it in off the rails. The crazier the route, the bigger the score. Early build: one lab so far, more on the way.",
+      fr: "Un ballon, un but, et un mur au milieu. Tirez en arrière, relâchez, et marquez par la bande. Plus le trajet est fou, plus le score grimpe. Version en cours : un premier labo, d’autres arrivent.",
+      ar: "كرة ومرمى وجدار في الطريق. اسحب إلى الخلف ثم أفلت، وسجّل بارتداد الكرة عن الحواف. كلما كان المسار أكثر جنوناً ارتفعت النتيجة. نسخة مبكرة: مختبر واحد حتى الآن، والمزيد قادم.",
+    },
+    desktopControls: {
+      en: "Drag back to aim · let go to shoot · click to retry · R to restart · Esc to pause",
+      fr: "Tirez en arrière pour viser · relâchez pour tirer · clic pour réessayer · R pour recommencer · Échap pour la pause",
+      ar: "اسحب للخلف للتصويب · أفلت للتسديد · انقر لإعادة المحاولة · R للبدء من جديد · Esc للإيقاف المؤقت",
+    },
+    phoneControls: {
+      en: "Works upright or sideways · drag anywhere to aim · lift your finger to shoot · tap to go again",
+      fr: "Fonctionne à la verticale comme à l’horizontale · glissez n’importe où pour viser · levez le doigt pour tirer · touchez pour rejouer",
+      ar: "تعمل بالوضع العمودي أو الأفقي · اسحب في أي مكان للتصويب · ارفع إصبعك للتسديد · المس للعب مجدداً",
+    },
+  },
+  {
     slug: "dont-let-it-see-you",
     title: "DON’T LET IT SEE YOU",
     src: "/arcade/dont-let-it-see-you/index.html",
