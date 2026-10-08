@@ -24,14 +24,14 @@ export const PLAYABLE_GAMES: PlayableGame[] = [
     src: "/arcade/crazy-goal/index.html",
     poster: "/arcade/crazy-goal/poster.jpg",
     genre: {
-      en: "Physics trick shot football",
-      fr: "Football de tirs acrobatiques",
-      ar: "كرة قدم بتسديدات فيزيائية",
+      en: "Street football trick shots",
+      fr: "Football de rue, tirs acrobatiques",
+      ar: "كرة قدم الحومة بتسديدات بهلوانية",
     },
     summary: {
-      en: "A football, a goal, and a wall in the way. Drag back, let go, and bank it in off the rails. The crazier the route, the bigger the score. Early build: one lab so far, more on the way.",
-      fr: "Un ballon, un but, et un mur au milieu. Tirez en arrière, relâchez, et marquez par la bande. Plus le trajet est fou, plus le score grimpe. Version en cours : un premier labo, d’autres arrivent.",
-      ar: "كرة ومرمى وجدار في الطريق. اسحب إلى الخلف ثم أفلت، وسجّل بارتداد الكرة عن الحواف. كلما كان المسار أكثر جنوناً ارتفعت النتيجة. نسخة مبكرة: مختبر واحد حتى الآن، والمزيد قادم.",
+      en: "Football in the alleys of the houma. One shot per try: drag back, let go, and get it in any way you can. Bank it off the houses, bounce it off the tyres, send it down the drain, smash the window, ring the bell, and get it past Mimi the cat. Twelve alleys, three stars each, and your last miss stays chalked on the ground. Or duel a friend: swap IDs, set a trap in front of your own goal, and take one shot at theirs, five rounds, each one different.",
+      fr: "Du foot dans les ruelles de la houma. Un seul tir par essai : tirez en arrière, relâchez, et marquez comme vous pouvez. Jouez avec les murs, les pneus, la bouche d’égout, la vitre, la sonnette, et trompez Mimi la chatte. Douze ruelles, trois étoiles chacune, et votre dernier raté reste tracé à la craie sur le sol. Ou défiez un ami : échangez vos identifiants, posez un piège devant votre but, et tirez une fois sur le sien, en cinq manches toutes différentes.",
+      ar: "كرة قدم في أزقة الحومة. تسديدة واحدة في كل محاولة: اسحب إلى الخلف ثم أفلت، وسجّل بأي طريقة. استعمل الجدران والعجلات وفتحة المجاري، اكسر الزجاج، اقرع الجرس، وتجاوز القطة ميمي. اثنا عشر زقاقاً، ثلاث نجوم لكل واحد، وآخر تسديدة ضائعة تبقى مرسومة بالطباشير على الأرض. أو تحدَّ صديقاً: تبادلا المعرّفات، انصب فخاً أمام مرماك، وسدّد مرة واحدة على مرماه، في خمس جولات كل واحدة مختلفة.",
     },
     desktopControls: {
       en: "Drag back to aim · let go to shoot · click to retry · R to restart · Esc to pause",

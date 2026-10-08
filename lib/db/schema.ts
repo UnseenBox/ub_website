@@ -113,6 +113,26 @@ export const SCHEMA_STATEMENTS: string[] = [
      created_at timestamptz not null default now()
    )`,
 
+  // CRAZY GOAL duels. A player is an anonymous id plus a secret kept in their browser;
+  // a duel is two players and the whole match as one JSONB document.
+  `create table if not exists duel_players (
+     id text primary key,
+     secret text not null,
+     name text not null default '',
+     created_at timestamptz not null default now(),
+     seen_at timestamptz not null default now()
+   )`,
+
+  `create table if not exists duels (
+     id text primary key,
+     player_a text not null,
+     player_b text not null,
+     seed integer not null,
+     state jsonb not null,
+     created_at timestamptz not null default now(),
+     updated_at timestamptz not null default now()
+   )`,
+
   // Added after the first release, so existing databases get the column too.
   `alter table games add column if not exists screenshot_shape text not null default 'auto'`,
 
@@ -122,6 +142,8 @@ export const SCHEMA_STATEMENTS: string[] = [
   `create index if not exists messages_created_at_idx on messages (created_at desc)`,
   `create index if not exists reviews_game_status_idx on reviews (game_id, status)`,
   `create index if not exists reviews_created_at_idx on reviews (created_at desc)`,
+  `create index if not exists duels_player_a_idx on duels (player_a, updated_at desc)`,
+  `create index if not exists duels_player_b_idx on duels (player_b, updated_at desc)`,
 ];
 
 /** Postgres error code for a unique-constraint violation (duplicate slug). */
