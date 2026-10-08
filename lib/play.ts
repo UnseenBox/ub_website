@@ -1,13 +1,20 @@
 import type { LocalizedString } from "@/types/content";
 
+/** What a visitor can browse the arcade by. The order here is the order of the cards. */
+export const PLAY_MOODS = ["quick", "brain", "chaos", "friends", "dark", "phone"] as const;
+export type PlayMood = (typeof PLAY_MOODS)[number];
+
 /**
- * Games that run directly in the browser on the /play page.
+ * Games that run directly in the browser: listed on /play, played on /play/<slug>.
  * Each one is a static build living in `public/arcade/<slug>/`; to add a game,
- * copy its build there (with a `poster.jpg`) and add an entry here.
+ * copy its build there (with a `poster.jpg`) and add an entry here, newest first.
  */
 export interface PlayableGame {
   slug: string;
   title: string;
+  /** ISO date the game joined the arcade. The latest one wears the "New" badge. */
+  added: string;
+  moods: PlayMood[];
   /** Entry point of the static build. Must keep its file extension so the locale proxy skips it. */
   src: string;
   poster: string;
@@ -21,6 +28,8 @@ export const PLAYABLE_GAMES: PlayableGame[] = [
   {
     slug: "crazy-goal",
     title: "CRAZY GOAL",
+    added: "2026-10-08",
+    moods: ["quick", "friends", "phone"],
     src: "/arcade/crazy-goal/index.html",
     poster: "/arcade/crazy-goal/poster.jpg",
     genre: {
@@ -47,6 +56,8 @@ export const PLAYABLE_GAMES: PlayableGame[] = [
   {
     slug: "dont-let-it-see-you",
     title: "DON’T LET IT SEE YOU",
+    added: "2026-10-08",
+    moods: ["dark", "brain"],
     src: "/arcade/dont-let-it-see-you/index.html",
     poster: "/arcade/dont-let-it-see-you/poster.jpg",
     genre: {
@@ -73,6 +84,8 @@ export const PLAYABLE_GAMES: PlayableGame[] = [
   {
     slug: "bonk",
     title: "BONK!",
+    added: "2026-10-02",
+    moods: ["chaos", "phone"],
     src: "/arcade/bonk/index.html",
     poster: "/arcade/bonk/poster.jpg",
     genre: {
@@ -99,6 +112,8 @@ export const PLAYABLE_GAMES: PlayableGame[] = [
   {
     slug: "chronodle",
     title: "CHRONODLE",
+    added: "2026-10-08",
+    moods: ["brain", "quick", "friends", "phone"],
     src: "/arcade/chronodle/index.html",
     poster: "/arcade/chronodle/poster.jpg",
     genre: {
@@ -138,7 +153,18 @@ export function findPlayableByReviewId(id: string): PlayableGame | undefined {
   return PLAYABLE_GAMES.find((game) => playReviewId(game) === id);
 }
 
+export function findPlayable(slug: string): PlayableGame | undefined {
+  return PLAYABLE_GAMES.find((game) => game.slug === slug);
+}
+
+/** A playable game's own page, relative to the locale root. */
+export function playGamePath(game: { slug: string }): string {
+  return `/play/${game.slug}`;
+}
+
 /** Where a review's game lives on the site, relative to the locale root. */
 export function reviewGamePath(review: { gameId: string; gameSlug: string }): string {
-  return review.gameId.startsWith(PLAY_REVIEW_PREFIX) ? `/play#${review.gameSlug}` : `/games/${review.gameSlug}`;
+  return review.gameId.startsWith(PLAY_REVIEW_PREFIX)
+    ? playGamePath({ slug: review.gameSlug })
+    : `/games/${review.gameSlug}`;
 }
