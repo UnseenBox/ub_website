@@ -1,5 +1,4 @@
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
-import { SectionLabel } from "@/components/ui/section-label";
 import { ScrollWords } from "@/components/motion/scroll-words";
 
 export function Manifesto({ dict, text, foundedYear }: { dict: Dictionary; text: string; foundedYear: string }) {
@@ -8,8 +7,7 @@ export function Manifesto({ dict, text, foundedYear }: { dict: Dictionary; text:
   return (
     <section id="manifesto" aria-label={dict.manifesto.label} className="relative scroll-mt-20 py-28 sm:py-44">
       <div className="shell">
-        <SectionLabel index="∎">{dict.manifesto.label}</SectionLabel>
-        <ScrollWords text={text} className="font-display mt-10 max-w-[18ch] text-title text-balance sm:max-w-6xl" />
+        <ScrollWords text={text} className="font-display max-w-[18ch] text-title text-balance sm:max-w-6xl" />
         <p className="label mt-10">
           UnseenBox, {dict.hero.est} {foundedYear}
         </p>

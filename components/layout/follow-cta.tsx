@@ -1,5 +1,4 @@
 import { InstagramIcon, YoutubeIcon, ControllerIcon, ExternalIcon } from "@/components/ui/icons";
-import { SectionLabel } from "@/components/ui/section-label";
 import type { SocialLink } from "@/types/content";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +25,7 @@ type Platform = keyof typeof ICONS;
  * blank in the admin simply does not appear, and the band hides itself when
  * none are set.
  */
-export function FollowCta({ socials, copy, index = "06" }: { socials: SocialLink[]; copy: Copy; index?: string }) {
+export function FollowCta({ socials, copy }: { socials: SocialLink[]; copy: Copy }) {
   const url = (platform: Platform) => socials.find((social) => social.platform === platform)?.url?.trim();
 
   const buttons = (["instagram", "youtube", "itch"] as const)
@@ -39,8 +38,7 @@ export function FollowCta({ socials, copy, index = "06" }: { socials: SocialLink
     <section aria-labelledby="follow-heading" className="border-t border-line bg-ink-950">
       <div className="shell grid gap-10 py-20 sm:py-24 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:gap-16">
         <div>
-          <SectionLabel index={index}>{copy.label}</SectionLabel>
-          <h2 id="follow-heading" data-reveal className="font-display mt-6 text-title text-balance">
+          <h2 id="follow-heading" data-reveal className="font-display text-title text-balance">
             {copy.title}
           </h2>
           <p className="mt-5 max-w-md text-mist">{copy.intro}</p>

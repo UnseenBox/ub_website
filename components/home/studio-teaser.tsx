@@ -2,7 +2,6 @@ import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { localePath, t, type Locale } from "@/lib/i18n/config";
 import type { StudioInfo } from "@/types/content";
 import { LinkButton } from "@/components/ui/link-button";
-import { SectionLabel } from "@/components/ui/section-label";
 import { SmartImage } from "@/components/ui/smart-image";
 
 export function StudioTeaser({
@@ -22,8 +21,7 @@ export function StudioTeaser({
     <section aria-labelledby="studio-teaser" className="shell py-28 sm:py-40">
       <div className="grid gap-14 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
         <div className="relative">
-          <SectionLabel index="05">{dict.about.label}</SectionLabel>
-          <h2 id="studio-teaser" data-reveal className="font-display mt-8 text-title text-balance">
+          <h2 id="studio-teaser" data-reveal className="font-display text-title text-balance">
             {dict.about.title}
           </h2>
           {image && (

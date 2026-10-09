@@ -9,7 +9,6 @@ import { StudioTeaser } from "@/components/home/studio-teaser";
 import { FollowCta } from "@/components/layout/follow-cta";
 import { SignalCard } from "@/components/games/signal-card";
 import { ArchiveStrip } from "@/components/experiences/archive-strip";
-import { SectionLabel } from "@/components/ui/section-label";
 import { getContent } from "@/lib/content/queries";
 import { mergeHomeCopy } from "@/lib/content/home-copy";
 import { toArchiveItem, toServiceItem, toShowcaseItem, toSignalItem } from "@/lib/content/present";
@@ -77,8 +76,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           <div className="shell">
             <div className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
               <div>
-                <SectionLabel index="02">{dict.upcoming.label}</SectionLabel>
-                <h2 id="in-the-dark" data-reveal className="font-display mt-8 text-giga text-balance">
+                <h2 id="in-the-dark" data-reveal className="font-display text-giga text-balance">
                   {dict.upcoming.title}
                 </h2>
               </div>
@@ -104,8 +102,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         <div className="shell">
           <div className="mb-16 grid gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-end">
             <div>
-              <SectionLabel index="03">{dict.services.label}</SectionLabel>
-              <h2 id="services-heading" data-reveal className="font-display mt-8 text-giga text-balance">
+              <h2 id="services-heading" data-reveal className="font-display text-giga text-balance">
                 {dict.services.title}
               </h2>
             </div>
@@ -125,8 +122,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         <section aria-labelledby="archive-heading" className="overflow-hidden py-28 sm:py-40">
           <div className="shell mb-14 flex flex-wrap items-end justify-between gap-6">
             <div>
-              <SectionLabel index="04">{dict.experiences.label}</SectionLabel>
-              <h2 id="archive-heading" data-reveal className="font-display mt-8 text-giga">
+              <h2 id="archive-heading" data-reveal className="font-display text-giga">
                 {dict.experiences.title}
               </h2>
               <p className="mt-5 max-w-md text-mist">{dict.experiences.intro}</p>
@@ -146,7 +142,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         <StudioTeaser locale={locale} dict={dict} studio={studio} image={released[0]?.screenshots[2]} />
       </div>
 
-      <FollowCta socials={studio.socials} copy={{ ...dict.follow, externalLink: dict.a11y.externalLink }} index="06" />
+      <FollowCta socials={studio.socials} copy={{ ...dict.follow, externalLink: dict.a11y.externalLink }} />
     </>
   );
 }

@@ -94,12 +94,7 @@ export function WorldsShowcase({ items, copy, allHref }: { items: ShowcaseItem[]
       <div className="shell flex min-h-[100svh] flex-col py-20 sm:py-28">
         <div className="flex items-end justify-between gap-6">
           <div>
-            <p className="label flex items-center gap-3">
-              <span className="font-pixel text-uv-400">01</span>
-              <span aria-hidden className="h-px w-8 bg-line-strong" />
-              {copy.label}
-            </p>
-            <h2 id={`${baseId}-heading`} className="font-display mt-4 max-w-md text-2xl text-bone/90 sm:text-3xl">
+            <h2 id={`${baseId}-heading`} className="font-display max-w-md text-2xl text-bone/90 sm:text-3xl">
               {copy.title}
             </h2>
           </div>

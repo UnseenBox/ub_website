@@ -6,7 +6,6 @@ import { Stars } from "@/components/community/stars";
 import { StoreLinks } from "@/components/games/store-links";
 import { FollowCta } from "@/components/layout/follow-cta";
 import { PageIntro } from "@/components/ui/page-intro";
-import { SectionLabel } from "@/components/ui/section-label";
 import { getApprovedReviews, getGames, getRatings, getStudio } from "@/lib/content/queries";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
@@ -57,8 +56,7 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
 
       {/* Ratings per game */}
       <section className="shell py-20 sm:py-24" aria-label={copy.averageTitle}>
-        <SectionLabel index="01">{copy.averageTitle}</SectionLabel>
-        <ul className="mt-10 grid gap-px overflow-hidden border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-px overflow-hidden border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
           {rated.map(({ game, summary }) => (
             <li key={game.id} className="flex flex-col gap-4 bg-ink-950 p-6">
               <Link href={localePath(locale, game.path)} className="font-display text-2xl hover:text-uv-300">
@@ -88,11 +86,10 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
       {/* Reviews + form */}
       <section className="shell grid gap-16 border-t border-line py-20 sm:py-28 lg:grid-cols-[1.2fr_1fr] lg:gap-24">
         <div>
-          <SectionLabel index="02">{copy.reviewsTitle}</SectionLabel>
           {reviews.length === 0 ? (
-            <p className="mt-10 text-lg text-mist">{copy.empty}</p>
+            <p className="text-lg text-mist">{copy.empty}</p>
           ) : (
-            <ul className="mt-10 grid gap-px bg-line">
+            <ul className="grid gap-px bg-line">
               {reviews.map((review) => (
                 <li key={review.id} className="bg-ink-950 py-8 first:pt-0">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -131,7 +128,7 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
         </div>
       </section>
 
-      <FollowCta socials={studio.socials} copy={{ ...dict.follow, externalLink: dict.a11y.externalLink }} index="03" />
+      <FollowCta socials={studio.socials} copy={{ ...dict.follow, externalLink: dict.a11y.externalLink }} />
     </>
   );
 }

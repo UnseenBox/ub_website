@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ServicesIndex } from "@/components/home/services-index";
 import { LinkButton } from "@/components/ui/link-button";
 import { PageIntro } from "@/components/ui/page-intro";
-import { SectionLabel } from "@/components/ui/section-label";
 import { getServices, getStudio } from "@/lib/content/queries";
 import { toServiceItem } from "@/lib/content/present";
 import { isLocale, localePath, t } from "@/lib/i18n/config";
@@ -37,7 +36,6 @@ export default async function ServicesPage({ params }: PageProps<"/[locale]/serv
 
       <section aria-labelledby="process" className="border-y border-line bg-ink-950 py-24 sm:py-32">
         <div className="shell">
-          <SectionLabel index="∎">{dict.services.processLabel}</SectionLabel>
           <h2 id="process" className="sr-only">
             {dict.services.processLabel}
           </h2>

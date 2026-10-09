@@ -7,7 +7,6 @@ import { StoreLinks } from "@/components/games/store-links";
 import { Gallery } from "@/components/media/gallery";
 import { Trailer } from "@/components/media/trailer";
 import { ArrowIcon } from "@/components/ui/icons";
-import { SectionLabel } from "@/components/ui/section-label";
 import { SmartImage } from "@/components/ui/smart-image";
 import { getContent, getGameBySlug, getGames, getRatings, getReviewsForGame } from "@/lib/content/queries";
 import { platformList } from "@/lib/content/present";
@@ -188,8 +187,7 @@ export default async function GamePage({ params }: PageProps<"/[locale]/games/[s
       {/* About */}
       <section className="shell grid gap-12 py-24 sm:py-32 lg:grid-cols-[1fr_1.6fr] lg:gap-24">
         <div>
-          <SectionLabel index="∎">{dict.game.about}</SectionLabel>
-          <p data-reveal className="font-display mt-8 text-3xl leading-tight text-balance sm:text-4xl">
+          <p data-reveal className="font-display text-3xl leading-tight text-balance sm:text-4xl">
             {t(game.summary, locale)}
           </p>
         </div>
@@ -222,8 +220,7 @@ export default async function GamePage({ params }: PageProps<"/[locale]/games/[s
         <section aria-labelledby="devlog" className="border-t border-line bg-ink-950 py-24 sm:py-32">
           <div className="shell grid gap-14 lg:grid-cols-[1fr_1.6fr] lg:gap-24">
             <div>
-              <SectionLabel index="∎">{dict.game.progress}</SectionLabel>
-              <p className="font-pixel mt-8 text-7xl text-uv-300" dir="ltr">
+              <p className="font-pixel text-7xl text-uv-300" dir="ltr">
                 {progress}%
               </p>
               <div

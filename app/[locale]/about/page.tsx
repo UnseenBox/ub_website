@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LinkButton } from "@/components/ui/link-button";
 import { PageIntro } from "@/components/ui/page-intro";
-import { SectionLabel } from "@/components/ui/section-label";
 import { SmartImage } from "@/components/ui/smart-image";
 import { getContent } from "@/lib/content/queries";
 import { isLocale, localePath, t } from "@/lib/i18n/config";
@@ -62,7 +61,6 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
 
       {/* Beliefs */}
       <section aria-labelledby="beliefs" className="shell py-28 sm:py-40">
-        <SectionLabel index="∎">{dict.about.beliefsLabel}</SectionLabel>
         <h2 id="beliefs" className="sr-only">
           {dict.about.beliefsLabel}
         </h2>
@@ -87,7 +85,6 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
       <section aria-labelledby="approach" className="border-y border-line bg-ink-950 py-24 sm:py-32">
         <div className="shell grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-24">
           <div>
-            <SectionLabel index="∎">{dict.about.approachLabel}</SectionLabel>
             <h2 id="approach" className="sr-only">
               {dict.about.approachLabel}
             </h2>
@@ -109,7 +106,6 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
       {studio.timeline.length > 0 && (
         <section aria-labelledby="timeline" className="py-24 sm:py-32">
           <div className="shell">
-            <SectionLabel index="∎">{dict.about.timelineLabel}</SectionLabel>
             <h2 id="timeline" className="sr-only">
               {dict.about.timelineLabel}
             </h2>
@@ -145,8 +141,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
       <section aria-labelledby="ambition" className="relative isolate overflow-hidden border-t border-line py-28 sm:py-40">
         <div aria-hidden className="uv-glow pointer-events-none absolute inset-0 -z-10" />
         <div className="shell">
-          <SectionLabel index="∎">{dict.about.ambitionLabel}</SectionLabel>
-          <h2 id="ambition" data-reveal className="font-display mt-10 max-w-6xl text-title text-balance">
+          <h2 id="ambition" data-reveal className="font-display max-w-6xl text-title text-balance">
             {t(studio.ambition, locale)}
           </h2>
           <div className="mt-12">

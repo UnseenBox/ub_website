@@ -18,19 +18,6 @@ export function Hero({ locale, dict, foundedYear }: { locale: Locale; dict: Dict
       </div>
 
       <div className="shell relative flex flex-1 flex-col pb-8 pt-24 sm:pb-10 sm:pt-32">
-        <ol className="flex flex-col gap-2 sm:flex-row sm:gap-8" aria-label={hero.channels.join(", ")}>
-          {hero.channels.map((channel, i) => (
-            <li
-              key={channel}
-              className="label flex animate-fade items-center gap-2"
-              style={{ animationDelay: `${900 + i * 140}ms` }}
-            >
-              <span className="font-pixel text-uv-400">CH.0{i + 1}</span>
-              <span className="text-bone/80">{channel}</span>
-            </li>
-          ))}
-        </ol>
-
         <h1
           id="hero-title"
           className="font-display mt-auto pt-16 text-mega uppercase [overflow-wrap:anywhere] sm:pt-24 rtl:normal-case"

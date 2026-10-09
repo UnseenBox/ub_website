@@ -4,7 +4,6 @@ import { ContactForm } from "@/components/contact/contact-form";
 import { CopyButton } from "@/components/contact/copy-button";
 import { StudioClock } from "@/components/layout/studio-clock";
 import { ExternalIcon } from "@/components/ui/icons";
-import { SectionLabel } from "@/components/ui/section-label";
 import { getStudio } from "@/lib/content/queries";
 import { isLocale, t } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
@@ -30,10 +29,7 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
 
       <div className="shell grid gap-16 pb-28 pt-32 sm:pt-44 lg:grid-cols-[1fr_1.1fr] lg:gap-24">
         <div className="flex flex-col">
-          <div className="animate-fade">
-            <SectionLabel index="08">{dict.contact.label}</SectionLabel>
-          </div>
-          <h1 className="font-display mt-8 text-mega">
+          <h1 className="font-display text-mega">
             <span className="line-mask">
               <span className="animate-rise [animation-delay:80ms]">{dict.contact.title}</span>
             </span>
