@@ -6,10 +6,11 @@ import { ensureReady, getSql } from "@/lib/db/client";
 /**
  * CRAZY GOAL duels.
  *
- * A duel is ten rounds between two players. Each round is one street, the same
- * for both, and each player takes one shot at it. A shot can carry a card:
- * a boost for that shot, or a trick that lands on the other player's next one.
- * A round opens once both shots of the round before are in.
+ * A duel is a run of rounds between two players (ten in Classic and Pure,
+ * five in Quick Clash). Each round is one street, the same for both, and each
+ * player takes one shot at it. A shot can carry a card: a boost for that shot,
+ * or a trick that lands on the other player's next one (Pure duels play with
+ * no cards at all). A round opens once both shots of the round before are in.
  * Nothing here is real time: every move is one write, and clients poll.
  *
  * Players are anonymous. A browser asks for an id once and keeps the secret
@@ -19,11 +20,18 @@ import { ensureReady, getSql } from "@/lib/db/client";
  */
 
 export const DUEL_ROUNDS = 10;
+export const QUICK_ROUNDS = 5;
+/** What a duel can be: Classic (ten rounds, cards), Quick Clash (five, cards), Pure (ten, no cards). */
+export const DUEL_MODES = ["classic", "quick", "pure"] as const;
+export type DuelMode = (typeof DUEL_MODES)[number];
+const modeOf = (value: unknown): DuelMode =>
+  value === "quick" || value === "pure" ? value : "classic";
 /**
- * The shape of a duel's stored state. Duels from before the cards (five rounds,
- * with traps) are version-less; they are simply no longer listed or opened.
+ * The shape of a duel's stored state. Version 2 duels (ten rounds, no mode)
+ * still open and play as Classic; new duels store their mode as well.
  */
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
+const READABLE_VERSIONS = ["2", "3"];
 
 /** No look-alike characters, so an id can be read out loud or typed from a screenshot. */
 const ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -71,6 +79,7 @@ interface Round {
 export interface Duel {
   id: string;
   seed: number;
+  mode: DuelMode;
   players: [DuelPlayer, DuelPlayer];
   rounds: Round[];
   updatedAt: string;
@@ -117,9 +126,17 @@ const SELECT_DUEL = `
     left join duel_players pb on pb.id = d.player_b`;
 
 function toDuel(row: DuelRow): Duel {
+  let mode: DuelMode = "classic";
+  try {
+    const state = row.state as { mode?: unknown };
+    if (state && typeof state === "object") mode = modeOf(state.mode);
+  } catch {
+    /* a version-2 row has no mode: it plays as Classic */
+  }
   return {
     id: row.id,
     seed: row.seed,
+    mode,
     players: [
       { id: row.player_a, name: row.name_a ?? "" },
       { id: row.player_b, name: row.name_b ?? "" },
@@ -175,7 +192,7 @@ export async function hello(input: { id?: unknown; secret?: unknown; name?: unkn
   throw new DuelError("try_again", 503);
 }
 
-export async function challenge(input: { id?: unknown; secret?: unknown; opponent?: unknown }): Promise<Duel> {
+export async function challenge(input: { id?: unknown; secret?: unknown; opponent?: unknown; mode?: unknown }): Promise<Duel> {
   await ensureReady();
   const sql = getSql();
   const me = await authenticate(input.id, input.secret);
@@ -192,7 +209,8 @@ export async function challenge(input: { id?: unknown; secret?: unknown; opponen
   )) as { count: string }[];
   if (Number(count) >= MAX_NEW_DUELS_PER_HOUR) throw new DuelError("slow_down", 429);
 
-  const rounds: Round[] = Array.from({ length: DUEL_ROUNDS }, () => ({ shot: [null, null] }));
+  const mode = modeOf(input.mode);
+  const rounds: Round[] = Array.from({ length: mode === "quick" ? QUICK_ROUNDS : DUEL_ROUNDS }, () => ({ shot: [null, null] }));
   const id = randomId(10);
   const seed = randomBytes(4).readUInt32BE(0) & 0x7fffffff;
   await sql.query(`insert into duels (id, player_a, player_b, seed, state) values ($1, $2, $3, $4, $5::jsonb)`, [
@@ -200,15 +218,15 @@ export async function challenge(input: { id?: unknown; secret?: unknown; opponen
     me.id,
     opponent,
     seed,
-    JSON.stringify({ v: STATE_VERSION, rounds }),
+    JSON.stringify({ v: STATE_VERSION, mode, rounds }),
   ]);
   return getDuel(id, me.id);
 }
 
 async function getDuel(duelId: string, playerId: string): Promise<Duel> {
   const rows = (await getSql().query(
-    `${SELECT_DUEL} where d.id = $1 and (d.player_a = $2 or d.player_b = $2) and d.state->>'v' = $3`,
-    [duelId, playerId, String(STATE_VERSION)],
+    `${SELECT_DUEL} where d.id = $1 and (d.player_a = $2 or d.player_b = $2) and d.state->>'v' = any ($3)`,
+    [duelId, playerId, READABLE_VERSIONS],
   )) as DuelRow[];
   if (rows.length === 0) throw new DuelError("no_such_duel", 404);
   return toDuel(rows[0]);
@@ -225,8 +243,8 @@ export async function list(input: { id?: unknown; secret?: unknown }): Promise<D
   await ensureReady();
   const me = await authenticate(input.id, input.secret);
   const rows = (await getSql().query(
-    `${SELECT_DUEL} where (d.player_a = $1 or d.player_b = $1) and d.state->>'v' = $2 order by d.updated_at desc limit 12`,
-    [me.id, String(STATE_VERSION)],
+    `${SELECT_DUEL} where (d.player_a = $1 or d.player_b = $1) and d.state->>'v' = any ($2) order by d.updated_at desc limit 12`,
+    [me.id, READABLE_VERSIONS],
   )) as DuelRow[];
   return rows.map(toDuel);
 }
@@ -280,7 +298,7 @@ export async function move(input: {
   const duel = await getDuel(cleanId(input.duel), me.id);
   const side = duel.players[0].id === me.id ? 0 : 1;
   const round = input.round;
-  if (typeof round !== "number" || !Number.isInteger(round) || round < 0 || round >= DUEL_ROUNDS) {
+  if (typeof round !== "number" || !Number.isInteger(round) || round < 0 || round >= duel.rounds.length) {
     throw new DuelError("bad_move");
   }
   // Rounds go in order: this one opens when both shots of every earlier one are in.
