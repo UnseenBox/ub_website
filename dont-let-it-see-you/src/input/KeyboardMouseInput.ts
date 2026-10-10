@@ -52,16 +52,15 @@ export class KeyboardMouseInput implements InputBackend {
 
   gather(actions: ActionState, pointer: PointerState): void {
     const d = this.down;
-    if (d.has('KeyW') || d.has('ArrowUp')) actions.moveY -= 1;
-    if (d.has('KeyS') || d.has('ArrowDown')) actions.moveY += 1;
     if (d.has('KeyA') || d.has('ArrowLeft')) actions.moveX -= 1;
     if (d.has('KeyD') || d.has('ArrowRight')) actions.moveX += 1;
 
-    if (d.has('ShiftLeft') || d.has('ShiftRight')) actions.sprint = true;
     if (d.has('KeyC') || d.has('ControlLeft') || d.has('ControlRight')) actions.sneak = true;
+    if (d.has('ShiftLeft') || d.has('ShiftRight')) actions.sprint = true;
+    if (d.has('Space')) actions.jump = true;
 
     if (this.pressedThisStep.has('KeyE')) actions.interact = true;
-    if (this.pressedThisStep.has('Space')) actions.hide = true;
+    if (this.pressedThisStep.has('KeyH')) actions.hide = true;
     if (this.pressedThisStep.has('KeyF')) actions.flashlight = true;
     if (this.pressedThisStep.has('KeyQ') || this.pressedThisStep.has('KeyG')) actions.throwBottle = true;
     if (this.pressedThisStep.has('Escape')) actions.pause = true;

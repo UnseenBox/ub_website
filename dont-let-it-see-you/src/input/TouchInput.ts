@@ -65,7 +65,8 @@ export class TouchInput implements InputBackend {
       const dy = this.stickY - this.stickOriginY;
       const r = TouchInput.STICK_RADIUS;
       actions.moveX += Math.max(-1, Math.min(1, dx / r));
-      actions.moveY += Math.max(-1, Math.min(1, dy / r));
+      // Push stick up to jump, hold low zone to sneak.
+      if (dy < -r * 0.6) actions.jump = true;
       if (Math.hypot(dx, dy) < r * 0.45) actions.sneak = true;
     }
 

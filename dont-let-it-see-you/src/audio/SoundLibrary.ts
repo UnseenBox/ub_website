@@ -4,9 +4,12 @@ export type SoundName =
   | 'metal'
   | 'glass'
   | 'ring'
+  | 'hymn'
   | 'door'
   | 'drawer'
   | 'footstep'
+  | 'jump'
+  | 'land'
   | 'notice'
   | 'stinger'
   | 'heartbeat'
@@ -89,11 +92,20 @@ export class SoundLibrary {
         }
         break;
       case 'ring':
+        // A dead phone, not a fire alarm: soft two-tone bells.
         for (let i = 0; i < 4; i++) {
-          const when = t + i * 0.1;
-          this.tone(out, when, 'square', (i % 2 === 0 ? 920 : 760) * pitch, 0.08, 0.1);
+          const when = t + i * 0.12;
+          this.tone(out, when, 'sine', (i % 2 === 0 ? 1175 : 880) * pitch, 0.4, 0.14);
         }
         break;
+      case 'hymn': {
+        // A distant chapel bell: slow attack, long decay, fifth + octave.
+        const f = 293.66 * pitch;
+        this.softTone(out, t, 'sine', f, 4.4, 0.5);
+        this.softTone(out, t + 0.03, 'sine', f * 1.5, 3.4, 0.16);
+        this.softTone(out, t + 0.06, 'sine', f * 2, 2.6, 0.1);
+        break;
+      }
       case 'door':
         this.sweep(out, t, 220, 90, 0.45, 0.14, 'sawtooth');
         this.burst(out, t, 0.2, 700, 0.18, 'lowpass');
@@ -104,6 +116,13 @@ export class SoundLibrary {
         break;
       case 'footstep':
         this.burst(out, t, 0.05, 420 * pitch, 0.25, 'lowpass');
+        break;
+      case 'jump':
+        this.sweep(out, t, 300, 520, 0.14, 0.08, 'sine');
+        break;
+      case 'land':
+        this.burst(out, t, 0.09, 300 * pitch, 0.4, 'lowpass');
+        this.tone(out, t, 'sine', 70 * pitch, 0.12, 0.3);
         break;
       case 'pickup':
         this.tone(out, t, 'sine', 1180 * pitch, 0.1, 0.16);
@@ -173,6 +192,32 @@ export class SoundLibrary {
     osc.stop(when + duration + 0.05);
   }
 
+  /**
+   * A bell with a slow swell instead of a pluck: attack over half a second,
+   * then a long fade. The voice of the generative score.
+   */
+  private softTone(
+    dest: AudioNode,
+    when: number,
+    type: OscillatorType,
+    freq: number,
+    duration: number,
+    peak: number,
+  ): void {
+    const ctx = this.ctx;
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    env.gain.setValueAtTime(0, when);
+    env.gain.linearRampToValueAtTime(peak, when + Math.min(0.7, duration * 0.25));
+    env.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+    osc.connect(env);
+    env.connect(dest);
+    osc.start(when);
+    osc.stop(when + duration + 0.05);
+  }
+
   private sweep(
     dest: AudioNode,
     when: number,
@@ -228,7 +273,7 @@ export class SoundLibrary {
     src.stop(when + duration + 0.02);
   }
 
-  /** A sustained filtered-noise source, used for the radio and for room air. */
+  /** A sustained filtered-noise source, used for room air. Kept dark and low. */
   createBed(cutoff: number, q: number): { input: GainNode; stop: () => void } {
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
@@ -248,6 +293,52 @@ export class SoundLibrary {
       stop: () => {
         try {
           src.stop();
+        } catch {
+          // Already stopped. Nothing to do.
+        }
+      },
+    };
+  }
+
+  /**
+   * A dead broadcast: two detuned triangle voices with a slow tremolo, like a
+   * hymn coming through a broken radio three rooms away. Eerie, not static.
+   */
+  createBroadcast(): { input: GainNode; stop: () => void } {
+    const ctx = this.ctx;
+    const a = ctx.createOscillator();
+    a.type = 'triangle';
+    a.frequency.value = 392;
+    const b = ctx.createOscillator();
+    b.type = 'triangle';
+    b.frequency.value = 394.7;
+    const mix = ctx.createGain();
+    mix.gain.value = 0.4;
+    const trem = ctx.createOscillator();
+    trem.frequency.value = 0.7;
+    const tremDepth = ctx.createGain();
+    tremDepth.gain.value = 0.18;
+    trem.connect(tremDepth);
+    tremDepth.connect(mix.gain);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1100;
+    a.connect(lp);
+    b.connect(lp);
+    lp.connect(mix);
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    mix.connect(out);
+    a.start();
+    b.start();
+    trem.start();
+    return {
+      input: out,
+      stop: () => {
+        try {
+          a.stop();
+          b.stop();
+          trem.stop();
         } catch {
           // Already stopped. Nothing to do.
         }

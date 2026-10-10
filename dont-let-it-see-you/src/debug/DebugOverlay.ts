@@ -1,5 +1,4 @@
-import { NOISE, VIEW } from '../core/Tuning';
-import { TAU } from '../core/Mathx';
+import { NOISE } from '../core/Tuning';
 import type { LoopStats } from '../core/GameLoop';
 import type { CursorController } from '../cursor/CursorController';
 import type { Player } from '../player/Player';
@@ -95,25 +94,7 @@ export class DebugOverlay {
       ctx.setLineDash([]);
     }
 
-    // Cursor history: what a trail-reading creature can see.
-    const path = cursor.sensor.path;
-    ctx.strokeStyle = withAlpha(PALETTE.cold, 0.4);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < path.length; i++) {
-      const s = path[i];
-      if (i === 0) ctx.moveTo(s.x, s.y);
-      else ctx.lineTo(s.x, s.y);
-    }
-    ctx.stroke();
-
-    // Cursor heading, which is what "pointing" means numerically.
-    const d = cursor.sensor.data;
-    ctx.strokeStyle = PALETTE.alarm;
-    ctx.beginPath();
-    ctx.moveTo(d.x, d.y);
-    ctx.lineTo(d.x + d.headingX * 42, d.y + d.headingY * 42);
-    ctx.stroke();
+    // Cursor history removed — mouse is a tool, not a hunted thing.
 
     // Player reach.
     ctx.strokeStyle = withAlpha(PALETTE.player, 0.25);
@@ -133,15 +114,12 @@ export class DebugOverlay {
   }
 
   drawPanel(ctx: Ctx, input: DebugInput): void {
-    const d = input.cursor.sensor.data;
+    const cursor = input.cursor;
     const lines: string[] = [
       `fps ${input.stats.fps.toFixed(0)}  steps ${input.stats.simStepsLastFrame}  frame ${input.stats.frameMs.toFixed(1)}ms`,
       `room ${input.room.def.id}  seed ${input.seed}  t ${input.roomTime.toFixed(1)}s`,
-      `cursor ${d.x.toFixed(0)},${d.y.toFixed(0)}  spd ${d.speed.toFixed(0)}  acc ${d.acceleration.toFixed(0)}`,
-      `heading ${d.headingX.toFixed(2)},${d.headingY.toFixed(2)}  dwell ${d.dwellTime.toFixed(2)}s`,
-      `intensity ${d.movementIntensity.toFixed(2)}  vis ${d.visibility.toFixed(2)}  noise ${d.noiseLevel.toFixed(1)}`,
-      `state ${input.cursor.state}  heat ${input.cursor.heat.toFixed(2)}  clicks ${d.clickCount}`,
-      `objects ${input.room.objects.length}  decoys ${input.cursor.decoys.length}  particles ${input.particles.count}`,
+      `aim ${cursor.x.toFixed(0)},${cursor.y.toFixed(0)}  heat ${cursor.heat.toFixed(2)}  decoys ${cursor.decoys.length}`,
+      `objects ${input.room.objects.length}  particles ${input.particles.count}`,
       `tension ${input.room.tension.toFixed(2)}  mask ${input.room.noiseMask.toFixed(2)}  dark ${input.room.darkness.toFixed(2)}`,
     ];
 
@@ -172,23 +150,6 @@ export class DebugOverlay {
     }
 
     // A compass rose in the corner showing the cursor's heading at a glance.
-    const cx = VIEW.width - 44;
-    const cy = 44;
-    ctx.strokeStyle = withAlpha(PALETTE.fogDim, 0.4);
-    circle(ctx, cx, cy, 20);
-    ctx.stroke();
-    ctx.strokeStyle = PALETTE.alarm;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + d.headingX * 18, cy + d.headingY * 18);
-    ctx.stroke();
-    ctx.fillStyle = withAlpha(PALETTE.eye, 0.5);
-    const intensityAngle = d.movementIntensity * TAU;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, 20, -Math.PI * 0.5, -Math.PI * 0.5 + intensityAngle);
-    ctx.closePath();
-    ctx.fill();
     ctx.restore();
   }
 }
