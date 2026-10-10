@@ -11,13 +11,13 @@ export interface MenuActions {
   daily(): void;
   discoveries(): void;
   settings(): void;
-  /** Opens the full rack of unlocked rooms. */
-  rooms(): void;
   hero(id: HeroId): void;
 }
 
 const PORTRAIT_W = 62;
 const PORTRAIT_H = 60;
+
+const PIN_COLORS = ['#e5383b', '#2f4fb5', '#ffd23f', '#3fa7a3', '#fbf6e9'];
 
 /** A snapshot of the hero, drawn with the same code that draws them in the room. */
 function portrait(hero: HeroId): HTMLCanvasElement {
@@ -44,10 +44,11 @@ function portrait(hero: HeroId): HTMLCanvasElement {
   return canvas;
 }
 
-/** The menu shows this many of the most recent rooms; the rest are one click away on the rack. */
-const RECENT_ROOM_TAGS = 6;
-
-/** The front page: a ransom note glued together over the room, with paper strips for buttons. */
+/**
+ * The front page: a ransom note glued together over the room, the actions on the
+ * left and every open room pinned to a corkboard wall on the right. The evidence
+ * book lives on as a small footer link so the discovery toasts still lead somewhere.
+ */
 export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const save = game.save.data;
   const screen = el('div', 'screen menu');
@@ -59,15 +60,6 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   const note = el('p', 'menu-note');
   note.append(el('span', '', 'You have no weapon.'), el('strong', '', 'Good.'));
-
-  const buttons = el('div', 'menu-buttons');
-  const resumeRoom = save.unlockedRoom;
-  buttons.append(
-    button(resumeRoom > 0 ? `PLAY · ROOM ${resumeRoom + 1}` : 'PLAY', 'primary', () => actions.play(resumeRoom)),
-    button('DAILY CHALLENGE', '', actions.daily),
-    button(`EVIDENCE  ${game.discoveries.count} / ${game.discoveries.total}`, '', actions.discoveries),
-    button('SETTINGS', '', actions.settings),
-  );
 
   // who is home tonight: two snapshots, the one in use taped down
   const heroes = el('div', 'hero-pick');
@@ -83,21 +75,40 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   const head = el('div', 'menu-head');
   head.append(title, note);
-  screen.append(head, heroes, buttons);
 
-  if (save.unlockedRoom > 0) {
-    const row = el('div', 'room-select');
-    row.append(el('span', 'room-select-label', 'start from room'));
-    const total = save.unlockedRoom + 1;
-    const first = Math.max(0, total - RECENT_ROOM_TAGS);
-    for (let i = first; i < total; i++) row.append(button(String(i + 1), 'key-tag', () => actions.play(i)));
-    if (first > 0) row.append(button(`ALL ${total} ROOMS`, 'all-rooms', actions.rooms));
-    screen.append(row);
+  const resumeRoom = save.unlockedRoom;
+  const buttons = el('div', 'menu-buttons');
+  buttons.append(
+    button(resumeRoom > 0 ? `PLAY · ROOM ${resumeRoom + 1}` : 'PLAY', 'primary play', () => actions.play(resumeRoom)),
+    button('DAILY CHALLENGE', '', actions.daily),
+    button('SETTINGS', '', actions.settings),
+  );
+
+  // every open room, pinned to the wall beside the buttons; the furthest is flagged
+  const wall = el('div', 'room-wall');
+  const total = resumeRoom + 1;
+  wall.append(el('div', 'tape-label', total === 1 ? '1 room open so far' : `${total} rooms open — pick any`));
+  const grid = el('div', 'rack-grid');
+  for (let i = 0; i < total; i++) {
+    const slot = el('div', i === resumeRoom ? 'rack-slot latest' : 'rack-slot');
+    const pin = el('span', 'pin');
+    pin.style.setProperty('--pin', PIN_COLORS[i % PIN_COLORS.length]!);
+    const tag = button(String(i + 1), 'key-tag', () => actions.play(i));
+    tag.setAttribute('aria-label', i === resumeRoom ? `Room ${i + 1}, your furthest` : `Room ${i + 1}`);
+    slot.append(pin, tag);
+    if (i === resumeRoom && total > 1) slot.append(el('span', 'rack-flag', 'furthest'));
+    grid.append(slot);
   }
+  wall.append(grid);
+
+  const mid = el('div', 'menu-mid');
+  mid.append(buttons, wall);
+  screen.append(head, heroes, mid);
 
   const footer = el('div', 'menu-footer');
   footer.append(el('span', 'best-slip', `BEST DAMAGE BILL  ${formatScore(save.highScore)}`));
   if (save.bestChain >= 3) footer.append(el('span', 'best-slip', `BEST CHAIN  x${save.bestChain}`));
+  footer.append(button(`EVIDENCE  ${game.discoveries.count} / ${game.discoveries.total}`, 'evidence-link', actions.discoveries));
   if (!game.save.persistent) footer.append(el('span', 'warn', 'Storage is blocked — progress will not be saved.'));
   screen.append(footer);
   return screen;
