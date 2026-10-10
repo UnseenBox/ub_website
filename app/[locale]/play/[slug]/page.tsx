@@ -8,22 +8,23 @@ import { GamePlayer } from "@/components/play/game-player";
 import { GameTile } from "@/components/play/game-tile";
 import { MoodIcon } from "@/components/play/icons";
 import { ArrowIcon } from "@/components/ui/icons";
-import { getApprovedReviews, getRatings } from "@/lib/content/queries";
+import { getApprovedReviews, getPlayableBySlug, getPlayables, getRatings } from "@/lib/content/queries";
 import { LOCALES, isLocale, localePath, t } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
-import { PLAYABLE_GAMES, findPlayable, playGamePath, playReviewId } from "@/lib/play";
+import { findPlayable, playGamePath, playReviewId } from "@/lib/play";
 import { presentPlayables } from "@/lib/play-portal";
 import { absoluteUrl, buildMetadata, jsonLd } from "@/lib/seo";
 import { formatDate } from "@/lib/utils";
 
-export function generateStaticParams() {
-  return LOCALES.flatMap((locale) => PLAYABLE_GAMES.map((game) => ({ locale, slug: game.slug })));
+export async function generateStaticParams() {
+  const playables = await getPlayables();
+  return LOCALES.flatMap((locale) => playables.map((game) => ({ locale, slug: game.slug })));
 }
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/play/[slug]">): Promise<Metadata> {
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
-  const game = findPlayable(slug);
+  const game = await getPlayableBySlug(slug);
   if (!game) return {};
   return buildMetadata({
     locale,
@@ -37,10 +38,15 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/play/[sl
 export default async function PlayGamePage({ params }: PageProps<"/[locale]/play/[slug]">) {
   const { locale, slug } = await params;
   if (!isLocale(locale)) notFound();
-  const game = findPlayable(slug);
-  if (!game) notFound();
 
-  const [dict, reviews, ratings] = await Promise.all([getDictionary(locale), getApprovedReviews(), getRatings()]);
+  const [dict, reviews, ratings, playables] = await Promise.all([
+    getDictionary(locale),
+    getApprovedReviews(),
+    getRatings(),
+    getPlayables(),
+  ]);
+  const game = findPlayable(playables, slug);
+  if (!game) notFound();
   const copy = dict.play;
   const reviewId = playReviewId(game);
   const rating = ratings.get(reviewId);
@@ -48,7 +54,7 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
   const playHref = localePath(locale, "/play");
 
   // Every other game, starting with the one listed after this one.
-  const all = presentPlayables(locale, ratings);
+  const all = presentPlayables(playables, locale, ratings);
   const at = all.findIndex((item) => item.slug === game.slug);
   const next = [...all.slice(at + 1), ...all.slice(0, at)];
 
@@ -90,11 +96,11 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
   };
 
   return (
-    <div className="relative isolate overflow-x-clip bg-ink-950">
+    <div className="relative isolate overflow-x-clip bg-[#180e38]">
       <div aria-hidden className="uv-glow pointer-events-none absolute inset-x-0 -top-72 -z-10 h-[46rem] opacity-60" />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_50%_at_50%_0%,rgb(31_17_64/0.6),transparent_70%),radial-gradient(50%_40%_at_90%_100%,rgb(109_52_240/0.1),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_45%_at_12%_0%,rgb(245_184_61/0.32),transparent_70%),radial-gradient(55%_45%_at_88%_8%,rgb(255_95_122/0.3),transparent_70%),radial-gradient(65%_55%_at_50%_45%,rgb(90_169_255/0.24),transparent_72%),radial-gradient(55%_50%_at_8%_92%,rgb(63_208_192/0.24),transparent_70%),radial-gradient(60%_55%_at_92%_95%,rgb(176_139_255/0.32),transparent_70%),radial-gradient(40%_35%_at_50%_100%,rgb(125_220_111/0.16),transparent_70%)]"
       />
       <div className="shell pb-24 pt-20 sm:pb-28 sm:pt-24">
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structured)} />
