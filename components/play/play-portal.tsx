@@ -106,11 +106,11 @@ export function PlayPortal({
   }
 
   return (
-    <div className="relative isolate overflow-x-clip bg-ink-950">
+    <div className="relative isolate overflow-x-clip bg-[#180e38]">
       <div aria-hidden className="uv-glow pointer-events-none absolute inset-x-0 -top-72 -z-10 h-[46rem] opacity-60" />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_50%_at_50%_0%,rgb(31_17_64/0.6),transparent_70%),radial-gradient(50%_40%_at_90%_100%,rgb(109_52_240/0.1),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_45%_at_12%_0%,rgb(245_184_61/0.32),transparent_70%),radial-gradient(55%_45%_at_88%_8%,rgb(255_95_122/0.3),transparent_70%),radial-gradient(65%_55%_at_50%_45%,rgb(90_169_255/0.24),transparent_72%),radial-gradient(55%_50%_at_8%_92%,rgb(63_208_192/0.24),transparent_70%),radial-gradient(60%_55%_at_92%_95%,rgb(176_139_255/0.32),transparent_70%),radial-gradient(40%_35%_at_50%_100%,rgb(125_220_111/0.16),transparent_70%)]"
       />
 
       <div className="shell pb-24 pt-24 sm:pb-28 sm:pt-28">
@@ -256,7 +256,7 @@ export function PlayPortal({
             </ul>
           ) : (
             <p className="mt-4 rounded-xl border border-dashed border-line-strong px-6 py-14 text-center text-mist">
-              {copy.noResults}
+              {filtering ? copy.noResults : copy.more}
             </p>
           )}
         </section>
