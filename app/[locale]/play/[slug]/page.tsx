@@ -6,6 +6,7 @@ import { GameReviews } from "@/components/community/game-reviews";
 import { Stars } from "@/components/community/stars";
 import { GamePlayer } from "@/components/play/game-player";
 import { GameTile } from "@/components/play/game-tile";
+import { ColorStrip } from "@/components/play/color-strip";
 import { MoodIcon } from "@/components/play/icons";
 import { ArrowIcon } from "@/components/ui/icons";
 import { getApprovedReviews, getPlayableBySlug, getPlayables, getRatings } from "@/lib/content/queries";
@@ -96,7 +97,7 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
   };
 
   return (
-    <div className="relative isolate overflow-x-clip bg-void">
+    <div className="play-page relative isolate overflow-x-clip bg-void">
       <div className="bg-uv-900">
       <div className="shell pb-10 pt-20 sm:pb-12 sm:pt-24">
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structured)} />
@@ -135,6 +136,7 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
           />
       </div>
       </div>
+      <ColorStrip />
       <div className="bg-ink-950">
       <div className="shell py-10 sm:py-12">
           <article className="rounded-2xl bg-ink-900 p-6 ring-1 ring-line sm:p-8">
@@ -234,6 +236,7 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
       </div>
       </div>
       </div>
+      <ColorStrip />
       <div className="bg-void">
       <div className="shell py-10 pb-24 sm:pb-28">
       <AdSlot format="horizontal" label={copy.ad} />
@@ -241,7 +244,7 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
       <section
         id="reviews"
         aria-labelledby="reviews-heading"
-        className="mt-10 scroll-mt-24 rounded-2xl p-6 ring-1 ring-line sm:p-8 lg:p-10"
+        className="mt-10 scroll-mt-24 rounded-2xl bg-ink-900 p-6 ring-1 ring-line sm:p-8 lg:p-10"
       >
         <GameReviews
           game={{ id: reviewId, title: game.title }}

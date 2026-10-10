@@ -8,6 +8,7 @@ import type { PlayMood } from "@/lib/play";
 import type { PortalGame } from "@/lib/play-portal";
 import { GameCard, GameTile, type TileCopy } from "./game-tile";
 import { CheckIcon, MoodIcon, SearchIcon } from "./icons";
+import { ColorStrip } from "./color-strip";
 
 interface PortalCopy extends TileCopy {
   title: string;
@@ -49,7 +50,7 @@ function fold(text: string): string {
     .toLowerCase();
 }
 
-const heading = "flex items-center gap-3 text-xl font-semibold tracking-tight text-white sm:text-2xl";
+const heading = "flex items-center gap-3 text-xl font-semibold tracking-tight sm:text-2xl";
 
 /**
  * The arcade's front page: search, moods to browse by, a mosaic of picks and every game
@@ -106,7 +107,7 @@ export function PlayPortal({
   }
 
   return (
-    <div className="relative isolate overflow-x-clip bg-void">
+    <div className="play-page relative isolate overflow-x-clip bg-void">
       <div className="bg-uv-900">
       <div className="shell pb-10 pt-24 sm:pb-12 sm:pt-28">
         <header className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -150,6 +151,7 @@ export function PlayPortal({
         </header>
       </div>
       </div>
+      <ColorStrip />
       <div className="bg-ink-950">
       <div className="shell py-8 sm:py-10">
         <div
@@ -186,12 +188,13 @@ export function PlayPortal({
         <AdSlot format="horizontal" label={copy.ad} className="mt-8" />
       </div>
       </div>
+      <ColorStrip />
 
       {!filtering && lead && (
         <div className="bg-ink-800">
         <div className="shell py-12">
           <section aria-labelledby="play-picks">
-            <h2 id="play-picks" className={heading}>
+            <h2 id="play-picks" className={`${heading} text-amber-300`}>
               {copy.topPicks}
             </h2>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -226,11 +229,12 @@ export function PlayPortal({
         </div>
         )}
 
+      <ColorStrip />
       <div className="bg-void">
       <div className="shell py-12 pb-24 sm:pb-28">
         <section aria-labelledby="play-all">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 id="play-all" className={heading}>
+            <h2 id="play-all" className={`${heading} text-uv-300`}>
               {mood ? copy.moods[mood] : filtering ? copy.results : copy.allGames}
               <span
                 aria-live="polite"
@@ -271,9 +275,9 @@ export function PlayPortal({
 
         <section
           aria-label={copy.count}
-          className="mt-12 grid gap-8 rounded-2xl bg-ink-900 p-6 ring-1 ring-line sm:p-8 lg:grid-cols-[1fr_2fr] lg:items-center"
+          className="mt-12 grid gap-8 rounded-2xl bg-uv-600 p-6 sm:p-8 lg:grid-cols-[1fr_2fr] lg:items-center"
         >
-          <p className="font-display text-2xl text-balance sm:text-3xl">{copy.more}</p>
+          <p className="font-display text-2xl text-balance text-white sm:text-3xl">{copy.more}</p>
           <ul className="grid gap-6 sm:grid-cols-3">
             {copy.tags.map((tag, i) => (
               <li key={tag} className="flex gap-3">
@@ -282,7 +286,7 @@ export function PlayPortal({
                 </span>
                 <span>
                   <span className="block font-semibold text-white">{tag}</span>
-                  {copy.tagNotes[i] && <span className="mt-1 block text-sm text-mist">{copy.tagNotes[i]}</span>}
+                  {copy.tagNotes[i] && <span className="mt-1 block text-sm text-white/80">{copy.tagNotes[i]}</span>}
                 </span>
               </li>
             ))}
