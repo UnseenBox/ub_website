@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -32,16 +32,32 @@ export function AdSlot({
   className?: string;
 }) {
   const live = Boolean(CLIENT && slot);
+  // Diagnostic only: visiting a page with ?adtest=1 asks Google for a test
+  // creative instead of a paid one. Proves the integration works while the
+  // account/site review is still pending. Never link to it publicly.
+  const [ready, setReady] = useState(false);
+  const [test, setTest] = useState(false);
 
   useEffect(() => {
-    if (!live) return;
+    let testMode = false;
+    try {
+      testMode = new URLSearchParams(window.location.search).has("adtest");
+    } catch {
+      testMode = false;
+    }
+    setTest(testMode);
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!live || !ready) return;
     try {
       window.adsbygoogle = window.adsbygoogle || [];
       window.adsbygoogle.push({});
     } catch {
       // Ad blockers throw here; the slot simply stays empty.
     }
-  }, [live, slot]);
+  }, [live, slot, ready]);
 
   return (
     <div data-sponsor className={cn("overflow-hidden rounded-xl bg-ink-950 ring-1 ring-line", className)}>
@@ -55,6 +71,7 @@ export function AdSlot({
           data-ad-slot={slot}
           data-ad-format={format}
           data-full-width-responsive="true"
+          {...(test ? { "data-adtest": "on" } : {})}
         />
       ) : (
         <div
