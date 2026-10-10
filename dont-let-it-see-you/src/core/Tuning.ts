@@ -11,14 +11,17 @@ export const VIEW = {
 } as const;
 
 export const PLAYER = {
-  radius: 9,
-  walkSpeed: 132,
-  sneakSpeed: 58,
-  sprintSpeed: 205,
-  panicSpeed: 150,
-  accel: 14,
+  radius: 14,
+  walkSpeed: 140,
+  sneakSpeed: 60,
+  sprintSpeed: 220,
+  jumpSpeed: -320,
+  gravity: 900,
+  maxFallSpeed: 480,
+  accel: 28,
+  airAccel: 12,
   /** How far the character's hands reach for an interaction. */
-  reach: 52,
+  reach: 58,
   /** Noise the character emits while walking / sneaking / sprinting, per footfall. */
   footstepNoise: 1.6,
   sneakFootstepNoise: 0.35,
@@ -31,7 +34,7 @@ export const PLAYER = {
   exhaustedSlow: 0.72,
   /** Flashlight: how much more visible you are with it on. */
   flashlightVisibility: 0.85,
-  flashlightRange: 260,
+  flashlightRange: 300,
   bottlesStart: 3,
   /** Damage per monster touch. 3 hits to die. */
   hitDamage: 34,

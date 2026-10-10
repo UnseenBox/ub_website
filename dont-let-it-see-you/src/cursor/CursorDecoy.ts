@@ -83,7 +83,7 @@ export class CursorDecoy implements AttentionSource {
     this.clickTimer = this.rng.range(0.6, 1.4);
   }
 
-  update(dt: number, lightAt: (x: number, y: number) => number): void {
+  update(dt: number, _lightAt: (x: number, y: number) => number): void {
     this.age += dt;
     this.clickedThisStep = false;
     if (this.age >= this.duration) {
@@ -170,7 +170,7 @@ export class CursorDecoy implements AttentionSource {
       this.dwellTime += dt;
     }
     this.movementIntensity = clamp01(this.speed / 900);
-    this.visibility = 0.45 + 0.55 * clamp01(lightAt(this.x, this.y));
+    this.visibility = 0.55; // machine echoes are always legible to creatures that see them
     this.noiseLevel = this.clickedThisStep ? this.baseNoise : Math.max(0, this.noiseLevel - dt * 3);
   }
 

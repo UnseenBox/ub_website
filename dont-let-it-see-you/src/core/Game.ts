@@ -126,7 +126,7 @@ export class Game {
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement, appRoot: HTMLElement) {
     this.renderer = new Renderer(canvas);
     this.input = new InputManager(canvas, this.renderer.toLogical);
-    this.cursor = new CursorController(this.bus, this.attention);
+    this.cursor = new CursorController(this.bus);
     this.noise = new NoiseSystem(this.bus);
     this.discovery = new DiscoverySystem(this.bus);
     this.discovery.load(this.save.all.discoveries);
@@ -420,6 +420,7 @@ export class Game {
     this.hintText = '';
 
     this.player.reset(session.def.playerSpawn.x, session.def.playerSpawn.y);
+    this.player.audio = this.audio as any;
     // Mouse is now just an aim reticle for the flashlight — park it near the body.
     this.cursor.reset(session.def.playerSpawn.x + 60, session.def.playerSpawn.y);
     this.attention.clear();
@@ -582,7 +583,6 @@ export class Game {
       session.modifiers.alwaysVisible ? 1 : room.lightAt(x, y);
 
     // Mouse aims the flashlight. No more hunted cursor, no more mouse-lost pause.
-    this.cursor.update(dt, this.input.pointer, this.roomTime, lightAt);
     this.player.aimAt(this.cursor.x, this.cursor.y);
 
     // Danger feedback comes from the room's worst awareness (computed last step).
@@ -1126,7 +1126,15 @@ export class Game {
       objective: this.objective?.currentText ?? '',
       seconds: this.roomTime,
       heat: clamp01(this.lastHeat),
-      cursorState: this.cursor.state,
+      cursorState: this.cursor.pursued
+        ? 'PANICKING'
+        : this.lastHeat >= AWARENESS.detect
+          ? 'DETECTED'
+          : this.lastHeat >= AWARENESS.suspicious
+            ? 'SUSPICIOUS'
+            : this.cursor.exposed
+              ? 'EXPOSED'
+              : 'NORMAL',
       detections: this.detections,
       hint: this.hintText,
       carrying: this.player.inventory.has('key'),

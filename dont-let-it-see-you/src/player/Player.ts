@@ -3,7 +3,19 @@ import { approach, clamp01, type Rect } from '../core/Mathx';
 import type { ActionState } from '../input/InputManager';
 import { moveBody, type Body } from '../world/Collision';
 
-export type PlayerPose = 'IDLE' | 'WALK' | 'SPRINT' | 'SNEAK' | 'HIDE' | 'PANIC' | 'DEAD' | 'ESCAPED' | 'HURT';
+export type PlayerPose =
+  | 'IDLE'
+  | 'WALK'
+  | 'SPRINT'
+  | 'SNEAK'
+  | 'CROUCH'
+  | 'JUMP'
+  | 'FALL'
+  | 'HIDE'
+  | 'PANIC'
+  | 'DEAD'
+  | 'ESCAPED'
+  | 'HURT';
 
 export interface PlayerFootstep {
   x: number;
@@ -12,12 +24,11 @@ export interface PlayerFootstep {
 }
 
 /**
- * THE BODY — the new heart of the game.
+ * THE BODY — side-view survivor.
  *
- * Monsters hunt THIS now: your position, your noise, your light. Sprinting is
- * fast and loud, sneaking is slow and quiet, the flashlight lets you see but
- * also makes you seen. Health gives you 3 hits so a chase is a scare, not an
- * instant game over.
+ * Monsters hunt THIS: your horizontal position, your noise, your light.
+ * Gravity pulls you down. Platforms hold you up. Sprint is loud, sneak is quiet.
+ * Health gives 3 hits so a chase is a scare, not an instant game over.
  */
 export class Player {
   x = 0;
@@ -26,7 +37,7 @@ export class Player {
   vy = 0;
   readonly radius = PLAYER.radius;
 
-  facing = Math.PI * 0.5;
+  facing = 1; // 1 = right, -1 = left
   /** Where the flashlight points (world coords of aim). */
   aimX = 0;
   aimY = 0;
@@ -39,6 +50,12 @@ export class Player {
   moving = false;
   /** 0..1 current speed for exposure math. */
   speedNorm = 0;
+  /** True while standing on solid ground. */
+  grounded = false;
+  /** Coyote time: brief window after leaving ground where jump still works. */
+  coyoteTimer = 0;
+  /** Jump buffer: input pressed slightly before landing. */
+  jumpBuffer = 0;
 
   hiddenIn: string | null = null;
   dead = false;
@@ -59,14 +76,18 @@ export class Player {
   walkPhase = 0;
   breathPhase = 0;
   private stepTimer = 0;
+  private wasGrounded = false;
   private readonly body: Body = { x: 0, y: 0, radius: PLAYER.radius };
+
+  /** Audio manager reference for jump/land sounds. */
+  audio: { playAt: (name: string, x: number, opts: { gain: number }) => void } | null = null;
 
   reset(x: number, y: number): void {
     this.x = x;
     this.y = y;
     this.vx = 0;
     this.vy = 0;
-    this.facing = Math.PI * 0.5;
+    this.facing = 1;
     this.aimX = x + 60;
     this.aimY = y;
     this.flashlightOn = true;
@@ -76,6 +97,9 @@ export class Player {
     this.exhausted = false;
     this.moving = false;
     this.speedNorm = 0;
+    this.grounded = false;
+    this.coyoteTimer = 0;
+    this.jumpBuffer = 0;
     this.hiddenIn = null;
     this.dead = false;
     this.escaped = false;
@@ -162,6 +186,8 @@ export class Player {
       this.sprinting = false;
       this.moving = false;
       this.speedNorm = 0;
+      this.grounded = true;
+      this.coyoteTimer = 0.1;
       this.stamina = Math.min(PLAYER.staminaMax, this.stamina + PLAYER.staminaRecover * dt);
       return;
     }
@@ -169,26 +195,48 @@ export class Player {
     if (actions.flashlight) this.flashlightOn = !this.flashlightOn;
 
     const wantSneak = actions.sneak;
+    const wantJump = actions.jump;
     const wantSprint =
-      actions.sprint && !wantSneak && (actions.moveX !== 0 || actions.moveY !== 0) && !this.exhausted;
+      actions.sprint && !wantSneak && (actions.moveX !== 0) && !this.exhausted;
 
     this.sneaking = wantSneak;
     this.sprinting = wantSprint;
 
-    let target: number = PLAYER.walkSpeed as number;
+    // Coyote time & jump buffer
+    this.coyoteTimer = this.grounded ? 0.12 : Math.max(0, this.coyoteTimer - dt);
+    this.jumpBuffer = wantJump ? 0.12 : Math.max(0, this.jumpBuffer - dt);
+
+    // Jump: ground or coyote time + buffer
+    if (this.jumpBuffer > 0 && this.coyoteTimer > 0 && this.vy >= 0) {
+      this.vy = PLAYER.jumpSpeed;
+      this.grounded = false;
+      this.coyoteTimer = 0;
+      this.jumpBuffer = 0;
+      onFootstep({ x: this.x, y: this.y + this.radius, level: 1.2 });
+      this.audio?.playAt?.('jump', this.x, { gain: 0.15 });
+    }
+
+    // Horizontal movement
+    let target = PLAYER.walkSpeed as number;
     if (this.sneaking) target = PLAYER.sneakSpeed as number;
     else if (this.sprinting) target = PLAYER.sprintSpeed as number;
 
-    // Exhausted runners slow down until stamina recovers a bit.
     if (this.exhausted) target *= PLAYER.exhaustedSlow as number;
 
+    const accel = this.grounded ? PLAYER.accel : PLAYER.airAccel;
     const desiredX = actions.moveX * target;
-    const desiredY = actions.moveY * target;
 
-    this.vx = approach(this.vx, desiredX, PLAYER.accel, dt);
-    this.vy = approach(this.vy, desiredY, PLAYER.accel, dt);
+    this.vx = approach(this.vx, desiredX, accel, dt);
 
-    const speed = Math.hypot(this.vx, this.vy);
+    // Gravity
+    if (!this.grounded) {
+      this.vy = Math.min(PLAYER.maxFallSpeed, this.vy + PLAYER.gravity * dt);
+    } else {
+      this.vy = 0;
+    }
+
+    // Stamina
+    const speed = Math.abs(this.vx);
     this.speedNorm = clamp01(speed / PLAYER.sprintSpeed);
     this.moving = speed > 12;
 
@@ -204,44 +252,45 @@ export class Player {
       if (this.exhausted && this.stamina > 35) this.exhausted = false;
     }
 
-    if (speed > 2) {
-      this.facing = Math.atan2(this.vy, this.vx);
-      const rate = this.sneaking ? 4.2 : this.sprinting ? 13 : 8.4;
-      this.walkPhase += dt * rate;
+    // Facing direction
+    if (this.vx > 2) this.facing = 1;
+    else if (this.vx < -2) this.facing = -1;
+
+    // Animation
+    if (this.hurtTimer > 0) {
+      this.pose = 'HURT';
+    } else if (!this.grounded) {
+      this.pose = this.vy < 0 ? 'JUMP' : 'FALL';
+    } else if (this.sneaking) {
+      this.pose = this.moving ? 'SNEAK' : 'CROUCH';
+    } else if (this.sprinting) {
+      this.pose = 'SPRINT';
+    } else if (this.moving) {
+      this.pose = 'WALK';
     } else {
-      this.walkPhase = approach(this.walkPhase, Math.round(this.walkPhase / Math.PI) * Math.PI, 6, dt);
+      this.pose = 'IDLE';
     }
 
-    this.body.x = this.x;
-    this.body.y = this.y;
-    moveBody(this.body, this.vx * dt, this.vy * dt, solids);
-    const movedX = this.body.x - this.x;
-    const movedY = this.body.y - this.y;
-    this.x = this.body.x;
-    this.y = this.body.y;
+    if (this.moving && this.grounded) {
+      this.walkPhase += dt * (this.sneaking ? 4.2 : this.sprinting ? 14 : 8.4);
+    } else {
+      this.walkPhase = approach(this.walkPhase, 0, 6, dt);
+    }
 
-    if (Math.abs(movedX) < Math.abs(this.vx * dt) * 0.4) this.vx *= 0.3;
-    if (Math.abs(movedY) < Math.abs(this.vy * dt) * 0.4) this.vy *= 0.3;
-
-    const moved = Math.hypot(movedX, movedY);
-    if (moved > 0.08) {
-      if (this.hurtTimer > 0) this.pose = 'HURT';
-      else if (this.panic > 0.72 && this.sprinting) this.pose = 'PANIC';
-      else if (this.sprinting) this.pose = 'SPRINT';
-      else if (this.sneaking) this.pose = 'SNEAK';
-      else this.pose = 'WALK';
+    // Step sounds
+    if (this.moving && this.grounded) {
       this.stepTimer += dt;
       const interval =
         this.sneaking
           ? PLAYER.stepInterval * 1.9
           : this.sprinting
-            ? 0.22
+            ? 0.18
             : PLAYER.stepInterval;
       if (this.stepTimer >= interval) {
         this.stepTimer = 0;
         onFootstep({
           x: this.x,
-          y: this.y,
+          y: this.y + this.radius,
           level: this.sneaking
             ? PLAYER.sneakFootstepNoise
             : this.sprinting
@@ -250,9 +299,36 @@ export class Player {
         });
       }
     } else {
-      this.pose = this.hurtTimer > 0 ? 'HURT' : 'IDLE';
       this.stepTimer = PLAYER.stepInterval * 0.6;
     }
+
+    // Physics move
+    this.body.x = this.x;
+    this.body.y = this.y;
+    this.grounded = false;
+
+    // X move
+    moveBody(this.body, this.vx * dt, 0, solids);
+    const movedX = this.body.x - this.x;
+    this.x = this.body.x;
+
+    // Y move
+    moveBody(this.body, 0, this.vy * dt, solids);
+    const movedY = this.body.y - this.y;
+    this.y = this.body.y;
+
+    // Ground detection: if we moved down and hit something, we're grounded
+    if (this.vy >= 0 && movedY < this.vy * dt * 0.5) {
+      this.grounded = true;
+      this.vy = 0;
+      if (!this.wasGrounded) {
+        this.audio?.playAt?.('land', this.x, { gain: 0.12 });
+      }
+    }
+    this.wasGrounded = this.grounded;
+
+    // Wall slide friction
+    if (Math.abs(movedX) < Math.abs(this.vx * dt) * 0.4) this.vx *= 0.3;
   }
 
   /** Aim the flashlight at a world point (mouse position). */

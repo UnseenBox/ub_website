@@ -13,7 +13,6 @@ export interface ReplayFrame {
   py: number;
   /** Movement axes, quantised to hundredths. */
   mx: number;
-  my: number;
   bits: number;
 }
 
@@ -71,7 +70,6 @@ export class ReplaySystem {
       px: Math.round(pointer.x),
       py: Math.round(pointer.y),
       mx: Math.round(actions.moveX * 100) / 100,
-      my: Math.round(actions.moveY * 100) / 100,
       bits,
     });
   }
@@ -106,7 +104,6 @@ export class ReplaySystem {
     const f = recording.frames[frameIndex];
     if (!f) return false;
     actions.moveX = f.mx;
-    actions.moveY = f.my;
     actions.sneak = (f.bits & BIT_SNEAK) !== 0;
     actions.interact = (f.bits & BIT_INTERACT) !== 0;
     actions.hide = (f.bits & BIT_HIDE) !== 0;

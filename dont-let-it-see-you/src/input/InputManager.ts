@@ -8,9 +8,9 @@ import { TouchInput } from './TouchInput';
  */
 export interface ActionState {
   moveX: number;
-  moveY: number;
   sneak: boolean;
   sprint: boolean;
+  jump: boolean;
   /** Edge-triggered: true for exactly one simulation step. */
   interact: boolean;
   hide: boolean;
@@ -57,9 +57,9 @@ export interface InputBackend {
 export class InputManager {
   readonly actions: ActionState = {
     moveX: 0,
-    moveY: 0,
     sneak: false,
     sprint: false,
+    jump: false,
     interact: false,
     hide: false,
     flashlight: false,
@@ -110,9 +110,9 @@ export class InputManager {
   beginStep(): void {
     const a = this.actions;
     a.moveX = 0;
-    a.moveY = 0;
     a.sneak = false;
     a.sprint = false;
+    a.jump = false;
     a.interact = false;
     a.hide = false;
     a.flashlight = false;
@@ -128,13 +128,6 @@ export class InputManager {
     p.secondaryDown = false;
 
     for (const b of this.backends) b.gather(a, p);
-
-    // Normalise diagonals so a diagonal walk is not faster than a straight one.
-    const len = Math.hypot(a.moveX, a.moveY);
-    if (len > 1) {
-      a.moveX /= len;
-      a.moveY /= len;
-    }
   }
 
   endStep(): void {

@@ -4,12 +4,13 @@ import type { Settings } from '../save/SaveManager';
 import { SoundLibrary, type PlayOptions, type SoundName } from './SoundLibrary';
 
 /**
- * Audio, built so that silence is the default state.
+ * Audio, built so that dread is the default state.
  *
- * There is no music. There is a room tone that breathes with how worked up the
- * creatures are, a heartbeat that only exists near real danger, and short
- * synthesised events. Everything respects the browser's autoplay rules: nothing
- * is created until the player has interacted with the page.
+ * The background score is generative dark ambient: a low D-minor drone that
+ * breathes through a wandering filter, with distant chapel bells surfacing
+ * every few bars — sparser when calm, closer together when hunted. A heartbeat
+ * only exists near real danger. Everything respects the browser's autoplay
+ * rules: nothing is created until the player has interacted with the page.
  */
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -19,8 +20,9 @@ export class AudioManager {
   private sfxBus: GainNode | null = null;
   private ambienceBus: GainNode | null = null;
 
-  private droneA: OscillatorNode | null = null;
-  private droneB: OscillatorNode | null = null;
+  private droneRoot: OscillatorNode | null = null;
+  private droneBeating: OscillatorNode | null = null;
+  private extraDrones: OscillatorNode[] = [];
   private droneGain: GainNode | null = null;
   private droneFilter: BiquadFilterNode | null = null;
   private airBed: { input: GainNode; stop: () => void } | null = null;
@@ -28,6 +30,8 @@ export class AudioManager {
 
   private heartTimer = 0;
   private breathTimer = 4;
+  private hymnTimer = 6;
+  private lfoPhase = 0;
   private tension = 0;
   private available = true;
 
@@ -101,33 +105,51 @@ export class AudioManager {
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 220;
-    filter.Q.value = 2;
+    filter.frequency.value = 300;
+    filter.Q.value = 1.2;
     this.droneFilter = filter;
 
     const gain = ctx.createGain();
-    gain.gain.value = 0.1;
+    gain.gain.value = 0.07;
     this.droneGain = gain;
 
-    // Two oscillators a few cents apart: a low hum that will not sit still.
-    const a = ctx.createOscillator();
-    a.type = 'sine';
-    a.frequency.value = 54;
-    const b = ctx.createOscillator();
-    b.type = 'sine';
-    b.frequency.value = 54.9;
+    // D minor weight: root D2, a beating detuned twin, a quiet fifth A2,
+    // and a sub D1 you feel more than hear.
+    const root = ctx.createOscillator();
+    root.type = 'sine';
+    root.frequency.value = 73.42;
+    const beating = ctx.createOscillator();
+    beating.type = 'sine';
+    beating.frequency.value = 73.9;
+    const fifthGain = ctx.createGain();
+    fifthGain.gain.value = 0.32;
+    const fifth = ctx.createOscillator();
+    fifth.type = 'triangle';
+    fifth.frequency.value = 110;
+    fifth.connect(fifthGain);
+    fifthGain.connect(filter);
+    const subGain = ctx.createGain();
+    subGain.gain.value = 0.5;
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.value = 36.71;
+    sub.connect(subGain);
+    subGain.connect(filter);
 
-    a.connect(filter);
-    b.connect(filter);
+    root.connect(filter);
+    beating.connect(filter);
     filter.connect(gain);
     gain.connect(bus);
-    a.start();
-    b.start();
-    this.droneA = a;
-    this.droneB = b;
+    root.start();
+    beating.start();
+    fifth.start();
+    sub.start();
+    this.droneRoot = root;
+    this.droneBeating = beating;
+    this.extraDrones = [fifth, sub];
 
-    this.airBed = lib.createBed(680, 0.6);
-    this.airBed.input.gain.value = 0.035;
+    this.airBed = lib.createBed(320, 0.5);
+    this.airBed.input.gain.value = 0.02;
     this.airBed.input.connect(bus);
   }
 
@@ -139,21 +161,37 @@ export class AudioManager {
     if (!this.ctx || !this.droneGain || !this.droneFilter) return;
     this.tension += (clamp01(tension) - this.tension) * Math.min(1, dt * 1.6);
 
-    // The room tone opens up as things get worse. Never loud, only closer.
-    const target = 0.08 + this.tension * 0.14;
-    this.droneGain.gain.value += (target - this.droneGain.gain.value) * Math.min(1, dt * 2);
-    const cutoff = 200 + this.tension * 520;
+    // The drone breathes: gain swells with tension, filter opens and closes on a
+    // slow LFO (0.08 Hz) so the room never feels static.
+    const target = 0.06 + this.tension * 0.16;
+    this.droneGain.gain.value += (target - this.droneGain.gain.value) * Math.min(1, dt * 1.8);
+    this.lfoPhase += dt * 0.08 * Math.PI * 2;
+    const lfo = Math.sin(this.lfoPhase) * (0.06 + this.tension * 0.1);
+    const baseCutoff = 180 + this.tension * 480;
+    const cutoff = baseCutoff + lfo * 320;
     this.droneFilter.frequency.value += (cutoff - this.droneFilter.frequency.value) * Math.min(1, dt * 2);
-    if (this.droneA && this.droneB) {
-      this.droneB.frequency.value = 54.9 + this.tension * 2.4;
+
+    // The beating twin drifts slightly with tension — a heart that won't settle.
+    if (this.droneRoot && this.droneBeating) {
+      const beat = 73.9 + this.tension * 1.8;
+      this.droneBeating.frequency.value = beat;
     }
 
     if (this.airBed) {
-      const air = 0.03 + this.tension * 0.03;
+      const air = 0.018 + this.tension * 0.028;
       this.airBed.input.gain.value += (air - this.airBed.input.gain.value) * Math.min(1, dt * 2);
     }
 
-    this.setRadio(radioOn);
+    // A broken broadcast replaces the radio: eerie, not static.
+    this.setBroadcast(radioOn);
+
+    // The generative score: a slow hymn every 18..30 seconds.
+    this.hymnTimer -= dt;
+    if (this.hymnTimer <= 0) {
+      this.hymnTimer = 18 + Math.random() * 12;
+      const vol = 0.06 + this.tension * 0.08;
+      this.play('hymn', { gain: vol });
+    }
 
     const d = clamp01(danger);
     if (d >= FEEL.heartbeatThreshold) {
@@ -167,29 +205,28 @@ export class AudioManager {
       this.heartTimer = 0;
     }
 
-    // A held breath in the quiet. Rare, and only while something is interested.
     this.breathTimer -= dt;
     if (this.breathTimer <= 0) {
       this.breathTimer = 7 + Math.random() * 9;
-      if (this.tension > 0.22 && this.tension < 0.7) {
-        this.play('breath', { gain: 0.1 + this.tension * 0.12 });
+      if (this.tension > 0.18 && this.tension < 0.65) {
+        this.play('breath', { gain: 0.08 + this.tension * 0.1 });
       }
     }
   }
 
-  private setRadio(on: boolean): void {
+  private setBroadcast(on: boolean): void {
     const ctx = this.ctx;
     const lib = this.library;
     const bus = this.ambienceBus;
     if (!ctx || !lib || !bus) return;
     if (on && !this.radioBed) {
-      this.radioBed = lib.createBed(1400, 0.9);
+      this.radioBed = lib.createBroadcast();
       this.radioBed.input.connect(bus);
     }
     if (!this.radioBed) return;
-    const target = on ? 0.07 : 0;
+    const target = on ? 0.05 : 0;
     const g = this.radioBed.input.gain;
-    g.value += (target - g.value) * 0.08;
+    g.value += (target - g.value) * 0.06;
     if (!on && g.value < 0.002) {
       g.value = 0;
     }
@@ -214,15 +251,18 @@ export class AudioManager {
   reset(): void {
     this.heartTimer = 0;
     this.breathTimer = 4;
-    this.setRadio(false);
+    this.hymnTimer = 6;
+    this.lfoPhase = 0;
+    this.setBroadcast(false);
   }
 
   dispose(): void {
     this.airBed?.stop();
     this.radioBed?.stop();
     try {
-      this.droneA?.stop();
-      this.droneB?.stop();
+      this.droneRoot?.stop();
+      this.droneBeating?.stop();
+      for (const o of this.extraDrones) o.stop();
     } catch {
       // Already stopped.
     }
