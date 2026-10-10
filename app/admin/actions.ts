@@ -98,6 +98,17 @@ export async function deleteGameAction(id: string): Promise<ActionResult> {
   }
 }
 
+export async function moveGameAction(id: string, direction: -1 | 1): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await mutations.moveGame(id, direction === -1 ? -1 : 1);
+    revalidatePath("/admin/games");
+    return { ok: true };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 /* ------------------------------------------------------------------ arcade */
 
 export async function savePlayableAction(input: unknown): Promise<ActionResult> {

@@ -45,6 +45,17 @@ export async function deleteGame(id: string) {
   await write(() => getStore().deleteGame(id));
 }
 
+/** Swaps a game with its neighbour and renumbers the whole list. */
+export async function moveGame(id: string, direction: -1 | 1) {
+  const games = [...(await getContentFresh()).games].sort((a, b) => a.order - b.order);
+  const index = games.findIndex((game) => game.id === id);
+  const target = index + direction;
+  if (index === -1 || target < 0 || target >= games.length) return;
+  [games[index], games[target]] = [games[target], games[index]];
+  const renumbered = games.map((game, position) => ({ ...game, order: position + 1 }));
+  await write(() => getStore().saveGames(renumbered));
+}
+
 export async function savePlayable(playable: Playable) {
   await write(() => getStore().savePlayable(playable));
 }
