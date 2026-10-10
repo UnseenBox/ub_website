@@ -1,10 +1,9 @@
 import type { Dictionary } from "@/lib/i18n/get-dictionary";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { LinkButton } from "@/components/ui/link-button";
-import { ArrowDownIcon } from "@/components/ui/icons";
 import { HeroField } from "./hero-field";
 
-export function Hero({ locale, dict, foundedYear }: { locale: Locale; dict: Dictionary; foundedYear: string }) {
+export function Hero({ locale, dict }: { locale: Locale; dict: Dictionary; foundedYear: string }) {
   const { hero } = dict;
   const lines = hero.lines;
 
@@ -53,17 +52,6 @@ export function Hero({ locale, dict, foundedYear }: { locale: Locale; dict: Dict
               {hero.ctaSecondary}
             </LinkButton>
           </div>
-        </div>
-
-        <div className="label mt-10 flex animate-fade items-center justify-between gap-4 border-t border-line pt-5 [animation-delay:1200ms]">
-          <span>
-            N°001 · {hero.est} {foundedYear}
-          </span>
-          <a href="#manifesto" className="group hidden items-center gap-2 transition-colors hover:text-bone sm:flex">
-            <ArrowDownIcon className="size-3.5 transition-transform duration-500 group-hover:translate-y-1" />
-            {hero.scroll}
-          </a>
-          <span className="font-pixel hidden text-uv-400 [@media(pointer:fine)]:inline">{hero.hint}</span>
         </div>
       </div>
     </section>
