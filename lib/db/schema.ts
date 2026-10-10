@@ -87,6 +87,23 @@ export const SCHEMA_STATEMENTS: string[] = [
      updated_at timestamptz not null default now()
    )`,
 
+  `create table if not exists playables (
+      id text primary key,
+      slug text not null unique,
+      title text not null default '',
+      added text not null default '',
+      moods jsonb not null default '[]'::jsonb,
+      src text not null default '',
+      poster text not null default '',
+      genre jsonb not null default '{}'::jsonb,
+      summary jsonb not null default '{}'::jsonb,
+      desktop_controls jsonb not null default '{}'::jsonb,
+      phone_controls jsonb not null default '{}'::jsonb,
+      enabled boolean not null default true,
+      sort_order integer not null default 0,
+      updated_at timestamptz not null default now()
+    )`,
+
   `create table if not exists messages (
      id text primary key,
      name text not null,
@@ -137,6 +154,7 @@ export const SCHEMA_STATEMENTS: string[] = [
   `alter table games add column if not exists screenshot_shape text not null default 'auto'`,
 
   `create index if not exists games_sort_order_idx on games (sort_order)`,
+  `create index if not exists playables_sort_order_idx on playables (sort_order)`,
   `create index if not exists services_sort_order_idx on services (sort_order)`,
   `create index if not exists experiences_date_idx on experiences (date desc, sort_order)`,
   `create index if not exists messages_created_at_idx on messages (created_at desc)`,

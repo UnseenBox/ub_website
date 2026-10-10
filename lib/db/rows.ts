@@ -10,6 +10,8 @@ import type {
   LocalizedString,
   Locale,
   Platform,
+  Playable,
+  PlayMood,
   Review,
   ScreenshotShape,
   ReviewStatus,
@@ -241,6 +243,69 @@ export function experienceParams(experience: Experience): unknown[] {
 
 export const EXPERIENCE_COLUMNS = `id, slug, title, type, date, location, client, summary, body,
   cover, images, link, sort_order`;
+
+/* ------------------------------------------------------------------ */
+/* Playable arcade games                                               */
+/* ------------------------------------------------------------------ */
+
+export interface PlayableRow {
+  id: string;
+  slug: string;
+  title: string;
+  added: string;
+  moods: unknown;
+  src: string;
+  poster: string;
+  genre: unknown;
+  summary: unknown;
+  desktop_controls: unknown;
+  phone_controls: unknown;
+  enabled: boolean;
+  sort_order: number;
+  updated_at: Date | string;
+}
+
+export function toPlayable(row: PlayableRow): Playable {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    added: row.added,
+    moods: list<PlayMood>(row.moods),
+    src: row.src,
+    poster: row.poster,
+    genre: localized(row.genre),
+    summary: localized(row.summary),
+    desktopControls: localized(row.desktop_controls),
+    phoneControls: localized(row.phone_controls),
+    enabled: row.enabled,
+    order: row.sort_order,
+    updatedAt: iso(row.updated_at),
+  };
+}
+
+/** Parameters for the playables upsert, in column order. */
+export function playableParams(playable: Playable): unknown[] {
+  return [
+    playable.id,
+    playable.slug,
+    playable.title,
+    playable.added,
+    json(playable.moods),
+    playable.src,
+    playable.poster,
+    json(playable.genre),
+    json(playable.summary),
+    json(playable.desktopControls),
+    json(playable.phoneControls),
+    playable.enabled,
+    playable.order,
+    playable.updatedAt || new Date().toISOString(),
+  ];
+}
+
+export const PLAYABLE_COLUMNS = `id, slug, title, added, moods, src, poster, genre, summary,
+  desktop_controls, phone_controls, enabled, sort_order, updated_at`;
 
 /* ------------------------------------------------------------------ */
 /* Studio + messages                                                   */

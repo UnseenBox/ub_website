@@ -16,6 +16,7 @@ export default async function DashboardPage() {
   const stats = [
     { label: "Released games", value: content.games.filter((g) => !g.upcoming).length, href: "/admin/games" },
     { label: "In development", value: content.games.filter((g) => g.upcoming).length, href: "/admin/games" },
+    { label: "Arcade games", value: (content.playables ?? []).filter((g) => g.enabled).length, href: "/admin/playables" },
     { label: "Services", value: content.services.length, href: "/admin/services" },
     { label: "Archive entries", value: content.experiences.length, href: "/admin/experiences" },
     { label: "Unread messages", value: messages.filter((m) => !m.read).length, href: "/admin/messages" },
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         {stats.map((stat) => (
           <li key={stat.label}>
             <Link href={stat.href} className="block rounded-lg border border-zinc-200 bg-white p-4 hover:border-violet-400">
@@ -52,6 +53,7 @@ export default async function DashboardPage() {
           <h2 className="font-semibold">Quick actions</h2>
           <ul className="mt-3 grid gap-2 text-sm">
             <li><Link className="text-violet-700 hover:underline" href="/admin/games/new">+ Add a game</Link></li>
+            <li><Link className="text-violet-700 hover:underline" href="/admin/playables">Manage the /play arcade</Link></li>
             <li><Link className="text-violet-700 hover:underline" href="/admin/services/new">+ Add a service</Link></li>
             <li><Link className="text-violet-700 hover:underline" href="/admin/experiences/new">+ Add an archive entry</Link></li>
             <li><Link className="text-violet-700 hover:underline" href="/admin/studio">Edit about text, contact & social links</Link></li>

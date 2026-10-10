@@ -1,4 +1,4 @@
-import { EXPERIENCE_COLUMNS, GAME_COLUMNS, REVIEW_COLUMNS, SERVICE_COLUMNS } from "./rows";
+import { EXPERIENCE_COLUMNS, GAME_COLUMNS, PLAYABLE_COLUMNS, REVIEW_COLUMNS, SERVICE_COLUMNS } from "./rows";
 
 /**
  * Upsert statements, derived from the column lists so the placeholders can
@@ -23,6 +23,7 @@ function upsert(table: string, columns: string): string {
 }
 
 export const UPSERT_GAME = upsert("games", GAME_COLUMNS);
+export const UPSERT_PLAYABLE = upsert("playables", PLAYABLE_COLUMNS);
 export const UPSERT_SERVICE = upsert("services", SERVICE_COLUMNS);
 export const UPSERT_EXPERIENCE = upsert("experiences", EXPERIENCE_COLUMNS);
 

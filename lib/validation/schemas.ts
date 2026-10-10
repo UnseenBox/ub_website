@@ -5,6 +5,7 @@ import {
   GLYPHS,
   LINK_KINDS,
   PLATFORMS,
+  PLAY_MOODS,
   SCREENSHOT_SHAPES,
   SOCIAL_PLATFORMS,
 } from "@/types/content";
@@ -70,6 +71,30 @@ export const gameSchema = z.object({
   accent: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #8f5bff")]).optional(),
   featured: z.boolean(),
   upcoming: z.boolean(),
+  order: z.coerce.number().int().min(0).max(9999),
+  updatedAt: z.string().optional(),
+});
+
+export const playableSchema = z.object({
+  id,
+  slug,
+  title: z.string().trim().min(1, "Title is required").max(120),
+  added: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
+  moods: z.array(z.enum(PLAY_MOODS)).max(PLAY_MOODS.length),
+  src: z
+    .string()
+    .trim()
+    .min(1, "Entry point is required")
+    .max(500)
+    .refine((v) => v.startsWith("/") && /\.[a-z0-9]+$/i.test(v), {
+      message: "Use a site path with a file extension, e.g. /arcade/my-game/index.html",
+    }),
+  poster: imageRef,
+  genre: localized(120),
+  summary: localizedRequired(3000),
+  desktopControls: localized(500),
+  phoneControls: localized(500),
+  enabled: z.boolean(),
   order: z.coerce.number().int().min(0).max(9999),
   updatedAt: z.string().optional(),
 });

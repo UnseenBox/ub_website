@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { addReview } from "@/lib/content/mutations";
 import { getContent } from "@/lib/content/queries";
+import { playables as seedPlayables } from "@/data/seed/playables";
 import { isLocale } from "@/lib/i18n/config";
 import { findPlayableByReviewId, playReviewId } from "@/lib/play";
 import { newId } from "@/lib/utils";
@@ -36,8 +37,9 @@ function limited(ip: string) {
 }
 
 /** A browser game from the /play page, in the shape a review records. */
-function reviewablePlayable(id: string) {
-  const game = findPlayableByReviewId(id);
+async function reviewablePlayable(id: string) {
+  const { playables } = await getContent();
+  const game = findPlayableByReviewId(playables ?? seedPlayables, id);
   return game && { id: playReviewId(game), slug: game.slug, title: game.title };
 }
 
@@ -93,7 +95,7 @@ export async function submitReview(_prev: ReviewState, formData: FormData): Prom
     // game is later renamed or removed.
     const game =
       (await getContent()).games.find((entry) => entry.id === parsed.data.gameId) ??
-      reviewablePlayable(parsed.data.gameId);
+      (await reviewablePlayable(parsed.data.gameId));
     if (!game) return { status: "error", errors: { game: "required" }, values };
 
     await addReview({

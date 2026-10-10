@@ -2,15 +2,27 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { moveServiceAction } from "@/app/admin/actions";
+import { moveGameAction, moveServiceAction } from "@/app/admin/actions";
 
-export function ReorderButtons({ id, isFirst, isLast, label }: { id: string; isFirst: boolean; isLast: boolean; label: string }) {
+export function ReorderButtons({
+  id,
+  isFirst,
+  isLast,
+  label,
+  kind = "service",
+}: {
+  id: string;
+  isFirst: boolean;
+  isLast: boolean;
+  label: string;
+  kind?: "service" | "game";
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const move = (direction: -1 | 1) =>
     startTransition(async () => {
-      const result = await moveServiceAction(id, direction);
+      const result = kind === "game" ? await moveGameAction(id, direction) : await moveServiceAction(id, direction);
       if (!result.ok) window.alert(result.error);
       router.refresh();
     });
