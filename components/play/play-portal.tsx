@@ -106,8 +106,12 @@ export function PlayPortal({
   }
 
   return (
-    <div className="relative isolate overflow-x-clip">
+    <div className="relative isolate overflow-x-clip bg-ink-950">
       <div aria-hidden className="uv-glow pointer-events-none absolute inset-x-0 -top-72 -z-10 h-[46rem] opacity-60" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_50%_at_50%_0%,rgb(31_17_64/0.6),transparent_70%),radial-gradient(50%_40%_at_90%_100%,rgb(109_52_240/0.1),transparent_70%)]"
+      />
 
       <div className="shell pb-24 pt-24 sm:pb-28 sm:pt-28">
         <header className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
