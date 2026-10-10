@@ -106,9 +106,9 @@ export function PlayPortal({
   }
 
   return (
-    <div className="relative isolate overflow-x-clip bg-uv-900">
-
-      <div className="shell pb-24 pt-24 sm:pb-28 sm:pt-28">
+    <div className="relative isolate overflow-x-clip bg-void">
+      <div className="bg-uv-900">
+      <div className="shell pb-10 pt-24 sm:pb-12 sm:pt-28">
         <header className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <h1 className="font-display text-4xl sm:text-5xl">{copy.title}</h1>
@@ -148,11 +148,14 @@ export function PlayPortal({
             </p>
           </div>
         </header>
-
+      </div>
+      </div>
+      <div className="bg-ink-950">
+      <div className="shell py-8 sm:py-10">
         <div
           role="group"
           aria-label={copy.moodsLabel}
-          className="scrollbar-none mt-8 grid auto-cols-[minmax(9.5rem,1fr)] grid-flow-col gap-3 overflow-x-auto"
+          className="scrollbar-none grid auto-cols-[minmax(9.5rem,1fr)] grid-flow-col gap-3 overflow-x-auto"
         >
           {moods.map((key) => {
             const hue = MOOD_HUES[key];
@@ -181,9 +184,13 @@ export function PlayPortal({
         </div>
 
         <AdSlot format="horizontal" label={copy.ad} className="mt-8" />
+      </div>
+      </div>
 
-        {!filtering && lead && (
-          <section aria-labelledby="play-picks" className="mt-12">
+      {!filtering && lead && (
+        <div className="bg-ink-800">
+        <div className="shell py-12">
+          <section aria-labelledby="play-picks">
             <h2 id="play-picks" className={heading}>
               {copy.topPicks}
             </h2>
@@ -215,9 +222,13 @@ export function PlayPortal({
               )}
             </div>
           </section>
+        </div>
+        </div>
         )}
 
-        <section aria-labelledby="play-all" className="mt-12">
+      <div className="bg-void">
+      <div className="shell py-12 pb-24 sm:pb-28">
+        <section aria-labelledby="play-all">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 id="play-all" className={heading}>
               {mood ? copy.moods[mood] : filtering ? copy.results : copy.allGames}
@@ -277,6 +288,7 @@ export function PlayPortal({
             ))}
           </ul>
         </section>
+      </div>
       </div>
     </div>
   );

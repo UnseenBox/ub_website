@@ -96,8 +96,9 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
   };
 
   return (
-    <div className="relative isolate overflow-x-clip bg-uv-900">
-      <div className="shell pb-24 pt-20 sm:pb-28 sm:pt-24">
+    <div className="relative isolate overflow-x-clip bg-void">
+      <div className="bg-uv-900">
+      <div className="shell pb-10 pt-20 sm:pb-12 sm:pt-24">
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structured)} />
 
       <nav aria-label={copy.breadcrumb} className="mb-4">
@@ -132,8 +133,11 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
               externalLink: dict.a11y.externalLink,
             }}
           />
-
-          <article className="mt-6 rounded-2xl bg-ink-900 p-6 ring-1 ring-line sm:p-8">
+      </div>
+      </div>
+      <div className="bg-ink-950">
+      <div className="shell py-10 sm:py-12">
+          <article className="rounded-2xl bg-ink-900 p-6 ring-1 ring-line sm:p-8">
             <header className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
               <div className="min-w-0">
                 <h1 className="font-display text-3xl sm:text-5xl">
@@ -228,8 +232,11 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
           </aside>
         )}
       </div>
-
-      <AdSlot format="horizontal" label={copy.ad} className="mt-10" />
+      </div>
+      </div>
+      <div className="bg-void">
+      <div className="shell py-10 pb-24 sm:pb-28">
+      <AdSlot format="horizontal" label={copy.ad} />
 
       <section
         id="reviews"
@@ -245,6 +252,7 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
           headingId="reviews-heading"
         />
       </section>
+      </div>
       </div>
     </div>
   );
