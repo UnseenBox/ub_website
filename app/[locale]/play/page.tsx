@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PlayPortal } from "@/components/play/play-portal";
-import { getRatings } from "@/lib/content/queries";
+import { getPlayables, getRatings } from "@/lib/content/queries";
 import { isLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
-import { PLAYABLE_GAMES, PLAY_MOODS } from "@/lib/play";
+import { PLAY_MOODS } from "@/lib/play";
 import { presentPlayables } from "@/lib/play-portal";
 import { buildMetadata } from "@/lib/seo";
 import { pad } from "@/lib/utils";
@@ -13,12 +13,13 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/play">):
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const dict = await getDictionary(locale);
+  const playables = await getPlayables();
   return buildMetadata({
     locale,
     path: "/play",
     title: dict.meta.play,
     description: dict.meta.playDescription,
-    image: PLAYABLE_GAMES[0]?.poster,
+    image: playables[0]?.poster,
   });
 }
 
@@ -26,9 +27,9 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/play">):
 export default async function PlayPage({ params }: PageProps<"/[locale]/play">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  const [dict, ratings] = await Promise.all([getDictionary(locale), getRatings()]);
+  const [dict, ratings, playables] = await Promise.all([getDictionary(locale), getRatings(), getPlayables()]);
   const copy = dict.play;
-  const games = presentPlayables(locale, ratings);
+  const games = presentPlayables(playables, locale, ratings);
 
   return (
     <PlayPortal

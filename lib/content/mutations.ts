@@ -5,12 +5,14 @@ import type {
   ContactMessage,
   Experience,
   Game,
+  Playable,
   Review,
   ReviewStatus,
   Service,
   SiteSettings,
   StudioInfo,
 } from "@/types/content";
+import { playables as seedPlayables } from "@/data/seed/playables";
 import { importSeed } from "@/lib/db/client";
 import { CONTENT_TAG, REVIEWS_TAG, SETTINGS_TAG, getContentFresh } from "./queries";
 import { getStore } from "./store";
@@ -41,6 +43,26 @@ export async function saveGame(game: Game) {
 
 export async function deleteGame(id: string) {
   await write(() => getStore().deleteGame(id));
+}
+
+export async function savePlayable(playable: Playable) {
+  await write(() => getStore().savePlayable(playable));
+}
+
+export async function deletePlayable(id: string) {
+  await write(() => getStore().deletePlayable(id));
+}
+
+/**
+ * Brings back the starter arcade set. Every write is an upsert keyed by id,
+ * so arcade games you added are left untouched — only the starter entries
+ * are (re)created.
+ */
+export async function restorePlayables() {
+  await write(async () => {
+    const store = getStore();
+    for (const playable of seedPlayables) await store.savePlayable(playable);
+  });
 }
 
 export async function saveService(service: Service) {

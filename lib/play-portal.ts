@@ -1,6 +1,6 @@
 import { localePath, t, type Locale } from "@/lib/i18n/config";
-import { PLAYABLE_GAMES, playGamePath, playReviewId, type PlayMood } from "@/lib/play";
-import type { RatingSummary } from "@/types/content";
+import { playGamePath, playReviewId } from "@/lib/play";
+import type { Playable, PlayMood, RatingSummary } from "@/types/content";
 
 export type PlayBadge = "new" | "top";
 
@@ -22,10 +22,14 @@ export interface PortalGame {
 const TOP_RATED_FROM = 4;
 
 /** Every playable game, in listing order, with its badges worked out. */
-export function presentPlayables(locale: Locale, ratings: Map<string, RatingSummary>): PortalGame[] {
+export function presentPlayables(
+  games: Playable[],
+  locale: Locale,
+  ratings: Map<string, RatingSummary>,
+): PortalGame[] {
   // Listing order breaks ties, so the first of several games added on one day is the new one.
-  const newest = PLAYABLE_GAMES.reduce((a, b) => (b.added > a.added ? b : a));
-  const rated = PLAYABLE_GAMES.map((game) => ({ game, rating: ratings.get(playReviewId(game)) }));
+  const newest = games.reduce<Playable | undefined>((a, b) => (!a || b.added > a.added ? b : a), undefined);
+  const rated = games.map((game) => ({ game, rating: ratings.get(playReviewId(game)) }));
   const best = rated
     .filter(({ rating }) => rating && rating.average >= TOP_RATED_FROM)
     .sort((a, b) => b.rating!.average - a.rating!.average || b.rating!.count - a.rating!.count)[0]?.game;

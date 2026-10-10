@@ -110,6 +110,38 @@ export interface Game {
 }
 
 /* ------------------------------------------------------------------ */
+/* Playable arcade games                                               */
+/* ------------------------------------------------------------------ */
+
+/** What a visitor can browse the arcade by. The order here is the order of the cards. */
+export const PLAY_MOODS = ["quick", "brain", "chaos", "friends", "dark", "phone"] as const;
+export type PlayMood = (typeof PLAY_MOODS)[number];
+
+/**
+ * A game that runs directly in the browser: listed on /play, played on
+ * /play/<slug>. Each one is a static build living in `public/arcade/<slug>/`.
+ * Disabled entries are hidden from the site but kept for the admin.
+ */
+export interface Playable {
+  id: string;
+  slug: string;
+  title: string;
+  /** ISO date the game joined the arcade. The latest one wears the "New" badge. */
+  added: string;
+  moods: PlayMood[];
+  /** Entry point of the static build. Must keep its file extension so the locale proxy skips it. */
+  src: string;
+  poster: string;
+  genre: LocalizedString;
+  summary: LocalizedString;
+  desktopControls: LocalizedString;
+  phoneControls: LocalizedString;
+  enabled: boolean;
+  order: number;
+  updatedAt: string;
+}
+
+/* ------------------------------------------------------------------ */
 /* Services                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -276,6 +308,8 @@ export interface SiteContent {
   games: Game[];
   services: Service[];
   experiences: Experience[];
+  /** Browser games for the /play arcade. Absent in content saved before the arcade manager existed. */
+  playables?: Playable[];
 }
 
 /* ------------------------------------------------------------------ */

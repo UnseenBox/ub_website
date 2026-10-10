@@ -1,4 +1,4 @@
-import type { Experience, Game, LocalizedString, Service } from "@/types/content";
+import type { Experience, Game, LocalizedString, Playable, Service } from "@/types/content";
 import { newId } from "@/lib/utils";
 
 export const emptyLocalized = (): LocalizedString => ({ en: "", fr: "", ar: "" });
@@ -43,6 +43,25 @@ export function newService(order: number): Service {
     deliverables: [],
     glyph: "cube",
     order,
+  };
+}
+
+export function newPlayable(order: number): Playable {
+  return {
+    id: newId("play"),
+    slug: "",
+    title: "",
+    added: new Date().toISOString().slice(0, 10),
+    moods: [],
+    src: "",
+    poster: "",
+    genre: emptyLocalized(),
+    summary: emptyLocalized(),
+    desktopControls: emptyLocalized(),
+    phoneControls: emptyLocalized(),
+    enabled: true,
+    order,
+    updatedAt: new Date().toISOString(),
   };
 }
 

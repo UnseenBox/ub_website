@@ -19,11 +19,12 @@ import {
   experienceSchema,
   formatIssues,
   gameSchema,
+  playableSchema,
   serviceSchema,
   siteOptionsSchema,
   studioSchema,
 } from "@/lib/validation/schemas";
-import type { Experience, Game, ReviewStatus, Service, StudioInfo } from "@/types/content";
+import type { Experience, Game, Playable, ReviewStatus, Service, StudioInfo } from "@/types/content";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string; issues?: string[] };
 
@@ -92,6 +93,41 @@ export async function deleteGameAction(id: string): Promise<ActionResult> {
   try {
     await mutations.deleteGame(id);
     return { ok: true, message: "Game deleted." };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/* ------------------------------------------------------------------ arcade */
+
+export async function savePlayableAction(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = playableSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Please fix the highlighted problems.", issues: formatIssues(parsed.error) };
+  try {
+    await mutations.savePlayable({ ...parsed.data, updatedAt: new Date().toISOString() } as Playable);
+    return { ok: true, message: "Arcade game saved." };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function deletePlayableAction(id: string): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await mutations.deletePlayable(id);
+    return { ok: true, message: "Arcade game deleted." };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function restorePlayablesAction(): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await mutations.restorePlayables();
+    revalidatePath("/admin/playables");
+    return { ok: true, message: "Starter arcade restored." };
   } catch (error) {
     return failure(error);
   }

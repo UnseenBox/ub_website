@@ -2,9 +2,9 @@ import "server-only";
 
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import { seedContent } from "@/data/seed";
-import { experienceParams, gameParams, json, serviceParams } from "./rows";
+import { experienceParams, gameParams, json, playableParams, serviceParams } from "./rows";
 import { SCHEMA_STATEMENTS } from "./schema";
-import { TOUCH_META, UPSERT_EXPERIENCE, UPSERT_GAME, UPSERT_SERVICE, UPSERT_STUDIO } from "./statements";
+import { TOUCH_META, UPSERT_EXPERIENCE, UPSERT_GAME, UPSERT_PLAYABLE, UPSERT_SERVICE, UPSERT_STUDIO } from "./statements";
 
 /**
  * Neon connection.
@@ -74,6 +74,9 @@ export async function importSeed(): Promise<void> {
   for (const service of seedContent.services) await sql.query(UPSERT_SERVICE, serviceParams(service));
   for (const experience of seedContent.experiences) {
     await sql.query(UPSERT_EXPERIENCE, experienceParams(experience));
+  }
+  for (const playable of seedContent.playables ?? []) {
+    await sql.query(UPSERT_PLAYABLE, playableParams(playable));
   }
   await sql.query(TOUCH_META);
 }

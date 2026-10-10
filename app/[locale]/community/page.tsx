@@ -6,10 +6,10 @@ import { Stars } from "@/components/community/stars";
 import { StoreLinks } from "@/components/games/store-links";
 import { FollowCta } from "@/components/layout/follow-cta";
 import { PageIntro } from "@/components/ui/page-intro";
-import { getApprovedReviews, getGames, getRatings, getStudio } from "@/lib/content/queries";
+import { getApprovedReviews, getGames, getPlayables, getRatings, getStudio } from "@/lib/content/queries";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
-import { PLAYABLE_GAMES, playReviewId, reviewGamePath } from "@/lib/play";
+import { playReviewId, reviewGamePath } from "@/lib/play";
 import { buildMetadata } from "@/lib/seo";
 import { formatDate } from "@/lib/utils";
 
@@ -28,12 +28,13 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/communit
 export default async function CommunityPage({ params }: PageProps<"/[locale]/community">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  const [dict, games, reviews, ratings, studio] = await Promise.all([
+  const [dict, games, reviews, ratings, studio, playables] = await Promise.all([
     getDictionary(locale),
     getGames(),
     getApprovedReviews(),
     getRatings(),
     getStudio(),
+    getPlayables(),
   ]);
 
   const copy = dict.community;
@@ -42,7 +43,7 @@ export default async function CommunityPage({ params }: PageProps<"/[locale]/com
     ...games
       .filter((game) => !game.upcoming)
       .map((game) => ({ id: game.id, title: game.title, path: `/games/${game.slug}`, links: game.links })),
-    ...PLAYABLE_GAMES.map((game) => ({ id: playReviewId(game), title: game.title, path: `/play#${game.slug}`, links: null })),
+    ...playables.map((game) => ({ id: playReviewId(game), title: game.title, path: `/play#${game.slug}`, links: null })),
   ];
   const rated = reviewable
     .map((game) => ({ game, summary: ratings.get(game.id) }))

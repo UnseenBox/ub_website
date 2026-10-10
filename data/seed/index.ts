@@ -3,6 +3,7 @@ import { experiences } from "./experiences";
 import { releasedGames } from "./games-released";
 import { upcomingGames } from "./games-upcoming";
 import { SEED_DATE } from "./helpers";
+import { playables } from "./playables";
 import { services } from "./services";
 import { studio } from "./studio";
 
@@ -17,4 +18,5 @@ export const seedContent: SiteContent = {
   games: [...releasedGames, ...upcomingGames],
   services,
   experiences,
+  playables,
 };

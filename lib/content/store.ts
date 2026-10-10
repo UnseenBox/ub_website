@@ -7,15 +7,18 @@ import { ensureReady, getSql, hasDatabase } from "@/lib/db/client";
 import {
   EXPERIENCE_COLUMNS,
   GAME_COLUMNS,
+  PLAYABLE_COLUMNS,
   REVIEW_COLUMNS,
   SERVICE_COLUMNS,
   experienceParams,
   gameParams,
   json,
+  playableParams,
   serviceParams,
   toExperience,
   toGame,
   toMessage,
+  toPlayable,
   toReview,
   toService,
   toStudio,
@@ -23,6 +26,7 @@ import {
   type ExperienceRow,
   type GameRow,
   type MessageRow,
+  type PlayableRow,
   type ReviewRow,
   type ServiceRow,
 } from "@/lib/db/rows";
@@ -31,6 +35,7 @@ import {
   TOUCH_META,
   UPSERT_EXPERIENCE,
   UPSERT_GAME,
+  UPSERT_PLAYABLE,
   UPSERT_REVIEW,
   UPSERT_SERVICE,
   UPSERT_SETTINGS,
@@ -40,6 +45,7 @@ import type {
   ContactMessage,
   Experience,
   Game,
+  Playable,
   Review,
   ReviewStatus,
   Service,
@@ -66,6 +72,9 @@ export interface ContentStore {
 
   saveGame(game: Game): Promise<void>;
   deleteGame(id: string): Promise<void>;
+  saveGames(games: Game[]): Promise<void>;
+  savePlayable(playable: Playable): Promise<void>;
+  deletePlayable(id: string): Promise<void>;
   saveService(service: Service): Promise<void>;
   saveServices(services: Service[]): Promise<void>;
   deleteService(id: string): Promise<void>;
@@ -138,12 +147,13 @@ class PostgresStore implements ContentStore {
 
   async readContent(): Promise<SiteContent | null> {
     await ensureReady();
-    const [meta, studio, games, services, experiences] = await Promise.all([
+    const [meta, studio, games, services, experiences, playables] = await Promise.all([
       this.run<{ version: number; updated_at: Date | string }>(`select version, updated_at from site_meta`),
       this.run<{ data: unknown }>(`select data from studio`),
       this.run<GameRow>(`select ${GAME_COLUMNS} from games order by sort_order`),
       this.run<ServiceRow>(`select ${SERVICE_COLUMNS} from services order by sort_order`),
       this.run<ExperienceRow>(`select ${EXPERIENCE_COLUMNS} from experiences order by date desc, sort_order`),
+      this.run<PlayableRow>(`select ${PLAYABLE_COLUMNS} from playables order by sort_order`),
     ]);
 
     // No studio row means the database has never been seeded: let the caller
@@ -158,6 +168,7 @@ class PostgresStore implements ContentStore {
       games: games.map(toGame),
       services: services.map(toService),
       experiences: experiences.map(toExperience),
+      playables: playables.map(toPlayable),
     };
   }
 
@@ -172,6 +183,23 @@ class PostgresStore implements ContentStore {
 
   async deleteGame(id: string) {
     await this.run(`delete from games where id = $1`, [id]);
+    await this.touch();
+  }
+
+  async saveGames(games: Game[]) {
+    await ensureReady();
+    const sql = getSql();
+    await sql.transaction(games.map((game) => sql.query(UPSERT_GAME, gameParams(game))));
+    await this.touch();
+  }
+
+  async savePlayable(playable: Playable) {
+    await this.run(UPSERT_PLAYABLE, playableParams({ ...playable, updatedAt: new Date().toISOString() }));
+    await this.touch();
+  }
+
+  async deletePlayable(id: string) {
+    await this.run(`delete from playables where id = $1`, [id]);
     await this.touch();
   }
 
@@ -344,6 +372,34 @@ class FileStore implements ContentStore {
     });
   }
 
+  async saveGames(games: Game[]) {
+    await this.edit((content) => {
+      for (const game of games) FileStore.upsert(content.games, game);
+    });
+  }
+
+  async savePlayable(playable: Playable) {
+    const { playables } = seedContent;
+    await this.edit((content) => {
+      // Content saved before the arcade manager has no playables key yet:
+      // start from the starter set so the other games are not lost.
+      content.playables ??= structuredClone(playables ?? []);
+      if (content.playables.some((other) => other.slug === playable.slug && other.id !== playable.id)) {
+        throw new ContentConflictError(`Another arcade game already uses the slug "${playable.slug}".`);
+      }
+      FileStore.upsert(content.playables, { ...playable, updatedAt: new Date().toISOString() });
+    });
+  }
+
+  async deletePlayable(id: string) {
+    const { playables } = seedContent;
+    await this.edit((content) => {
+      content.playables = (content.playables ?? structuredClone(playables ?? [])).filter(
+        (playable) => playable.id !== id,
+      );
+    });
+  }
+
   async saveService(service: Service) {
     await this.edit((content) => FileStore.upsert(content.services, service));
   }
@@ -466,6 +522,15 @@ class ReadOnlyStore implements ContentStore {
     this.reject();
   }
   async deleteGame() {
+    this.reject();
+  }
+  async saveGames() {
+    this.reject();
+  }
+  async savePlayable() {
+    this.reject();
+  }
+  async deletePlayable() {
     this.reject();
   }
   async saveService() {
