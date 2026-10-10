@@ -1,7 +1,7 @@
 import { dist } from '../core/Mathx';
 import type { Enemy } from './Enemy';
 
-export type AlertType = 'cursor' | 'noise' | 'peer' | 'decoy';
+export type AlertType = 'body' | 'noise' | 'peer';
 
 export interface EnemyAlertEvent {
   sourceId: string;

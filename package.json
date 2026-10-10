@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A browser stealth horror game where the monster hunts your mouse cursor.",
+  "description": "DON'T LET IT FIND YOU — a browser survival-horror stealth game. Monsters hunt your body, your noise and your light.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

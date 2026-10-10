@@ -1,4 +1,4 @@
-import { CURSOR, PLAYER, VIEW } from '../core/Tuning';
+import { PLAYER, VIEW } from '../core/Tuning';
 import { Rng, clamp, dist, rectsOverlap, type Rect } from '../core/Mathx';
 import type { EventBus } from '../core/EventBus';
 import type { CursorController } from '../cursor/CursorController';
@@ -178,23 +178,11 @@ const BEHAVIORS: Partial<Record<string, ObjectBehavior>> = {
     const on = obj.state === 'on';
     obj.setState(on ? 'off' : 'on');
     setLights(obj, ctx, !on);
-    if (on) {
-      ctx.cursor.removeDecoysFrom(obj.id);
-      return;
-    }
-    // A flickering screen reads as attention. The room lies for you.
-    ctx.cursor.spawnDecoy({
-      pattern: 'STATIC',
-      x: obj.x,
-      y: obj.y,
-      duration: 999,
-      potency: 0.55,
-      noise: 0,
-      radius: 6,
-      sourceId: obj.id,
-    });
-    ctx.stats.decoysUsed++;
-    ctx.patterns.note('decoy:screen');
+    if (on) return;
+    // A screaming screen pulls the room toward it. Move while it covers you.
+    ctx.noise.emit(obj.x, obj.y, 6, 'radio', false);
+    ctx.stats.distractionsUsed++;
+    ctx.patterns.note('distract:screen');
     ctx.discover('mechanic-decoy');
   },
 
@@ -203,17 +191,8 @@ const BEHAVIORS: Partial<Record<string, ObjectBehavior>> = {
     obj.stateTimer = 7;
     obj.revertTo = 'off';
     setLights(obj, ctx, true);
-    ctx.cursor.spawnDecoy({
-      pattern: 'CLICKING',
-      x: obj.x,
-      y: obj.y - 4,
-      duration: 7,
-      potency: 0.75,
-      noise: 1,
-      radius: 14,
-      sourceId: obj.id,
-    });
-    ctx.stats.decoysUsed++;
+    ctx.noise.emit(obj.x, obj.y, 5, 'radio', false);
+    ctx.stats.distractionsUsed++;
     ctx.patterns.note('decoy:terminal');
     ctx.discover('object-computer');
     ctx.discover('mechanic-decoy');
@@ -224,45 +203,20 @@ const BEHAVIORS: Partial<Record<string, ObjectBehavior>> = {
     obj.stateTimer = 8.5;
     obj.revertTo = 'off';
     setLights(obj, ctx, true);
-    // Throw the fake cursor away from the player, deeper into the room.
-    const towardCentre = ctx.player.x < VIEW.width * 0.5 ? 1 : -1;
-    const tx = clamp(obj.x + towardCentre * 180, 70, VIEW.width - 70);
-    const ty = clamp(obj.y + ctx.rng.range(-50, 50), 70, VIEW.height - 70);
-    ctx.cursor.spawnDecoy({
-      pattern: 'MOVING',
-      x: tx,
-      y: ty,
-      duration: 8.5,
-      potency: 1,
-      noise: 0,
-      radius: 76,
-      sourceId: obj.id,
-    });
-    ctx.stats.decoysUsed++;
+    // It screams light and noise across the room. Be elsewhere while it does.
+    ctx.noise.emit(obj.x, obj.y, 7, 'radio', false);
+    ctx.stats.distractionsUsed++;
     ctx.patterns.note('decoy:projector');
     ctx.discover('object-projector');
     ctx.discover('mechanic-decoy');
-    ctx.bus.emit('TOAST', { text: 'IT IS WATCHING SOMETHING ELSE', tone: 'cool' });
+    ctx.bus.emit('TOAST', { text: 'IT IS LISTENING TO SOMETHING ELSE', tone: 'cool' });
   },
 
   MIRROR: (obj, ctx) => {
     obj.setState(obj.state === 'on' ? 'off' : 'on');
-    if (obj.state === 'off') {
-      ctx.cursor.removeDecoysFrom(obj.id);
-      return;
-    }
-    // Angled light throws a reflection that something might mistake for you.
-    ctx.cursor.spawnDecoy({
-      pattern: 'STATIC',
-      x: obj.x + (obj.x < VIEW.width * 0.5 ? 120 : -120),
-      y: obj.y + 10,
-      duration: 10,
-      potency: 0.65,
-      noise: 0,
-      radius: 4,
-      sourceId: obj.id,
-    });
-    ctx.stats.decoysUsed++;
+    if (obj.state === 'off') return;
+    // The readout shows every hunter as a dot of hunger. Information, not bait.
+    ctx.stats.distractionsUsed++;
     ctx.patterns.note('decoy:mirror');
     ctx.discover('object-mirror');
   },
@@ -270,7 +224,9 @@ const BEHAVIORS: Partial<Record<string, ObjectBehavior>> = {
   KEY: (obj, ctx) => {
     takePickup(obj, ctx);
     ctx.player.inventory.add('key');
-    ctx.bus.emit('TOAST', { text: 'KEY', tone: 'cool' });
+    // Scavenged glass: every key found means one more throw.
+    ctx.player.bottles = Math.min(5, ctx.player.bottles + 1);
+    ctx.bus.emit('TOAST', { text: 'KEY  +1 BOTTLE', tone: 'cool' });
   },
 
   BOOK: (obj, ctx) => {
@@ -381,11 +337,12 @@ function revealContents(obj: WorldObject, ctx: InteractionContext): void {
 /**
  * Turns player intent into world change, and every world change into a noise.
  *
- * The rule that makes the game tick: a click is a tap on the world at the cursor.
- * Clicking nothing is still a sound. There is no free input.
+ * New horror rule: clicking is FREE to aim, but using something makes a real
+ * noise where IT stands. No more punishment clicks on empty air — the fear
+ * comes from chases, darkness and sound, not from the UI biting you.
  */
 export class InteractionSystem {
-  /** The object the cursor is currently over, for hover feedback. */
+  /** The object the aim reticle is currently over, for hover feedback. */
   hovered: WorldObject | null = null;
   /** The object a timed interaction is running on. */
   busyObject: WorldObject | null = null;
@@ -398,10 +355,9 @@ export class InteractionSystem {
     return this.ctx.stats;
   }
 
-  /** Left click: act on whatever is under the cursor, or disturb empty air. */
+  /** Left click: act on whatever is under the aim. Empty air = nothing. */
   handleClick(x: number, y: number, button: number): void {
     const ctx = this.ctx;
-    ctx.stats.clicks++;
     const target = ctx.room.objectAt(x, y);
 
     ctx.bus.emit('CURSOR_CLICKED', {
@@ -417,24 +373,23 @@ export class InteractionSystem {
       return;
     }
 
+    // Clicking empty floor throws a bottle lure there (if you carry one).
+    // The mouse is an aiming tool now — never a liability, never free noise.
     if (!target) {
-      // A click on nothing is still a sound at the cursor. This is the rule that
-      // makes players flinch before they click.
-      ctx.cursor.registerClick(CURSOR.emptyClickNoise);
-      ctx.noise.emit(x, y, CURSOR.emptyClickNoise, 'tick', true);
-      ctx.discover('mechanic-click-noise');
+      ctx.bus.emit('THROW_REQUESTED', { x, y });
       return;
     }
 
+    ctx.stats.clicks++;
     this.tryInteract(target, 'cursor');
   }
 
-  /** E key: act on the nearest thing, without putting the cursor anywhere near it. */
+  /** E key: act on the nearest thing. The bread-and-butter interaction. */
   handleKeyInteract(): void {
     const ctx = this.ctx;
     const near = ctx.room.nearestInteractable(ctx.player.x, ctx.player.y, PLAYER.reach + 10);
     if (!near) return;
-    ctx.discover('mechanic-blind-reach');
+    ctx.stats.clicks++;
     this.tryInteract(near, 'key');
   }
 
@@ -473,9 +428,7 @@ export class InteractionSystem {
     this.lastRefusal = { reason, at: performance.now() };
     this.ctx.bus.emit('OBJECT_BLOCKED', { objectId: obj.id, reason });
     if (reason === 'out-of-reach') {
-      // The cursor reached, the body did not. Still a sound where you pointed.
-      this.ctx.noise.emit(this.ctx.cursor.x, this.ctx.cursor.y, CURSOR.emptyClickNoise, 'tick', true);
-      this.ctx.cursor.registerClick(CURSOR.emptyClickNoise);
+      // The aim reached, the body did not. Get closer — no free interaction.
       this.ctx.discover('mechanic-reach');
     }
   }
@@ -497,7 +450,6 @@ export class InteractionSystem {
 
     const level = obj.def.clickNoise;
     if (level > 0) {
-      ctx.cursor.registerClick(Math.min(level, 6));
       ctx.noise.emit(obj.x, obj.y, level, obj.def.noiseKind, true);
     }
     if (level >= 5) ctx.discover('mechanic-loud-click');

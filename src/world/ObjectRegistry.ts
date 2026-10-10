@@ -322,7 +322,7 @@ const DEFS: ObjectDefinition[] = [
     loopNoise: { state: 'on', level: 5, interval: 0.9, kind: 'radio' },
   }),
 
-  // --- attention fakers ------------------------------------------------------
+  // --- screaming machines (cover noise + false echoes) ---------------------------
   def({
     kind: 'PROJECTOR',
     label: 'Projector',

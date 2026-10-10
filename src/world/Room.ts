@@ -230,7 +230,7 @@ export class Room {
     return this.enemies.find((e) => e.tag === tag);
   }
 
-  /** 0..1 light level, which is how legible attention is at that spot. */
+  /** 0..1 light level, which is how visible a body is at that spot. */
   lightAt(x: number, y: number): number {
     let total = this.def.ambient;
     for (let i = 0; i < this.lights.length; i++) {

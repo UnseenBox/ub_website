@@ -21,14 +21,14 @@ export interface ModifierDef {
 }
 
 export const MODIFIERS: readonly ModifierDef[] = [
-  { id: 'NO_CLICKING', name: 'No Clicking', note: 'One click and the room is over. Use E.', scoreScale: 1.5 },
-  { id: 'JUMPY_CURSOR', name: 'Jumpy Cursor', note: 'Your movement reads as far more agitated than it is.', scoreScale: 1.35 },
+  { id: 'NO_CLICKING', name: 'No Clicking', note: 'Mouse clicks end the run. Throw with Q, use with E.', scoreScale: 1.5 },
+  { id: 'JUMPY_CURSOR', name: 'Nerves', note: 'Your body reads as far more exposed than it is.', scoreScale: 1.35 },
   { id: 'LONG_MEMORY', name: 'Long Memory', note: 'Creatures forget half as quickly.', scoreScale: 1.4 },
   { id: 'NO_LIGHT', name: 'Lights Out', note: 'The room starts dark and stays dark.', scoreScale: 1.3 },
   { id: 'EXTRA_WATCHER', name: 'One More', note: 'An additional Watcher is posted in the room.', scoreScale: 1.45 },
   { id: 'NO_HIDING', name: 'Nowhere To Go', note: 'Hiding spots are welded shut.', scoreScale: 1.25 },
   { id: 'ONE_LIFE', name: 'One Life', note: 'A single detection ends the run.', scoreScale: 1.6 },
-  { id: 'ALWAYS_VISIBLE', name: 'Lit Up', note: 'Darkness no longer hides your attention.', scoreScale: 1.2 },
+  { id: 'ALWAYS_VISIBLE', name: 'Lit Up', note: 'Darkness no longer hides your body.', scoreScale: 1.2 },
 ];
 
 const BY_ID = new Map(MODIFIERS.map((m) => [m.id, m]));

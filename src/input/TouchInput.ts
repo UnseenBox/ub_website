@@ -3,13 +3,13 @@ import type { ActionState, InputBackend, PointerMapper, PointerState } from './I
 /**
  * Touch backend scaffold.
  *
- * On a touch device the whole premise changes: there is no hovering cursor, so
- * the mobile design is "drag a floating attention marker with one thumb, walk
- * with a virtual stick under the other". The plumbing for that lives here so no
+ * On a touch device the mouse is gone, so the mobile design is "drag a floating
+ * aim marker with one thumb (flashlight + interaction target), walk with a
+ * virtual stick under the other". The plumbing for that lives here so no
  * gameplay system needs to change. On desktop this backend contributes nothing.
  *
  * Current behaviour: a two-finger layout where the left half of the screen acts
- * as a relative stick and the right half drags the attention marker. It is wired
+ * as a relative stick and the right half drags the aim marker. It is wired
  * up but deliberately not tuned, and desktop remains the first-class target.
  */
 export class TouchInput implements InputBackend {

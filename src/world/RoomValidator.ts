@@ -15,10 +15,10 @@ const CELL = 10;
 /**
  * Gate every generated room before it is playable.
  *
- * Note what is *not* checked: whether the player can avoid being noticed. In this
- * game creatures never track the body, so any route the body can walk is a route
- * the cursor can be kept away from. Reachability is therefore the real constraint,
- * and pretending otherwise would be theatre.
+ * Note what is *not* checked: whether the player can avoid being noticed.
+ * Stealth is the player's skill (light, noise, cover), not the map's promise.
+ * Reachability is therefore the real constraint, and pretending otherwise
+ * would be theatre.
  */
 export function validateRoom(def: RoomDefinition): ValidationResult {
   const problems: string[] = [];

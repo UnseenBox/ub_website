@@ -21,11 +21,11 @@ export interface DecoySpec {
 }
 
 /**
- * A fake cursor.
+ * A machine echo: a screaming projector, terminal, or mirror shard.
  *
- * It satisfies the same AttentionSource interface as the player's real cursor,
- * which is the whole trick: an enemy that does not check `isReal` cannot tell the
- * difference, and one that does check is immune. No special-casing anywhere else.
+ * It satisfies the same AttentionSource interface as the player's body,
+ * which is the whole trick: an enemy that does not check `isReal` cannot tell
+ * the difference, and one that does check is immune. No special-casing anywhere else.
  */
 export class CursorDecoy implements AttentionSource {
   readonly id: string;

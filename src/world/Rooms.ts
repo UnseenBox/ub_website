@@ -27,20 +27,19 @@ const RIGHT = 0;
 /**
  * ROOM 1 - the first room.
  *
- * Teaches the only rule that matters, and teaches it by letting the player walk
- * right past the creature untouched before they ever move the cursor near it.
+ * Teaches the only rule that matters: monsters hunt the body, not the mouse.
  * The key sits inside the Watcher's awareness radius but behind its gaze, so
- * there are at least three honest answers: reach for it blind with E, ring the
- * phone first, or kill the lights.
+ * there are at least three honest answers: sneak with C, ring the phone
+ * first, or kill the lights.
  */
 const ROOM_1: RoomDefinition = {
   id: 'room-01',
   name: 'Room With One Door',
-  teaches: 'Attention is what it hunts.',
+  teaches: 'Light, noise and motion are what it hunts.',
   brief: 'TAKE THE KEY. GET OUT.',
-  ambient: 0.2,
+  ambient: 0.16,
   parTime: 45,
-  intro: ['IT CANNOT SEE YOU.', 'NOT YOUR FACE.', 'NOT YOUR BODY.', 'YOUR ATTENTION.'],
+  intro: ['IT SEES YOUR BODY.', 'IT HEARS YOUR STEPS.', 'IT CATCHES YOUR LIGHT.'],
   playerSpawn: { x: 92, y: 462 },
   walls: [...frame(), wall(300, T, 18, 118), wall(620, 394, 18, 118)],
   lights: [
@@ -58,6 +57,7 @@ const ROOM_1: RoomDefinition = {
     { kind: 'BOTTLE', id: 'bottle-1', x: 366, y: 300 },
     { kind: 'BOOK', id: 'book-1', x: 500, y: 86 },
     { kind: 'CHAIR', id: 'chair-1', x: 566, y: 362 },
+    { kind: 'LOCKER', id: 'locker-1', x: 130, y: 150, hint: 'HIDE' },
   ],
   enemies: [{ kind: 'WATCHER', x: 690, y: 232, facing: LEFT, tag: 'watcher' }],
   objective: {
@@ -67,22 +67,26 @@ const ROOM_1: RoomDefinition = {
     exitId: 'exit-1',
   },
   secrets: ['book-1'],
+  blood: [
+    { x: 620, y: 330, size: 16, seed: 11 },
+    { x: 250, y: 200, size: 9, seed: 12 },
+  ],
 };
 
 /**
  * ROOM 2 - the desk.
  *
- * The body can walk the whole room freely. The cursor cannot: the only short
- * path crosses the Watcher's gaze, and the lesson is that going round is cheap.
+ * The body must cross the room while the Watcher faces the only short path.
+ * Going round is cheap, and darkness is cheaper.
  */
 const ROOM_2: RoomDefinition = {
   id: 'room-02',
-  name: 'The Desk',
-  teaches: 'Where you point matters more than how close you are.',
-  brief: 'GET TO THE OTHER SIDE.',
-  ambient: 0.24,
+  name: 'The Desk Ward',
+  teaches: 'Flank its gaze cone — never cross the beam.',
+  brief: 'GET TO THE OTHER SIDE UNSEEN.',
+  ambient: 0.2,
   parTime: 38,
-  intro: ['IT IS FACING THE DOOR.', 'SO DO NOT GO THROUGH THE DOOR WITH YOUR EYES.'],
+  intro: ['IT IS FACING THE DOOR.', 'SO DO NOT WALK THROUGH ITS GAZE.'],
   playerSpawn: { x: 92, y: 110 },
   walls: [...frame(), wall(318, T, 18, 196), wall(318, 348, 18, 164), wall(600, 120, 18, 300)],
   lights: [
@@ -102,6 +106,7 @@ const ROOM_2: RoomDefinition = {
   enemies: [{ kind: 'WATCHER', x: 700, y: 268, facing: LEFT, tag: 'watcher' }],
   objective: { kind: 'REACH_EXIT', label: 'GET OUT', exitId: 'exit-1' },
   secrets: ['book-1'],
+  blood: [{ x: 380, y: 300, size: 10 }],
 };
 
 /**
@@ -113,12 +118,12 @@ const ROOM_2: RoomDefinition = {
  */
 const ROOM_3: RoomDefinition = {
   id: 'room-03',
-  name: 'The Lock',
-  teaches: 'Using something makes a sound where it stands.',
-  brief: 'THROW THE SWITCH. GET OUT.',
-  ambient: 0.2,
+  name: 'The Lock Ward',
+  teaches: 'Using things is loud. Lure it away first.',
+  brief: 'THROW THE SWITCH. THEN RUN.',
+  ambient: 0.16,
   parTime: 50,
-  intro: ['THE SWITCH IS LOUD.', 'IT IS STANDING RIGHT NEXT TO IT.'],
+  intro: ['THE SWITCH IS LOUD.', 'IT IS STANDING RIGHT NEXT TO IT.', 'THROW A BOTTLE FIRST.'],
   playerSpawn: { x: 92, y: 470 },
   walls: [...frame(), wall(T, 250, 230, 18), wall(430, 120, 18, 240), wall(600, 392, 300, 18)],
   lights: [
@@ -139,6 +144,10 @@ const ROOM_3: RoomDefinition = {
   enemies: [{ kind: 'WATCHER', x: 700, y: 180, facing: DOWN, tag: 'watcher' }],
   objective: { kind: 'REACH_EXIT', label: 'OPEN THE WAY OUT', exitId: 'exit-1' },
   secrets: ['toy-1'],
+  blood: [
+    { x: 650, y: 360, size: 12 },
+    { x: 180, y: 200, size: 7 },
+  ],
 };
 
 /**
@@ -150,12 +159,12 @@ const ROOM_3: RoomDefinition = {
  */
 const ROOM_4: RoomDefinition = {
   id: 'room-04',
-  name: 'Kennel',
-  teaches: 'Some of them only read how fast you moved.',
-  brief: 'TAKE THE KEY. SLOWLY.',
-  ambient: 0.18,
+  name: 'Kennel of Teeth',
+  teaches: 'The Hound hunts footsteps. Sneak, never sprint.',
+  brief: 'TAKE THE KEY. MAKE NO SOUND.',
+  ambient: 0.13,
   parTime: 55,
-  intro: ['THIS ONE DOES NOT WATCH.', 'IT LISTENS TO YOUR HAND.'],
+  intro: ['THIS ONE IS BLIND.', 'IT HEARS YOUR FEET.'],
   playerSpawn: { x: 92, y: 474 },
   walls: [...frame(), wall(240, T, 18, 170), wall(240, 330, 18, 182), wall(690, 170, 18, 200)],
   lights: [
@@ -188,22 +197,26 @@ const ROOM_4: RoomDefinition = {
   ],
   objective: { kind: 'STEAL_AND_EXIT', label: 'TAKE THE KEY', items: ['key'], exitId: 'exit-1' },
   secrets: ['book-1'],
+  blood: [
+    { x: 470, y: 380, size: 15, seed: 41 },
+    { x: 780, y: 200, size: 8, seed: 42 },
+  ],
 };
 
 /**
  * ROOM 5 - do not wake it.
  *
- * The key is on the sleeper's own table. Hovering is what kills you here, not
- * proximity, so the clean answer is to stand beside it and reach without looking.
+ * The key is on the sleeper's own table. Footsteps and torchlight wake it, so
+ * the clean answer is to kill the torch, sneak in, grab, and back out.
  */
 const ROOM_5: RoomDefinition = {
   id: 'room-05',
   name: 'Do Not Wake It',
-  teaches: 'Holding still is not the same as being safe.',
+  teaches: 'Sneak past sleepers. Light and loitering wake them.',
   brief: 'TAKE THE KEY OFF ITS TABLE.',
-  ambient: 0.14,
+  ambient: 0.1,
   parTime: 50,
-  intro: ['IT IS ASLEEP.', 'PROBABLY.'],
+  intro: ['IT IS ASLEEP.', 'PROBABLY.', 'KILL YOUR TORCH. HOLD C.'],
   playerSpawn: { x: 92, y: 430 },
   walls: [...frame(), wall(T, 160, 190, 18), wall(740, 160, 192, 18), wall(470, 360, 18, 152)],
   lights: [
@@ -234,20 +247,21 @@ const ROOM_5: RoomDefinition = {
     },
   ],
   secrets: ['book-1'],
+  blood: [{ x: 560, y: 420, size: 11, seed: 51 }],
 };
 
 /**
  * ROOM 6 - two of them.
  *
- * The Scout cannot hurt you. It walks a long patrol, finds your attention, and
+ * The Scout cannot hurt you. It walks a long patrol, spots your body, and
  * tells the Watcher, which is the first time one mistake costs two creatures.
  */
 const ROOM_6: RoomDefinition = {
   id: 'room-06',
-  name: 'Two Of Them',
-  teaches: 'One of them does not catch you. It tells.',
-  brief: 'FIND THE KEY. GET OUT.',
-  ambient: 0.2,
+  name: 'Two Hungers',
+  teaches: 'The Scout spots you and screams for the killer.',
+  brief: 'FIND THE KEY. BREAK LINE OF SIGHT.',
+  ambient: 0.16,
   parTime: 70,
   intro: ['THE SMALL ONE CANNOT HURT YOU.', 'IT DOES NOT HAVE TO.'],
   playerSpawn: { x: 92, y: 470 },
@@ -290,22 +304,24 @@ const ROOM_6: RoomDefinition = {
   ],
   objective: { kind: 'STEAL_AND_EXIT', label: 'FIND THE KEY', items: ['key'], exitId: 'exit-1' },
   secrets: ['toy-1'],
+  blood: [{ x: 500, y: 250, size: 12, seed: 61 }],
 };
 
 /**
  * ROOM 7 - lights.
  *
- * Killing the power halves how legible your attention is, and the Mirror has a
- * gaze like a razor. The catch is that the dark also hides the room from you.
+ * Killing the power halves how visible your body is, and the Mirror has a gaze
+ * like a razor. The catch is that the dark also hides the room from you — that
+ * is what the torch is for, and the torch is also the risk.
  */
 const ROOM_7: RoomDefinition = {
   id: 'room-07',
-  name: 'Lights',
-  teaches: 'The dark does not hide you. It only blurs you.',
-  brief: 'CUT THE POWER. GET OUT.',
-  ambient: 0.16,
+  name: 'Blackout Gallery',
+  teaches: 'Darkness hides you. The Mirror still sees light.',
+  brief: 'CUT THE POWER. CROSS IN DARKNESS.',
+  ambient: 0.12,
   parTime: 65,
-  intro: ['SOMETHING HERE ONLY TURNS.', 'IT IS VERY GOOD AT IT.'],
+  intro: ['SOMETHING HERE ONLY TURNS.', 'ITS GAZE CUTS THROUGH TORCHLIGHT.'],
   playerSpawn: { x: 92, y: 470 },
   walls: [...frame(), wall(260, 140, 18, 240), wall(420, T, 18, 120), wall(620, 300, 240, 18)],
   lights: [
@@ -331,6 +347,7 @@ const ROOM_7: RoomDefinition = {
   objective: { kind: 'POWER_OFF', label: 'CUT THE POWER', exitId: 'exit-1' },
   events: [{ kind: 'WHISPER', at: 12, text: 'IT KNOWS YOU ARE LOOKING FOR THE SWITCH' }],
   secrets: ['book-1'],
+  blood: [{ x: 300, y: 350, size: 10, seed: 71 }],
 };
 
 /**
@@ -341,12 +358,12 @@ const ROOM_7: RoomDefinition = {
  */
 const ROOM_8: RoomDefinition = {
   id: 'room-08',
-  name: 'Static',
-  teaches: 'Noise you control is still noise.',
-  brief: 'THROW BOTH SWITCHES. GET OUT.',
-  ambient: 0.19,
+  name: 'Static Corridor',
+  teaches: 'Two switches, two hunters. Bottles save lives.',
+  brief: 'THROW BOTH SWITCHES. DO NOT SPRINT.',
+  ambient: 0.14,
   parTime: 85,
-  intro: ['TWO SWITCHES.', 'TWO OF THEM.'],
+  intro: ['TWO SWITCHES.', 'TWO OF THEM.', 'YOU HAVE BOTTLES. USE THEM.'],
   playerSpawn: { x: 92, y: 270 },
   walls: [
     ...frame(),
@@ -407,22 +424,23 @@ const ROOM_8: RoomDefinition = {
     exitId: 'exit-1',
   },
   secrets: ['toy-1'],
+  blood: [{ x: 560, y: 330, size: 13, seed: 81 }],
 };
 
 /**
  * ROOM 9 - the projection.
  *
- * The key is sitting in the Watcher's gaze with a Mirror covering the approach.
- * The projector makes attention that is not yours, and that is the whole answer.
+ * The key sits in the Watcher's gaze with a Mirror covering the approach.
+ * The old machines scream on their own timers — move while they cover you.
  */
 const ROOM_9: RoomDefinition = {
   id: 'room-09',
-  name: 'The Projection',
-  teaches: 'Attention does not have to be yours.',
-  brief: 'TAKE THE KEY. GET OUT.',
-  ambient: 0.17,
+  name: 'The Projection Hall',
+  teaches: 'Machines make noise that is not you. Spend it.',
+  brief: 'TAKE THE KEY. LET THE MACHINES COVER YOU.',
+  ambient: 0.13,
   parTime: 80,
-  intro: ['YOU CAN MAKE ONE OF THESE TOO.'],
+  intro: ['THE OLD MACHINES STILL SCREAM.', 'MOVE WHILE THEY DO.'],
   playerSpawn: { x: 92, y: 270 },
   walls: [...frame(), wall(300, T, 18, 160), wall(300, 356, 18, 156), wall(560, 160, 18, 220)],
   lights: [
@@ -433,7 +451,7 @@ const ROOM_9: RoomDefinition = {
   objects: [
     { kind: 'EXIT', id: 'exit-1', x: 905, y: 470, requires: 'key' },
     { kind: 'KEY', id: 'key-1', x: 862, y: 180 },
-    { kind: 'PROJECTOR', id: 'proj-1', x: 200, y: 466, lights: ['proj'], hint: 'THROWS A CURSOR' },
+    { kind: 'PROJECTOR', id: 'proj-1', x: 200, y: 466, lights: ['proj'], hint: 'LOUD COVER' },
     { kind: 'COMPUTER', id: 'pc-1', x: 150, y: 120 },
     { kind: 'MIRROR', id: 'mirror-1', x: 620, y: 466 },
     { kind: 'DESK', id: 'desk-1', x: 760, y: 120 },
@@ -447,6 +465,7 @@ const ROOM_9: RoomDefinition = {
   ],
   objective: { kind: 'STEAL_AND_EXIT', label: 'TAKE THE KEY', items: ['key'], exitId: 'exit-1' },
   secrets: ['book-1'],
+  blood: [{ x: 700, y: 400, size: 12, seed: 91 }],
 };
 
 /**
@@ -457,10 +476,10 @@ const ROOM_9: RoomDefinition = {
  */
 const ROOM_10: RoomDefinition = {
   id: 'room-10',
-  name: 'Everything',
-  teaches: 'You know the language now.',
-  brief: 'KEY. DOOR. OUT.',
-  ambient: 0.15,
+  name: 'Everything Hungry',
+  teaches: 'You know the language now. So do they.',
+  brief: 'KEY. DOOR. OUT. DO NOT STOP.',
+  ambient: 0.11,
   parTime: 110,
   intro: ['YOU KNOW HOW THIS WORKS NOW.', 'THEY KNOW THAT YOU KNOW.'],
   playerSpawn: { x: 92, y: 480 },
@@ -514,22 +533,26 @@ const ROOM_10: RoomDefinition = {
     { kind: 'WHISPER', at: 20, text: 'ONE OF THEM IS NOT ASLEEP' },
   ],
   secrets: ['book-1'],
+  blood: [
+    { x: 250, y: 350, size: 14, seed: 101 },
+    { x: 800, y: 200, size: 9, seed: 102 },
+  ],
 };
 
 /**
  * ROOM 11 - the analyst.
  *
- * It walks to where your attention lingered rather than where it is, and it
- * counts your habits. The second phone call works noticeably worse than the first.
+ * It remembers the paths bodies take and stops falling for reused tricks.
+ * The second bottle thrown from the same corner works worse than the first.
  */
 const ROOM_11: RoomDefinition = {
   id: 'room-11',
-  name: 'The Analyst',
-  teaches: 'It is keeping score of your habits.',
-  brief: 'THREE SWITCHES. THEN OUT.',
-  ambient: 0.18,
+  name: 'The Analyst Pit',
+  teaches: 'It learns your routes. Never run the same line twice.',
+  brief: 'THREE SWITCHES. VARY YOUR PATH.',
+  ambient: 0.14,
   parTime: 100,
-  intro: ['IT HAS SEEN YOUR TRICKS.', 'ALL OF THEM.'],
+  intro: ['IT HAS SEEN YOUR TRICKS.', 'ALL OF THEM.', 'SO CHANGE THEM.'],
   playerSpawn: { x: 92, y: 270 },
   walls: [
     ...frame(),
@@ -577,23 +600,23 @@ const ROOM_11: RoomDefinition = {
     exitId: 'exit-1',
   },
   secrets: ['book-1'],
+  blood: [{ x: 480, y: 380, size: 12, seed: 111 }],
 };
 
 /**
- * ROOM 12 - it wants to be seen.
+ * ROOM 12 - it hungers in the dark.
  *
- * The Parasite is provoked by being ignored and soothed by being looked at,
- * which inverts everything learned so far, and the Mimic is throwing cursors
- * that are not yours.
+ * The Parasite rules shadow and is soothed by torchlight, which inverts the
+ * darkness habit, and the Mimic fakes footsteps that are not yours.
  */
 const ROOM_12: RoomDefinition = {
   id: 'room-12',
-  name: 'It Wants To Be Seen',
-  teaches: 'Some of them are offended by being ignored.',
-  brief: 'TAKE THE KEY. GET OUT.',
-  ambient: 0.14,
+  name: 'It Hungers in the Dark',
+  teaches: 'The Parasite rules shadow. Torch on, bottles out.',
+  brief: 'TAKE THE KEY. FEAR THE DARK.',
+  ambient: 0.09,
   parTime: 95,
-  intro: ['ONE OF THEM WANTS YOUR ATTENTION.', 'GIVE IT.'],
+  intro: ['ONE OF THEM RULES THE DARK.', 'KEEP YOUR TORCH LIT.'],
   playerSpawn: { x: 92, y: 470 },
   walls: [...frame(), wall(300, 200, 18, 312), wall(560, T, 18, 240), wall(700, 330, 232, 18)],
   lights: [
@@ -617,8 +640,12 @@ const ROOM_12: RoomDefinition = {
     { kind: 'MIMIC', x: 780, y: 420, facing: UP, tag: 'mimic' },
   ],
   objective: { kind: 'STEAL_AND_EXIT', label: 'TAKE THE KEY', items: ['key'], exitId: 'exit-1' },
-  events: [{ kind: 'SECOND_CURSOR', at: 14, a: 7, text: 'THERE ARE TWO NOW' }],
+  events: [{ kind: 'SECOND_CURSOR', at: 14, a: 7, text: 'SOMETHING ELSE IS IN HERE' }],
   secrets: ['toy-1'],
+  blood: [
+    { x: 300, y: 400, size: 16, seed: 121 },
+    { x: 700, y: 150, size: 10, seed: 122 },
+  ],
 };
 
 export const ROOMS: readonly RoomDefinition[] = [

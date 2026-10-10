@@ -1,9 +1,9 @@
-import { CURSOR } from '../core/Tuning';
-import { angleDelta, clamp, clamp01, invLerp } from '../core/Mathx';
+import { LIGHT } from '../core/Tuning';
+import { angleDelta, clamp, clamp01 } from '../core/Mathx';
 import type { Rect } from '../core/Mathx';
 import { isBlocked } from '../stealth/LineOfSight';
-import { pointingFactor, type AttentionSource } from '../stealth/AttentionSystem';
-import type { AwarenessProfile } from './EnemyDefinition';
+import type { AttentionSource } from '../stealth/AttentionSystem';
+import type { AwarenessProfile } from '../enemies/EnemyDefinition';
 
 export interface AwarenessInputs {
   x: number;
@@ -11,17 +11,19 @@ export interface AwarenessInputs {
   facing: number;
   profile: AwarenessProfile;
   blockers: readonly Rect[];
+  /** 0..1 flashlight glare on this creature this step. Provocation. */
+  glare?: number;
 }
 
 export interface SourceReading {
   source: AttentionSource | null;
-  /** Raw pressure in roughly 0..1.6. Negative means the source is soothing. */
+  /** Raw pressure in roughly 0..1.6. */
   pressure: number;
-  /** True when the source is inside the awareness radius with a clear line. */
+  /** True when the body is inside the awareness radius with a clear line. */
   inRadius: boolean;
   visible: boolean;
   distance: number;
-  /** Debug breakdown, so the overlay can explain exactly why you are in trouble. */
+  /** Debug breakdown. */
   proximity: number;
   pointing: number;
   speed: number;
@@ -45,11 +47,16 @@ const EMPTY: SourceReading = {
 };
 
 /**
- * Score one attention source against one creature.
+ * Score the PLAYER'S BODY against one creature.
  *
- * This function is the game. It never looks at the player's body: it reads where
- * attention is, which way it is aimed, how agitated it is, how long it has sat
- * still, and whether the creature could see it from where it stands.
+ * New horror model — no cursor:
+ *   proximity = inverse-square closeness, scaled by body visibility (light)
+ *   pointing  = flashlight glare (shining the beam at it)
+ *   speed     = movement agitation (sprint feeds everything)
+ *   dwell     = standing exposed in the light too long
+ *   neglect   = unused (kept for save compat, always 0)
+ *
+ * Darkness blurs but never erases. Hiding zeroes potency upstream.
  */
 export function evaluateSource(
   e: AwarenessInputs,
@@ -73,73 +80,61 @@ export function evaluateSource(
   out.visible = false;
   out.pressure = 0;
 
+  if (src.potency <= 0) return out;
   if (d > p.farRadius) return out;
 
   const visible = !p.requiresLineOfSight || !isBlocked(e.blockers, e.x, e.y, src.x, src.y);
   out.visible = visible;
   if (!visible) return out;
 
-  // Is the source inside the creature's own gaze cone? Most creatures are much
-  // duller to anything behind them, which is what makes flanking a real option.
+  // Gaze cone of the creature itself: flanking still matters.
   const angleTo = Math.atan2(dy, dx);
   const offAxis = Math.abs(angleDelta(e.facing, angleTo));
   const inCone = offAxis <= p.gazeAngle;
-  // Soften the cone edge so the boundary is not a tripwire.
   const coneEdge = 1 - clamp01((offAxis - p.gazeAngle) / 0.5);
   const coneMul = inCone ? p.gazeBonus : p.blindMultiplier + (p.gazeBonus - p.blindMultiplier) * coneEdge * 0.35;
   out.coneMultiplier = coneMul;
 
-  // DISTANCE: how close attention has come. An inverse-square falloff rather
-  // than a smoothstep, so the whole radius feels live instead of only the last
-  // few pixels: half way in is already a third of the pressure.
+  // DISTANCE × LIGHT: closeness only counts if it can actually see you.
   const ratio = d / p.awarenessRadius;
-  const proximity = clamp01(1 - ratio * ratio);
+  const proximityBase = clamp01(1 - ratio * ratio);
+  const lightGate = Math.max(LIGHT.minVisibility, src.visibility);
+  const proximity = proximityBase * (0.3 + 0.7 * lightGate);
   out.proximity = proximity;
-  const nearness = proximity;
   out.inRadius = d <= p.awarenessRadius;
 
-  // DIRECTION: is the cursor aimed at it? Falls off with range but never to zero.
-  const pointing = pointingFactor(src, e.x, e.y, p.bodyRadius);
-  const pointRange = 0.25 + 0.75 * clamp01(1 - d / p.farRadius);
-  out.pointing = pointing * pointRange;
+  // FLASHLIGHT GLARE: beam in its face.
+  const glare = clamp01(e.glare ?? 0);
+  out.pointing = glare;
 
-  // MOVEMENT: agitation. Weighted toward things happening close by, but a
-  // panicking hand is legible from across a room, which is the Hound's whole point.
-  const speedTerm = src.movementIntensity * (0.45 + 0.55 * nearness);
+  // MOVEMENT: sprinting is legible from far away.
+  const speedTerm = src.movementIntensity * (0.45 + 0.55 * proximityBase);
   out.speed = speedTerm;
 
-  // DWELL: holding attention unnaturally still in one place.
-  const dwellTerm =
-    clamp01(invLerp(CURSOR.dwellGrace, CURSOR.dwellFull, src.dwellTime)) * (0.25 + 0.75 * nearness);
+  // DWELL: standing still inside its radius, lit, for seconds.
+  const dwellRamp = clamp01((src.dwellTime - 1.4) / 2.4);
+  const dwellTerm = dwellRamp * (0.2 + 0.8 * proximityBase) * lightGate;
   out.dwell = dwellTerm;
-
-  // NEGLECT: the Parasite's inversion. Being pointedly ignored up close.
-  const neglect = p.neglectWeight > 0 ? (1 - pointing) * clamp01(1 - d / p.farRadius) : 0;
-  out.neglect = neglect;
 
   let raw =
     p.proximityWeight * proximity +
-    p.pointWeight * out.pointing +
+    p.pointWeight * glare +
     p.speedWeight * speedTerm +
-    p.dwellWeight * dwellTerm +
-    p.neglectWeight * neglect;
+    p.dwellWeight * dwellTerm;
 
   raw *= coneMul;
-  // Darkness does not erase attention, it only makes it harder to read.
-  raw *= src.visibility;
   raw *= src.potency;
 
-  // A creature that can tell a fake cursor from a real one is almost immune.
   if (!src.isReal && p.seesThroughDecoys) raw *= 0.08;
 
-  out.pressure = clamp(raw, -0.6, 1.8);
+  out.pressure = clamp(raw, 0, 1.8);
   return out;
 }
 
 /**
- * Pick the source that is currently provoking this creature most. Using the
- * maximum rather than a sum keeps behaviour legible: the creature is looking at
- * one thing, and that thing is the one it walks toward.
+ * Pick the source provoking this creature most. With the cursor gone there is
+ * normally exactly one real source (your body) plus thrown-bottle lures handled
+ * through the noise path.
  */
 export function strongestSource(
   e: AwarenessInputs,

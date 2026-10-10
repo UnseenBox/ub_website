@@ -26,7 +26,13 @@ export interface HudState {
   hint: string;
   carrying: boolean;
   sneaking: boolean;
+  sprinting: boolean;
+  exhausted: boolean;
   hidden: boolean;
+  health: number;
+  stamina: number;
+  bottles: number;
+  flashlight: boolean;
   threats: readonly ThreatMark[];
   modifiers: readonly string[];
 }
@@ -51,6 +57,10 @@ export class HUD {
   private readonly clock: HTMLElement;
   private readonly hint: HTMLElement;
   private readonly mods: HTMLElement;
+  private readonly vitals: HTMLElement;
+  private readonly hpFill: HTMLElement;
+  private readonly stFill: HTMLElement;
+  private readonly vitalsMeta: HTMLElement;
 
   private readonly sweep: SVGSVGElement;
   private readonly sweepMarks: SVGGElement;
@@ -61,6 +71,8 @@ export class HUD {
   private readonly keyIcon: HTMLElement;
   private readonly footIcon: HTMLElement;
   private readonly hiddenIcon: HTMLElement;
+  private readonly sprintIcon: HTMLElement;
+  private readonly torchIcon: HTMLElement;
 
   private lastHint = '';
 
@@ -139,14 +151,37 @@ export class HUD {
     this.footIcon.append(iconSvg(ICON_PATHS.foot, 20));
     this.hiddenIcon = el('span', 'hud-icon hide');
     this.hiddenIcon.append(iconSvg(ICON_PATHS.hidden, 24));
+    this.sprintIcon = el('span', 'hud-icon sprint');
+    this.sprintIcon.textContent = '»';
+    this.sprintIcon.title = 'Sprinting';
+    this.torchIcon = el('span', 'hud-icon torch');
+    this.torchIcon.textContent = '◉';
+    this.torchIcon.title = 'Flashlight';
 
-    icons.append(this.eyeIcon, this.footIcon, this.keyIcon, this.hiddenIcon);
+    icons.append(this.eyeIcon, this.footIcon, this.sprintIcon, this.keyIcon, this.hiddenIcon, this.torchIcon);
     this.mods = el('div', 'hud-mods');
     topRight.append(this.clock, icons, this.mods);
 
+    // --- vitals: health + stamina + bottles (bottom-left survival cluster) ---
+    this.vitals = el('div', 'hud-vitals');
+    const hpRow = el('div', 'vital-row hp');
+    hpRow.append(el('span', 'vital-tag', 'VIT'));
+    const hpBar = el('div', 'vital-bar');
+    this.hpFill = el('div', 'vital-fill');
+    hpBar.append(this.hpFill);
+    hpRow.append(hpBar);
+    const stRow = el('div', 'vital-row st');
+    stRow.append(el('span', 'vital-tag', 'RUN'));
+    const stBar = el('div', 'vital-bar');
+    this.stFill = el('div', 'vital-fill');
+    stBar.append(this.stFill);
+    stRow.append(stBar);
+    this.vitalsMeta = el('div', 'vitals-meta');
+    this.vitals.append(hpRow, stRow, this.vitalsMeta);
+
     this.hint = el('div', 'hud-hint');
 
-    this.root.append(sweepWrap, topLeft, topCentre, topRight, this.hint);
+    this.root.append(sweepWrap, topLeft, topCentre, topRight, this.vitals, this.hint);
     parent.append(this.root);
   }
 
@@ -161,12 +196,7 @@ export class HUD {
     this.clock.textContent = formatClock(s.seconds);
     this.mods.textContent = s.modifiers.join('  ');
 
-    const tone =
-      s.cursorState === 'PANICKING' || s.cursorState === 'DETECTED'
-        ? 'hot'
-        : s.cursorState === 'SUSPICIOUS'
-          ? 'warm'
-          : 'cool';
+    const tone = s.heat > 0.72 || s.detections > 0 && s.heat > 0.3 ? 'hot' : s.heat > 0.3 ? 'warm' : 'cool';
     this.root.dataset.tone = tone;
 
     // The eye widens with the worst awareness in the room.
@@ -175,8 +205,23 @@ export class HUD {
 
     this.keyIcon.dataset.on = String(s.carrying);
     this.footIcon.dataset.on = String(s.sneaking);
+    this.sprintIcon.dataset.on = String(s.sprinting);
+    this.sprintIcon.dataset.tired = String(s.exhausted);
     this.hiddenIcon.dataset.on = String(s.hidden);
+    this.torchIcon.dataset.on = String(s.flashlight);
     this.roomLabel.dataset.seen = s.detections > 0 ? 'true' : '';
+
+    // Vitals
+    const hp = clamp01(s.health);
+    this.hpFill.style.width = `${Math.round(hp * 100)}%`;
+    this.hpFill.dataset.low = hp < 0.4 ? 'true' : 'false';
+    const st = clamp01(s.stamina);
+    this.stFill.style.width = `${Math.round(st * 100)}%`;
+    this.stFill.dataset.low = s.exhausted ? 'true' : 'false';
+    const bottleTxt = s.bottles > 0 ? `◈ ${s.bottles}  Q TO THROW` : '◈ EMPTY';
+    const torchTxt = s.flashlight ? 'TORCH ON' : 'TORCH OFF';
+    this.vitalsMeta.textContent = `${bottleTxt}   ${torchTxt}`;
+    this.vitals.dataset.hurt = hp < 0.4 ? 'true' : 'false';
 
     this.drawThreats(s.threats);
 

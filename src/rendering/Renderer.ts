@@ -17,13 +17,16 @@ import {
   drawBlood,
   drawEnemyBody,
   drawEnemyEye,
+  drawFlashlightBeam,
   drawFloor,
+  drawHunterDrips,
   drawLightFixtures,
   drawNoise,
   drawObjectBody,
   drawObjectEmissive,
   drawPlayer,
   drawPlayerMarker,
+  drawVisionCone,
   drawWalls,
 } from './SceneArt';
 
@@ -147,6 +150,7 @@ export class Renderer {
     drawLightFixtures(ctx, room);
     drawBlood(ctx, room.blood);
     drawNoise(ctx, input.noise.ripples);
+    drawFlashlightBeam(ctx, input.player, room.tension);
 
     for (const e of room.enemies) {
       if (e.awareness > 0.3) {
@@ -156,12 +160,16 @@ export class Renderer {
       }
     }
 
+    // Gaze cones: see death coming, route around it.
+    for (const e of room.enemies) drawVisionCone(ctx, e);
+
     for (const o of room.objects) {
       drawObjectEmissive(ctx, o, hovered === o, input.player.canReach(o.x, o.y, o.def.reachBonus));
     }
     this.drawMirrorReadout(ctx, room);
 
     for (const e of room.enemies) drawEnemyEye(ctx, e);
+    for (const e of room.enemies) drawHunterDrips(ctx, e);
 
     drawPlayerMarker(ctx, input.player, input.time);
     this.drawReachRing(ctx, input);

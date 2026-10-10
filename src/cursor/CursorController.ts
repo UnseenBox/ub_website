@@ -9,9 +9,9 @@ import type { CursorStateName } from './CursorState';
 import { CursorTrail } from './CursorTrail';
 
 /**
- * Owns everything to do with the player's attention: the sensor that measures it,
- * the trail that shows where it has been, the decoys that imitate it, and the
- * state the custom cursor renders itself in.
+ * Owns the aim reticle: the sensor that tracks the mouse, the trail it leaves,
+ * the machine echoes that share its registry, and the reticle state rendered
+ * from room heat. Nothing hunts the mouse — it aims the flashlight and throws.
  */
 export class CursorController {
   readonly sensor = new CursorSensor();
@@ -19,11 +19,11 @@ export class CursorController {
   readonly decoys: CursorDecoy[] = [];
 
   state: CursorStateName = 'NORMAL';
-  /** 0..1+ worst awareness any enemy currently holds. Drives all cursor feedback. */
+  /** 0..1+ worst awareness any enemy currently holds. Drives reticle feedback. */
   heat = 0;
-  /** Smoothed heat, so the cursor's pulse does not stutter. */
+  /** Smoothed heat, so the reticle pulse does not stutter. */
   displayHeat = 0;
-  /** True while at least one enemy has the cursor inside its awareness radius. */
+  /** True while at least one enemy has your body inside its awareness radius. */
   exposed = false;
   /** True while something is actively chasing. */
   pursued = false;

@@ -1,10 +1,11 @@
-import { AWARENESS } from './Tuning';
+import { AWARENESS, PLAYER, THROW } from './Tuning';
 import { Rng, clamp01, dist, hashString } from './Mathx';
 import { EventBus } from './EventBus';
 import { FIXED_DT, GameLoop } from './GameLoop';
 import { InputManager } from '../input/InputManager';
 import { CursorController } from '../cursor/CursorController';
 import { AttentionSystem } from '../stealth/AttentionSystem';
+import { BodyAttention, flashlightGlare } from '../stealth/BodyAttention';
 import { Player } from '../player/Player';
 import { Enemy, type EnemyContext } from '../enemies/Enemy';
 import { EnemyCommunication } from '../enemies/EnemyCommunication';
@@ -38,7 +39,7 @@ import { UIManager } from '../ui/UIManager';
 import type { ThreatMark } from '../ui/HUD';
 import type { ScreenName, UICallbacks } from '../ui/Screens';
 
-type Mode = 'menu' | 'intro' | 'playing' | 'paused' | 'screen' | 'results' | 'dead' | 'mouse-lost';
+type Mode = 'menu' | 'intro' | 'playing' | 'paused' | 'screen' | 'results' | 'dead';
 
 interface RoomSession {
   def: RoomDefinition;
@@ -51,10 +52,11 @@ interface RoomSession {
 
 const NEAR_MISS_LINES = [
   'TOO CLOSE',
-  'IT ALMOST SAW YOU',
-  'NICE SAVE',
+  'IT ALMOST HAD YOU',
+  'NICE SAVE — RUN',
   'DO NOT DO THAT AGAIN',
   'YOU ARE GETTING CARELESS',
+  'BREATHE. KEEP MOVING.',
 ];
 
 /**
@@ -70,7 +72,9 @@ export class Game {
   private readonly renderer: Renderer;
   private readonly input: InputManager;
   private readonly attention = new AttentionSystem();
+  /** Aim reticle (mouse). No longer hunted — it aims your flashlight. */
   private readonly cursor: CursorController;
+  private readonly bodySource = new BodyAttention();
   private readonly player = new Player();
   private readonly noise: NoiseSystem;
   private readonly particles = new ParticleSystem();
@@ -114,6 +118,10 @@ export class Game {
   private readonly threats: ThreatMark[] = [];
   private killedBy = '';
   private audioUnlocked = false;
+  private bottleCooldown = 0;
+  /** Worst enemy awareness, smoothed — drives player panic, audio, HUD. */
+  private lastHeat = 0;
+  private readonly glareCache = new Map<string, number>();
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement, appRoot: HTMLElement) {
     this.renderer = new Renderer(canvas);
@@ -233,14 +241,21 @@ export class Game {
       this.save.noteDetection();
       this.killedBy = kind;
       this.noticeFlash = 1;
-      this.renderer.camera.kick(6);
-      this.renderer.camera.push(1.04);
+      this.renderer.camera.kick(7);
+      this.renderer.camera.push(1.05);
       this.audio.play('notice', { gain: 0.9 });
-      this.ui.toast('IT SEES YOU', 'hot');
-      this.analytics.track('cursor_detected', { kind, t: Math.round(this.roomTime) });
+      this.ui.toast('IT SEES YOU — RUN!', 'hot');
+      this.analytics.track('player_detected', { kind, t: Math.round(this.roomTime) });
       if (this.session?.modifiers.oneLife || this.objective?.forbidsDetection) {
         this.failRoom('ONE LOOK WAS ENOUGH');
       }
+    });
+
+    this.bus.on('PLAYER_HIT', ({ kind }) => {
+      this.renderer.camera.kick(9);
+      this.audio.play('fail', { gain: 0.55 });
+      this.ui.toast(this.player.health > 0 ? 'IT GOT YOU — MOVE!' : 'IT GOT YOU', 'hot');
+      this.analytics.track('player_hit', { kind, hp: Math.round(this.player.health) });
     });
 
     this.bus.on('PLAYER_ESCAPED_DETECTION', ({ enemyId }) => {
@@ -249,25 +264,17 @@ export class Game {
       this.discovery.find('mechanic-escape');
       this.audio.play('wake', { gain: 0.3 });
       this.ui.toast('IT LOST YOU', 'cool');
-      this.analytics.track('cursor_escape', {});
+      this.analytics.track('player_escape', {});
     });
 
-    this.bus.on('ENEMY_ALERTED', ({ enemyId, kind, source }) => {
+    this.bus.on('ENEMY_ALERTED', ({ kind }) => {
       this.audio.play('stinger', { gain: 0.25 });
       if (kind === 'SCOUT') this.discovery.find('scout-alert');
-      if (source === 'decoy') {
-        this.discovery.find('mechanic-decoy');
-        this.bus.emit('DECOY_FOOLED_ENEMY', { decoyId: 'unknown', enemyId });
-      }
     });
 
     this.bus.on('OBJECT_INTERACTED', ({ kind }) => {
       if (kind === 'KEY' || kind === 'BOOK' || kind === 'TOY') this.audio.play('pickup', { gain: 0.5 });
-    });
-
-    this.bus.on('DECOY_SPAWNED', ({ pattern, sourceId }) => {
-      this.audio.play('decoy', { gain: 0.35 });
-      this.analytics.track('decoy_used', { pattern, source: sourceId ?? 'none' });
+      if (kind === 'BOTTLE') this.audio.play('glass', { gain: 0.4 });
     });
 
     this.bus.on('DISCOVERY_FOUND', ({ id }) => {
@@ -279,6 +286,8 @@ export class Game {
       if (reason === 'locked') this.ui.toast('IT NEEDS A KEY', 'warm');
       else if (reason === 'out-of-reach') this.ui.toast('TOO FAR AWAY', 'warm');
     });
+
+    this.bus.on('THROW_REQUESTED', ({ x, y }) => this.throwBottleAt(x, y));
 
     this.bus.on('PLAYER_HIDDEN', () => this.audio.play('drawer', { gain: 0.3 }));
   }
@@ -411,9 +420,14 @@ export class Game {
     this.hintText = '';
 
     this.player.reset(session.def.playerSpawn.x, session.def.playerSpawn.y);
-    this.cursor.reset(session.def.playerSpawn.x + 40, session.def.playerSpawn.y - 30);
-    if (session.modifiers.jumpyCursor) this.cursor.sensor.potency = 1.6;
-    else this.cursor.sensor.potency = 1;
+    // Mouse is now just an aim reticle for the flashlight — park it near the body.
+    this.cursor.reset(session.def.playerSpawn.x + 60, session.def.playerSpawn.y);
+    this.attention.clear();
+    this.attention.add(this.bodySource);
+    this.bodySource.sensitivity = session.modifiers.jumpyCursor ? 1.6 : 1;
+    this.bodySource.update(this.player, 1, 0.016);
+    this.bottleCooldown = 0;
+    this.glareCache.clear();
 
     this.noise.reset();
     this.particles.reset();
@@ -461,7 +475,8 @@ export class Game {
   private beginPlay(): void {
     this.mode = 'playing';
     this.ui.show('none');
-    this.setCursorHidden(true);
+    // Cursor stays visible: it is your flashlight aim now, not the hunted thing.
+    this.setCursorHidden(false);
     this.bus.emit('ROOM_STARTED', {
       roomId: this.session?.def.id ?? '',
       attempt: this.save.record(this.session?.def.id ?? '').attempts,
@@ -502,7 +517,7 @@ export class Game {
     this.mode = 'playing';
     this.ads.setGameplayActive(true);
     this.ui.show('none');
-    this.setCursorHidden(true);
+    this.setCursorHidden(false);
   }
 
   // --- the simulation -------------------------------------------------------
@@ -516,7 +531,7 @@ export class Game {
       return;
     }
 
-    if (this.mode !== 'playing' && this.mode !== 'mouse-lost') {
+    if (this.mode !== 'playing') {
       // Keyboard still works on the pause, results and death screens: ESC to come
       // back, R to go again. The simulation stays frozen.
       this.input.beginStep();
@@ -533,31 +548,8 @@ export class Game {
     this.input.beginStep();
     this.handleGlobalKeys();
 
-    if (this.mode !== 'playing' && this.mode !== 'mouse-lost') {
+    if (this.mode !== 'playing') {
       this.input.endStep();
-      return;
-    }
-
-    // The cursor leaving the play field is a real state, not a gap in the rules.
-    // The room holds still rather than letting a player become unreadable.
-    const pointerInside = this.input.pointer.inside;
-    if (!pointerInside && this.mode === 'playing' && this.roomTime > 0.3) {
-      this.mode = 'mouse-lost';
-      this.bus.emit('CURSOR_LOST', { lost: true });
-      this.ui.show('mouse');
-      this.setCursorHidden(false);
-      this.input.endStep();
-      return;
-    }
-    if (pointerInside && this.mode === 'mouse-lost') {
-      this.mode = 'playing';
-      this.bus.emit('CURSOR_LOST', { lost: false });
-      this.ui.show('none');
-      this.setCursorHidden(true);
-    }
-    if (this.mode === 'mouse-lost') {
-      this.input.endStep();
-      this.audio.update(dt, this.room?.tension ?? 0, 0, false);
       return;
     }
 
@@ -572,6 +564,7 @@ export class Game {
 
     this.reveal = Math.min(1, this.reveal + dt * 1.6);
     this.roomTime += dt;
+    this.bottleCooldown = Math.max(0, this.bottleCooldown - dt);
     this.replay.capture(this.input.actions, this.input.pointer);
 
     if (this.player.dead) {
@@ -588,12 +581,15 @@ export class Game {
     const lightAt = (x: number, y: number): number =>
       session.modifiers.alwaysVisible ? 1 : room.lightAt(x, y);
 
+    // Mouse aims the flashlight. No more hunted cursor, no more mouse-lost pause.
     this.cursor.update(dt, this.input.pointer, this.roomTime, lightAt);
+    this.player.aimAt(this.cursor.x, this.cursor.y);
 
-    const danger = this.cursor.displayHeat;
+    // Danger feedback comes from the room's worst awareness (computed last step).
+    const danger = this.lastHeat;
     this.player.update(dt, this.input.actions, room.solids, danger, (step) => {
       this.noise.emit(step.x, step.y, step.level, 'footstep', true);
-      this.audio.playAt('footstep', step.x, { gain: 0.18 });
+      this.audio.playAt('footstep', step.x, { gain: this.player.sprinting ? 0.3 : 0.18 });
     });
 
     this.handlePlayerActions(interactions, session.modifiers);
@@ -601,6 +597,9 @@ export class Game {
     room.update(dt);
     this.runRoomEvents(room, session);
     this.runPendingRestores();
+
+    // Body exposure feeds the hunt.
+    this.bodySource.update(this.player, lightAt(this.player.x, this.player.y), dt);
 
     this.updateEnemies(dt, room);
 
@@ -622,7 +621,7 @@ export class Game {
     const radioOn = room.objects.some(
       (o) => (o.kind === 'RADIO' || o.kind === 'TELEVISION') && o.state === 'on',
     );
-    this.audio.update(dt, room.tension, this.cursor.displayHeat, radioOn);
+    this.audio.update(dt, room.tension, this.lastHeat, radioOn);
 
     this.updateHud(room, session);
     this.input.endStep();
@@ -642,7 +641,7 @@ export class Game {
       this.ui.toast(this.debug ? 'DEBUG ON' : 'DEBUG OFF', 'cool');
     }
     if (a.pause) {
-      if (this.mode === 'playing' || this.mode === 'mouse-lost') this.pause();
+      if (this.mode === 'playing') this.pause();
     }
     if (a.restart && this.session) {
       this.restartRoom();
@@ -671,9 +670,45 @@ export class Game {
       if (mods.noHiding) this.ui.toast('NOWHERE TO GO', 'hot');
       else interactions.toggleHide();
     }
+    if (actions.throwBottle) {
+      this.throwBottleAt(this.cursor.x, this.cursor.y);
+    }
+  }
+
+  /** Throw a bottle lure at a world point. Loud noise that steals focus. */
+  private throwBottleAt(tx: number, ty: number): void {
+    if (this.bottleCooldown > 0) return;
+    if (!this.player.throwBottle()) {
+      if (this.player.bottles <= 0) this.ui.toast('NO BOTTLES LEFT', 'warm');
+      return;
+    }
+    this.bottleCooldown = THROW.cooldown;
+    this.analytics.track('bottle_thrown', { t: Math.round(this.roomTime) });
+    const px = this.player.x;
+    const py = this.player.y;
+    let dx = tx - px;
+    let dy = ty - py;
+    const len = Math.hypot(dx, dy) || 1;
+    // Clamped to arm's range along the throw ray: aim far, land short.
+    const range = Math.min(THROW.maxRange, len);
+    dx /= len;
+    dy /= len;
+    const lx = Math.max(40, Math.min(920, px + dx * range));
+    const ly = Math.max(40, Math.min(500, py + dy * range));
+    this.noise.emit(lx, ly, THROW.noiseLevel, 'glass', true);
+    this.particles.burst(lx, ly, 10, 'spark');
+    this.audio.playAt('glass', lx, { gain: 0.7 });
+    this.stats.distractionsUsed++;
+    this.discovery.find('mechanic-bottle');
+    this.patterns.note('noise:glass');
   }
 
   private updateEnemies(dt: number, room: Room): void {
+    // Flashlight glare per enemy — shining the beam at them provokes.
+    this.glareCache.clear();
+    for (const e of room.enemies) {
+      this.glareCache.set(e.id, flashlightGlare(this.player, e.x, e.y, PLAYER.flashlightRange));
+    }
     const ctx: EnemyContext = {
       bus: this.bus,
       sources: this.attention.all,
@@ -685,11 +720,7 @@ export class Game {
       roomTime: this.roomTime,
       comms: this.comms,
       patterns: this.patterns,
-      spawnDecoy: (spec) => {
-        this.cursor.spawnDecoy(spec);
-      },
-      recentAttention: (window, out) =>
-        this.cursor.sensor.recentAttentionPoint(window, this.roomTime, out),
+      glareFor: (id) => this.glareCache.get(id) ?? 0,
     };
 
     // Noises raised this step are heard this step, before anyone decides anything.
@@ -705,28 +736,20 @@ export class Game {
 
     for (const e of room.enemies) {
       e.update(dt, ctx);
-      if (e.caughtPlayer && !this.player.dead) this.killPlayer(e);
+      // Touch = a hit, not instant death. 3 hits kills. Invuln prevents stunlock.
+      if (e.caughtPlayer && !this.player.dead) this.hitPlayer(e);
     }
 
     this.comms.dispatch(room.enemies);
-
-    // Decoys that click make a sound of their own, which is what sells them.
-    for (const decoy of this.cursor.decoys) {
-      if (decoy.clickedThisStep && decoy.noiseLevel > 0) {
-        this.noise.emit(decoy.x, decoy.y, decoy.noiseLevel, 'tick', false);
-      }
-    }
   }
 
   /** Roll up the room into the single number every feedback system reads. */
   private updateThreat(room: Room): void {
     let heat = 0;
-    let exposed = false;
     let pursued = false;
 
     for (const e of room.enemies) {
       heat = Math.max(heat, e.awareness);
-      if (e.reading.inRadius && e.reading.visible) exposed = true;
       if (e.state.current === 'PURSUING') pursued = true;
 
       // Near miss: it got close to certain and then lost interest, with no
@@ -746,8 +769,8 @@ export class Game {
       if (e.state.current === 'PURSUING') this.nearMissArmed.delete(e.id);
     }
 
+    this.lastHeat = heat;
     this.cursor.heat = heat;
-    this.cursor.exposed = exposed;
     this.cursor.pursued = pursued;
     this.renderer.camera.push(pursued ? 1.05 : 1);
   }
@@ -757,7 +780,7 @@ export class Game {
     const r = e.reading;
     switch (e.def.kind) {
       case 'WATCHER':
-        if (r.pointing > 0.4) this.discovery.find('watcher-gaze');
+        if (r.pointing > 0.35) this.discovery.find('watcher-gaze');
         else if (r.proximity > 0.4) this.discovery.find('mechanic-proximity');
         if (r.coneMultiplier < 0.5) this.discovery.find('watcher-flank');
         break;
@@ -790,25 +813,38 @@ export class Game {
       default:
         break;
     }
-    if (r.pointing > 0.5) this.discovery.find('mechanic-gaze');
+    if (r.pointing > 0.4) this.discovery.find('mechanic-flashlight');
   }
 
-  private killPlayer(e: Enemy): void {
-    this.player.kill();
+  /** A touch is a HIT (3 hits to die), not an instant kill. Horror with mercy. */
+  private hitPlayer(e: Enemy): void {
+    if (this.player.invulnerable) return;
+    const died = this.player.takeHit(PLAYER.hitDamage);
     this.killedBy = e.def.name;
-    this.deathTimer = 1.3;
+    this.noticeFlash = 1;
     this.renderer.camera.kick(9);
-    this.audio.play('fail', { gain: 0.8 });
-    this.particles.burst(this.player.x, this.player.y, 18, 'spark');
-    // The room keeps the mark. Restart it and you will see where you died.
-    this.room?.addBlood(this.player.x, this.player.y, 38);
-    this.bus.emit('PLAYER_KILLED', { enemyId: e.id });
-    this.save.noteDeath();
-    this.analytics.track('player_killed', {
-      room: this.session?.def.id ?? '',
-      by: e.def.kind,
-      t: Math.round(this.roomTime),
-    });
+    this.renderer.camera.push(1.05);
+    this.audio.play('fail', { gain: 0.7 });
+    this.particles.burst(this.player.x, this.player.y, 14, 'spark');
+    this.bus.emit('PLAYER_HIT', { enemyId: e.id, kind: e.def.kind });
+    // Shove the monster back a little so one touch is not a stunlock.
+    const dx = e.x - this.player.x;
+    const dy = e.y - this.player.y;
+    const d = Math.hypot(dx, dy) || 1;
+    e.x += (dx / d) * 26;
+    e.y += (dy / d) * 26;
+    e.awareness = Math.max(e.awareness, AWARENESS.alert);
+    if (died) {
+      this.deathTimer = 1.2;
+      this.room?.addBlood(this.player.x, this.player.y, 42);
+      this.bus.emit('PLAYER_KILLED', { enemyId: e.id });
+      this.save.noteDeath();
+      this.analytics.track('player_killed', {
+        room: this.session?.def.id ?? '',
+        by: e.def.kind,
+        t: Math.round(this.roomTime),
+      });
+    }
   }
 
   private stepDeath(dt: number): void {
@@ -833,13 +869,15 @@ export class Game {
     if (!room) return '';
     const worst = room.enemies.reduce((a, b) => (a.peakAwareness > b.peakAwareness ? a : b));
     const r = worst.reading;
-    if (worst.def.kind === 'HOUND') return 'It reads how fast your hand moves. Slow down.';
-    if (worst.def.kind === 'SLEEPER') return 'Sound and loitering wake it. Try E instead of clicking.';
-    if (worst.def.kind === 'PARASITE') return 'That one wants to be looked at. Ignoring it is the mistake.';
-    if (r.pointing > 0.4) return 'You pointed straight at it. Move the cursor around it, not through it.';
-    if (r.dwell > 0.4) return 'You left the cursor sitting too long. Keep it drifting.';
-    if (this.stats.clicks > 6) return 'Every click is a sound where you pointed.';
-    return 'Your body was never the problem. Your cursor was.';
+    if (worst.def.kind === 'HOUND') return 'It hears footsteps. Walk, do not sprint — sneak past it.';
+    if (worst.def.kind === 'SLEEPER') return 'Footsteps and loitering wake it. Sneak, and do not linger in its light.';
+    if (worst.def.kind === 'PARASITE') return 'It hunts the dark. Carry light — the beam soothes it.';
+    if (worst.def.kind === 'MIRROR') return 'Its gaze is a razor. Cross behind it, or kill the lights first.';
+    if (r.pointing > 0.35) return 'You shone the flashlight straight at it. Aim the beam away.';
+    if (r.dwell > 0.35) return 'You stood exposed in its view too long. Keep moving between cover.';
+    if (r.speed > 0.4) return 'You sprinted where it could hear. Slow down near teeth.';
+    if (this.stats.clicks > 6) return 'Every use is a sound where it stands. Throw a bottle first, then move.';
+    return 'They see your body, hear your steps, and catch your light. Use all three.';
   }
 
   private failRoom(reason: string): void {
@@ -870,12 +908,12 @@ export class Game {
       detections: this.detections,
       nearMisses: this.nearMisses,
       alarms: this.alarms,
-      decoysUsed: this.stats.decoysUsed,
+      decoysUsed: this.stats.distractionsUsed,
       distractionsUsed: this.stats.distractionsUsed,
       hidesUsed: this.stats.hidesUsed,
       secretsFound: this.countSecrets(),
       loudestNoise: this.noise.loudestByPlayer,
-      cursorDistance: this.cursor.sensor.data.distanceMoved,
+      cursorDistance: 0,
     };
 
     const result = this.score.evaluate(runStats, session.def.parTime);
@@ -974,7 +1012,7 @@ export class Game {
     if (spec.kind === 'MOVE_OBJECT' && spec.targetId) {
       // The whole point is that it happens while you are not looking at it.
       const o = room.findObject(spec.targetId);
-      if (o && dist(this.cursor.x, this.cursor.y, o.x, o.y) < 190) return false;
+      if (o && dist(this.player.x, this.player.y, o.x, o.y) < 190) return false;
     }
     return true;
   }
@@ -1016,16 +1054,9 @@ export class Game {
         break;
       }
       case 'SECOND_CURSOR': {
-        this.cursor.spawnDecoy({
-          pattern: 'RANDOM',
-          x: this.cursor.x + 80,
-          y: this.cursor.y + 40,
-          duration: spec.a ?? 7,
-          potency: 1,
-          noise: 0,
-          radius: 90,
-          sourceId: 'enemy-room',
-        });
+        // Legacy event: now a phantom-noise scare instead of a fake cursor.
+        this.audio.play('stinger', { gain: 0.4 });
+        this.renderer.camera.kick(3);
         this.discovery.find('secret-second-cursor');
         break;
       }
@@ -1058,11 +1089,7 @@ export class Game {
       roomTime: this.roomTime,
       comms: this.comms,
       patterns: this.patterns,
-      spawnDecoy: (spec) => {
-        this.cursor.spawnDecoy(spec);
-      },
-      recentAttention: (window, out) =>
-        this.cursor.sensor.recentAttentionPoint(window, this.roomTime, out),
+      glareFor: (id) => this.glareCache.get(id) ?? 0,
     };
   }
 
@@ -1098,13 +1125,19 @@ export class Game {
       roomName: session.def.name,
       objective: this.objective?.currentText ?? '',
       seconds: this.roomTime,
-      heat: clamp01(this.cursor.displayHeat),
+      heat: clamp01(this.lastHeat),
       cursorState: this.cursor.state,
       detections: this.detections,
       hint: this.hintText,
       carrying: this.player.inventory.has('key'),
       sneaking: this.player.sneaking && !this.player.hidden,
+      sprinting: this.player.sprinting && this.player.moving,
+      exhausted: this.player.exhausted,
       hidden: this.player.hidden,
+      health: this.player.healthFrac,
+      stamina: this.player.staminaFrac,
+      bottles: this.player.bottles,
+      flashlight: this.player.flashlightOn,
       threats: this.threats,
       modifiers: session.modifiers.ids,
     });
@@ -1114,19 +1147,19 @@ export class Game {
   private currentHint(room: Room, session: RoomSession): string {
     if (!session.isCampaign) return '';
     if (session.index === 0) {
-      if (this.roomTime < 5) return 'W A S D TO MOVE';
-      if (this.roomTime < 11) return 'NOW MOVE THE CURSOR. SLOWLY.';
-      if (this.cursor.heat > 0.25 && this.roomTime < 30) return 'IT IS LOOKING AT YOUR CURSOR';
+      if (this.roomTime < 5) return 'W A S D TO MOVE — SHIFT TO SPRINT, C TO SNEAK';
+      if (this.roomTime < 11) return 'MOUSE AIMS YOUR FLASHLIGHT — F TOGGLES IT';
+      if (this.lastHeat > 0.25 && this.roomTime < 30) return 'IT SEES YOUR BODY — BREAK LINE OF SIGHT';
       if (!this.player.inventory.has('key') && this.stats.interactions === 0 && this.roomTime > 18) {
-        return 'E USES THE NEAREST THING WITHOUT POINTING AT IT';
+        return 'E USES THE NEAREST THING — Q THROWS A BOTTLE';
       }
       return '';
     }
-    if (session.index === 1 && this.roomTime < 9) return 'GOING AROUND COSTS NOTHING';
+    if (session.index === 1 && this.roomTime < 9) return 'STAY OUT OF ITS GAZE CONE';
     if (session.index === 2 && this.roomTime < 9) return 'EVERYTHING YOU USE MAKES A SOUND';
-    if (session.index === 3 && this.roomTime < 9) return 'MOVE THE CURSOR SLOWLY';
-    if (session.index === 4 && this.roomTime < 9) return 'DO NOT LEAVE THE CURSOR SITTING ON IT';
-    if (session.index === 8 && this.roomTime < 9) return 'THE PROJECTOR MAKES A CURSOR THAT IS NOT YOURS';
+    if (session.index === 3 && this.roomTime < 9) return 'SNEAK PAST IT — SPRINTING FEEDS IT';
+    if (session.index === 4 && this.roomTime < 9) return 'DO NOT LINGER IN ITS VIEW';
+    if (session.index === 8 && this.roomTime < 9) return 'THE PROJECTOR MAKES NOISE THAT IS NOT YOU';
     if (this.player.hidden) return 'SPACE TO COME OUT';
     void room;
     return '';
@@ -1147,7 +1180,7 @@ export class Game {
       reveal: this.mode === 'menu' ? 1 : this.reveal,
       noticeFlash: this.noticeFlash,
       debug: this.debug,
-      cursorLost: this.mode === 'mouse-lost',
+      cursorLost: false,
     });
 
     if (this.debug && this.room && import.meta.env.DEV) {

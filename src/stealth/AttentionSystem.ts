@@ -1,12 +1,12 @@
 import { clamp01 } from '../core/Mathx';
 
 /**
- * ATTENTION, the game's real currency.
+ * PRESENCE, the game's real currency.
  *
- * Enemies never look for the player's body. They look for sources of attention.
- * The player's cursor is one. A decoy is another. Because both satisfy the same
- * interface, every awareness rule written once works for both, and an enemy that
- * can tell them apart only has to check `isReal`.
+ * Enemies hunt the player's BODY (see PlayerAttention): where it stands, how
+ * fast it moves, how lit it is, and where the flashlight beam points. Thrown
+ * bottles and ringing phones register as short-lived echo sources through the
+ * same interface, so every awareness rule written once works for both.
  */
 export interface AttentionSource {
   readonly id: string;
@@ -32,11 +32,11 @@ export interface AttentionSource {
 }
 
 /**
- * How strongly `source` is pointing at the point (tx, ty).
+ * How strongly the flashlight beam `source` is shining on the point (tx, ty).
  *
- * This is the gaze axis. A cursor sitting still next to a creature is far less
- * dangerous than a cursor aimed down its throat, so alignment is raised to a
- * power: only a fairly direct point registers hard.
+ * This is the new gaze axis. A body standing next to a creature with the beam
+ * off is far less provocative than the same body shining the beam down its
+ * throat, so alignment is raised to a power: only a fairly direct shine spikes.
  */
 export function pointingFactor(
   source: AttentionSource,

@@ -11,7 +11,6 @@ import type { EventBus } from '../core/EventBus';
 import type { NoiseEvent } from '../core/Events';
 import type { AttentionSource } from '../stealth/AttentionSystem';
 import { hasLineOfSight } from '../stealth/LineOfSight';
-import type { DecoySpec } from '../cursor/CursorDecoy';
 import { moveBody, type Body } from '../world/Collision';
 import type { PatternMemory } from '../gameplay/PatternMemory';
 import {
@@ -65,9 +64,8 @@ export interface EnemyContext {
   roomTime: number;
   comms: EnemyCommunication;
   patterns: PatternMemory;
-  spawnDecoy: (spec: DecoySpec) => void;
-  /** Where attention lingered recently, for creatures that read the trail. */
-  recentAttention: (window: number, out: { x: number; y: number }) => boolean;
+  /** 0..1 flashlight glare on each enemy id — computed per-frame by Game. */
+  glareFor?: (enemyId: string) => number;
 }
 
 let nextEnemyId = 1;
@@ -105,7 +103,7 @@ export class Enemy {
   focusSourceId: string | null = null;
   focusIsDecoy = false;
 
-  /** Noise lure: while this runs the creature is distracted from the cursor. */
+  /** Noise lure: while this runs the creature is distracted from the body. */
   lureX = 0;
   lureY = 0;
   lureTimer = 0;
@@ -144,7 +142,6 @@ export class Enemy {
   flinch = 0;
 
   private readonly body: Body;
-  private readonly scratchPoint = { x: 0, y: 0 };
 
   constructor(spawn: EnemySpawn) {
     this.def = ENEMY_DEFS[spawn.kind];
@@ -220,14 +217,15 @@ export class Enemy {
       facing: this.facing,
       profile: this.profile,
       blockers: ctx.blockers,
+      glare: ctx.glareFor ? ctx.glareFor(this.id) : 0,
     };
 
     strongestSource(inputs, ctx.sources, this.scratch, this.reading);
     let pressure = this.reading.pressure;
     this.focusSourceId = this.reading.source?.id ?? null;
-    this.focusIsDecoy = this.reading.source ? !this.reading.source.isReal : false;
+    this.focusIsDecoy = false;
 
-    // A creature chasing a noise is not watching the cursor nearly as closely.
+    // A creature chasing a noise is not watching the body nearly as closely.
     if (this.lureTimer > 0) {
       this.lureTimer -= dt;
       if (pressure > 0) pressure *= NOISE.lureCursorDamping;
@@ -242,11 +240,11 @@ export class Enemy {
     this.awareness = clamp(this.awareness + (rise - decay) * dt, 0, AWARENESS.ceiling);
     this.peakAwareness = Math.max(this.peakAwareness, this.awareness);
 
-    this.rememberAttention(dt, ctx, pressure);
+    this.rememberAttention(dt, pressure);
     this.decideState(dt, ctx);
     this.act(dt, ctx);
     this.updateDisplayAwareness(dt, ctx.roomTime);
-    this.maybeSpawnDecoy(dt, ctx);
+    this.maybeRattle(dt, ctx);
     this.state.endStep();
   }
 
@@ -255,30 +253,19 @@ export class Enemy {
   private trackExposure(ctx: EnemyContext, pressure: number): void {
     const inRadius = this.reading.inRadius && this.reading.visible && pressure > 0.02;
     if (inRadius && !this.wasInRadius) {
-      ctx.bus.emit('CURSOR_ENTERED_AWARENESS', { enemyId: this.id });
+      ctx.bus.emit('PLAYER_ENTERED_AWARENESS', { enemyId: this.id });
     } else if (!inRadius && this.wasInRadius) {
-      ctx.bus.emit('CURSOR_LEFT_AWARENESS', { enemyId: this.id });
+      ctx.bus.emit('PLAYER_LEFT_AWARENESS', { enemyId: this.id });
     }
     this.wasInRadius = inRadius;
   }
 
-  private rememberAttention(dt: number, ctx: EnemyContext, pressure: number): void {
+  private rememberAttention(dt: number, pressure: number): void {
     const src = this.reading.source;
     if (pressure > 0.08 && src) {
-      if (this.profile.readsTrail && src.isReal) {
-        // This creature walks to where your attention *lingered*, not to where it
-        // is now, which is what makes laying a false trail a real tactic.
-        if (ctx.recentAttention(this.profile.trailWindow, this.scratchPoint)) {
-          this.lastAttentionX = this.scratchPoint.x;
-          this.lastAttentionY = this.scratchPoint.y;
-        } else {
-          this.lastAttentionX = src.x;
-          this.lastAttentionY = src.y;
-        }
-      } else {
-        this.lastAttentionX = src.x;
-        this.lastAttentionY = src.y;
-      }
+      // Body hunters walk to where your body IS (or was last seen).
+      this.lastAttentionX = src.x;
+      this.lastAttentionY = src.y;
       this.lastAttentionAge = 0;
     } else {
       this.lastAttentionAge += dt;
@@ -394,7 +381,7 @@ export class Enemy {
       ctx.bus.emit('ENEMY_ALERTED', {
         enemyId: this.id,
         kind: this.def.kind,
-        source: this.lureTimer > 0 ? 'noise' : this.focusIsDecoy ? 'decoy' : 'cursor',
+        source: this.lureTimer > 0 ? 'noise' : 'body',
       });
     } else if (next === 'CALM' || next === 'IDLE') {
       ctx.bus.emit('ENEMY_CALMED', { enemyId: this.id, kind: this.def.kind });
@@ -409,7 +396,7 @@ export class Enemy {
     ctx.bus.emit('ENEMY_ALERTED', {
       enemyId: this.id,
       kind: this.def.kind,
-      source: this.lureTimer > 0 ? 'noise' : 'cursor',
+      source: this.lureTimer > 0 ? 'noise' : 'body',
     });
     ctx.bus.emit('TOAST', { text: 'IT WAS NOT ASLEEP', tone: 'hot' });
   }
@@ -431,7 +418,7 @@ export class Enemy {
       x: this.lastAttentionAge < 3 ? this.lastAttentionX : this.x,
       y: this.lastAttentionAge < 3 ? this.lastAttentionY : this.y,
       intensity,
-      type: this.focusIsDecoy ? 'decoy' : this.lureTimer > 0 ? 'noise' : 'cursor',
+      type: this.lureTimer > 0 ? 'noise' : 'body',
       hops: 1,
     });
   }
@@ -566,8 +553,8 @@ export class Enemy {
       return;
     }
 
-    // Pursuit is the one moment the creature targets the body rather than the
-    // cursor, because it already knows where you are.
+    // Pursuit is the one moment the creature locks onto the body outright,
+    // because it already knows where you are.
     const sees =
       hasLineOfSight(ctx.blockers, this.x, this.y, ctx.playerX, ctx.playerY) && !ctx.playerHidden;
     if (sees) {
@@ -627,30 +614,31 @@ export class Enemy {
     this.facing = rotateToward(this.facing, target, rate * dt);
   }
 
-  private maybeSpawnDecoy(dt: number, ctx: EnemyContext): void {
+  private maybeRattle(dt: number, ctx: EnemyContext): void {
     if (!this.def.spawnsDecoys) return;
     if (this.state.is('PURSUING', 'DISABLED', 'DEAD')) return;
+    // The Mimic now fakes FOOTSTEPS elsewhere — phantom noise that pulls
+    // investigation the wrong way instead of spawning fake cursors.
     this.mimicTimer -= dt;
     if (this.mimicTimer > 0) return;
     this.mimicTimer = 9 + (this.id.length % 3);
     const a = Math.random() * TAU;
-    ctx.spawnDecoy({
-      pattern: 'RANDOM',
-      x: this.x + Math.cos(a) * 90,
-      y: this.y + Math.sin(a) * 60,
-      duration: 5.5,
-      potency: 0.9,
-      noise: 0,
-      radius: 54,
-      sourceId: this.id,
-    });
+    const nx = this.x + Math.cos(a) * 130;
+    const ny = this.y + Math.sin(a) * 90;
+    this.lureX = nx;
+    this.lureY = ny;
+    this.lureTimer = Math.max(this.lureTimer, 2.5);
+    this.lastAttentionX = nx;
+    this.lastAttentionY = ny;
+    this.lastAttentionAge = 0;
+    ctx.bus.emit('TOAST', { text: 'FOOTSTEPS — WERE THOSE YOURS?', tone: 'warm' });
   }
 
   // --- external pokes -------------------------------------------------------
 
   /**
    * Hear a noise. This is how distraction works: a loud enough sound both jolts
-   * awareness and, crucially, moves the creature's focus off the cursor.
+   * awareness and, crucially, moves the creature's focus off your body.
    */
   hear(noise: NoiseEvent, ctx: EnemyContext): void {
     if (this.state.is('DEAD', 'DISABLED', 'PURSUING')) return;

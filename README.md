@@ -1,14 +1,17 @@
-# DON'T LET IT SEE YOU
+# DON'T LET IT FIND YOU
 
-**It cannot see you. It can see what you are looking at.**
+**It hunts your body. Your noise. Your light.**
 
-A browser stealth horror game where the creatures do not hunt your character. They
-hunt your mouse cursor.
+A browser survival-horror stealth game. The mouse is no longer the hunted
+thing — it aims your flashlight. Monsters see your body in their gaze cones
+(red on the floor), hear your footsteps (sprint = loud, sneak = whisper), and
+hate — or love — your torch beam. You survive 3 hits, throw bottles (Q) to
+lure, hide in lockers (SPACE), sprint on stamina (SHIFT), sneak with (C).
 
-You control two things at once: a body that walks with WASD, and a cursor that is
-your attention. The body is invisible to everything in the room. The cursor is not.
-You can stand shoulder to shoulder with a creature and be perfectly safe, right up
-until you point at it.
+You control a body that walks with WASD and a flashlight that aims with the
+mouse. The body is visible to everything in the room — how close, how lit,
+how loud. The flashlight lets you see in the dark, but the beam itself
+provokes: shining it at teeth is brave or stupid, and both are fun.
 
 Built with TypeScript, Vite and a hand written Canvas 2D renderer. No game engine,
 no physics library, no rendering framework, no art or audio assets: every pixel is
@@ -57,47 +60,54 @@ with storage blocked (it just cannot remember anything between sessions).
 | Input | Action |
 | --- | --- |
 | `W A S D` | Move your body |
-| `SHIFT` | Sneak. Slower and much quieter |
-| Mouse | Move your attention |
-| Left click | Use whatever is under the cursor. Always makes a sound |
+| `SHIFT` | Sprint. Fast, loud, drains stamina |
+| `C` / `CTRL` | Sneak. Slow, quiet, harder to see |
+| Mouse | Aim your flashlight |
+| `F` | Toggle flashlight |
+| `Q` / `G` | Throw a bottle lure |
+| Left click | Use whatever is under your aim |
 | Right click | Cancel a timed interaction |
-| `E` | Use the nearest object without pointing at it |
-| `SPACE` | Hide, or come out of hiding |
+| `E` | Use the nearest object |
+| `SPACE` | Hide in a locker / cover, or come out |
 | `R` | Restart the room |
 | `ESC` | Pause |
 | `F3` | Debug overlay (development builds only) |
 
-Pointer Lock is never used. The cursor stays an ordinary browser cursor, because
-the whole game is about what you do with it.
+The mouse never leaves the window: it is your flashlight aim, and the beam is
+part of the stealth model — shining it at teeth provokes them.
 
 ---
 
-## How cursor detection actually works
+## How body detection actually works
 
 This is the part worth reading, because it is the game.
 
-No creature ever queries the player's position for the purpose of detection. They
-evaluate **attention sources**, and the player's cursor is one of them. The
-interface is in `src/stealth/AttentionSystem.ts`:
+Every creature scores your **body** each step (`src/enemies/EnemyAwareness.ts`):
+proximity × light level, flashlight glare in its face, footstep agitation
+(sprint feeds the Hound), and how long you have stood exposed in its view.
+Hiding in a locker zeroes you out entirely. Darkness blurs, never erases.
+
+Creatures evaluate **presence sources** through one interface
+(`src/stealth/AttentionSystem.ts`): your body, and the echoes machines make.
 
 ```ts
 interface AttentionSource {
-  x, y            // where the attention is
+  x, y            // where the body / echo is
   speed           // how fast it is moving
-  headingX, headingY  // which way it is pointing, persisting while still
+  headingX, headingY  // body travel direction
   movementIntensity   // 0..1 agitation derived from speed
-  dwellTime       // how long it has been held in one spot
+  dwellTime       // how long the body has stood exposed
   visibility      // 0..1, from the room's lighting at that point
-  noiseLevel      // decaying residue of recent clicks
-  isReal          // false for decoys
-  potency         // how convincing it is
+  noiseLevel      // decaying residue of recent noise
+  isReal          // false for machine echoes
+  potency         // how convincing it is (0 while hidden)
 }
 ```
 
-`CursorSensor` implements this for the real cursor. `CursorDecoy` implements it for
-fake ones. Because they satisfy the same interface, every awareness rule written
-once works for both, and a creature that can tell them apart only has to check
-`isReal`. There is no special casing anywhere else in the codebase.
+`BodyAttention` implements this for the player's body (`src/stealth/BodyAttention.ts`).
+`CursorDecoy` implements it for screaming machines and thrown echoes. Because they
+satisfy the same interface, every awareness rule written once works for all, and
+a creature that can tell them apart only has to check `isReal`.
 
 ### The awareness model
 
@@ -105,20 +115,17 @@ once works for both, and a creature that can tell them apart only has to check
 weighted sum. Every term is tunable per creature in `EnemyDefinition.ts`:
 
 ```
-proximity  = 1 - (distance / awarenessRadius)^2      inverse square, so the whole radius is live
-pointing   = max(0, dot(heading, directionToCreature))^4   raised so only a real point registers
-speed      = movementIntensity * (0.45 + 0.55 * proximity)
-dwell      = ramp(dwellTime, 1.1s .. 3.4s) * (0.25 + 0.75 * proximity)
-neglect    = (1 - pointing) * rangeFactor            the Parasite's inversion
+proximity  = (1 - (distance / awarenessRadius)^2) * lightGate   closeness × how lit you are
+glare      = flashlight beam shining in its face (0.42 rad cone)
+speed      = movementIntensity * (0.45 + 0.55 * proximityBase)   sprint feeds, sneak starves
+dwell      = standing exposed in its view for 1.4s .. 3.8s
 
 pressure = (proximityWeight * proximity
-          + pointWeight     * pointing
+          + pointWeight     * glare
           + speedWeight     * speed
-          + dwellWeight     * dwell
-          + neglectWeight   * neglect)
+          + dwellWeight     * dwell)
           * coneMultiplier      gazeBonus inside its own gaze cone, blindMultiplier outside
-          * visibility          darkness blurs attention, it never erases it
-          * potency             decoys can be less convincing than the real thing
+          * potency             hiding zeroes you out; Nerves x1.6
 ```
 
 Then, every fixed simulation step:
@@ -134,46 +141,43 @@ seconds. Thresholds live in `src/core/Tuning.ts`:
 | Awareness | State |
 | --- | --- |
 | 0.30 | `SUSPICIOUS`, it stops and turns toward you |
-| 0.58 | `INVESTIGATING`, it walks to where your attention was |
+| 0.58 | `INVESTIGATING`, it walks to where your body was |
 | 0.82 | `ALERT`, faster, and it tells the others |
-| 1.00 | `PURSUING`, a detection |
+| 1.00 | `PURSUING`, a detection — run, hide, or fight the light |
 
 ### What this produces in play
 
-Measured against the shipped tuning, in room 1:
+- Sneaking dark past the Watcher's flank: **never noticed**.
+- Same path sprinting with the torch on: **chased in about a second**.
+- Hound, sneaking: **nothing**. Same position, sprinting: **caught fast**.
+- One footstep 40 px from a sleeping creature: **it wakes**. The same step
+  sneaked from further out: **it sleeps on**.
 
-- Cursor aimed straight at the Watcher from 130 px away: **detected in 1.35 s**.
-- Cursor on the exact same pixel, approached from above so it never aims at the
-  creature: **never detected at all**.
-- Hound, with the cursor creeping: **nothing**. Same position, hand jittering:
-  **caught in 1.75 s**.
-- One click 40 px from a sleeping creature: **it wakes**. The same click from
-  across the room: **it sleeps on**.
-
-That gap between the first two lines is the entire game.
+That gap between sneaking and sprinting is the entire game.
 
 ### Noise
 
-Clicking is not UI. A click is a disturbance at a position with a loudness, in the
-units the design calls for: a fingertip tap is 2, a heavy switch 5, breaking glass
-10, a ringing phone 18, an alarm 25. Audible range is `level * 26` pixels, so a
-tap carries 52 px and an alarm carries most of a room.
+Using something is a disturbance at a position with a loudness, in the units
+the design calls for: a fingertip tap is 2, a heavy switch 5, a thrown bottle 7,
+breaking glass 10, a ringing phone 18, an alarm 25. Audible range is
+`level * 26` pixels, so a tap carries 52 px and an alarm carries most of a room.
 
-Clicking empty air still makes a sound, right where you pointed. There is no free
-input.
+Clicking empty floor throws a bottle lure (limited ammo, keys restock). There is
+no free interaction — but the mouse itself is never the liability.
 
 A loud enough noise does not merely raise awareness, it **steals focus**: the
-creature locks onto the noise instead of the cursor for several seconds and walks
-to it, while cursor pressure against it is damped to 30%. That is what makes a
+creature locks onto the noise instead of your body for several seconds and walks
+to it, while body pressure against it is damped to 30%. That is what makes a
 distraction work, and it works whether or not the creature is alarmed.
 
-### Detection is not death
+### A touch is not death
 
-Being seen starts a sequence, not a game over. The creature freezes for 0.65 s (a
-beat of silence, the camera pushes in, the room goes quiet), then charges. If you
-break its line of sight and keep it broken for 1.5 s, it loses you, goes to
-`SEARCHING`, and you bank a near miss. Surviving those is worth score. The loop the
-game is built around is *oh no, wait, I can still get out of this*.
+Being caught costs health, not the run: three touches kill. The creature still
+freezes for 0.65 s on first detection (a beat of silence, the camera pushes in,
+the room goes quiet), then charges. If you break its line of sight and keep it
+broken for 1.5 s, it loses you, goes to `SEARCHING`, and you bank a near miss.
+Surviving those is worth score. The loop the game is built around is
+*oh no, wait, I can still get out of this*.
 
 ---
 
@@ -201,15 +205,18 @@ Rendering runs in four passes, and the order *is* the art direction:
 Geometry is read almost entirely from **rim light**: the bright edge a surface
 catches on the side facing the strongest lamp (`rimLightRect` / `rimLightCircle`).
 Three things are allowed to keep their own colour through the light pass: the
-cursor, gold, and red. Red is violence and nothing else.
+flashlight beam, gold, and red. Red is violence and nothing else. Creatures are
+painted near-black holes with lit apertures, and they tremble, drool, bleed
+veins and bare teeth as their certainty climbs.
 
 The interface is a surveillance logbook somebody has been scratching notes in.
 Every stroke goes through one SVG displacement filter (`src/ui/Ink.ts`) so lines
 come out slightly wrong, the way a line drawn by hand against a ruler does. The
 HUD is a ruled sweep across the top of the frame with a mark for each creature,
-placed by where it stands and lit by how interested it is: it tells you the one
-thing the world cannot, which is that something off to your right, outside the
-light, has started paying attention.
+placed by where it stands and lit by how interested it is, plus a vitals
+cluster (health, stamina, bottles, torch) at the bottom left: it tells you the
+one thing the world cannot, which is that something off to your right, outside
+the light, has started hunting you.
 
 ## Architecture
 
@@ -224,17 +231,18 @@ src/
     Tuning.ts              every number that decides how it feels
     Mathx.ts               vectors, rects, segment/rect intersection, seeded RNG
   input/
-    InputManager.ts        abstract actions: move, sneak, interact, hide, pause
+    InputManager.ts        abstract actions: move, sprint, sneak, torch, throw, hide
     KeyboardMouseInput.ts  desktop backend
     TouchInput.ts          touch backend scaffold (see Known limitations)
   cursor/
-    CursorSensor.ts        raw pointer events to a clean, smoothed signal
-    CursorController.ts    cursor state, trail, decoys, heat
+    CursorSensor.ts        raw pointer events to a clean, smoothed aim signal
+    CursorController.ts    aim reticle state, trail, machine echoes, heat
     CursorState.ts         state names and the metric record
-    CursorTrail.ts         visible residue of recent attention
-    CursorDecoy.ts         fake cursors, five movement patterns
+    CursorTrail.ts         visible residue of recent aim
+    CursorDecoy.ts         machine echoes, five movement patterns
   stealth/
     AttentionSystem.ts     the AttentionSource interface and registry
+    BodyAttention.ts       the player's body as the hunted source + torch glare
     LineOfSight.ts         segment against axis-aligned blockers
   enemies/
     Enemy.ts               one creature: sensing, state, behaviour
@@ -242,7 +250,7 @@ src/
     EnemyAwareness.ts      the weighted sum above
     EnemyStateMachine.ts   state bookkeeping
     EnemyCommunication.ts  alerts between creatures
-  player/Player.ts         the body
+  player/Player.ts         the body: sprint/stamina, sneak, torch, bottles, health
   world/
     Room.ts                live room: objects, creatures, lights, queries
     Rooms.ts               twelve hand authored rooms
@@ -252,13 +260,13 @@ src/
     WorldObject.ts         a live prop
     Collision.ts           circle against AABB, axis separated
   interactions/
-    InteractionSystem.ts   behaviour table, clicks, reach, hiding, light physics
+    InteractionSystem.ts   behaviour table, aim clicks, bottle throws, hiding
     NoiseSystem.ts         sound as a gameplay object
   particles/ParticleSystem.ts
   rendering/
     Renderer.ts            canvas, DPR, letterboxing, the four draw passes
-    SceneArt.ts            room, props, character, creatures, blood, fixtures
-    CursorArt.ts           the cursor, its trail, and decoys
+    SceneArt.ts            room, props, survivor, flashlight beam, creatures, blood
+    CursorArt.ts           the aim reticle, its trail, and echoes
     Lighting.ts            the light map, bloom, vignette and grain
     Camera.ts              shake and small push
     DrawUtils.ts           palette, rim light, survey marks
@@ -293,15 +301,15 @@ awareness and decay never depend on frame rate. Rendering gets whatever is left.
 
 | Creature | What it reads | Teaches |
 | --- | --- | --- |
-| **The Watcher** | Proximity, and very strongly, being pointed at. Nearly deaf | The core rule |
-| **The Hound** | Cursor speed only. No line of sight needed | Panic feeds it |
-| **The Sleeper** | Sound and loitering. Sometimes only pretending to sleep | Clicks matter |
-| **The Mirror** | Never moves, only turns. A gaze like a razor | Direction |
+| **The Watcher** | Bodies in its gaze cone, especially lit and sprinting. Nearly deaf | The core rule |
+| **The Hound** | Footstep speed and noise. No line of sight needed | Sprinting feeds it |
+| **The Sleeper** | Sound and loitering. Sometimes only pretending to sleep | Tread softly |
+| **The Mirror** | Never moves, only turns. A gaze like a razor | Cross behind it |
 | **The Liar** | Normal senses, but its posture is a performance | Watch behaviour, not animation |
-| **The Scout** | Cannot catch you. Raises the alarm for something that can | Cascades |
-| **The Mimic** | Emits fake cursors of its own. Immune to yours | Deception cuts both ways |
-| **The Analyst** | Reads where attention lingered, counts your habits | Repetition is punished |
-| **The Parasite** | Provoked by being ignored, soothed by being looked at | Inversion |
+| **The Scout** | Cannot catch you. Spots you and screams for something that can | Cascades |
+| **The Mimic** | Fakes footstep echoes elsewhere. Immune to your lures | Deception cuts both ways |
+| **The Analyst** | Remembers your routes, counts your reused tricks | Repetition is punished |
+| **The Parasite** | Rules shadow; torchlight soothes it, darkness provokes it | Carry light |
 
 ### Objects
 
@@ -317,18 +325,18 @@ pickups, breakables, pushables); the rest are cover, sight blockers and noise.
 
 Twelve hand authored rooms, each introducing one idea and then combining it:
 
-1. **Room With One Door** - attention is what it hunts
-2. **The Desk** - where you point beats how close you are
-3. **The Lock** - using something makes a sound where it stands
-4. **Kennel** - some of them only read how fast you moved
-5. **Do Not Wake It** - holding still is not the same as being safe
-6. **Two Of Them** - one of them does not catch you, it tells
-7. **Lights** - the dark blurs you, it does not hide you
-8. **Static** - noise you control is still noise
-9. **The Projection** - attention does not have to be yours
-10. **Everything** - all of it at once, and one of them is faking
-11. **The Analyst** - it is keeping score of your habits
-12. **It Wants To Be Seen** - some of them are offended by being ignored
+1. **Room With One Door** - light, noise and motion are what it hunts
+2. **The Desk Ward** - flank the gaze cone, never cross it
+3. **The Lock Ward** - lure it away before doing loud work
+4. **Kennel of Teeth** - the Hound hunts footsteps; sneak, never sprint
+5. **Do Not Wake It** - kill the torch, sneak past sleep
+6. **Two Hungers** - the Scout spots you and screams for the killer
+7. **Blackout Gallery** - darkness hides you, the Mirror still sees light
+8. **Static Corridor** - two switches, two hunters, bottles save lives
+9. **The Projection Hall** - machines scream; move while they cover you
+10. **Everything Hungry** - all of it at once, and one of them is faking
+11. **The Analyst Pit** - it learns your routes; never run the same line twice
+12. **It Hungers in the Dark** - the Parasite rules shadow; keep the torch lit
 
 Plus challenge mode (eight stackable modifiers), a date seeded daily challenge, and
 seeded procedural rooms, every one of which is validated for reachability before it
@@ -347,9 +355,9 @@ is playable.
 4. Give it a silhouette: add a case to `drawEnemy` in `src/rendering/SceneArt.ts`.
 5. Place it in a room with `{ kind: 'YOUR_KIND', x, y, facing, tag }`.
 
-Only add code if it needs a genuinely new *behaviour* (the Mimic spawning decoys,
-the Analyst counting habits). Those live as flags on the definition plus a small
-branch in `Enemy`.
+Only add code if it needs a genuinely new *behaviour* (the Mimic faking
+footsteps, the Analyst counting habits). Those live as flags on the definition
+plus a small branch in `Enemy`.
 
 ### Adding an object
 
@@ -382,12 +390,12 @@ It checks that the player spawn is clear, that the exit and every objective obje
 can actually be walked to, and that no creature spawns inside a wall or on top of
 the player. It caught three real authoring bugs while these rooms were being built.
 
-### Adding a cursor behaviour
+### Adding a body behaviour
 
-Metrics belong in `CursorSensor` (add a field to `CursorStateData` and compute it
-in `update`). If creatures should react to it, add a weight to `AwarenessProfile`
-and a term to `evaluateSource`. If it is a new kind of fake attention, add a
-pattern to `DecoyPattern` and a case to `CursorDecoy.update`.
+Movement metrics belong in `Player` and `BodyAttention` (speed, sneak, torch,
+loitering). If creatures should react to a new one, add a weight to
+`AwarenessProfile` and a term to `evaluateSource`. If it is a new kind of false
+echo, add a pattern to `DecoyPattern` and a case to `CursorDecoy.update`.
 
 ### Connecting an ad provider
 
@@ -418,7 +426,7 @@ rooms of the last one. Analytics works the same way through `AnalyticsManager.us
 ## Known limitations
 
 - **Touch is scaffolded, not shipped.** `TouchInput` implements a two thumb layout
-  (left half walks, right half drags the attention marker) and is wired through the
+  (left half walks, right half drags the aim marker) and is wired through the
   same abstract actions, but it is untuned and the UI is not laid out for phones.
   Desktop is the only supported target today.
 - **Lighting does not cast shadows.** Lights are radial, and walls do not occlude

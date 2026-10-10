@@ -1,4 +1,4 @@
-import { AWARENESS, VIEW } from '../core/Tuning';
+import { AWARENESS, PLAYER, VIEW } from '../core/Tuning';
 import { TAU, Rng, clamp01, type Rect } from '../core/Mathx';
 import type { Enemy } from '../enemies/Enemy';
 import type { Player } from '../player/Player';
@@ -727,41 +727,91 @@ function drawProgress(ctx: Ctx, o: WorldObject): void {
 export function drawPlayer(ctx: Ctx, p: Player, room: Room): void {
   if (p.hidden) return;
   const breathe = Math.sin(p.breathPhase) * 0.6;
-  const swing = Math.sin(p.walkPhase) * 3.4;
-  const lean = Math.cos(p.facing) * 1.2;
+  const swing = Math.sin(p.walkPhase) * (p.sprinting ? 5.2 : 3.4);
+  const lean = Math.cos(p.facing) * (p.sprinting ? 3.2 : 1.2);
+  // Sneaking crouches the silhouette; sprinting stretches it forward.
+  const crouch = p.sneaking ? 3 : 0;
   const l = dominantLight(room, p.x, p.y, SCRATCH_LIGHT);
+  const hurt = p.hurtTimer > 0 && Math.sin(p.hurtTimer * 40) > 0;
 
-  shadowBlob(ctx, p.x, p.y + 9, 12, 4.5, 0.85);
+  shadowBlob(ctx, p.x, p.y + 9, p.sprinting ? 15 : 12, 4.5, 0.85);
 
   ctx.save();
-  ctx.translate(p.x, p.y);
+  ctx.translate(p.x, p.y + crouch * 0.4);
 
+  // Legs: longer stride when sprinting, tucked when sneaking.
   ctx.strokeStyle = PALETTE.propDeep;
   ctx.lineWidth = 3.2;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(-2, 2);
-  ctx.lineTo(-2 + swing * 0.5, 9);
+  ctx.lineTo(-2 + swing * 0.5, 9 - crouch * 0.5);
   ctx.moveTo(2, 2);
-  ctx.lineTo(2 - swing * 0.5, 9);
+  ctx.lineTo(2 - swing * 0.5, 9 - crouch * 0.5);
   ctx.stroke();
 
-  ctx.fillStyle = p.dead ? PALETTE.bloodDark : PALETTE.prop;
-  taperedLine(ctx, lean * 0.5, -10 + breathe, 0, 4, 5.6, 4.2);
+  // Torso: hooded survivor's coat, darker while sneaking.
+  ctx.fillStyle = p.dead ? PALETTE.bloodDark : hurt ? PALETTE.alarm : p.sneaking ? PALETTE.propDeep : PALETTE.prop;
+  taperedLine(ctx, lean * 0.5, -10 + breathe - crouch, 0, 4 - crouch * 0.3, 5.6, 4.2);
   ctx.fill();
   ctx.strokeStyle = withAlpha(PALETTE.wallShadow, 0.9);
   ctx.lineWidth = 1.1;
   ctx.stroke();
 
-  ctx.fillStyle = p.dead ? PALETTE.bloodDark : PALETTE.propEdge;
-  circle(ctx, lean * 0.7, -14 + breathe, 4.5);
+  // Head with a hood peak pointing at the flashlight aim.
+  const aim = Math.atan2(p.aimY - p.y, p.aimX - p.x);
+  ctx.fillStyle = p.dead ? PALETTE.bloodDark : hurt ? PALETTE.alarm : PALETTE.propEdge;
+  circle(ctx, lean * 0.7, -14 + breathe - crouch, 4.5);
   ctx.fill();
   ctx.strokeStyle = withAlpha(PALETTE.wallShadow, 0.9);
   ctx.stroke();
+  if (!p.dead) {
+    ctx.fillStyle = PALETTE.propDeep;
+    ctx.beginPath();
+    ctx.moveTo(lean * 0.7 + Math.cos(aim) * 2, -14 + breathe - crouch + Math.sin(aim) * 2);
+    ctx.lineTo(lean * 0.7 + Math.cos(aim - 0.5) * 6.5, -16 + breathe - crouch + Math.sin(aim - 0.5) * 4);
+    ctx.lineTo(lean * 0.7 + Math.cos(aim + 0.5) * 6.5, -16 + breathe - crouch + Math.sin(aim + 0.5) * 4);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.restore();
 
   rimLightCircle(ctx, p.x + lean * 0.7, p.y - 14 + breathe, 4.5, l.x, l.y, 0.35 + l.strength * 0.65, 1.4);
   rimLightRect(ctx, p.x - 5, p.y - 10, 10, 14, l.x, l.y, 0.25 + l.strength * 0.6, 1.3);
+}
+
+/**
+ * The flashlight beam: an honest cone matching the 0.42 rad glare model.
+ * What you see is what provokes them — shining it at teeth is a choice.
+ */
+export function drawFlashlightBeam(ctx: Ctx, p: Player, tension: number): void {
+  if (p.hidden || p.dead || !p.flashlightOn) return;
+  const range = PLAYER.flashlightRange;
+  const spread = 0.42;
+  const aim = p.aimAngle;
+  const flick = 0.9 + Math.sin(p.breathPhase * 7.3) * 0.04 + tension * Math.sin(p.breathPhase * 31) * 0.08;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(p.x, p.y - 8, 8, p.x, p.y - 8, range);
+  g.addColorStop(0, `rgba(255,240,200,${0.22 * flick})`);
+  g.addColorStop(0.4, `rgba(255,230,170,${0.1 * flick})`);
+  g.addColorStop(1, 'rgba(255,220,150,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - 8);
+  ctx.arc(p.x, p.y - 8, range, aim - spread, aim + spread);
+  ctx.closePath();
+  ctx.fill();
+  // Hot core of the beam.
+  ctx.fillStyle = `rgba(255,246,214,${0.1 * flick})`;
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - 8);
+  ctx.arc(p.x, p.y - 8, range * 0.55, aim - spread * 0.45, aim + spread * 0.45);
+  ctx.closePath();
+  ctx.fill();
+  // The lamp itself.
+  halo(ctx, p.x + Math.cos(aim) * 7, p.y - 8 + Math.sin(aim) * 7, 14, '#ffedb8', 0.5);
+  ctx.restore();
 }
 
 /** The character's own faint presence, drawn after the light so it is never lost. */
@@ -798,17 +848,22 @@ export function drawEnemyBody(ctx: Ctx, e: Enemy): void {
   const asleep = e.looksAsleep && e.state.current === 'IDLE';
   const breathe = Math.sin(t * (asleep ? 0.9 : 1.8 + e.tell * 3)) * (asleep ? 1.6 : 0.9);
   const h = e.def.height;
+  const pursuing = e.state.current === 'PURSUING';
+  // Excitement tremor: the more certain it is, the less still it holds.
+  const jitter = e.tell > 0.55 && !asleep ? (e.tell - 0.55) * 4 : 0;
+  const jx = jitter > 0 ? Math.sin(t * 47) * jitter : 0;
+  const jy = jitter > 0 ? Math.cos(t * 39) * jitter * 0.6 : 0;
 
-  shadowBlob(ctx, e.x, e.y + h * 0.12, e.def.awareness.bodyRadius * 1.6, 6, 0.9);
+  shadowBlob(ctx, e.x, e.y + h * 0.12, e.def.awareness.bodyRadius * (pursuing ? 2 : 1.6), 6, 0.9);
 
   ctx.save();
-  ctx.translate(e.x, e.y);
+  ctx.translate(e.x + jx, e.y + jy);
   switch (e.def.kind) {
     case 'HOUND':
       houndBody(ctx, e, breathe, t);
       break;
     case 'SLEEPER':
-      sleeperBody(ctx, breathe, asleep);
+      sleeperBody(ctx, e, breathe, asleep);
       break;
     case 'MIRROR':
       mirrorBody(ctx, e, breathe);
@@ -857,6 +912,8 @@ function tallBody(
   ctx.stroke();
 
   const lift = clamp01(e.tell) * 0.8;
+  const pursuing = e.state.current === 'PURSUING';
+  // Arms end in three claws that spread as it gets certain.
   ctx.strokeStyle = BODY;
   ctx.lineWidth = 3.4;
   ctx.lineCap = 'round';
@@ -866,6 +923,32 @@ function tallBody(
   ctx.moveTo(7, top + 20);
   ctx.lineTo(11 + lift * 5, top + 36 - lift * 12);
   ctx.stroke();
+  if (e.tell > 0.3) {
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (const s of [-1, 1]) {
+      const hx = s * (11 + lift * 5);
+      const hy = top + 36 - lift * 12;
+      for (let c = -1; c <= 1; c++) {
+        ctx.moveTo(hx, hy);
+        ctx.lineTo(hx + s * 3 + c * 1.6, hy + 4.5);
+      }
+    }
+    ctx.stroke();
+  }
+
+  // Ribs: thin arcs across the torso that show when it breathes hard.
+  if (e.tell > 0.25) {
+    ctx.strokeStyle = BODY_EDGE;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let r = 0; r < 3; r++) {
+      const ry = top + 22 + r * 7;
+      ctx.moveTo(-7, ry);
+      ctx.quadraticCurveTo(0, ry + 3, 7, ry);
+    }
+    ctx.stroke();
+  }
 
   ctx.save();
   ctx.translate(sway * 0.7, top + 4);
@@ -874,15 +957,49 @@ function tallBody(
   if (variant === 'analyst') {
     roundRect(ctx, -11, -6, 22, 12, 2);
     ctx.fill();
+    // Scanline sweeping the visor.
+    const sx = -9 + ((e.animPhase * 14) % 18);
+    ctx.strokeStyle = withAlpha('#ff5a6e', 0.5);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx, -5);
+    ctx.lineTo(sx, 5);
+    ctx.stroke();
   } else {
     circle(ctx, 0, 0, 8.8);
     ctx.fill();
+    if (variant === 'watcher') {
+      // Crown of spikes.
+      ctx.strokeStyle = BODY;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let s = -2; s <= 2; s++) {
+        ctx.moveTo(s * 4, -7);
+        ctx.lineTo(s * 5.5, -13 - (s % 2 === 0 ? 2 : 0));
+      }
+      ctx.stroke();
+    } else if (variant === 'mimic') {
+      // Jagged grin under the eye socket.
+      ctx.strokeStyle = BODY_EDGE;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-6, 6);
+      for (let s = 0; s <= 6; s++) ctx.lineTo(-6 + s * 2, 6 + (s % 2 === 0 ? 0 : 2.6));
+      ctx.stroke();
+    } else if (variant === 'liar' && pursuing) {
+      // The performance drops while it hunts: second face underneath.
+      ctx.globalAlpha = 0.4;
+      circle(ctx, 0, 9, 5.5);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
   ctx.restore();
 }
 
 function houndBody(ctx: Ctx, e: Enemy, breathe: number, t: number): void {
   const gait = Math.sin(t * (4 + e.moveSpeedNow * 0.06)) * 3;
+  const gape = 0.4 + clamp01(e.tell) * 3.4;
   ctx.save();
   ctx.rotate(e.facing);
   ctx.strokeStyle = BODY;
@@ -900,13 +1017,38 @@ function houndBody(ctx: Ctx, e: Enemy, breathe: number, t: number): void {
   ctx.beginPath();
   ctx.ellipse(0, 0, 22, 9.5 + breathe * 0.4, 0, 0, TAU);
   ctx.fill();
+  // Snout with an open jaw: the gape widens as it gets certain.
   ctx.beginPath();
   ctx.ellipse(21, 0, 9.5, 6.4, 0, 0, TAU);
   ctx.fill();
+  ctx.strokeStyle = BODY_EDGE;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(16, 2);
+  ctx.lineTo(29, 2 + gape);
+  ctx.stroke();
+  // Teeth.
+  ctx.strokeStyle = withAlpha('#cfd8e3', 0.75);
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  for (let s = 0; s < 4; s++) {
+    const tx = 18 + s * 3;
+    ctx.moveTo(tx, 2.4);
+    ctx.lineTo(tx + 0.8, 2.4 + gape * 0.8);
+  }
+  ctx.stroke();
+  // Drool when it is onto you.
+  if (e.tell > 0.55) {
+    ctx.strokeStyle = withAlpha('#8dffe0', 0.4);
+    ctx.beginPath();
+    ctx.moveTo(27, 4 + gape);
+    ctx.lineTo(27 + Math.sin(t * 9) * 1.5, 10 + gape);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
-function sleeperBody(ctx: Ctx, breathe: number, asleep: boolean): void {
+function sleeperBody(ctx: Ctx, e: Enemy, breathe: number, asleep: boolean): void {
   const rise = asleep ? 0 : 10;
   ctx.fillStyle = BODY;
   ctx.beginPath();
@@ -915,6 +1057,32 @@ function sleeperBody(ctx: Ctx, breathe: number, asleep: boolean): void {
   ctx.beginPath();
   ctx.ellipse(0, -8 - rise * 0.4, 25, 6, 0, 0, Math.PI);
   ctx.fill();
+  if (asleep) {
+    // Stitched-shut lid: X stitches across the seam.
+    ctx.strokeStyle = withAlpha('#3a4552', 0.9);
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    for (let s = -3; s <= 3; s++) {
+      const sx = s * 6;
+      ctx.moveTo(sx - 2, -10);
+      ctx.lineTo(sx + 2, -6);
+      ctx.moveTo(sx + 2, -10);
+      ctx.lineTo(sx - 2, -6);
+    }
+    ctx.stroke();
+  } else {
+    // Open maw ringed with teeth.
+    const open = 4 + clamp01(e.tell) * 5;
+    ctx.strokeStyle = withAlpha('#cfd8e3', 0.7);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let s = 0; s < 10; s++) {
+      const a = (s / 10) * TAU;
+      ctx.moveTo(Math.cos(a) * 9, -12 + Math.sin(a) * 4);
+      ctx.lineTo(Math.cos(a) * (9 + open * 0.4), -12 + Math.sin(a) * (4 + open * 0.4));
+    }
+    ctx.stroke();
+  }
 }
 
 function mirrorBody(ctx: Ctx, e: Enemy, breathe: number): void {
@@ -922,6 +1090,16 @@ function mirrorBody(ctx: Ctx, e: Enemy, breathe: number): void {
   ctx.fillStyle = BODY;
   taperedLine(ctx, 0, -h + breathe, 0, 6, 5.5, 9.5);
   ctx.fill();
+  // Cracked shard: fault lines across the face.
+  ctx.strokeStyle = withAlpha('#3a4552', 0.85);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-3, -h + 8);
+  ctx.lineTo(2, -h + 22);
+  ctx.lineTo(-2, -h + 34);
+  ctx.moveTo(3, -h + 12);
+  ctx.lineTo(-3, -h + 26);
+  ctx.stroke();
 }
 
 function scoutBody(ctx: Ctx, e: Enemy, breathe: number, t: number): void {
@@ -939,6 +1117,15 @@ function scoutBody(ctx: Ctx, e: Enemy, breathe: number, t: number): void {
     ctx.lineTo(Math.cos(a) * 9, -h * 0.4 + 12 + Math.sin(a) * 3);
     ctx.stroke();
   }
+  // Twin antennae that quiver when alarmed.
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  const quiver = Math.sin(t * (6 + e.tell * 22)) * (1 + e.tell * 3);
+  ctx.moveTo(-3, -h * 0.55 - 8 + breathe);
+  ctx.lineTo(-5 + quiver, -h * 0.55 - 16 + breathe);
+  ctx.moveTo(3, -h * 0.55 - 8 + breathe);
+  ctx.lineTo(5 - quiver, -h * 0.55 - 16 + breathe);
+  ctx.stroke();
   ctx.fillStyle = BODY;
   circle(ctx, 0, -h * 0.55 + breathe, 9.4);
   ctx.fill();
@@ -947,10 +1134,25 @@ function scoutBody(ctx: Ctx, e: Enemy, breathe: number, t: number): void {
 
 function parasiteBody(ctx: Ctx, e: Enemy, breathe: number): void {
   const h = e.def.height;
+  // Heartbeat swell: it throbs faster as it gets excited.
+  const beat = 1 + Math.sin(e.animPhase * (2 + e.tell * 7)) * (0.03 + e.tell * 0.06);
   ctx.fillStyle = BODY;
   ctx.beginPath();
-  ctx.ellipse(0, -h * 0.45, 16.5 + breathe * 0.5, h * 0.45 + breathe, 0, 0, TAU);
+  ctx.ellipse(0, -h * 0.45, (16.5 + breathe * 0.5) * beat, (h * 0.45 + breathe) * beat, 0, 0, TAU);
   ctx.fill();
+  // Veins crawling over the sac.
+  ctx.strokeStyle = withAlpha('#5a2330', 0.9);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let v = 0; v < 5; v++) {
+    const a = (v / 5) * TAU + e.animPhase * 0.15;
+    ctx.moveTo(Math.cos(a) * 5, -h * 0.45 + Math.sin(a) * 8);
+    ctx.quadraticCurveTo(
+      Math.cos(a + 0.5) * 12, -h * 0.45 + Math.sin(a + 0.5) * 16,
+      Math.cos(a + 0.9) * 16, -h * 0.45 + Math.sin(a + 0.9) * 22,
+    );
+  }
+  ctx.stroke();
 }
 
 /**
@@ -1069,6 +1271,15 @@ export function drawEnemyEye(ctx: Ctx, e: Enemy): void {
   if (tell > 0.04) {
     arcMeter(ctx, e.x, e.y - e.def.height * 0.78, 16, clamp01(tell), col, 0.6 + tell * 0.4, 2.2);
   }
+  // Hunting ring: a thin red circle closing in while it chases your body.
+  if (e.state.current === 'PURSUING') {
+    ctx.save();
+    ctx.strokeStyle = withAlpha(PALETTE.alarm, 0.55 + Math.sin(t * 10) * 0.2);
+    ctx.lineWidth = 1.6;
+    circle(ctx, e.x, e.y - e.def.height * 0.4, 26 + Math.sin(t * 10) * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (e.flinch > 0.02) {
     halo(ctx, e.x, e.y - e.def.height * 0.4, 52, col, e.flinch * 0.22);
   }
@@ -1158,5 +1369,57 @@ export function drawAttentionLine(ctx: Ctx, e: Enemy, tx: number, ty: number): v
   ctx.moveTo(e.x, e.y - e.def.height * 0.6);
   ctx.lineTo(tx, ty);
   ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * Gaze cone on the floor: what the creature can currently see. Faint white
+ * when calm, hot red when hunting. This is the horror readability upgrade —
+ * you can SEE death coming and route around it.
+ */
+export function drawVisionCone(ctx: Ctx, e: Enemy): void {
+  if (e.looksAsleep && e.state.current === 'IDLE') return;
+  if (e.state.current === 'DISABLED' || e.state.current === 'DEAD') return;
+  const p = e.def.awareness;
+  // Hounds hunt by ear and sleepers by noise; cones would lie.
+  if (e.def.kind === 'HOUND' || e.def.kind === 'SLEEPER') return;
+  const range = p.awarenessRadius * (e.state.current === 'PURSUING' ? 1.15 : 0.9);
+  const half = p.gazeAngle;
+  const hunting = e.state.current === 'PURSUING' || e.state.current === 'ALERT';
+  const col = hunting ? '#ff3b52' : e.tell > 0.3 ? '#ffb13c' : '#a9b7c4';
+  const alpha = hunting ? 0.13 : 0.05 + e.tell * 0.06;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = withAlpha(col, alpha);
+  ctx.beginPath();
+  ctx.moveTo(e.x, e.y);
+  ctx.arc(e.x, e.y, range, e.facing - half, e.facing + half);
+  ctx.closePath();
+  ctx.fill();
+  // Edge lines so the cone boundary reads as a tripwire.
+  ctx.strokeStyle = withAlpha(col, alpha * 2.4);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(e.x, e.y);
+  ctx.lineTo(e.x + Math.cos(e.facing - half) * range, e.y + Math.sin(e.facing - half) * range);
+  ctx.moveTo(e.x, e.y);
+  ctx.lineTo(e.x + Math.cos(e.facing + half) * range, e.y + Math.sin(e.facing + half) * range);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Blood dripping off a pursuing monster. It has fed before. */
+export function drawHunterDrips(ctx: Ctx, e: Enemy): void {
+  if (e.state.current !== 'PURSUING' && e.tell < 0.6) return;
+  const t = e.animPhase;
+  ctx.save();
+  ctx.fillStyle = withAlpha(PALETTE.blood, 0.85);
+  for (let i = 0; i < 3; i++) {
+    const ph = (t * 0.7 + i * 0.37) % 1;
+    const dx = Math.sin(i * 12.9) * 8;
+    const dy = ph * 22;
+    circle(ctx, e.x + dx, e.y - 6 + dy, 1.6 - ph * 0.7);
+    ctx.fill();
+  }
   ctx.restore();
 }

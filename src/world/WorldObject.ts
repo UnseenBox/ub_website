@@ -21,7 +21,7 @@ export interface ObjectSpawn {
   h?: number;
   /** Where this vent comes out. */
   linkTo?: string;
-  /** Flavour text shown when the cursor hovers it. */
+  /** Flavour text shown when the aim hovers it. */
   hint?: string;
   /** Rotation for art that cares, in radians. */
   angle?: number;
@@ -107,7 +107,7 @@ export class WorldObject {
     return { x: this.x - this.w * 0.5, y: this.y - this.h * 0.5, w: this.w, h: this.h };
   }
 
-  /** Slightly generous box used for cursor hit testing. */
+  /** Slightly generous box used for aim hit testing. */
   get hitRect(): Rect {
     const pad = 5;
     return {
@@ -138,7 +138,7 @@ export class WorldObject {
     return true;
   }
 
-  /** Can the cursor currently do anything useful here? */
+  /** Can the player currently do anything useful here? */
   get available(): boolean {
     if (!this.def.interactable) return false;
     if (!this.revealed) return false;

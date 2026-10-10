@@ -10,9 +10,12 @@ export interface ActionState {
   moveX: number;
   moveY: number;
   sneak: boolean;
+  sprint: boolean;
   /** Edge-triggered: true for exactly one simulation step. */
   interact: boolean;
   hide: boolean;
+  flashlight: boolean;
+  throwBottle: boolean;
   pause: boolean;
   restart: boolean;
   toggleDebug: boolean;
@@ -56,8 +59,11 @@ export class InputManager {
     moveX: 0,
     moveY: 0,
     sneak: false,
+    sprint: false,
     interact: false,
     hide: false,
+    flashlight: false,
+    throwBottle: false,
     pause: false,
     restart: false,
     toggleDebug: false,
@@ -106,8 +112,11 @@ export class InputManager {
     a.moveX = 0;
     a.moveY = 0;
     a.sneak = false;
+    a.sprint = false;
     a.interact = false;
     a.hide = false;
+    a.flashlight = false;
+    a.throwBottle = false;
     a.pause = false;
     a.restart = false;
     a.toggleDebug = false;

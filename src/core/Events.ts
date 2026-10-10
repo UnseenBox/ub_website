@@ -34,9 +34,12 @@ export interface NoiseEvent {
 export interface GameEvents {
   CURSOR_MOVED: { x: number; y: number; speed: number };
   CURSOR_CLICKED: { x: number; y: number; button: number; onObject: string | null };
+  THROW_REQUESTED: { x: number; y: number };
   CURSOR_STATE_CHANGED: { from: CursorStateName; to: CursorStateName };
   CURSOR_ENTERED_AWARENESS: { enemyId: string };
   CURSOR_LEFT_AWARENESS: { enemyId: string };
+  PLAYER_ENTERED_AWARENESS: { enemyId: string };
+  PLAYER_LEFT_AWARENESS: { enemyId: string };
   CURSOR_LOST: { lost: boolean };
 
   OBJECT_INTERACTED: { objectId: string; kind: string; state: string };
@@ -47,11 +50,12 @@ export interface GameEvents {
   ENEMY_STATE_CHANGED: { enemyId: string; kind: string; from: EnemyStateName; to: EnemyStateName };
   ENEMY_SUSPICIOUS: { enemyId: string; kind: string };
   ENEMY_INVESTIGATING: { enemyId: string; kind: string; x: number; y: number };
-  ENEMY_ALERTED: { enemyId: string; kind: string; source: 'cursor' | 'noise' | 'peer' | 'decoy' };
+  ENEMY_ALERTED: { enemyId: string; kind: string; source: 'cursor' | 'body' | 'flashlight' | 'noise' | 'peer' | 'decoy' };
   ENEMY_CALMED: { enemyId: string; kind: string };
   ENEMY_DISABLED: { enemyId: string; kind: string };
 
   PLAYER_DETECTED: { enemyId: string; kind: string };
+  PLAYER_HIT: { enemyId: string; kind: string };
   PLAYER_ESCAPED_DETECTION: { enemyId: string; heat: number };
   PLAYER_HIDDEN: { objectId: string };
   PLAYER_UNHIDDEN: { objectId: string };

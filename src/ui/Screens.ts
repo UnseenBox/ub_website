@@ -94,12 +94,12 @@ function ruledLine(width = 520): SVGSVGElement {
 export function mainMenu(save: SaveManager, discovery: DiscoverySystem, cb: UICallbacks): HTMLElement {
   const s = screen();
   const title = el('h1', 'title');
-  title.innerHTML = 'DON&rsquo;T LET IT <span class="eye">SEE</span> YOU';
+  title.innerHTML = 'DON&rsquo;T LET IT <span class="eye">FIND</span> YOU';
   s.append(title);
   const rule = el('div', 'title-rule');
   rule.append(ruledLine());
   s.append(rule);
-  s.append(el('p', 'tagline', 'IT CANNOT SEE YOU. IT CAN SEE WHAT YOU ARE LOOKING AT.'));
+  s.append(el('p', 'tagline', 'IT HUNTS YOUR BODY. YOUR NOISE. YOUR LIGHT.'));
 
   const completed = ROOMS.filter((r) => save.record(r.id).completed).length;
   const menu = el('div', 'menu');
@@ -297,21 +297,25 @@ export function howTo(cb: UICallbacks): HTMLElement {
   const p = panel('THE RULE');
   const rule = el('p', 'note');
   rule.innerHTML =
-    'The creatures in these rooms cannot see your body. They can see <strong>where your cursor is</strong>, ' +
-    'how fast it moved, how long it has been sitting still, and whether it is pointed at them. ' +
-    'You can walk right past something and be fine. Look at it and you will not be.';
+    'The creatures in these rooms hunt <strong>your body</strong>: how close you are, ' +
+    'how much light you stand in, how loud your feet are, and whether your flashlight beam ' +
+    'is shining at them. Sprinting is fast and loud. Sneaking (C) is slow and quiet. ' +
+    'Darkness hides you. Lockers hide you completely. A touch costs health — you survive 3 hits.';
   p.append(rule);
 
   const p2 = panel('CONTROLS');
   const rows = el('div', 'rows');
   const controls: [string, string][] = [
     ['WASD', 'Move your body'],
-    ['SHIFT', 'Sneak. Quieter, slower'],
-    ['MOUSE', 'Move your attention'],
-    ['LEFT CLICK', 'Use whatever is under the cursor. Always makes a sound'],
+    ['SHIFT', 'Sprint. Fast, loud, drains stamina'],
+    ['C / CTRL', 'Sneak. Slow, quiet, harder to see'],
+    ['MOUSE', 'Aim your flashlight — light exposes you'],
+    ['F', 'Toggle flashlight'],
+    ['Q / G', 'Throw a bottle to lure them away'],
+    ['LEFT CLICK', 'Use what is aimed at — empty floor throws a bottle'],
     ['RIGHT CLICK', 'Cancel what you are doing'],
-    ['E', 'Use the nearest thing without pointing at it'],
-    ['SPACE', 'Hide, when you are standing in cover'],
+    ['E', 'Use the nearest thing'],
+    ['SPACE', 'Hide in a locker / cover, or come out'],
     ['R', 'Restart the room'],
     ['ESC', 'Pause'],
   ];
@@ -321,10 +325,11 @@ export function howTo(cb: UICallbacks): HTMLElement {
   const p3 = panel('THINGS WORTH KNOWING');
   const list = el('p', 'note');
   list.innerHTML =
-    'Clicking empty air still makes a noise, right where you pointed. <br>' +
-    'Darkness blurs your attention, it does not erase it. <br>' +
-    'Being noticed is not being caught: break the line of sight and keep moving. <br>' +
-    'Everything in the room is a tool. Most of them are loud.';
+    'Clicking empty floor throws a bottle lure (you carry 3, keys restock 1). <br>' +
+    'Using things makes noise where they stand — plan it. <br>' +
+    'Red cones on the floor are their gaze. Do not stand in one, lit. <br>' +
+    'Being chased is not being caught: break line of sight, hide, or outrun. <br>' +
+    'Bottles (Q) are your best friend. So are lockers (SPACE).';
   p3.append(list);
 
   const menu = el('div', 'menu');
@@ -403,7 +408,7 @@ export function resultsScreen(data: ResultsData, cb: UICallbacks): HTMLElement {
 
 export function deathScreen(data: DeathData, cb: UICallbacks): HTMLElement {
   const s = screen();
-  s.append(el('div', 'stamp dead', 'IT SAW YOU'));
+  s.append(el('div', 'stamp dead', 'TAKEN'));
   s.append(el('p', 'tagline', `${data.killedBy}   ${data.roomName}`));
   if (data.lesson) s.append(el('p', 'note', data.lesson));
   const menu = el('div', 'menu');

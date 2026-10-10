@@ -5,11 +5,9 @@ import type { AttentionSource } from '../stealth/AttentionSystem';
 import type { CursorHistorySample, CursorStateData } from './CursorState';
 
 /**
- * Turns raw pointer events into the clean, smoothed signal the awareness model
- * reads. Nothing else in the game is allowed to look at the mouse.
- *
- * The sensor is also the real cursor's AttentionSource, which is why enemies can
- * treat it and a decoy identically.
+ * Turns raw pointer events into the clean, smoothed aim signal the game reads.
+ * The mouse aims the flashlight and picks interaction targets. Nothing hunts
+ * it — it is a tool, never a liability.
  */
 export class CursorSensor implements AttentionSource {
   readonly id = 'cursor';

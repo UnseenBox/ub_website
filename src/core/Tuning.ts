@@ -14,14 +14,27 @@ export const PLAYER = {
   radius: 9,
   walkSpeed: 132,
   sneakSpeed: 58,
+  sprintSpeed: 205,
   panicSpeed: 150,
   accel: 14,
   /** How far the character's hands reach for an interaction. */
-  reach: 46,
-  /** Noise the character emits while walking / sneaking, per footfall. */
+  reach: 52,
+  /** Noise the character emits while walking / sneaking / sprinting, per footfall. */
   footstepNoise: 1.6,
-  sneakFootstepNoise: 0.4,
+  sneakFootstepNoise: 0.35,
+  sprintFootstepNoise: 3.4,
   stepInterval: 0.34,
+  /** Stamina: sprint drains, recovers while walking or still. */
+  staminaMax: 100,
+  staminaDrain: 26,
+  staminaRecover: 20,
+  exhaustedSlow: 0.72,
+  /** Flashlight: how much more visible you are with it on. */
+  flashlightVisibility: 0.85,
+  flashlightRange: 260,
+  bottlesStart: 3,
+  /** Damage per monster touch. 3 hits to die. */
+  hitDamage: 34,
 } as const;
 
 export const CURSOR = {
@@ -76,10 +89,19 @@ export const NOISE = {
 } as const;
 
 export const LIGHT = {
-  /** Cursor visibility in total darkness. Darkness hides you, it does not erase you. */
-  minVisibility: 0.34,
+  /** Body visibility in total darkness. Darkness hides you, it does not erase you. */
+  minVisibility: 0.22,
   /** Ambient light level used when a room does not say otherwise. */
-  defaultAmbient: 0.22,
+  defaultAmbient: 0.2,
+  /** Sneaking in shadow: multiplier on visibility while sneaking and still. */
+  sneakShadowScale: 0.55,
+} as const;
+
+export const THROW = {
+  /** Thrown bottle lure: loud enough to steal focus across half a room. */
+  noiseLevel: 7,
+  maxRange: 340,
+  cooldown: 0.8,
 } as const;
 
 export const SCORE = {
