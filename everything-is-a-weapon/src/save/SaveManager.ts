@@ -1,0 +1,133 @@
+import { isHeroId, type HeroId } from '../core/Hero';
+import type { PortalStorage } from '../platform/Portal';
+
+export const SAVE_VERSION = 1;
+const STORAGE_KEY = 'everything-is-a-weapon/save';
+
+export interface Settings {
+  volume: number;
+  muted: boolean;
+  music: boolean;
+  reducedShake: boolean;
+  highContrast: boolean;
+}
+
+export interface SaveData {
+  version: number;
+  discoveries: string[];
+  highScore: number;
+  /** Longest chain reaction ever pulled off, across all rooms. */
+  bestChain: number;
+  /** Highest room index (0-based) the player may start from. */
+  unlockedRoom: number;
+  completedChallenges: string[];
+  roomsCleared: number;
+  hero: HeroId;
+  settings: Settings;
+}
+
+function defaults(): SaveData {
+  return {
+    version: SAVE_VERSION,
+    discoveries: [],
+    highScore: 0,
+    bestChain: 0,
+    unlockedRoom: 0,
+    completedChallenges: [],
+    roomsCleared: 0,
+    hero: 'tenant',
+    settings: { volume: 0.7, muted: false, music: true, reducedShake: false, highContrast: false },
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+function finite(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/**
+ * Upgrades any older save shape to the current one. Add a step per version bump:
+ *   if (version < 2) { ...transform raw...; version = 2; }
+ */
+function migrate(raw: Record<string, unknown>): Record<string, unknown> {
+  const version = finite(raw.version, 0);
+  if (version > SAVE_VERSION) {
+    console.warn('[save] save is from a newer version; loading what is understood.');
+  }
+  return raw;
+}
+
+function sanitize(raw: unknown): SaveData {
+  const base = defaults();
+  if (!isRecord(raw)) return base;
+  const data = migrate(raw);
+  const settings = isRecord(data.settings) ? data.settings : {};
+  return {
+    version: SAVE_VERSION,
+    discoveries: [...new Set(stringArray(data.discoveries))],
+    highScore: Math.max(0, finite(data.highScore, 0)),
+    bestChain: Math.max(0, Math.floor(finite(data.bestChain, 0))),
+    unlockedRoom: Math.max(0, Math.floor(finite(data.unlockedRoom, 0))),
+    completedChallenges: [...new Set(stringArray(data.completedChallenges))],
+    roomsCleared: Math.max(0, Math.floor(finite(data.roomsCleared, 0))),
+    hero: isHeroId(data.hero) ? data.hero : base.hero,
+    settings: {
+      volume: Math.min(1, Math.max(0, finite(settings.volume, base.settings.volume))),
+      muted: settings.muted === true,
+      music: settings.music !== false,
+      reducedShake: settings.reducedShake === true,
+      highContrast: settings.highContrast === true,
+    },
+  };
+}
+
+/** LocalStorage persistence that degrades to an in-memory save when storage is blocked. */
+export class SaveManager {
+  data: SaveData = defaults();
+  /** False when the browser refused storage (private mode, sandboxed iframe on a portal, ...). */
+  persistent = true;
+
+  /** `storage` is the portal's own save store, when it has one; otherwise the browser's. */
+  constructor(private readonly storage: PortalStorage | null = null) {}
+
+  private get store(): PortalStorage {
+    return this.storage ?? window.localStorage;
+  }
+
+  load(): void {
+    try {
+      const text = this.store.getItem(STORAGE_KEY);
+      this.data = text ? sanitize(JSON.parse(text)) : defaults();
+    } catch (error) {
+      console.warn('[save] could not read save; starting fresh.', error);
+      this.persistent = false;
+      this.data = defaults();
+    }
+  }
+
+  write(): void {
+    if (!this.persistent) return;
+    try {
+      this.store.setItem(STORAGE_KEY, JSON.stringify(this.data));
+    } catch (error) {
+      console.warn('[save] could not write save; progress will last for this session only.', error);
+      this.persistent = false;
+    }
+  }
+
+  clear(): void {
+    this.data = defaults();
+    try {
+      this.store.removeItem(STORAGE_KEY);
+    } catch {
+      // Nothing to clear if storage is unavailable.
+    }
+  }
+}
