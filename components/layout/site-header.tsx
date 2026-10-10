@@ -30,7 +30,6 @@ interface SiteHeaderProps {
 export function SiteHeader({ locale, copy, email, city, timezone, previews, studioName, logo }: SiteHeaderProps) {
   const pathname = usePathname() || `/${locale}`;
   const active = activeNavKey(pathname);
-  const current = NAV_ITEMS.find((item) => item.key === active)!;
 
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -124,7 +123,7 @@ export function SiteHeader({ locale, copy, email, city, timezone, previews, stud
             scrolled || open ? "opacity-100" : "opacity-0",
           )}
         />
-        <div className="shell relative grid h-16 grid-cols-[1fr_auto_1fr] items-center sm:h-20">
+        <div className="shell relative grid h-16 grid-cols-[1fr_auto] items-center sm:h-20">
           <Link
             href={localePath(locale)}
             className="group flex items-center gap-3 justify-self-start"
@@ -138,12 +137,6 @@ export function SiteHeader({ locale, copy, email, city, timezone, previews, stud
               hideWordmarkOnMobile
             />
           </Link>
-
-          <p className="label flex items-center gap-3 max-md:invisible" aria-live="polite">
-            <span className="font-pixel text-uv-400">{current.index}</span>
-            <span aria-hidden className="h-px w-6 bg-line-strong" />
-            <span className="text-bone">{copy.nav[current.key]}</span>
-          </p>
 
           <div className="flex items-center gap-2 justify-self-end sm:gap-4">
             <LanguageSwitcher locale={locale} label={copy.a11y.language} className="hidden sm:flex" />
@@ -206,9 +199,6 @@ export function SiteHeader({ locale, copy, email, city, timezone, previews, stud
                       onFocus={() => setPreview(item.key)}
                       className="group flex items-baseline gap-4 py-3 sm:gap-6 sm:py-4"
                     >
-                      <span className="font-pixel w-8 text-xs text-fog transition-colors group-hover:text-uv-400">
-                        {item.index}
-                      </span>
                       <span
                         className={cn(
                           "font-display text-[clamp(2rem,6.2vw,5.2rem)] leading-[0.95] transition-[color,transform] duration-500 ease-expo group-hover:translate-x-2 rtl:group-hover:-translate-x-2",
@@ -217,7 +207,6 @@ export function SiteHeader({ locale, copy, email, city, timezone, previews, stud
                       >
                         {copy.nav[item.key]}
                       </span>
-                      <span className="label ms-auto hidden text-end sm:block">{copy.nav[`${item.key}Note`]}</span>
                     </Link>
                   </li>
                 );
@@ -241,7 +230,6 @@ export function SiteHeader({ locale, copy, email, city, timezone, previews, stud
                 ) : null,
               )}
               <div aria-hidden className="scanlines absolute inset-0 opacity-40" />
-              <p className="label absolute bottom-4 start-4 text-bone">{copy.nav[`${preview}Note`]}</p>
             </div>
 
             <div className="grid gap-6 border-t border-line pt-6 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">

@@ -62,7 +62,6 @@ export function SiteFooter({ locale, dict, studio }: { locale: Locale; dict: Dic
             {NAV_ITEMS.map((item) => (
               <li key={item.key}>
                 <Link href={localePath(locale, item.path)} className="group inline-flex items-baseline gap-3 text-sm text-mist transition-colors hover:text-bone">
-                  <span className="font-pixel text-[0.6rem] text-fog group-hover:text-uv-400">{item.index}</span>
                   {dict.nav[item.key]}
                 </Link>
               </li>
