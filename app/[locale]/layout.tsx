@@ -64,8 +64,8 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
     { kind: "itch" as const, url: socialUrl("itch"), label: dict.follow.floating },
   ].filter((link): link is FloatingLink => Boolean(link.url));
 
-  // Display ads on /play load only once a publisher ID is configured.
-  const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || "";
+  // Display ads on /play. The env var wins when set; otherwise the studio ID below.
+  const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || "ca-pub-3020230827559587";
 
   const previews: Partial<Record<NavKey, string>> = {
     home: released[0]?.poster,
