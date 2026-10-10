@@ -108,7 +108,6 @@ export function SiteFooter({ locale, dict, studio }: { locale: Locale; dict: Dic
             {wordmark}
           </p>
         )}
-        <span className="absolute inset-x-0 top-1/2 h-px origin-left scale-x-0 bg-uv-400 transition-transform duration-1000 ease-expo group-hover:scale-x-100" />
       </div>
 
       <div className="shell flex flex-col gap-3 border-t border-line py-6 text-xs text-fog sm:flex-row sm:items-center sm:justify-between">
