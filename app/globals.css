@@ -170,6 +170,11 @@
   background: radial-gradient(60% 50% at 50% 50%, rgb(143 91 255 / 0.22), transparent 70%);
 }
 
+/* The Play arcade ends on its own panels: hide the footer's giant wordmark there. */
+main:has(.play-page) ~ footer .footer-wordmark {
+  display: none;
+}
+
 /* Pixel corner brackets — the "box" frame used around key objects. */
 .frame {
   position: relative;

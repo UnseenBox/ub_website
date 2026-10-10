@@ -98,7 +98,7 @@ export function SiteFooter({ locale, dict, studio }: { locale: Locale; dict: Dic
       </div>
 
       {/* Wordmark — an uploaded image when there is one, the drawn name otherwise */}
-      <div aria-hidden className="group relative select-none overflow-hidden border-t border-line" dir="ltr">
+      <div aria-hidden className="footer-wordmark group relative select-none overflow-hidden border-t border-line" dir="ltr">
         {footerImage ? (
           <div className="relative aspect-[7/1] w-full">
             <SmartImage src={studio.footerImage} alt="" sizes="100vw" className="object-contain" />
