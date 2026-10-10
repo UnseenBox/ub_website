@@ -1,0 +1,17 @@
+{
+  "name": "dont-let-it-see-you",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DON'T LET IT FIND YOU — a browser survival-horror stealth game. Monsters hunt your body, your noise and your light.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}
