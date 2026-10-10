@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { CloseIcon } from "@/components/ui/icons";
 import type { PlayMood } from "@/lib/play";
 import type { PortalGame } from "@/lib/play-portal";
@@ -24,6 +25,7 @@ interface PortalCopy extends TileCopy {
   moods: Record<PlayMood, string>;
   tags: string[];
   tagNotes: string[];
+  ad: string;
 }
 
 /** Each mood card is lit in its own colour. */
@@ -179,6 +181,8 @@ export function PlayPortal({
           })}
         </div>
 
+        <AdSlot format="horizontal" label={copy.ad} className="mt-8" />
+
         {!filtering && lead && (
           <section aria-labelledby="play-picks" className="mt-12">
             <h2 id="play-picks" className={heading}>
@@ -253,9 +257,11 @@ export function PlayPortal({
           )}
         </section>
 
+        <AdSlot format="horizontal" label={copy.ad} className="mt-12" />
+
         <section
           aria-label={copy.count}
-          className="mt-16 grid gap-8 rounded-2xl bg-ink-900 p-6 ring-1 ring-line sm:p-8 lg:grid-cols-[1fr_2fr] lg:items-center"
+          className="mt-12 grid gap-8 rounded-2xl bg-ink-900 p-6 ring-1 ring-line sm:p-8 lg:grid-cols-[1fr_2fr] lg:items-center"
         >
           <p className="font-display text-2xl text-balance sm:text-3xl">{copy.more}</p>
           <ul className="grid gap-6 sm:grid-cols-3">

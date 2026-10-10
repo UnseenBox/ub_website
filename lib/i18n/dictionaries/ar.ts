@@ -126,6 +126,7 @@ const ar: Dictionary = {
     price: "السعر",
     priceValue: "مجانية، بلا حساب",
     platformsValue: "متصفح الويب، على الحاسوب والهاتف",
+    ad: "إعلان",
   },
   upcoming: {
     label: "في العتمة",

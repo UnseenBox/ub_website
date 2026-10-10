@@ -1,6 +1,7 @@
 import "../globals.css";
 
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { notFound } from "next/navigation";
 import { FloatingLinks, type FloatingLink } from "@/components/layout/floating-links";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -63,6 +64,9 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
     { kind: "itch" as const, url: socialUrl("itch"), label: dict.follow.floating },
   ].filter((link): link is FloatingLink => Boolean(link.url));
 
+  // Display ads on /play load only once a publisher ID is configured.
+  const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || "";
+
   const previews: Partial<Record<NavKey, string>> = {
     home: released[0]?.poster,
     games: (released.find((game) => game.featured) ?? released[0])?.cover,
@@ -97,6 +101,14 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
         <FloatingLinks links={floatingLinks} external={dict.a11y.externalLink} />
         <div className="grain" aria-hidden />
         <MotionRoot />
+        {adsenseClient ? (
+          <Script
+            id="adsense-library"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}`}
+            strategy="afterInteractive"
+            crossOrigin="anonymous"
+          />
+        ) : null}
       </body>
     </html>
   );

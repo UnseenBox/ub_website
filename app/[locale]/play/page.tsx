@@ -53,6 +53,7 @@ export default async function PlayPage({ params }: PageProps<"/[locale]/play">) 
         badges: copy.badges,
         tags: copy.tags,
         tagNotes: copy.tagNotes,
+        ad: copy.ad,
       }}
     />
   );

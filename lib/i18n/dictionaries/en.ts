@@ -128,6 +128,7 @@ const en = {
     price: "Price",
     priceValue: "Free, no account",
     platformsValue: "Web browser, on computer and phone",
+    ad: "Advertisement",
   },
   upcoming: {
     label: "In the dark",

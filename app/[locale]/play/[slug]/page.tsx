@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { GameReviews } from "@/components/community/game-reviews";
 import { Stars } from "@/components/community/stars";
 import { GamePlayer } from "@/components/play/game-player";
@@ -216,9 +217,12 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
               {copy.allGames}
               <ArrowIcon className="size-4" />
             </Link>
+            <AdSlot format="rectangle" label={copy.ad} className="mt-4" />
           </aside>
         )}
       </div>
+
+      <AdSlot format="horizontal" label={copy.ad} className="mt-10" />
 
       <section
         id="reviews"

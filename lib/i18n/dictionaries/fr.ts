@@ -130,6 +130,7 @@ const fr: Dictionary = {
     price: "Prix",
     priceValue: "Gratuit, sans compte",
     platformsValue: "Navigateur web, sur ordinateur et téléphone",
+    ad: "Publicité",
   },
   upcoming: {
     label: "Dans le noir",
