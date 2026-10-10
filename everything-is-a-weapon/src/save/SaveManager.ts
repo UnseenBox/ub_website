@@ -1,3 +1,4 @@
+import { ABILITY_IDS } from '../gameplay/Abilities';
 import { isHeroId, type HeroId } from '../core/Hero';
 import type { PortalStorage } from '../platform/Portal';
 
@@ -18,6 +19,10 @@ export interface SaveData {
   highScore: number;
   /** Longest chain reaction ever pulled off, across all rooms. */
   bestChain: number;
+  /** Scrap salvaged from defeated intruders; buys permanent abilities. */
+  scrap: number;
+  /** Unlocked ability ids (see gameplay/Abilities.ts). */
+  abilities: string[];
   /** Highest room index (0-based) the player may start from. */
   unlockedRoom: number;
   completedChallenges: string[];
@@ -32,6 +37,8 @@ function defaults(): SaveData {
     discoveries: [],
     highScore: 0,
     bestChain: 0,
+    scrap: 0,
+    abilities: [],
     unlockedRoom: 0,
     completedChallenges: [],
     roomsCleared: 0,
@@ -74,6 +81,8 @@ function sanitize(raw: unknown): SaveData {
     discoveries: [...new Set(stringArray(data.discoveries))],
     highScore: Math.max(0, finite(data.highScore, 0)),
     bestChain: Math.max(0, Math.floor(finite(data.bestChain, 0))),
+    scrap: Math.max(0, Math.floor(finite(data.scrap, 0))),
+    abilities: [...new Set(stringArray(data.abilities).filter((id) => ABILITY_IDS.includes(id)))],
     unlockedRoom: Math.max(0, Math.floor(finite(data.unlockedRoom, 0))),
     completedChallenges: [...new Set(stringArray(data.completedChallenges))],
     roomsCleared: Math.max(0, Math.floor(finite(data.roomsCleared, 0))),

@@ -4,12 +4,11 @@ import { createPet } from '../entities/Pets';
 import { Player } from '../entities/Player';
 import { drawPet } from '../rendering/PetArt';
 import { drawPlayer } from '../rendering/PlayerArt';
-import { button, el, formatScore, ransom } from './dom';
+import { button, el, ransom } from './dom';
 
 export interface MenuActions {
   play(roomIndex: number): void;
   daily(): void;
-  discoveries(): void;
   settings(): void;
   hero(id: HeroId): void;
 }
@@ -45,9 +44,8 @@ function portrait(hero: HeroId): HTMLCanvasElement {
 }
 
 /**
- * The front page: a ransom note glued together over the room, the actions on the
- * left and every open room pinned to a corkboard wall on the right. The evidence
- * book lives on as a small footer link so the discovery toasts still lead somewhere.
+ * The front page: a ransom note over the room, the actions on the left and every
+ * open room pinned to a corkboard wall on the right. No tallies, no footer clutter.
  */
 export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const save = game.save.data;
@@ -85,9 +83,9 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   );
 
   // every open room, pinned to the wall beside the buttons; the furthest is flagged
-  const wall = el('div', 'room-wall');
+  const wall = el('div', 'room-wall board');
   const total = resumeRoom + 1;
-  wall.append(el('div', 'tape-label', total === 1 ? '1 room open so far' : `${total} rooms open — pick any`));
+  wall.append(el('div', 'tape-label', total === 1 ? '1 ROOM OPEN' : `${total} ROOMS OPEN`));
   const grid = el('div', 'rack-grid');
   for (let i = 0; i < total; i++) {
     const slot = el('div', i === resumeRoom ? 'rack-slot latest' : 'rack-slot');
@@ -105,11 +103,11 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   mid.append(buttons, wall);
   screen.append(head, heroes, mid);
 
-  const footer = el('div', 'menu-footer');
-  footer.append(el('span', 'best-slip', `BEST DAMAGE BILL  ${formatScore(save.highScore)}`));
-  if (save.bestChain >= 3) footer.append(el('span', 'best-slip', `BEST CHAIN  x${save.bestChain}`));
-  footer.append(button(`EVIDENCE  ${game.discoveries.count} / ${game.discoveries.total}`, 'evidence-link', actions.discoveries));
-  if (!game.save.persistent) footer.append(el('span', 'warn', 'Storage is blocked — progress will not be saved.'));
-  screen.append(footer);
+  // The only footer left: a warning when the browser refuses storage.
+  if (!game.save.persistent) {
+    const footer = el('div', 'menu-footer');
+    footer.append(el('span', 'warn', 'Storage is blocked — progress will not be saved.'));
+    screen.append(footer);
+  }
   return screen;
 }

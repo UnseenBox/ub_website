@@ -148,6 +148,9 @@ export class Player {
       game.audio.play('dash', 0.5);
     }
 
+    // Bought abilities: 1/2/3 on desktop, the POWER button on touch.
+    if (input.abilitySlot !== 0) game.abilities.tryUse(input.abilitySlot);
+
     if (this.dashTime > 0) {
       this.dashTime -= dt;
       b.vx = this.dashX * DASH_SPEED;

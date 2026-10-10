@@ -8,13 +8,14 @@ import type { PhysicsObject } from '../entities/PhysicsObject';
 import { Player } from '../entities/Player';
 import { ChallengeSystem } from '../gameplay/ChallengeSystem';
 import { extendChain, freshChain } from '../gameplay/Chain';
+import { ABILITIES, AbilitySystem, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
 import { ImpactSystem } from '../gameplay/ImpactSystem';
 import { NavField } from '../gameplay/Navigation';
 import { placePickups, updateRage } from '../gameplay/Pickups';
 import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
-import { RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
+import { bossSpecFor, RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { Tutorial } from '../gameplay/Tutorial';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
@@ -128,6 +129,7 @@ export class Game {
   readonly discoveries: DiscoverySystem;
   readonly score: ScoreSystem;
   readonly challenges: ChallengeSystem;
+  readonly abilities: AbilitySystem;
   readonly tutorial: Tutorial;
 
   hud: GameUi = NULL_UI;
@@ -185,6 +187,7 @@ export class Game {
     this.discoveries = new DiscoverySystem(this);
     this.score = new ScoreSystem(this);
     this.challenges = new ChallengeSystem(this);
+    this.abilities = new AbilitySystem(this);
     this.tutorial = new Tutorial(this);
     this.loop = new GameLoop({
       tick: (dt) => this.tick(dt),
@@ -267,6 +270,7 @@ export class Game {
     this.audio.setMusicEnabled(settings.music);
     this.camera.shakeScale = settings.reducedShake ? 0.2 : 1;
     document.body.classList.toggle('high-contrast', settings.highContrast);
+    document.body.classList.toggle('powers', this.abilities.hasAny());
   }
 
   // ───────────── state & room flow ─────────────
@@ -310,6 +314,7 @@ export class Game {
     this.discoveries.newThisRoom = 0;
     this.score.resetRoom(this.scoreAtRoomStart);
     this.challenges.setForRoom(def.challenge);
+    this.abilities.resetRoom();
     this.tutorial.begin(def.tutorial === true);
     this.replay.begin(def.id, def.seed);
   }
@@ -341,6 +346,14 @@ export class Game {
 
   private enterRoom(def: RoomDefinition, index: number, daily: boolean): void {
     this.loadRoom(def, index, daily);
+    // Every third room ends with the Landlord, after the regular crew has arrived.
+    const boss = bossSpecFor(index, daily, def);
+    if (boss) {
+      this.room.pending.push(boss);
+      this.room.pending.sort((a, b) => a.delay - b.delay);
+      this.room.totalEnemies++;
+      this.room.hasBoss = true;
+    }
     this.portal.setContext({ room: daily ? 'daily' : index + 1, hero: this.hero });
     this.setState('playing');
     this.funnelT0 = performance.now();
@@ -408,11 +421,26 @@ export class Game {
     return alive;
   }
 
+  /** Buys a permanent ability with salvaged scrap. Returns '' or the reason it failed. */
+  buyAbility(id: AbilityId): string {
+    const def = ABILITIES.find((a) => a.id === id);
+    if (!def) return 'no such ability';
+    const save = this.save.data;
+    if (save.abilities.includes(id)) return 'already owned';
+    if (save.scrap < def.cost) return `needs ${def.cost} scrap`;
+    save.scrap -= def.cost;
+    save.abilities.push(id);
+    this.save.write();
+    document.body.classList.toggle('powers', this.abilities.hasAny());
+    return '';
+  }
+
   private summarize(cleared: boolean, challengeBonus: number): RoomSummary {
     const save = this.save.data;
     const isHighScore = this.score.score > save.highScore;
     if (isHighScore) save.highScore = this.score.score;
     save.bestChain = Math.max(save.bestChain, this.score.stats.bestChain);
+    save.scrap += this.score.stats.scrap;
     if (cleared && !this.room.daily) {
       save.roomsCleared++;
       save.unlockedRoom = Math.max(save.unlockedRoom, this.room.index + 1);
@@ -532,6 +560,7 @@ export class Game {
     if (this.tickCount % OVERLAP_EVERY_TICKS === 0) this.interactions.updateOverlaps(dt * OVERLAP_EVERY_TICKS);
 
     this.score.update(dt);
+    this.abilities.update(dt);
     this.tutorial.update(dt);
     this.particles.update(dt);
     this.sweep();
@@ -908,6 +937,10 @@ export class Game {
     bus.on('ENEMY_DEFEATED', (e) => {
       const b = e.enemy.body;
       this.audio.voice('defeat', e.enemy.type.voice);
+      if (e.enemy.type.id === 'boss') {
+        this.hud.banner('LANDLORD EVICTED', 'the flat is yours. for now.', 2.6);
+        this.discoveries.unlock('boss_evicted');
+      }
       // the box bursts: packing peanuts everywhere
       this.particles.burst('peanut', b.x, b.y - 14, 22, 300);
       this.fx.ring(b.x, b.y, 10, 70, 0.4, 'rgba(255,255,255,0.9)', 4);

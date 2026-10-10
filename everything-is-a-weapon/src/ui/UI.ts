@@ -1,5 +1,4 @@
 import type { Game, GameState, GameUi, RoomSummary } from '../core/Game';
-import { buildDiscoveryScreen } from './DiscoveryScreen';
 import { HUD } from './HUD';
 import { buildMainMenu } from './MainMenu';
 import { buildPauseMenu, buildSettings } from './PauseMenu';
@@ -125,7 +124,6 @@ export class UI implements GameUi {
           goFullscreenOnPhones(game);
           game.playDaily();
         },
-        discoveries: () => this.show(buildDiscoveryScreen(game, () => this.showMenu())),
         settings: () => this.show(buildSettings(game, () => this.showMenu())),
         hero: (id) => game.setHero(id),
       }),
@@ -135,11 +133,12 @@ export class UI implements GameUi {
   private showPause(): void {
     const game = this.game;
     this.show(
-      buildPauseMenu(game.input.touch, {
+      buildPauseMenu(game.input.touch, game, {
         resume: () => game.togglePause(),
         restart: () => game.restartRoom(),
         settings: () => this.show(buildSettings(game, () => this.showPause())),
         home: () => game.toMenu(),
+        buyAbility: (id) => game.buyAbility(id),
       }),
     );
   }

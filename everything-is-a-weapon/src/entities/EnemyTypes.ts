@@ -1,6 +1,6 @@
 export type EnemyTypeId =
   | 'basic' | 'fast' | 'heavy' | 'helmet' | 'shield' | 'electric'
-  | 'fragile' | 'nested' | 'mini' | 'kaboom' | 'trolley';
+  | 'fragile' | 'nested' | 'mini' | 'kaboom' | 'trolley' | 'boss';
 
 export interface EnemyType {
   readonly id: EnemyTypeId;
@@ -105,5 +105,12 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     impactFactor: 1, lightObjectFactor: 0.8, staggerFactor: 0.6, turnRate: 3.2, burnFactor: 1,
     lungeRange: 250, lungeSpeed: 640, lungeTime: 0.62, windup: 0.8, recover: 1.25,
     color: '#b58d60', shade: '#86623c', scoreBonus: 180, voice: 118,
+  },
+  // The Landlord: one per every third room. Slow, enormous, barely staggers, and worth a fortune.
+  boss: {
+    id: 'boss', name: 'Landlord', hp: 550, speed: 54, mass: 160, radius: 26, reaction: 0.9, awareness: 520,
+    impactFactor: 1, lightObjectFactor: 0.3, staggerFactor: 0.3, turnRate: 4, burnFactor: 0.8,
+    lungeRange: 130, lungeSpeed: 380, windup: 0.7, recover: 1, onDefeat: 'split',
+    color: '#6b4d86', shade: '#4a3560', scoreBonus: 800, voice: 70,
   },
 };

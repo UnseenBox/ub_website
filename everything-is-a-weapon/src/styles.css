@@ -386,6 +386,7 @@ body {
 .mug-nested { width: 28px; height: 25px; box-shadow: inset 0 0 0 3px var(--mug), inset 0 0 0 4.5px rgba(34, 27, 54, 0.5); }
 .mug-kaboom { box-shadow: inset 0 -6px 0 #ffd23f; }
 .mug-trolley { box-shadow: -4px 3px 0 -1px var(--ink), 4px 3px 0 -1px var(--ink); }
+.mug-boss { width: 30px; height: 28px; box-shadow: inset 0 -7px 0 #ffd23f; }
 .mug-electric { background: linear-gradient(90deg, transparent 38%, var(--yellow) 38% 62%, transparent 62%), var(--mug); }
 
 /* eyes glaring out of the hand-hole */
@@ -837,6 +838,9 @@ body.cinema .hud-hint {
 }
 
 /* front page */
+.screen.menu {
+  gap: 14px;
+}
 .menu-head {
   position: relative;
   display: flex;
@@ -990,9 +994,14 @@ body.cinema .hud-hint {
   flex: 1 1 260px;
   width: auto;
   min-width: 230px;
-  max-height: 272px;
+  max-height: 200px;
   padding: 10px 14px 18px;
   text-align: center;
+}
+
+.menu-mid .room-wall .tape-label {
+  white-space: nowrap;
+  font-size: 13px;
 }
 
 .menu-mid .room-wall .rack-grid {
@@ -1024,29 +1033,6 @@ body.cinema .hud-hint {
   animation-play-state: paused;
 }
 
-/* the evidence book shrinks to a footer link so discovery toasts still lead somewhere */
-.btn.evidence-link {
-  padding: 5px 10px 4px;
-  font: 700 12px var(--type);
-  letter-spacing: 0.14em;
-  color: var(--paper);
-  text-shadow: 0 2px 0 var(--ink);
-  filter: none;
-}
-
-.btn.evidence-link::before,
-.btn.evidence-link::after {
-  display: none;
-}
-
-.btn.evidence-link:hover,
-.btn.evidence-link:focus-visible {
-  color: var(--yellow);
-  outline: none;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .menu-footer {
   display: flex;
   flex-direction: column;
@@ -1054,19 +1040,100 @@ body.cinema .hud-hint {
   gap: 6px;
 }
 
-.best-slip {
-  padding: 3px 14px 2px;
-  background: var(--grain), #fffdf6;
-  color: var(--ink);
-  font: 700 12px var(--type);
-  letter-spacing: 0.14em;
-  transform: rotate(-1deg);
-  box-shadow: 2px 3px 0 var(--shadow);
-}
-
 .warn {
   color: var(--yellow);
   font: 700 12px var(--hand);
+}
+
+/* bought abilities in the HUD, with their cooldowns */
+.powers {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.power-chip {
+  padding: 2px 8px 1px;
+  background: var(--grain), #fffdf6;
+  color: var(--ink);
+  font: 700 11px var(--type);
+  letter-spacing: 0.08em;
+  transform: rotate(1.5deg);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+
+.power-chip.cool {
+  opacity: 0.55;
+}
+
+.scrap-slip {
+  font: 700 11px var(--type);
+  letter-spacing: 0.12em;
+  color: var(--paper);
+  text-shadow: 0 2px 0 var(--ink);
+}
+
+/* the ability shop on the pause screen */
+.ability-shop {
+  width: min(100%, 430px);
+  padding: 12px 14px 14px;
+  background: var(--grain), var(--paper);
+  color: var(--ink);
+  box-shadow: 3px 4px 0 var(--shadow);
+  transform: rotate(1deg);
+}
+
+.scrap-row {
+  margin: 2px 0 4px;
+  font: 700 14px var(--type);
+  letter-spacing: 0.1em;
+}
+
+.ability-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 2px dashed rgba(34, 27, 54, 0.25);
+}
+
+.ability-name {
+  font: 700 14px var(--type);
+  white-space: nowrap;
+}
+
+.ability-blurb {
+  flex: 1;
+  font: 700 12px/1.2 var(--hand);
+  opacity: 0.75;
+}
+
+.ability-buy {
+  flex: none;
+  padding: 6px 12px 5px;
+  font: 700 13px var(--type);
+  color: var(--ink);
+  background: var(--yellow);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 2px 3px 0 var(--shadow);
+  cursor: pointer;
+}
+
+.ability-buy:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.ability-owned {
+  flex: none;
+  padding: 4px 10px 3px;
+  font: 700 12px var(--type);
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: var(--red);
+  transform: rotate(-2deg);
 }
 
 /* incident report on a clipboard */
@@ -1683,6 +1750,21 @@ body.touch.playing .touch-ui {
   display: none;
 }
 
+/* one POWER button for every bought ability: fires the first one ready */
+.touch-btn.power {
+  bottom: calc(174px + env(safe-area-inset-bottom));
+  right: calc(24px + env(safe-area-inset-right));
+  width: 58px;
+  height: 58px;
+  font-size: 12px;
+  background: var(--yellow);
+  display: none;
+}
+
+body.powers .touch-btn.power {
+  display: block;
+}
+
 body.carrying .touch-btn.drop {
   display: block;
 }
@@ -1793,7 +1875,7 @@ body.touch #game {
     width: 100%;
   }
   .menu-mid .room-wall {
-    max-height: 220px;
+    max-height: 200px;
   }
   .controls-note {
     display: none;
@@ -1910,7 +1992,7 @@ body.touch #game {
     width: 100%;
   }
   .menu-mid .room-wall {
-    max-height: 190px;
+    max-height: 170px;
   }
   .menu .hero-pick {
     grid-area: hero;
