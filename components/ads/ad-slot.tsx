@@ -9,8 +9,8 @@ declare global {
   }
 }
 
-const CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || "";
-const DEFAULT_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT?.trim() || "";
+const CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || "ca-pub-3020230827559587";
+const DEFAULT_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT?.trim() || "2539078519";
 
 /**
  * A display-ad placement for the arcade. Renders a live AdSense unit once
