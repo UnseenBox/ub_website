@@ -8,23 +8,22 @@ import { GamePlayer } from "@/components/play/game-player";
 import { GameTile } from "@/components/play/game-tile";
 import { MoodIcon } from "@/components/play/icons";
 import { ArrowIcon } from "@/components/ui/icons";
-import { getApprovedReviews, getPlayableBySlug, getPlayables, getRatings } from "@/lib/content/queries";
+import { getApprovedReviews, getRatings } from "@/lib/content/queries";
 import { LOCALES, isLocale, localePath, t } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
-import { findPlayable, playGamePath, playReviewId } from "@/lib/play";
+import { PLAYABLE_GAMES, findPlayable, playGamePath, playReviewId } from "@/lib/play";
 import { presentPlayables } from "@/lib/play-portal";
 import { absoluteUrl, buildMetadata, jsonLd } from "@/lib/seo";
 import { formatDate } from "@/lib/utils";
 
-export async function generateStaticParams() {
-  const playables = await getPlayables();
-  return LOCALES.flatMap((locale) => playables.map((game) => ({ locale, slug: game.slug })));
+export function generateStaticParams() {
+  return LOCALES.flatMap((locale) => PLAYABLE_GAMES.map((game) => ({ locale, slug: game.slug })));
 }
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/play/[slug]">): Promise<Metadata> {
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
-  const game = await getPlayableBySlug(slug);
+  const game = findPlayable(slug);
   if (!game) return {};
   return buildMetadata({
     locale,
@@ -38,15 +37,10 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/play/[sl
 export default async function PlayGamePage({ params }: PageProps<"/[locale]/play/[slug]">) {
   const { locale, slug } = await params;
   if (!isLocale(locale)) notFound();
-
-  const [dict, reviews, ratings, playables] = await Promise.all([
-    getDictionary(locale),
-    getApprovedReviews(),
-    getRatings(),
-    getPlayables(),
-  ]);
-  const game = findPlayable(playables, slug);
+  const game = findPlayable(slug);
   if (!game) notFound();
+
+  const [dict, reviews, ratings] = await Promise.all([getDictionary(locale), getApprovedReviews(), getRatings()]);
   const copy = dict.play;
   const reviewId = playReviewId(game);
   const rating = ratings.get(reviewId);
@@ -54,7 +48,7 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
   const playHref = localePath(locale, "/play");
 
   // Every other game, starting with the one listed after this one.
-  const all = presentPlayables(playables, locale, ratings);
+  const all = presentPlayables(locale, ratings);
   const at = all.findIndex((item) => item.slug === game.slug);
   const next = [...all.slice(at + 1), ...all.slice(0, at)];
 

@@ -256,7 +256,7 @@ export function PlayPortal({
             </ul>
           ) : (
             <p className="mt-4 rounded-xl border border-dashed border-line-strong px-6 py-14 text-center text-mist">
-              {filtering ? copy.noResults : copy.more}
+              {copy.noResults}
             </p>
           )}
         </section>
