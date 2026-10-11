@@ -82,10 +82,25 @@ export async function getExperienceBySlug(slug: string): Promise<Experience | un
  * Arcade games for the public site: enabled only, in listing order. Stored
  * content saved before the arcade manager has no playables key, so it falls
  * back to the starter set; a stored empty list is respected as empty.
+ *
+ * Starter games added to the seed later (e.g. a new arcade release) are
+ * surfaced even when the store predates them: seed entries whose id the store
+ * has never seen are appended. Stored rows always win, so admin edits and
+ * disabled flags are respected.
  */
 export async function getPlayables(): Promise<Playable[]> {
   const stored = (await getContent()).playables ?? seedPlayables;
-  return stored.filter((game) => game.enabled).sort((a, b) => a.order - b.order);
+  const list = stored.length === 0 ? [] : [...stored];
+  if (list.length > 0) {
+    const seen = new Set(list.map((game) => game.id));
+    for (const seed of seedPlayables) {
+      if (!seen.has(seed.id)) {
+        list.push(seed);
+        seen.add(seed.id);
+      }
+    }
+  }
+  return list.filter((game) => game.enabled).sort((a, b) => a.order - b.order);
 }
 
 export async function getPlayableBySlug(slug: string): Promise<Playable | undefined> {

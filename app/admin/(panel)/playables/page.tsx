@@ -23,9 +23,12 @@ export default async function AdminPlayablesPage() {
             Browser games on /play. Switch a game off to hide it from the site without deleting it.
           </p>
         </div>
-        <Link href="/admin/playables/new" className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-violet-600">
-          + New arcade game
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <RestorePlayables />
+          <Link href="/admin/playables/new" className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-violet-600">
+            + New arcade game
+          </Link>
+        </div>
       </header>
 
       {sorted.length === 0 ? (
