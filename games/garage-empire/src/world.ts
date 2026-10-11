@@ -105,7 +105,7 @@ export const GARAGE_BUILDING: Rect = { x: 3, y: 1.4, w: 6, h: 3.4 }
 export const OFFICE: Rect = { x: 3.4, y: 5.2, w: 2.2, h: 1.6 }
 
 export interface DecoProp {
-  kind: 'tree' | 'bush' | 'cone' | 'crate' | 'lamp' | 'bench' | 'tank' | 'tire' | 'plant' | 'house'
+  kind: 'bush' | 'cone' | 'crate' | 'lamp' | 'bench' | 'tank' | 'tire' | 'plant' | 'house'
   x: number
   y: number
   s: number
@@ -120,24 +120,6 @@ export const HOUSES: { x: number; y: number; w: number; h: number }[] = [
 export const POND = { x: 22.5, y: 27.2, rx: 2.8, ry: 1.1 }
 
 export const DECOR: DecoProp[] = [
-  { kind: 'tree', x: 0.8, y: 2, s: 1 },
-  { kind: 'tree', x: 29, y: 2, s: 1.2 },
-  { kind: 'tree', x: 0.8, y: 18, s: 1.1 },
-  { kind: 'tree', x: 29.2, y: 19, s: 1 },
-  { kind: 'tree', x: 30.4, y: 8.2, s: 1 },
-  { kind: 'tree', x: 33.2, y: 2.4, s: 1.1 },
-  { kind: 'tree', x: 38.8, y: 7.6, s: 1.2 },
-  { kind: 'tree', x: 33.8, y: 15.8, s: 1 },
-  { kind: 'tree', x: 38.6, y: 19.4, s: 1.1 },
-  { kind: 'tree', x: 30.2, y: 21.4, s: 1 },
-  { kind: 'tree', x: 34.6, y: 24.8, s: 1.2 },
-  { kind: 'tree', x: 38.8, y: 27.2, s: 1 },
-  { kind: 'tree', x: 5, y: 23.6, s: 1.2 },
-  { kind: 'tree', x: 11, y: 25.4, s: 1 },
-  { kind: 'tree', x: 17.5, y: 24.2, s: 0.9 },
-  { kind: 'tree', x: 27.6, y: 25.2, s: 1.1 },
-  { kind: 'tree', x: 15, y: 28.4, s: 1 },
-  { kind: 'tree', x: 8, y: 28.8, s: 1.1 },
   { kind: 'bush', x: 29.8, y: 6.8, s: 1 },
   { kind: 'bush', x: 34.4, y: 9.6, s: 1 },
   { kind: 'bush', x: 38.2, y: 14.6, s: 1 },

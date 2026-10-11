@@ -1196,17 +1196,7 @@ export class Renderer {
   private drawDecor(kind: string, x: number, y: number, s: number, time: number): void {
     const { ctx } = this
     this.shadow(x, y, 0.3 * s, 0.15 * s)
-    if (kind === 'tree') {
-      this.bx(x - 0.13, y - 0.13, 0.26, 0.26, 0.7, '#7c4a21')
-      const cx = this.sx(x, y)
-      const cy = this.sy(x, y, 1.15 * s)
-      ctx.fillStyle = '#15803d'
-      ctx.beginPath(); ctx.arc(cx, cy, this.tw * 0.4 * s, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = '#22c55e'
-      ctx.beginPath(); ctx.arc(cx - this.tw * 0.14, cy - this.tw * 0.14, this.tw * 0.25 * s, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = '#4ade80'
-      ctx.beginPath(); ctx.arc(cx - this.tw * 0.2, cy - this.tw * 0.22, this.tw * 0.12 * s, 0, Math.PI * 2); ctx.fill()
-    } else if (kind === 'lamp') {
+    if (kind === 'lamp') {
       this.bx(x - 0.09, y - 0.09, 0.18, 0.18, 1.9, '#3f4756')
       this.bx(x - 0.3, y - 0.15, 0.6, 0.3, 0.22, '#232a36', 1.9)
       const cx = this.sx(x, y)
