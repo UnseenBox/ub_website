@@ -75,17 +75,17 @@ body {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 8px 14px;
+  padding: 10px 18px;
   font-weight: 800;
-  font-size: 15px;
+  font-size: 18px;
   backdrop-filter: blur(6px);
   white-space: nowrap;
 }
 
 .pill.cash {
   color: var(--cash);
-  font-size: 18px;
-  min-width: 96px;
+  font-size: 22px;
+  min-width: 110px;
   text-align: center;
 }
 
@@ -109,7 +109,7 @@ body {
 .pill.obj {
   color: var(--text);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -118,13 +118,13 @@ body {
 }
 
 .icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--text);
-  font-size: 18px;
+  font-size: 21px;
   font-weight: 800;
   cursor: pointer;
   display: grid;
@@ -164,8 +164,19 @@ body {
 }
 
 .prompt-icon {
-  font-size: 26px;
+  font-size: 34px;
   line-height: 1;
+}
+
+.prompt-label {
+  font-weight: 900;
+  font-size: 19px;
+}
+
+.prompt-sub {
+  font-size: 15px;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
 .prompt-text {
@@ -183,17 +194,6 @@ body {
 .prompt-card.cant {
   opacity: 0.75;
   border-color: #f87171;
-}
-
-.prompt-label {
-  font-weight: 900;
-  font-size: 16px;
-}
-
-.prompt-sub {
-  font-size: 12.5px;
-  color: var(--muted);
-  margin-top: 2px;
 }
 
 .prompt-key {
@@ -242,8 +242,8 @@ body {
   border: 1px solid var(--line);
   border-left: 4px solid var(--gold);
   border-radius: 12px;
-  padding: 10px 14px;
-  font-size: 14px;
+  padding: 12px 16px;
+  font-size: 16px;
   font-weight: 600;
   text-align: center;
   animation: toastin 0.3s ease;
@@ -276,7 +276,7 @@ body {
   top: 0;
   left: 0;
   font-weight: 900;
-  font-size: 17px;
+  font-size: 21px;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
   white-space: nowrap;
   will-change: transform;
@@ -326,18 +326,18 @@ body {
 
 .sheet h2 {
   margin: 0 0 4px;
-  font-size: 21px;
+  font-size: 24px;
 }
 
 .sheet h3 {
   margin: 14px 0 4px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--gold);
 }
 
 .sheet .muted {
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: 15.5px;
   line-height: 1.5;
 }
 
@@ -350,7 +350,7 @@ body {
 }
 
 .row-ico {
-  font-size: 26px;
+  font-size: 30px;
 }
 
 .row-main {
@@ -362,11 +362,11 @@ body {
 }
 
 .row-main b {
-  font-size: 14.5px;
+  font-size: 17px;
 }
 
 .row-main span {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.35;
 }
@@ -374,15 +374,15 @@ body {
 .owned {
   color: var(--cash);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .btn {
   border: none;
   border-radius: 12px;
-  padding: 10px 16px;
+  padding: 12px 18px;
   font-weight: 800;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   color: var(--text);
 }
@@ -429,7 +429,7 @@ body {
   align-items: center;
   padding: 7px 0;
   border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .kv span {
@@ -437,7 +437,7 @@ body {
 }
 
 .kv.big {
-  font-size: 17px;
+  font-size: 19px;
   border-bottom: none;
   margin-top: 4px;
 }
@@ -454,7 +454,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 15px;
   margin: 5px 0;
 }
 
@@ -491,12 +491,12 @@ body {
 }
 
 .how span {
-  font-size: 26px;
+  font-size: 30px;
 }
 
 .how p {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.45;
   color: var(--text);
 }
@@ -543,17 +543,17 @@ body {
 }
 
 .wl-bubble {
-  font-size: 17px;
+  font-size: 22px;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
 }
 
 .wl-price {
   font-weight: 900;
-  font-size: 15px;
+  font-size: 18px;
   color: #bbf7d0;
   background: rgba(20, 83, 45, 0.92);
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 4px 12px;
 }
 
 .wl-price.tag {
@@ -567,11 +567,11 @@ body {
 
 .wl-chip {
   font-weight: 800;
-  font-size: 12.5px;
+  font-size: 15px;
   color: #fde68a;
   background: rgba(113, 63, 18, 0.92);
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 4px 12px;
 }
 
 .wl-chip.poor {
@@ -580,12 +580,12 @@ body {
 }
 
 .wl-pin {
-  font-size: 15px;
+  font-size: 18px;
   background: rgba(250, 204, 21, 0.95);
   border: 2px solid #78350f;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
 }
@@ -597,8 +597,8 @@ body {
 }
 
 .wl-bar {
-  width: 62px;
-  height: 9px;
+  width: 76px;
+  height: 11px;
   background: rgba(15, 23, 42, 0.82);
   border-radius: 6px;
   overflow: hidden;

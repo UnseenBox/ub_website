@@ -270,6 +270,7 @@ const demoMode = import.meta.env.DEV || import.meta.env.VITE_DEMO === '1'
 if (demoMode && new URLSearchParams(location.search).has('demo')) {
   const demo = {
     game,
+    renderer,
     hold: (v: boolean) => setTouchAction(v),
     tp: (x: number, y: number) => {
       game.player.x = x

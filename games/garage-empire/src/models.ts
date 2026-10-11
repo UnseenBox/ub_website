@@ -171,7 +171,7 @@ export interface CharRig {
   mixer: THREE.AnimationMixer
   idle: THREE.AnimationAction | null
   run: THREE.AnimationAction | null
-  setMoving(moving: boolean): void
+  setMoving(m: boolean, speed?: number): void
 }
 
 let charBase: Promise<THREE.Group> | null = null
@@ -186,12 +186,21 @@ function loadCharBase(): Promise<THREE.Group> {
   })
 }
 
+function pickClip(anims: THREE.AnimationClip[], want: RegExp): THREE.AnimationClip | null {
+  // Kenney packs bundle a static bind/targeting pose next to the real take;
+  // never play it (a frozen pose gliding across the floor is exactly what
+  // "broken animation" looks like).
+  const takes = anims.filter((a) => !/pose|target|bind|reference/i.test(a.name))
+  return takes.find((a) => want.test(a.name)) ?? takes[0] ?? null
+}
+
 function loadClip(which: 'idle' | 'run'): Promise<THREE.AnimationClip | null> {
   const slot = which === 'idle' ? idleClip : runClip
   if (slot) return slot
+  const want = which === 'idle' ? /idle/i : /run|walk|sprint/i
   const p = fbxLoader
     .loadAsync(M(`chars/${which}.fbx`))
-    .then((g) => (g.animations.length > 0 ? g.animations[0] : null))
+    .then((g) => pickClip(g.animations, want))
     .catch(() => null)
   if (which === 'idle') idleClip = p
   else runClip = p
@@ -221,7 +230,8 @@ export async function makeCharRig(skin: string, tint: number, height = 1.15): Pr
     mixer,
     idle: idleAction,
     run: runAction,
-    setMoving(m: boolean) {
+    setMoving(m: boolean, speed = 0) {
+      if (runAction) runAction.timeScale = Math.max(0.7, Math.min(1.5, 0.75 + speed * 0.09))
       if (m === moving) return
       moving = m
       if (!idleAction || !runAction) return

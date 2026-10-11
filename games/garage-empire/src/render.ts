@@ -116,7 +116,7 @@ export class Renderer {
   private paintByCar = new Map<number, number>()
   private playerRig: CharRig | null = null
   private playerTool: THREE.Mesh | null = null
-  private workerRigs = new Map<string, { rig: CharRig; tool: THREE.Mesh | null }>()
+  private workerRigs = new Map<string, { rig: CharRig; tool: THREE.Mesh | null; root: THREE.Group }>()
   private playerRing: THREE.Mesh
   private guideArrow: THREE.Mesh
   private guideRing: THREE.Mesh
@@ -134,12 +134,12 @@ export class Renderer {
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 1.05
+    this.renderer.toneMappingExposure = 1.3
 
     this.scene.background = new THREE.Color('#79c25f')
-    const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x6a8f5f, 0.85)
+    const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x6a8f5f, 1.05)
     this.scene.add(hemi)
-    this.sun = new THREE.DirectionalLight(0xfff1d6, 1.55)
+    this.sun = new THREE.DirectionalLight(0xfff1d6, 1.75)
     this.sun.position.set(20 - 14, 26, 15 + 8)
     this.sun.target.position.set(20, 0, 15)
     this.sun.castShadow = true
@@ -983,17 +983,21 @@ export class Renderer {
     }
   }
 
-  private async rigFor(key: string, skin: string, tint: number): Promise<{ rig: CharRig; tool: THREE.Mesh | null }> {
+  private async rigFor(key: string, skin: string, tint: number): Promise<{ rig: CharRig; tool: THREE.Mesh | null; root: THREE.Group }> {
     let entry = this.workerRigs.get(key)
     if (!entry) {
       const rig = await makeCharRig(skin, tint, key === 'player' ? 1.2 : 1.1)
+      // wrapper carries heading + position; the inner group carries lean + bob
+      // so effort poses never fight the facing direction
+      const root = new THREE.Group()
+      root.add(rig.group)
       const tool = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.3, 0.09), mat('#9aa3b2', 0.5))
       tool.visible = false
       rig.group.add(tool)
       tool.position.set(0.28, 0.75, 0.15)
-      entry = { rig, tool }
+      entry = { rig, tool, root }
       this.workerRigs.set(key, entry)
-      this.scene.add(rig.group)
+      this.scene.add(root)
     }
     return entry
   }
@@ -1002,14 +1006,28 @@ export class Renderer {
     if (Math.hypot(vx, vz) > 0.05) obj.rotation.y = Math.atan2(vx, vz)
   }
 
+  /** Effort posing on top of the skinned clips: lean into work, bob on the move. */
+  private pose(entry: { rig: CharRig; root: THREE.Group }, working: boolean, moving: boolean, time: number, dt: number): void {
+    const g = entry.rig.group
+    const leanT = working ? 0.1 : 0
+    const lean = ((g.userData.lean as number | undefined) ?? 0) + (leanT - (((g.userData.lean as number | undefined) ?? 0))) * Math.min(1, dt * 8)
+    g.userData.lean = lean
+    g.rotation.x = lean
+    g.position.y = moving
+      ? Math.abs(Math.sin(time * 11)) * 0.05
+      : working
+        ? Math.sin(time * 9) * 0.02
+        : 0
+  }
+
   private async syncActors(game: Game, time: number, dt: number): Promise<void> {
     // player
     try {
       const skin = SKINS.player
       const pe = await this.rigFor('player', skin.file, skin.tint)
-      pe.rig.group.position.set(game.player.x, 0, game.player.y)
-      this.faceMove(pe.rig.group, game.player.vx, game.player.vy)
-      pe.rig.setMoving(game.player.moving)
+      pe.root.position.set(game.player.x, 0, game.player.y)
+      this.faceMove(pe.root, game.player.vx, game.player.vy)
+      pe.rig.setMoving(game.player.moving, game.player.speed)
       pe.rig.mixer.update(dt)
       // work lean + tool
       let working = false
@@ -1018,6 +1036,7 @@ export class Renderer {
         const car = game.cars.find((c) => c.id === it.carId)
         working = !!car?.work && car.work.by === 'player'
       }
+      this.pose(pe, working, game.player.moving, time, dt)
       if (pe.tool) {
         pe.tool.visible = working
         if (working) pe.tool.position.y = 0.75 + Math.sin(time * 13) * 0.08
@@ -1036,23 +1055,32 @@ export class Renderer {
         const key = WORKER_SKIN[w.role] ?? 'washer'
         const skin = SKINS[key] ?? SKINS.player
         const we = await this.rigFor(w.role, skin.file, skin.tint)
-        we.rig.group.position.set(w.x, 0, w.y)
+        we.root.position.set(w.x, 0, w.y)
         const moving = w.state === 'walk' || w.state === 'sellwalk'
-        if (moving) this.faceMove(we.rig.group, Math.cos(w.angle), Math.sin(w.angle))
-        else if (w.state === 'work' || w.state === 'selling') {
+        const face = { x: 0, z: 0 }
+        if (moving) {
+          face.x = Math.cos(w.angle)
+          face.z = Math.sin(w.angle)
+        } else if (w.state === 'work' || w.state === 'selling') {
           const car = game.cars.find((c) => c.id === w.carId)
           if (car) {
             const dx = car.x - w.x
             const dz = car.y - w.y
-            if (Math.hypot(dx, dz) > 0.05) we.rig.group.rotation.y = Math.atan2(dx, dz)
+            if (Math.hypot(dx, dz) > 0.05) {
+              face.x = dx
+              face.z = dz
+            }
           }
         }
-        we.rig.setMoving(moving)
+        if (Math.hypot(face.x, face.z) > 0.05) we.root.rotation.y = Math.atan2(face.x, face.z)
+        we.rig.setMoving(moving, 3.6)
         we.rig.mixer.update(dt)
+        const working = w.state === 'work'
+        this.pose(we, working, moving, time + w.bob, dt)
         if (we.tool) {
-          const working = w.state === 'work'
-          we.tool.visible = working && w.role !== 'seller'
-          if (working) we.tool.position.y = 0.75 + Math.sin(time * 9 + w.bob) * 0.08
+          const showTool = working && w.role !== 'seller'
+          we.tool.visible = showTool
+          if (showTool) we.tool.position.y = 0.75 + Math.sin(time * 9 + w.bob) * 0.08
         }
       } catch (e) {
         console.warn('[models] worker failed', w.role, e)
@@ -1060,7 +1088,7 @@ export class Renderer {
     }
     for (const [key, entry] of this.workerRigs) {
       if (key !== 'player' && !seen.has(key)) {
-        this.scene.remove(entry.rig.group)
+        this.scene.remove(entry.root)
         this.workerRigs.delete(key)
       }
     }
