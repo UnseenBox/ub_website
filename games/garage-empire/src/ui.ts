@@ -127,11 +127,11 @@ export class UI {
     el.className = 'toast'
     el.textContent = text
     this.toastEl.appendChild(el)
-    while (this.toastEl.children.length > 3) this.toastEl.firstChild?.remove()
+    while (this.toastEl.children.length > 2) this.toastEl.firstChild?.remove()
     window.setTimeout(() => {
       el.classList.add('out')
       window.setTimeout(() => el.remove(), 400)
-    }, 3600)
+    }, 3000)
   }
 
   floater(x: number, y: number, text: string, color: string): void {
@@ -148,16 +148,15 @@ export class UI {
   }
 
   tickFloaters(r: Renderer, dt: number): void {
-    const dpr = Math.min(2, window.devicePixelRatio || 1)
     for (const f of this.floaters) {
       f.life += dt
-      const px = r.sx(f.x, f.y) / dpr
-      const py = r.sy(f.x, f.y, 1.1 + f.life * 0.55) / dpr
+      const px = r.sx(f.x, f.y)
+      const py = r.sy(f.x, f.y, 1.1 + f.life * 0.55)
       f.el.style.transform = `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px) translate(-50%,-100%)`
-      f.el.style.opacity = String(Math.max(0, 1 - f.life / 1.7))
+      f.el.style.opacity = String(Math.max(0, 1 - f.life / 1.5))
     }
     this.floaters = this.floaters.filter((f) => {
-      if (f.life > 1.7) {
+      if (f.life > 1.5) {
         f.el.remove()
         return false
       }
@@ -249,27 +248,30 @@ export class UI {
     this.modalEl.querySelector('[data-close]')?.addEventListener('click', () => this.closeModal())
   }
 
-  openPause(game: Game, opts: { onReset: () => void; muted: boolean; onMute: () => void }): void {
+  openPause(game: Game, opts: { onReset: () => void; muted: boolean; volume: number; onMute: () => void; onVolume: (v: number) => void }): void {
     const s = game.save
     this.show(`
-      <h2>⏸ Garage Empire</h2>
-      <p class="muted">Wash it. Fix it. Flip it.</p>
+      <h2>⏸ Garage</h2>
       <div class="kv"><span>Cash</span><b>${money(game.money)}</b></div>
-      <div class="kv"><span>Revenue (all time)</span><b>${money(s.lifetime)}</b></div>
-      <div class="kv"><span>Cars washed</span><b>${s.stats.washed}</b></div>
-      <div class="kv"><span>Repairs done</span><b>${s.stats.fixed}</b></div>
-      <div class="kv"><span>Cars flipped</span><b>${s.stats.flipped} (${money(s.stats.flipsProfit)} profit)</b></div>
-      <h3>Controls</h3>
-      <p class="muted">Move: WASD / arrows · Work & buy: hold/press E or Space · Esc: pause. On touch: left stick + ACTION button.</p>
+      <div class="kv"><span>Revenue</span><b>${money(s.lifetime)}</b></div>
+      <div class="kv"><span>Washed · Fixed</span><b>${s.stats.washed} · ${s.stats.fixed}</b></div>
+      <div class="kv"><span>Flipped</span><b>${s.stats.flipped} (${money(s.stats.flipsProfit)})</b></div>
+      <div class="volrow">
+        <button class="btn ghost" data-mute>${opts.muted ? '🔇' : '🔊'}</button>
+        <input type="range" min="0" max="100" value="${Math.round(opts.volume * 100)}" data-vol aria-label="Volume" />
+      </div>
+      <p class="muted keys">WASD move · hold E work · E buy/sell · Esc pause</p>
       <div class="btnrow">
-        <button class="btn ghost" data-mute>${opts.muted ? '🔇 Unmute' : '🔊 Mute'}</button>
-        <button class="btn ghost" data-close>Resume</button>
+        <button class="btn primary" data-close>Resume</button>
       </div>
       <button class="btn danger wide" data-reset>Start over (wipes save)</button>`, 'pause')
     this.modalEl.querySelector('[data-close]')?.addEventListener('click', () => this.closeModal())
     this.modalEl.querySelector('[data-mute]')?.addEventListener('click', () => {
       opts.onMute()
       this.openPause(game, { ...opts, muted: !opts.muted })
+    })
+    this.modalEl.querySelector('[data-vol]')?.addEventListener('input', (e) => {
+      opts.onVolume(Number((e.target as HTMLInputElement).value) / 100)
     })
     const resetBtn = this.modalEl.querySelector('[data-reset]') as HTMLButtonElement | null
     resetBtn?.addEventListener('click', () => {
@@ -284,11 +286,10 @@ export class UI {
   openHelp(): void {
     this.show(`
       <h2>❓ How to play</h2>
-      <p class="muted"><b>1.</b> Walk to the dirty car in the blue bay and <b>HOLD E</b> to wash it. You get paid per job.</p>
-      <p class="muted"><b>2.</b> Spend earnings on <b>yellow signs</b>: new bays, the used-car lot, the showroom.</p>
-      <p class="muted"><b>3.</b> Hire staff at the <b>STAFF board</b> — they work real jobs for you.</p>
-      <p class="muted"><b>4.</b> Buy cheap cars at the <b>used lot</b>, restore them in your bays, sell for profit.</p>
-      <p class="muted">Cars drive themselves between parking and free bays. You do the satisfying part.</p>
+      <div class="how"><span>🧽</span><p>Walk into the blue bay, <b>HOLD E</b> — get paid per job.</p></div>
+      <div class="how"><span>🪧</span><p>Spend on <b>yellow signs</b>: bays, lot, showroom.</p></div>
+      <div class="how"><span>🧑‍🔧</span><p>Hire at <b>STAFF</b> — workers do real jobs.</p></div>
+      <div class="how"><span>🏷️</span><p>Buy wrecks, restore them, <b>flip for profit</b>.</p></div>
       <button class="btn primary wide" data-close>Let's go!</button>`, 'help')
     this.modalEl.querySelector('[data-close]')?.addEventListener('click', () => this.closeModal())
   }

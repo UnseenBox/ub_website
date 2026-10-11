@@ -210,17 +210,17 @@ export const TIP_CHANCE = 0.35
 export const START_MONEY = 150
 export const SAVE_KEY = 'garage-empire:save:v1'
 
-/** Ordered onboarding objectives shown in the HUD. */
+/** Ordered onboarding objectives shown in the HUD. Kept to a few words. */
 export function objectives(): { id: string; text: string }[] {
   return [
-    { id: 'wash1', text: 'Wash your first car (stand in the blue bay, hold E)' },
-    { id: 'earn500', text: 'Earn $500 total revenue' },
-    { id: 'buy1', text: 'Buy any upgrade (walk to a yellow sign, press E)' },
-    { id: 'hire1', text: 'Hire your first employee' },
-    { id: 'lift', text: 'Unlock the Hydraulic Lift' },
-    { id: 'flipbuy', text: 'Buy a used car from the Used-Car Lot' },
-    { id: 'flipsell', text: 'Sell a restored car for profit' },
-    { id: 'showroom', text: 'Open the Premium Showroom' },
-    { id: 'empire', text: 'Reach lifetime revenue of $12,000' },
+    { id: 'wash1', text: 'Wash your first car' },
+    { id: 'earn500', text: 'Earn $500 revenue' },
+    { id: 'buy1', text: 'Buy a yellow sign' },
+    { id: 'hire1', text: 'Hire an employee' },
+    { id: 'lift', text: 'Unlock the Lift' },
+    { id: 'flipbuy', text: 'Buy a car to flip' },
+    { id: 'flipsell', text: 'Sell a restored car' },
+    { id: 'showroom', text: 'Open the Showroom' },
+    { id: 'empire', text: 'Reach $12,000 revenue' },
   ]
 }

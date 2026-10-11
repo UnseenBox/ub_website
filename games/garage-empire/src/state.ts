@@ -11,6 +11,7 @@ export interface SaveData {
   hires: string[]
   stats: { washed: number; fixed: number; flipped: number; flipsProfit: number; served: number }
   muted: boolean
+  volume: number
   tutorial: number
   doneObj: string[]
   resetCount: number
@@ -26,6 +27,7 @@ export function freshSave(): SaveData {
     hires: [],
     stats: { washed: 0, fixed: 0, flipped: 0, flipsProfit: 0, served: 0 },
     muted: false,
+    volume: 0.8,
     tutorial: 0,
     doneObj: [],
     resetCount: 0,
@@ -50,11 +52,13 @@ export function loadSave(): SaveData {
     const parsed: unknown = JSON.parse(raw)
     if (!valid(parsed)) return freshSave()
     const f = freshSave()
+    const volume = typeof parsed.volume === 'number' && Number.isFinite(parsed.volume) ? parsed.volume : f.volume
     return {
       ...f,
       ...parsed,
       money: Math.max(0, Math.min(9_999_999, Math.floor(parsed.money))),
       lifetime: Math.max(0, Math.min(99_999_999, Math.floor(parsed.lifetime))),
+      volume: Math.max(0, Math.min(1, volume)),
       unlocks: parsed.unlocks.filter((u): u is string => typeof u === 'string'),
       hires: parsed.hires.filter((h): h is string => typeof h === 'string'),
       doneObj: parsed.doneObj.filter((o): o is string => typeof o === 'string'),

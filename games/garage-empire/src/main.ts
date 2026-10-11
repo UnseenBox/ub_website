@@ -18,6 +18,7 @@ const renderer = new Renderer(canvas)
 
 let save = loadSave()
 audio.muted = save.muted
+audio.setVolume(save.volume)
 ui.setMuted(save.muted)
 
 let game = new Game(save)
@@ -97,11 +98,18 @@ function togglePause(force?: boolean): void {
     audio.stopWash()
     ui.openPause(game, {
       muted: audio.muted,
+      volume: audio.volume,
       onMute: () => {
         audio.unlock()
         audio.setMuted(!audio.muted)
         game.save.muted = audio.muted
         ui.setMuted(audio.muted)
+        persist()
+      },
+      onVolume: (v: number) => {
+        audio.unlock()
+        audio.setVolume(v)
+        game.save.volume = audio.volume
         persist()
       },
       onReset: () => {
@@ -253,7 +261,18 @@ initInput(() => {
 // build with VITE_DEMO=1. Never active in normal play (needs the query flag).
 const demoMode = import.meta.env.DEV || import.meta.env.VITE_DEMO === '1'
 if (demoMode && new URLSearchParams(location.search).has('demo')) {
-  ;(window as unknown as { __ge?: Game }).__ge = game
+  const demo = {
+    game,
+    hold: (v: boolean) => setTouchAction(v),
+    tp: (x: number, y: number) => {
+      game.player.x = x
+      game.player.y = y
+      game.player.vx = 0
+      game.player.vy = 0
+    },
+  }
+  ;(window as unknown as { __ge?: Game; __demo?: typeof demo }).__ge = game
+  ;(window as unknown as { __demo?: typeof demo }).__demo = demo
   try {
     localStorage.setItem('garage-empire:seen', '1')
   } catch { /* ignore */ }
@@ -261,15 +280,25 @@ if (demoMode && new URLSearchParams(location.search).has('demo')) {
   const hop = setInterval(() => {
     const car = game.cars[0]
     if (car && car.phase === 'inBay' && car.bay === 'wash1') {
-      game.player.x = 12.5
-      game.player.y = 6.4
-      setTouchAction(true)
+      demo.tp(12.5, 6.4)
+      demo.hold(true)
       clearInterval(hop)
     }
   }, 200)
   setInterval(() => {
     console.log(`[demo] money=${game.save.money} washed=${game.save.stats.washed} cars=${game.cars.length} player=${game.player.x.toFixed(1)},${game.player.y.toFixed(1)}`)
   }, 3000)
+  // fps meter over 5s windows
+  let frames = 0
+  const tick = () => {
+    frames++
+    requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+  setInterval(() => {
+    console.log(`[demo] fps=${Math.round(frames / 5)} particles=${renderer.particles.length}`)
+    frames = 0
+  }, 5000)
 }
 void ads.init().then(() => {
   if (!paused) ads.gameplayStart()

@@ -264,7 +264,7 @@ body {
   top: 0;
   left: 0;
   font-weight: 900;
-  font-size: 19px;
+  font-size: 17px;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
   white-space: nowrap;
   will-change: transform;
@@ -280,10 +280,17 @@ body {
   place-items: center;
   z-index: 10;
   padding: 12px;
+  animation: fadein 0.18s ease;
 }
 
 #modal.hidden {
   display: none;
+}
+
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
 }
 
 .sheet {
@@ -295,6 +302,14 @@ body {
   max-height: 88vh;
   overflow-y: auto;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  animation: sheetin 0.22s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes sheetin {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(10px);
+  }
 }
 
 .sheet h2 {
@@ -453,6 +468,48 @@ body {
 .cond b {
   width: 40px;
   text-align: right;
+}
+
+.how {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.how span {
+  font-size: 26px;
+}
+
+.how p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.volrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.volrow .btn {
+  padding: 8px 14px;
+}
+
+.volrow input[type="range"] {
+  flex: 1;
+  accent-color: var(--cash);
+  height: 28px;
+  cursor: pointer;
+}
+
+.keys {
+  margin-top: 10px;
+  text-align: center;
 }
 
 /* ---------- touch ---------- */

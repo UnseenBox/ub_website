@@ -56,10 +56,11 @@ CrazyGames notes:
 | `config.ts`    | balance data + pure economy functions (tested)      |
 | `sim.ts`       | customers, job routing, workers, flipping, economy  |
 | `world.ts`     | static tile layout                                  |
-| `render.ts`    | isometric software renderer, particles              |
+| `cars.ts`      | parametric vehicle art (6 types + condition wear)   |
+| `render.ts`    | isometric renderer, stations, characters, particles |
 | `ui.ts`        | HUD, prompts, toasts, modals, touch controls        |
 | `state.ts`     | localStorage save with validation + safe defaults   |
-| `audio.ts`     | procedural WebAudio SFX (no assets)                 |
+| `audio.ts`     | layered procedural shop audio (no assets)           |
 | `input.ts`     | keyboard + touch input                              |
 | `ads.ts`       | portal ad SDK wrapper (optional)                    |
 | `main.ts`      | boot, game loop, event wiring                       |

@@ -40,6 +40,7 @@ import {
 } from './world'
 import { EXTRA_PADS } from './world'
 import type { SaveData } from './state'
+import type { SfxName } from './audio'
 
 export type Phase = 'arriving' | 'queued' | 'toBay' | 'inBay' | 'toSale' | 'forSale' | 'leaving' | 'offer'
 
@@ -68,6 +69,9 @@ export interface Car {
   sellerBy: number | null
   done: boolean
   notified: boolean
+  /** suspension bounce 1->0 after arriving; completion pop 1->0 */
+  bounce: number
+  pop: number
 }
 
 export interface Worker {
@@ -87,7 +91,7 @@ export interface Worker {
 
 export type GameEvent =
   | { t: 'floater'; x: number; y: number; text: string; color: string }
-  | { t: 'sfx'; name: 'wrench' | 'cash' | 'buy' | 'deny' | 'click' | 'done' | 'horn' | 'sell' | 'paint' }
+  | { t: 'sfx'; name: SfxName }
   | { t: 'washStart' }
   | { t: 'washStop' }
   | { t: 'toast'; text: string }
@@ -134,12 +138,16 @@ function distToRect(px: number, py: number, r: { x: number; y: number; w: number
 
 export class Game {
   save: SaveData
-  player = { x: PLAYER_SPAWN.x, y: PLAYER_SPAWN.y, angle: 0, moving: false }
+  player = { x: PLAYER_SPAWN.x, y: PLAYER_SPAWN.y, vx: 0, vy: 0, speed: 0, angle: 0, moving: false }
   workers: Worker[] = []
   cars: Car[] = []
   offerTimers = [0, 0, 0]
   current: Interact | null = null
   armedUnlock: string | null = null
+  /** seconds since boot; drives build-in animations and ambience */
+  time = 0
+  /** unlock id -> time it was purchased (-99 = pre-existing from save) */
+  builtAt: Record<string, number> = {}
   private armedT = 0
   private spawnT = 8
   private assignT = 0
@@ -148,6 +156,7 @@ export class Game {
 
   constructor(save: SaveData) {
     this.save = save
+    for (const u of save.unlocks) this.builtAt[u] = -99
     for (const h of save.hires) this.spawnWorker(h as WorkerRole, true)
     this.seedOpening()
   }
@@ -225,6 +234,8 @@ export class Game {
       sellerBy: null,
       done: false,
       notified: false,
+      bounce: 0,
+      pop: 0,
     }
     this.cars.push(car)
   }
@@ -249,10 +260,10 @@ export class Game {
 
   // ---- economy ----
 
-  private earn(amount: number, ev: GameEvent[], x: number, y: number, label: string): void {
+  private earn(amount: number, ev: GameEvent[], x: number, y: number, _label: string): void {
     this.save.money += amount
     this.save.lifetime += amount
-    ev.push({ t: 'floater', x, y, text: `+$${amount} ${label}`, color: '#4ade80' })
+    ev.push({ t: 'floater', x, y, text: `+$${amount}`, color: '#4ade80' })
     ev.push({ t: 'sfx', name: 'cash' })
     ev.push({ t: 'pulse' })
     this.checkObjectives(ev)
@@ -344,6 +355,8 @@ export class Game {
       sellerBy: null,
       done: false,
       notified: false,
+      bounce: 0,
+      pop: 0,
     })
     ev.push({ t: 'sfx', name: 'horn' })
   }
@@ -388,6 +401,8 @@ export class Game {
       sellerBy: null,
       done: false,
       notified: false,
+      bounce: 0,
+      pop: 0,
     }
   }
 
@@ -410,6 +425,7 @@ export class Game {
     }
     this.spend(def.cost)
     this.save.unlocks.push(id)
+    this.builtAt[id] = this.time
     this.armedUnlock = null
     ev.push({ t: 'sfx', name: 'buy' })
     const pad = EXTRA_PADS.find((p) => p.unlockId === id)
@@ -472,7 +488,7 @@ export class Game {
     this.offerTimers[idx] = 30
     this.boughtCount++
     ev.push({ t: 'sfx', name: 'buy' })
-    ev.push({ t: 'toast', text: `🏷️ Bought ${car.type.name} for $${price} — restore it!` })
+    ev.push({ t: 'toast', text: `🏷️ ${car.type.name} bought — restore it` })
     this.checkObjectives(ev)
     return true
   }
@@ -579,7 +595,7 @@ export class Game {
       this.save.spentParts += parts
     }
     car.work = { service, progress: 0, by }
-    if (service === 'wash' || service === 'detail') ev.push({ t: 'washStart' })
+    if (service === 'wash' || service === 'detail' || service === 'paint') ev.push({ t: 'washStart' })
     return true
   }
 
@@ -613,6 +629,7 @@ export class Game {
         break
     }
     car.flash = 1
+    car.pop = 1
     if (car.owner === 'customer') {
       let reward = SERVICES[w.service].reward + car.tip
       car.tip = 0
@@ -620,10 +637,10 @@ export class Game {
       if (w.service === 'wash') this.save.stats.washed++
       else this.save.stats.fixed++
       this.earn(reward, ev, car.x, car.y - 1, SERVICES[w.service].label)
-      ev.push({ t: 'sfx', name: 'done' })
+      ev.push({ t: 'sfx', name: w.service === 'engine' ? 'engine' : 'done' })
     } else {
       ev.push({ t: 'floater', x: car.x, y: car.y - 1, text: `${SERVICES[w.service].icon} done!`, color: '#facc15' })
-      ev.push({ t: 'sfx', name: 'done' })
+      ev.push({ t: 'sfx', name: w.service === 'engine' ? 'engine' : 'done' })
       if (w.service === 'wash') this.save.stats.washed++
       else this.save.stats.fixed++
     }
@@ -680,7 +697,7 @@ export class Game {
       }
       if (!car.notified) {
         car.notified = true
-        ev.push({ t: 'toast', text: `✨ ${car.type.name} fully restored! Take it to the sale lot.` })
+        ev.push({ t: 'toast', text: `✨ ${car.type.name} restored — sell it!` })
       }
     }
   }
@@ -735,19 +752,19 @@ export class Game {
   private tutorial(ev: GameEvent[]): void {
     const t = this.save.tutorial
     if (t === 0) {
-      ev.push({ t: 'toast', text: '🚗 Move with WASD / arrows — walk to the dirty car!' })
+      ev.push({ t: 'toast', text: '🚗 Walk to the dirty car' })
       this.save.tutorial = 1
     } else if (t === 1) {
       const car = this.cars[0]
       if (car && dist(this.player.x, this.player.y, car.x, car.y) < 3.4) {
-        ev.push({ t: 'toast', text: '🧽 HOLD E (or the ACTION button) to wash!' })
+        ev.push({ t: 'toast', text: '🧽 HOLD E to wash' })
         this.save.tutorial = 2
       }
     } else if (t === 2 && this.save.stats.washed >= 1) {
-      ev.push({ t: 'toast', text: '💰 Nice! Keep serving cars, then buy a yellow upgrade sign.' })
+      ev.push({ t: 'toast', text: '💰 Paid! Buy a yellow sign' })
       this.save.tutorial = 3
     } else if (t === 3 && this.save.money >= 300) {
-      ev.push({ t: 'toast', text: '🧑‍🔧 You can afford staff — visit the STAFF board!' })
+      ev.push({ t: 'toast', text: '🧑‍🔧 Visit the STAFF board' })
       this.save.tutorial = 4
     }
   }
@@ -881,24 +898,21 @@ export class Game {
 
   update(dt: number, input: { x: number; y: number; actionHeld: boolean; actionPressed: boolean }): GameEvent[] {
     const ev: GameEvent[] = []
-    // player movement
-    const px = this.player.x
-    const py = this.player.y
-    const mx = input.x
-    const my = input.y
-    const moving = Math.hypot(mx, my) > 0.1
-    if (moving) {
-      this.player.x += mx * PLAYER_SPEED * dt
-      this.player.y += my * PLAYER_SPEED * dt
-      this.player.angle = Math.atan2(my, mx)
-    }
+    this.time += dt
+    // player movement with acceleration / deceleration for weight
+    const k = Math.min(1, dt * 11)
+    this.player.vx += (input.x * PLAYER_SPEED - this.player.vx) * k
+    this.player.vy += (input.y * PLAYER_SPEED - this.player.vy) * k
+    this.player.x += this.player.vx * dt
+    this.player.y += this.player.vy * dt
+    this.player.speed = Math.hypot(this.player.vx, this.player.vy)
+    const moving = this.player.speed > 0.6
+    if (moving) this.player.angle = Math.atan2(this.player.vy, this.player.vx)
     this.player.moving = moving
     // clamp + building collision
     this.player.x = Math.max(0.8, Math.min(29.2, this.player.x))
     this.player.y = Math.max(0.8, Math.min(21.2, this.player.y))
     this.collide(this.player, 0.42)
-    void px
-    void py
 
     // tutorial + objectives
     this.tutorial(ev)
@@ -942,6 +956,8 @@ export class Game {
     // cars driving
     for (const car of this.cars) {
       if (car.flash > 0) car.flash = Math.max(0, car.flash - dt * 1.4)
+      if (car.bounce > 0) car.bounce = Math.max(0, car.bounce - dt * 2.2)
+      if (car.pop > 0) car.pop = Math.max(0, car.pop - dt * 2.6)
       if (car.path.length > 0) {
         const t = car.path[0]
         const d = dist(car.x, car.y, t.x, t.y)
@@ -1028,6 +1044,7 @@ export class Game {
 
   private onArrive(car: Car, ev: GameEvent[]): void {
     void ev
+    car.bounce = 1
     if (car.phase === 'arriving') car.phase = 'queued'
     else if (car.phase === 'toBay') {
       car.phase = 'inBay'
