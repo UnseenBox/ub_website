@@ -1,0 +1,21 @@
+{
+  "name": "garage-empire",
+  "version": "1.0.0",
+  "description": "Garage Empire: Wash, Fix & Flip — a casual 3D-isometric garage tycoon for the browser.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build:arcade": "tsc --noEmit && vite build --outDir ../../public/arcade/garage-empire --emptyOutDir"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4",
+    "vitest": "^3.2.7"
+  },
+  "private": true,
+  "type": "module"
+}

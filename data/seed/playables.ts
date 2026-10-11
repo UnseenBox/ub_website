@@ -8,6 +8,34 @@ import { L, SEED_DATE } from "./helpers";
  */
 export const playables: Playable[] = [
   {
+    id: "play_garage-empire",
+    slug: "garage-empire",
+    title: "GARAGE EMPIRE",
+    added: "2026-10-10",
+    moods: ["quick", "brain", "phone"],
+    src: "/arcade/garage-empire/index.html",
+    poster: "/arcade/garage-empire/poster.svg",
+    genre: L("Garage tycoon: wash, fix & flip", "Garage tycoon : laver, réparer, revendre", "إدارة كراج: غسيل وتصليح وبيع"),
+    summary: L(
+      "Start with one dirty garage and build an automotive empire. Wash filthy cars for quick cash, fix engines, tires and bodywork, hire washers and mechanics who do real jobs, then buy cheap wrecks from the used-car lot, restore them in your own bays and flip them for profit. Open a detailing studio, a paint booth and a premium showroom on your way from backyard garage to Automotive Empire.",
+      "Partez d'un petit garage et bâtissez un empire automobile. Lavez des voitures sales pour gagner vite, réparez moteurs, pneus et carrosseries, embauchez laveurs et mécaniciens qui font de vrais boulots, puis achetez des épaves au parc d'occasions, restaurez-les dans vos ateliers et revendez-les avec profit. Ouvrez un studio de detailing, une cabine de peinture et un showroom premium, de garage de quartier à empire automobile.",
+      "ابدأ بكراج صغير وابنِ إمبراطورية سيارات. اغسل السيارات المتسخة لربح سريع، وأصلح المحركات والإطارات والهياكل، ووظّف عمال غسيل وميكانيكيين يعملون فعلاً، ثم اشترِ سيارات رخيصة من ساحة المستعمل ورمّمها في ورشك وبِعها بربح. افتح استوديو تلميع وغرفة دهان وصالة عرض فاخرة، من كراج الحي إلى إمبراطورية السيارات.",
+    ),
+    desktopControls: L(
+      "WASD or arrows to move · hold E or Space to wash & repair · E to buy, hire & sell · Esc to pause",
+      "ZQSD ou flèches pour bouger · maintenez E ou Espace pour laver et réparer · E pour acheter, embaucher et vendre · Échap pour la pause",
+      "WASD أو الأسهم للحركة · اضغط E أو المسافة مطولاً للغسيل والتصليح · E للشراء والتوظيف والبيع · Esc للإيقاف المؤقت",
+    ),
+    phoneControls: L(
+      "Left thumb-stick to walk · hold the ACTION button to wash & repair · tap signs and cars to buy & sell",
+      "Stick gauche pour marcher · maintenez ACTION pour laver et réparer · touchez panneaux et voitures pour acheter et vendre",
+      "عصا الإبهام اليسرى للمشي · اضغط زر ACTION مطولاً للغسيل والتصليح · المس اللافتات والسيارات للشراء والبيع",
+    ),
+    enabled: true,
+    order: 0,
+    updatedAt: SEED_DATE,
+  },
+  {
     id: "play_crazy-goal",
     slug: "crazy-goal",
     title: "CRAZY KORA",

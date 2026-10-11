@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f2540"/>
+      <stop offset="0.62" stop-color="#155e75"/>
+      <stop offset="1" stop-color="#0e7490"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f4a5c"/>
+      <stop offset="1" stop-color="#232b38"/>
+    </linearGradient>
+    <linearGradient id="carbody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="carbody2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#0369a1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#sky)"/>
+  <circle cx="660" cy="90" r="46" fill="#fde68a" opacity="0.9"/>
+  <circle cx="660" cy="90" r="70" fill="#fde68a" opacity="0.18"/>
+  <!-- garage -->
+  <g>
+    <rect x="180" y="150" width="440" height="200" rx="10" fill="#e2e8f0"/>
+    <rect x="180" y="150" width="440" height="46" rx="10" fill="#0ea5e9"/>
+    <rect x="230" y="230" width="120" height="120" rx="8" fill="#0f172a"/>
+    <rect x="450" y="230" width="120" height="120" rx="8" fill="#0f172a"/>
+    <rect x="250" y="250" width="80" height="60" rx="6" fill="#38bdf8" opacity="0.75"/>
+    <rect x="470" y="250" width="80" height="60" rx="6" fill="#fbbf24" opacity="0.8"/>
+    <rect x="150" y="330" width="500" height="20" rx="6" fill="#f97316"/>
+  </g>
+  <!-- hero car -->
+  <g>
+    <ellipse cx="400" cy="432" rx="220" ry="26" fill="#000" opacity="0.35"/>
+    <rect x="200" y="360" width="400" height="60" rx="28" fill="url(#carbody)"/>
+    <rect x="290" y="322" width="220" height="56" rx="24" fill="url(#carbody)"/>
+    <rect x="310" y="332" width="180" height="36" rx="16" fill="#bae6fd"/>
+    <rect x="392" y="332" width="16" height="36" fill="#c2410c"/>
+    <circle cx="270" cy="420" r="34" fill="#111827"/>
+    <circle cx="270" cy="420" r="14" fill="#9ca3af"/>
+    <circle cx="530" cy="420" r="34" fill="#111827"/>
+    <circle cx="530" cy="420" r="14" fill="#9ca3af"/>
+    <rect x="200" y="372" width="400" height="12" rx="6" fill="#fff" opacity="0.3"/>
+    <!-- dirt -->
+    <g fill="#78350a" opacity="0.55">
+      <circle cx="240" cy="392" r="14"/><circle cx="560" cy="396" r="17"/>
+      <circle cx="330" cy="404" r="10"/><circle cx="470" cy="388" r="12"/>
+    </g>
+    <!-- foam -->
+    <g fill="#fff" opacity="0.92">
+      <circle cx="620" cy="330" r="12"/><circle cx="642" cy="322" r="9"/>
+      <circle cx="600" cy="318" r="8"/><circle cx="660" cy="336" r="11"/>
+      <circle cx="160" cy="350" r="10"/><circle cx="142" cy="366" r="8"/>
+    </g>
+    <text x="620" y="300" font-size="34" text-anchor="middle">🧽</text>
+    <text x="150" y="330" font-size="30" text-anchor="middle">✨</text>
+  </g>
+  <rect width="800" height="500" fill="#000" opacity="0"/>
+  <!-- title -->
+  <g>
+    <rect x="0" y="18" width="800" height="104" fill="#0f172a" opacity="0.72"/>
+    <text x="400" y="72" font-family="system-ui,sans-serif" font-size="52" font-weight="900" fill="#fbbf24" text-anchor="middle" letter-spacing="2">GARAGE EMPIRE</text>
+    <text x="400" y="104" font-family="system-ui,sans-serif" font-size="24" font-weight="700" fill="#f1f5f9" text-anchor="middle" letter-spacing="6">WASH • FIX • FLIP</text>
+  </g>
+  <!-- badges -->
+  <g font-family="system-ui,sans-serif" font-size="20" font-weight="800" text-anchor="middle">
+    <rect x="36" y="420" width="150" height="44" rx="22" fill="#14532d"/>
+    <text x="111" y="449" fill="#bbf7d0">FLIP CARS</text>
+    <rect x="614" y="420" width="150" height="44" rx="22" fill="#1e3a8a"/>
+    <text x="689" y="449" fill="#bfdbfe">3D TYCOON</text>
+  </g>
+</svg>

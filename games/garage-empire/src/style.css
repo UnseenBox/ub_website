@@ -1,0 +1,528 @@
+/* Garage Empire — overlay UI. The canvas renders the world; this styles HUD/menus. */
+:root {
+  --ink: #0f172a;
+  --panel: rgba(15, 23, 42, 0.92);
+  --line: rgba(255, 255, 255, 0.14);
+  --cash: #4ade80;
+  --gold: #facc15;
+  --blue: #38bdf8;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #101826;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+#scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---------- HUD ---------- */
+
+#hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: calc(8px + env(safe-area-inset-top)) 10px 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.hud-left,
+.hud-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.hud-right {
+  margin-left: auto;
+  pointer-events: auto;
+}
+
+.pill {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 800;
+  font-size: 15px;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+.pill.cash {
+  color: var(--cash);
+  font-size: 18px;
+  min-width: 96px;
+  text-align: center;
+}
+
+.pill.cash.bump {
+  animation: bump 0.35s ease;
+}
+
+@keyframes bump {
+  35% {
+    transform: scale(1.18);
+  }
+}
+
+.pill.lvl {
+  color: var(--gold);
+  max-width: 38vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill.obj {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 44vw;
+  margin: 0 auto;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.icon-btn:hover {
+  background: #1e293b;
+}
+
+/* ---------- prompt ---------- */
+
+#prompt {
+  position: absolute;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+  text-align: center;
+}
+
+#prompt.hidden {
+  display: none;
+}
+
+.prompt-card {
+  background: var(--panel);
+  border: 1px solid var(--blue);
+  border-radius: 14px;
+  padding: 10px 18px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.prompt-card.buy {
+  border-color: var(--gold);
+}
+
+.prompt-card.sell {
+  border-color: var(--cash);
+}
+
+.prompt-card.cant {
+  opacity: 0.75;
+  border-color: #f87171;
+}
+
+.prompt-label {
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.prompt-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.prompt-key {
+  margin-top: 6px;
+  display: inline-block;
+  background: var(--blue);
+  color: #04121f;
+  font-weight: 900;
+  font-size: 12px;
+  border-radius: 8px;
+  padding: 3px 12px;
+  animation: keypulse 1s infinite;
+}
+
+.prompt-card.buy .prompt-key {
+  background: var(--gold);
+}
+
+.prompt-card.sell .prompt-key {
+  background: var(--cash);
+}
+
+@keyframes keypulse {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* ---------- toasts & floaters ---------- */
+
+#toasts {
+  position: absolute;
+  top: calc(64px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 8;
+  pointer-events: none;
+  width: min(92vw, 520px);
+}
+
+.toast {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--gold);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  animation: toastin 0.3s ease;
+  backdrop-filter: blur(6px);
+}
+
+.toast.out {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: all 0.4s ease;
+}
+
+@keyframes toastin {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+}
+
+#floaters {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+}
+
+.floater {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-weight: 900;
+  font-size: 19px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+/* ---------- modal ---------- */
+
+#modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 10, 20, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+  padding: 12px;
+}
+
+#modal.hidden {
+  display: none;
+}
+
+.sheet {
+  background: #141d31;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
+  width: min(94vw, 440px);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
+.sheet h2 {
+  margin: 0 0 4px;
+  font-size: 21px;
+}
+
+.sheet h3 {
+  margin: 14px 0 4px;
+  font-size: 14px;
+  color: var(--gold);
+}
+
+.sheet .muted {
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.row-ico {
+  font-size: 26px;
+}
+
+.row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row-main b {
+  font-size: 14.5px;
+}
+
+.row-main span {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.owned {
+  color: var(--cash);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.btn {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+  color: #04160b;
+}
+
+.btn.ghost {
+  background: #243049;
+}
+
+.btn.disabled {
+  background: #243049;
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn.danger {
+  background: #3b1215;
+  color: #fca5a5;
+  border: 1px solid #7f1d1d;
+}
+
+.btn.wide {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.btnrow {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btnrow .btn {
+  flex: 1;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  font-size: 14px;
+}
+
+.kv span {
+  color: var(--muted);
+}
+
+.kv.big {
+  font-size: 17px;
+  border-bottom: none;
+  margin-top: 4px;
+}
+
+.green {
+  color: var(--cash);
+}
+
+.red {
+  color: #f87171;
+}
+
+.cond {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin: 5px 0;
+}
+
+.cond span {
+  width: 86px;
+  color: var(--muted);
+}
+
+.cond .bar {
+  flex: 1;
+  height: 9px;
+  background: #0b1220;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cond .bar i {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+}
+
+.cond b {
+  width: 40px;
+  text-align: right;
+}
+
+/* ---------- touch ---------- */
+
+#touch.hidden {
+  display: none;
+}
+
+#joy {
+  position: absolute;
+  left: calc(18px + env(safe-area-inset-left));
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  z-index: 6;
+  touch-action: none;
+}
+
+#joy-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.85);
+  transform: translate(-50%, -50%);
+}
+
+#act {
+  position: absolute;
+  right: calc(18px + env(safe-area-inset-right));
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  background: rgba(34, 197, 94, 0.85);
+  color: #04160b;
+  font-size: 30px;
+  font-weight: 900;
+  z-index: 6;
+  touch-action: none;
+}
+
+#act.held {
+  transform: scale(0.92);
+  background: rgba(74, 222, 128, 1);
+}
+
+@media (max-width: 700px) {
+  .pill.obj {
+    display: none;
+  }
+
+  .pill.cash {
+    font-size: 16px;
+  }
+
+  #prompt {
+    bottom: calc(140px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt-key,
+  .pill.cash.bump {
+    animation: none;
+  }
+}
