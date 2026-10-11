@@ -16,6 +16,13 @@ const ui = new UI(app)
 const canvas = ui.canvas()
 const renderer = new Renderer(canvas)
 
+canvas.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault()
+  audio.stopWash()
+  ui.toast('⚠️ 3D context lost — reloading…')
+  window.setTimeout(() => location.reload(), 1500)
+})
+
 let save = loadSave()
 audio.muted = save.muted
 audio.setVolume(save.volume)
@@ -296,7 +303,7 @@ if (demoMode && new URLSearchParams(location.search).has('demo')) {
   }
   requestAnimationFrame(tick)
   setInterval(() => {
-    console.log(`[demo] fps=${Math.round(frames / 5)} particles=${renderer.particles.length}`)
+    console.log(`[demo] fps=${Math.round(frames / 5)} particles=${renderer.particles.length} draws=${renderer.drawCalls}`)
     frames = 0
   }, 5000)
 }

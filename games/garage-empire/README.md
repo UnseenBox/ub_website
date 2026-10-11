@@ -3,8 +3,15 @@
 A casual isometric garage-tycoon for the browser. Start with one dirty car in a
 tiny garage; end with wash bays, a lift, a tire station, a detail studio, a
 paint booth, a used-car lot, a premium showroom, four employees and a flipping
-business. Zero runtime dependencies, ~65 KB of JS, all art and audio generated
-in code.
+business. Real-time 3D (three.js) with open-source low-poly models, zero other
+runtime dependencies.
+
+## Art credits (CC0, no permission needed)
+
+- Vehicles: **Kenney Car Kit** — `public/models/kenney-car-kit-license.txt`
+- Characters: **Kenney Animated Characters** — `public/models/kenney-characters-license.txt`
+- Extra paint jobs come from hue-rotated copies of the kit palette; regenerate
+  with `node scripts/paint-variants.mjs <src.png> <out.png> <degrees>`.
 
 ## Play
 
@@ -56,8 +63,8 @@ CrazyGames notes:
 | `config.ts`    | balance data + pure economy functions (tested)      |
 | `sim.ts`       | customers, job routing, workers, flipping, economy  |
 | `world.ts`     | static tile layout                                  |
-| `cars.ts`      | parametric vehicle art (6 types + condition wear)   |
-| `render.ts`    | isometric renderer, stations, characters, particles |
+| `models.ts`    | 3D model registry, car/character rigs, paint, skins |
+| `render.ts`    | three.js scene, stations, labels, particles         |
 | `ui.ts`        | HUD, prompts, toasts, modals, touch controls        |
 | `state.ts`     | localStorage save with validation + safe defaults   |
 | `audio.ts`     | layered procedural shop audio (no assets)           |

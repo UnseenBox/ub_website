@@ -70,6 +70,8 @@ export interface Car {
   sellerBy: number | null
   done: boolean
   notified: boolean
+  /** increments on every completed paint job (renderer swaps paint variant) */
+  repaint: number
   /** suspension bounce 1->0 after arriving; completion pop 1->0 */
   bounce: number
   pop: number
@@ -242,6 +244,7 @@ export class Game {
       sellerBy: null,
       done: false,
       notified: false,
+      repaint: 0,
       bounce: 0,
       pop: 0,
     }
@@ -367,6 +370,7 @@ export class Game {
       sellerBy: null,
       done: false,
       notified: false,
+      repaint: 0,
       bounce: 0,
       pop: 0,
     })
@@ -413,6 +417,7 @@ export class Game {
       sellerBy: null,
       done: false,
       notified: false,
+      repaint: 0,
       bounce: 0,
       pop: 0,
     }
@@ -637,6 +642,7 @@ export class Game {
       case 'paint':
         c.shine = 100
         car.color = pick(car.type.palette)
+        car.repaint++
         ev.push({ t: 'sfx', name: 'paint' })
         break
     }
