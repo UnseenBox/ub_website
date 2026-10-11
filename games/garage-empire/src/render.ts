@@ -54,6 +54,11 @@ export class Renderer {
   tw = 56
   vw = 0
   vh = 0
+  private caching = false
+  private ground: { canvas: HTMLCanvasElement; camX: number; camY: number; w: number; h: number } | null = null
+  private groundKey = ''
+  private sky: CanvasGradient | null = null
+  private vignette: CanvasGradient | null = null
   particles: Particle[] = []
   bursts: { x: number; y: number; t: number }[] = []
 
@@ -74,6 +79,9 @@ export class Renderer {
     this.canvas.height = Math.round(h * dpr)
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     this.tw = Math.max(30, Math.min(64, Math.min(w, h) / 13))
+    // viewport-sized gradients must be rebuilt for the new dimensions
+    this.sky = null
+    this.vignette = null
   }
 
   get w(): number {
@@ -156,9 +164,72 @@ export class Renderer {
   }
 
   private inView(x: number, y: number, pad = 120): boolean {
+    if (this.caching) return true
     const px = this.sx(x, y)
     const py = this.sy(x, y)
     return px > -pad && px < this.w + pad && py > -pad && py < this.h + pad
+  }
+
+  // ---- ground cache ----
+  //
+  // The floor is baked ONCE into a world-anchored texture and blitted at a
+  // per-frame camera offset. Because the blit is a pure translation of a
+  // world-space render, the floor cannot drift from entities the way a
+  // screen-space cache does. Rebuilt only when zoom or unlocks change.
+
+  private groundSig(game: Game): string {
+    return `${this.tw.toFixed(2)}|${game.save.unlocks.join(',')}`
+  }
+
+  private buildGround(game: Game): void {
+    const cw = Math.max(1, Math.ceil(26 * this.tw))
+    const ch = Math.max(1, Math.ceil(13 * this.tw))
+    const canvas = document.createElement('canvas')
+    canvas.width = cw
+    canvas.height = ch
+    const gctx = canvas.getContext('2d')
+    if (!gctx) return
+    const camX = 15.8
+    const camY = 11.8
+    const prevCtx = this.ctx
+    const prevCam = { x: this.cam.x, y: this.cam.y }
+    const prevW = this.vw
+    const prevH = this.vh
+    this.ctx = gctx
+    this.cam = { x: camX, y: camY }
+    this.vw = cw
+    this.vh = ch
+    this.caching = true
+    this.drawGround(game)
+    this.caching = false
+    this.ctx = prevCtx
+    this.cam = prevCam
+    this.vw = prevW
+    this.vh = prevH
+    this.ground = { canvas, camX, camY, w: cw, h: ch }
+    this.groundKey = this.groundSig(game)
+  }
+
+  private blitGround(game: Game): void {
+    if (!this.ground || this.groundKey !== this.groundSig(game)) this.buildGround(game)
+    const g = this.ground
+    if (!g) return
+    // offset = live projection of a world anchor minus its position in the cache
+    const anchorX = ((0 - g.camX) - (0 - g.camY)) * (this.tw / 2) + g.w / 2
+    const anchorY = ((0 - g.camX) + (0 - g.camY)) * (this.tw / 4) + g.h / 2 + this.tw * 0.4
+    const dx = this.sx(0, 0) - anchorX
+    const dy = this.sy(0, 0) - anchorY
+    // copy only the visible slice; the map texture is wider than most viewports.
+    // Source offsets are integers so the fractional part stays in the
+    // destination and the floor keeps sub-pixel alignment with entities.
+    const sx0 = Math.max(0, Math.floor(-dx))
+    const sy0 = Math.max(0, Math.floor(-dy))
+    const dx0 = dx + sx0
+    const dy0 = dy + sy0
+    const sw = Math.min(g.w - sx0, this.w - dx0 + 1)
+    const sh = Math.min(g.h - sy0, this.h - dy0 + 1)
+    if (sw <= 0 || sh <= 0) return
+    this.ctx.drawImage(g.canvas, sx0, sy0, sw, sh, dx0, dy0, sw, sh)
   }
 
   // ---- frame ----
@@ -172,13 +243,16 @@ export class Renderer {
     this.cam.x += (tx - this.cam.x) * Math.min(1, dt * 4)
     this.cam.y += (ty - this.cam.y) * Math.min(1, dt * 4)
 
-    const g = ctx.createLinearGradient(0, 0, 0, this.h)
-    g.addColorStop(0, '#86c96f')
-    g.addColorStop(1, '#69ad57')
+    const g = this.sky ?? (this.sky = (() => {
+      const grad = ctx.createLinearGradient(0, 0, 0, this.h)
+      grad.addColorStop(0, '#86c96f')
+      grad.addColorStop(1, '#69ad57')
+      return grad
+    })())
     ctx.fillStyle = g
     ctx.fillRect(0, 0, this.w, this.h)
 
-    this.drawGround(game)
+    this.blitGround(game)
 
     for (const p of this.particles) {
       p.life += dt
@@ -233,11 +307,13 @@ export class Renderer {
     }
     items.push({ d: depth(HIRE_BOARD.x, HIRE_BOARD.y), f: () => this.drawHireBoard() })
 
-    // locked expansion pads: dashed claim + price
+    // locked expansion pads: dashed claim + price (detail drops off at range)
     for (const pd of game.pads()) {
       const def = UNLOCKS.find((u) => u.id === pd.unlockId)
       if (def && this.inView(pd.cx, pd.cy, 200)) {
-        items.push({ d: depth(pd.cx, pd.cy) - 0.1, f: () => this.drawPadClaim(pd, `${def.icon} $${def.cost}`) })
+        const near = Math.hypot(pd.cx - game.player.x, pd.cy - game.player.y) < 7.5
+        const afford = game.money >= def.cost
+        items.push({ d: depth(pd.cx, pd.cy) - 0.1, f: () => this.drawPadClaim(pd, def, near, afford) })
       }
     }
 
@@ -302,12 +378,15 @@ export class Renderer {
 
   private drawVignette(): void {
     const { ctx } = this
-    const g = ctx.createRadialGradient(
-      this.w / 2, this.h / 2, Math.min(this.w, this.h) * 0.45,
-      this.w / 2, this.h / 2, Math.max(this.w, this.h) * 0.75,
-    )
-    g.addColorStop(0, 'rgba(0,0,0,0)')
-    g.addColorStop(1, 'rgba(10,15,30,0.26)')
+    const g = this.vignette ?? (this.vignette = (() => {
+      const grad = ctx.createRadialGradient(
+        this.w / 2, this.h / 2, Math.min(this.w, this.h) * 0.45,
+        this.w / 2, this.h / 2, Math.max(this.w, this.h) * 0.75,
+      )
+      grad.addColorStop(0, 'rgba(0,0,0,0)')
+      grad.addColorStop(1, 'rgba(10,15,30,0.26)')
+      return grad
+    })())
     ctx.fillStyle = g
     ctx.fillRect(0, 0, this.w, this.h)
   }
@@ -501,10 +580,36 @@ export class Renderer {
     ctx.fill()
   }
 
-  private drawPadClaim(pd: { x: number; y: number; w: number; h: number; cx: number; cy: number }, text: string): void {
+  /** A small round marker: the "you could build here" pin used at range. */
+  private pin(x: number, y: number, z: number, icon: string, afford: boolean): void {
+    const { ctx } = this
+    const px = this.sx(x, y)
+    const py = this.sy(x, y, z)
+    const r = this.tw * 0.26
+    ctx.fillStyle = afford ? 'rgba(250,204,21,0.95)' : 'rgba(71,85,105,0.8)'
+    ctx.beginPath()
+    ctx.arc(px, py, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = afford ? '#78350f' : 'rgba(15,23,42,0.6)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    ctx.font = `${r * 1.1}px system-ui`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.globalAlpha = afford ? 1 : 0.65
+    ctx.fillText(icon, px, py + 1)
+    ctx.globalAlpha = 1
+  }
+
+  private drawPadClaim(
+    pd: { x: number; y: number; w: number; h: number; cx: number; cy: number },
+    def: { icon: string; cost: number },
+    near: boolean,
+    afford: boolean,
+  ): void {
     const { ctx } = this
     ctx.save()
-    ctx.strokeStyle = 'rgba(250,204,21,0.85)'
+    ctx.strokeStyle = afford ? 'rgba(250,204,21,0.85)' : 'rgba(148,163,184,0.5)'
     ctx.lineWidth = 2.5
     ctx.setLineDash([8, 6])
     ctx.beginPath()
@@ -515,7 +620,15 @@ export class Renderer {
     ctx.closePath()
     ctx.stroke()
     ctx.restore()
-    this.label(text, pd.cx, pd.cy, 1.2, { bg: '#713f12', fg: '#fde68a', size: 12 })
+    if (near) {
+      this.label(`${def.icon} $${def.cost}`, pd.cx, pd.cy, 1.2, {
+        bg: afford ? '#713f12' : 'rgba(30,41,59,0.9)',
+        fg: afford ? '#fde68a' : '#94a3b8',
+        size: 12,
+      })
+    } else {
+      this.pin(pd.cx, pd.cy, 0.9, def.icon, afford)
+    }
   }
 
   // ---- buildings ----
@@ -609,23 +722,23 @@ export class Renderer {
 
   private drawShowroom(time: number): void {
     void time
-    // podium floor, glass back + side walls with mullions, fascia sign
+    // podium floor, light glass pavilion, slim fascia band
     this.bx(23.4, 13.4, 5.6, 4, 0.12, '#eef2f6')
-    const glass = 'rgba(165,205,240,0.75)'
-    this.box3d(23.4, 13.4, 5.6, 0.35, 1.7, glass, glass, glass)
-    this.box3d(23.4, 13.4, 0.35, 4, 1.7, glass, glass, glass)
+    const glass = 'rgba(176,214,244,0.52)'
+    this.box3d(23.4, 13.4, 5.6, 0.3, 1.25, glass, glass, glass)
+    this.box3d(23.4, 13.4, 0.3, 4, 1.25, glass, glass, glass)
     const { ctx } = this
-    ctx.strokeStyle = 'rgba(240,248,255,0.95)'
+    ctx.strokeStyle = 'rgba(248,252,255,0.95)'
     ctx.lineWidth = 2.5
     for (let i = 0; i <= 4; i++) {
       const x = 23.4 + i * 1.4
       ctx.beginPath()
       ctx.moveTo(this.sx(x, 13.4), this.sy(x, 13.4, 0))
-      ctx.lineTo(this.sx(x, 13.4), this.sy(x, 13.4, 1.7))
+      ctx.lineTo(this.sx(x, 13.4), this.sy(x, 13.4, 1.25))
       ctx.stroke()
     }
-    this.bx(23.9, 13.15, 4.6, 0.4, 0.28, '#5b3410', 1.7)
-    this.label('🏆 SHOWROOM', 26.2, 13.35, 2.28, { bg: '#78350f', fg: '#fde68a', size: 14 })
+    this.bx(23.9, 13.2, 4.6, 0.34, 0.2, '#b2781f', 1.25)
+    this.label('🏆 SHOWROOM', 26.2, 13.4, 1.72, { bg: '#78350f', fg: '#fde68a', size: 13 })
   }
 
   // ---- stations ----
@@ -655,44 +768,57 @@ export class Renderer {
   private drawStation(game: Game, id: StationId, locked: boolean, time: number): void {
     const r = STATION_RECTS[id]
     const st = STATIONS[id]
+    const icons: Record<StationId, string> = { wash1: '🧽', wash2: '🧽', repair1: '🔧', lift: '🏗️', tire: '🛞', detail: '✨', paint: '🎨' }
     if (locked) {
       const { ctx } = this
-      const cx = this.sx(r.cx, r.cy)
-      const cy = this.sy(r.cx, r.cy)
+      const def = UNLOCKS.find((u) => u.id === st.unlock)
+      const afford = def ? game.money >= def.cost : false
+      const near = Math.hypot(r.cx - game.player.x, r.cy - game.player.y) < 7.5
+      // Progressive disclosure: pin at range, price up close, and a preview of
+      // the real equipment only when you are right next to it. Showing every
+      // locked station at once turned the yard into translucent fog.
+      if (Math.hypot(r.cx - game.player.x, r.cy - game.player.y) < 5.5) {
+        ctx.save()
+        ctx.globalAlpha = 0.22
+        this.drawEquipment(game, id, r, time)
+        ctx.restore()
+      }
       ctx.save()
-      ctx.strokeStyle = 'rgba(250,204,21,0.9)'
+      ctx.strokeStyle = afford ? 'rgba(250,204,21,0.9)' : 'rgba(148,163,184,0.55)'
       ctx.lineWidth = 3
       ctx.setLineDash([10, 7])
       ctx.beginPath()
-      ctx.ellipse(cx, cy, this.tw * 1.1, this.tw * 0.58, 0, 0, Math.PI * 2)
+      ctx.ellipse(this.sx(r.cx, r.cy), this.sy(r.cx, r.cy), this.tw * 1.15, this.tw * 0.6, 0, 0, Math.PI * 2)
       ctx.stroke()
       ctx.restore()
-      // tarp-covered future equipment
-      ctx.globalAlpha = 0.85
-      ctx.fillStyle = '#57534e'
-      const gw = this.tw * 0.9
-      const gh = this.tw * (0.5 + (id === 'lift' || id === 'wash2' ? 0.35 : 0))
-      ctx.beginPath()
-      ctx.roundRect(cx - gw / 2, cy - gh, gw, gh, 6)
-      ctx.fill()
-      ctx.globalAlpha = 1
-      const def = UNLOCKS.find((u) => u.id === st.unlock)
-      if (def) this.label(`${def.icon} $${def.cost}`, r.cx, r.cy, 1.5, { bg: '#713f12', fg: '#fde68a' })
+      if (def) {
+        if (near) {
+          this.label(`${def.icon} $${def.cost}`, r.cx, r.cy, 1.5, {
+            bg: afford ? '#713f12' : 'rgba(30,41,59,0.9)',
+            fg: afford ? '#fde68a' : '#94a3b8',
+          })
+        } else {
+          this.pin(r.cx, r.cy, 1.2, icons[id], afford)
+        }
+      }
       return
     }
     this.withBuild(game, st.unlock ?? '', r.cx, r.cy, () => {
-      const icons: Record<StationId, string> = { wash1: '🧽', wash2: '🧽', repair1: '🔧', lift: '🏗️', tire: '🛞', detail: '✨', paint: '🎨' }
       this.bayDecal(r, st.color, icons[id], time)
-      switch (id) {
-        case 'wash1':
-        case 'wash2': this.drawWashBay(game, id, r, time); break
-        case 'repair1': this.drawRepairBench(r, time); break
-        case 'lift': this.drawLift(r); break
-        case 'tire': this.drawTireStation(r); break
-        case 'detail': this.drawDetailStudio(r, time); break
-        case 'paint': this.drawPaintBooth(r); break
-      }
+      this.drawEquipment(game, id, r, time)
     })
+  }
+
+  private drawEquipment(game: Game, id: StationId, r: typeof STATION_RECTS[StationId], time: number): void {
+    switch (id) {
+      case 'wash1':
+      case 'wash2': this.drawWashBay(game, id, r, time); break
+      case 'repair1': this.drawRepairBench(r, time); break
+      case 'lift': this.drawLift(r); break
+      case 'tire': this.drawTireStation(r); break
+      case 'detail': this.drawDetailStudio(r, time); break
+      case 'paint': this.drawPaintBooth(r); break
+    }
   }
 
   private drawWashBay(game: Game, id: StationId, r: { x: number; y: number; cx: number; cy: number }, time: number): void {
@@ -855,19 +981,19 @@ export class Renderer {
   }
 
   private drawPaintBooth(r: { x: number; y: number }): void {
-    // spray booth: solid ochre on the hidden faces (north + west), low open
-    // faces toward the camera (east + south) so the car stays readable.
-    this.bx(r.x, r.y, 3.4, 0.3, 1.7, '#92400e')
-    this.bx(r.x, r.y, 0.3, 3.4, 1.7, '#b45309')
-    this.bx(r.x + 3.1, r.y, 0.3, 3.4, 0.7, '#ca8a04')
+    // Spray booth kept deliberately low: tall opaque walls stacked with the
+    // showroom behind it into one unreadable brown mass from this camera.
+    this.bx(r.x, r.y, 3.4, 0.3, 1.15, '#d08a1e')
+    this.bx(r.x, r.y, 0.3, 3.4, 1.15, '#e0a63a')
+    this.bx(r.x + 3.1, r.y, 0.3, 3.4, 0.62, '#eab308')
     // corner posts + vent stack riding on the back wall
     for (const [px, py] of [[r.x, r.y], [r.x + 3.15, r.y], [r.x, r.y + 3.15], [r.x + 3.15, r.y + 3.15]] as const) {
-      this.bx(px, py, 0.25, 0.25, 1.7, '#78350f')
+      this.bx(px, py, 0.25, 0.25, 1.15, '#a16207')
     }
-    this.bx(r.x + 0.45, r.y - 0.1, 0.5, 0.5, 0.75, '#78716c', 1.7)
-    this.bx(r.x + 0.52, r.y - 0.03, 0.36, 0.36, 0.14, '#44403c', 2.45)
+    this.bx(r.x + 0.45, r.y - 0.1, 0.5, 0.5, 0.6, '#9aa0ab', 1.15)
+    this.bx(r.x + 0.52, r.y - 0.03, 0.36, 0.36, 0.12, '#5b6472', 1.75)
     // low front guide wall so the car stays readable
-    this.bx(r.x, r.y + 3.1, 3.4, 0.3, 0.55, '#ca8a04')
+    this.bx(r.x, r.y + 3.1, 3.4, 0.3, 0.5, '#f0c14b')
   }
 
   private drawTank(): void {
@@ -1065,27 +1191,43 @@ export class Renderer {
       ctx.ellipse(cx, cy, this.tw * 1.0, this.tw * 0.5, 0, 0, Math.PI * 2)
       ctx.fill()
     }
-    const liftH = car.bay === 'lift' && car.phase === 'inBay' ? 10 : 0
-    const hop = Math.sin(Math.min(1, car.bounce) * Math.PI) * 7
-    this.shadow(car.x, car.y, spec.len * 0.52, 0.3)
-    const jiggle = car.work ? Math.sin(time * 26 + car.seed) * 1.6 : 0
-    const px = this.sx(car.x, car.y) + Math.cos(car.angle + Math.PI / 2) * jiggle * 0.3
-    const py = this.sy(car.x, car.y, 0.1) - liftH - hop
-    const sa = Math.atan2(Math.sin(car.angle) * 0.5, Math.cos(car.angle))
-    const scale = 1 + car.pop * 0.07
-    ctx.save()
-    ctx.translate(px, py)
-    ctx.rotate(sa)
-    ctx.scale(scale, scale)
-    drawVehicle(ctx, spec, {
+
+    // Projection from car-local tiles to screen: heading rotation, suspension
+    // bounce, lift height and the completion pop all live here so the body,
+    // wheels and trim can never drift apart.
+    const cos = Math.cos(car.angle)
+    const sin = Math.sin(car.angle)
+    const s = 1 + car.pop * 0.06
+    const lifted = car.bay === 'lift' && car.phase === 'inBay'
+    const zOff = (lifted ? 0.42 : 0) + Math.sin(Math.min(1, car.bounce) * Math.PI) * 0.07
+    const jig = car.work ? Math.sin(time * 26 + car.seed) * 0.012 : 0
+    const p = (lx: number, ly: number, z: number) => {
+      const ax = lx * s
+      const ay = ly * s + jig
+      const wx = car.x + ax * cos - ay * sin
+      const wy = car.y + ax * sin + ay * cos
+      return { x: this.sx(wx, wy), y: this.sy(wx, wy, z * s + zOff) }
+    }
+
+    // ground shadow softens and spreads when the car is on the lift
+    const sp = lifted ? 1.25 : 1
+    ctx.fillStyle = lifted ? 'rgba(20,25,40,0.14)' : 'rgba(20,25,40,0.24)'
+    ctx.beginPath()
+    ctx.ellipse(
+      this.sx(car.x, car.y), this.sy(car.x, car.y) + 1,
+      this.tw * spec.len * 0.3 * sp, this.tw * spec.wid * 0.22 * sp, 0, 0, Math.PI * 2,
+    )
+    ctx.fill()
+
+    drawVehicle(ctx, p, spec, {
       color: car.color,
       seed: car.seed,
       cond: car.cond,
       work: car.work ? car.work.service : null,
       time,
       tw: this.tw,
+      heading: car.angle,
     })
-    ctx.restore()
 
     if (car.cond.mech < 50 && car.phase !== 'leaving' && Math.random() < 0.1) {
       this.particles.push({
@@ -1096,26 +1238,28 @@ export class Renderer {
 
     const bx = car.x
     const by = car.y
+    const labelZ = 0.75 + (lifted ? 0.42 : 0)
     if (car.phase === 'inBay' && !car.done && car.needs.length > 0) {
       const svc = car.needs[0]
       const icon = car.work ? '⏳' : ({ wash: '🧽', tires: '🛞', engine: '🔧', body: '🔨', detail: '✨', paint: '🎨' } as Record<string, string>)[svc] ?? '❗'
-      this.label(icon, bx, by, 1.45, { size: 13 })
-      if (car.work) this.progressBar(bx, by, 1.12, car.work.progress, '#4ade80')
+      this.label(icon, bx, by, labelZ + 0.35, { size: 13 })
+      if (car.work) this.progressBar(bx, by, labelZ, car.work.progress, '#4ade80')
     } else if (car.phase === 'forSale') {
       const inShow = car.parkIdx >= 100
       const price = carValue(car.type, car.cond, { showroom: inShow })
-      this.label(`💰 $${price}`, bx, by, 1.45, { bg: '#14532d', fg: '#bbf7d0' })
-      if (car.sellerBy !== null) this.progressBar(bx, by, 1.08, Math.min(1, car.sellT / 5), '#a78bfa')
+      this.label(`💰 $${price}`, bx, by, 1.05, { bg: '#14532d', fg: '#bbf7d0' })
+      if (car.sellerBy !== null) this.progressBar(bx, by, 0.75, Math.min(1, car.sellT / 5), '#a78bfa')
     } else if (car.phase === 'offer') {
-      this.label(`🏷️ $${offerPrice(car.type, car.cond)}`, bx, by, 1.45, { bg: '#713f12', fg: '#fde68a' })
+      this.label(`🏷️ $${offerPrice(car.type, car.cond)}`, bx, by, 1.05, { bg: '#713f12', fg: '#fde68a' })
     } else if (car.phase === 'queued' && car.owner === 'player') {
-      this.label('🔧', bx, by, 1.4, { size: 12 })
+      this.label('🔧', bx, by, 1.0, { size: 12 })
     }
     if (car.flash > 0) {
       ctx.strokeStyle = `rgba(74,222,128,${car.flash})`
       ctx.lineWidth = 4
+      const k = 1.4 - car.flash * 0.4
       ctx.beginPath()
-      ctx.ellipse(px, py, this.tw * 1.2 * (1.4 - car.flash * 0.4), this.tw * 0.62 * (1.4 - car.flash * 0.4), 0, 0, Math.PI * 2)
+      ctx.ellipse(this.sx(car.x, car.y), this.sy(car.x, car.y, zOff), this.tw * spec.len * 0.36 * k, this.tw * spec.wid * 0.26 * k, 0, 0, Math.PI * 2)
       ctx.stroke()
     }
     void game
