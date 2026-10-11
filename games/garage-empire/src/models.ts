@@ -131,7 +131,7 @@ export async function makeCarRig(typeId: string, paintIdx: number, seed: number)
         polygonOffset: true, polygonOffsetFactor: -2,
       }),
     )
-    mud.scale.setScalar(1.025)
+    mud.scale.setScalar(1.04)
     mud.castShadow = false
     ;(body as THREE.Object3D).parent?.add(mud)
     // keep the shell glued to the body's transform

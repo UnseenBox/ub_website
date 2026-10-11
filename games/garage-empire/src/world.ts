@@ -25,11 +25,11 @@ export interface StationSlot extends Rect {
 export const STATION_RECTS: Record<StationId, StationSlot> = {
   wash1: { id: 'wash1', x: 11, y: 2, w: 3, h: 3.4, cx: 12.5, cy: 3.7, wx: 12.5, wy: 6.2 },
   wash2: { id: 'wash2', x: 15.5, y: 2, w: 3, h: 3.4, cx: 17, cy: 3.7, wx: 17, wy: 6.2 },
-  repair1: { id: 'repair1', x: 3, y: 8, w: 3, h: 3.4, cx: 4.5, cy: 9.7, wx: 4.5, wy: 12.2 },
-  lift: { id: 'lift', x: 7, y: 8, w: 3, h: 3.4, cx: 8.5, cy: 9.7, wx: 8.5, wy: 12.2 },
-  tire: { id: 'tire', x: 11, y: 8, w: 3, h: 3.4, cx: 12.5, cy: 9.7, wx: 12.5, wy: 12.2 },
-  detail: { id: 'detail', x: 15, y: 8, w: 3, h: 3.4, cx: 16.5, cy: 9.7, wx: 16.5, wy: 12.2 },
-  paint: { id: 'paint', x: 19.5, y: 8, w: 3.4, h: 3.4, cx: 21.2, cy: 9.7, wx: 21.2, wy: 12.2 },
+  repair1: { id: 'repair1', x: 3, y: 8.5, w: 3, h: 3.4, cx: 4.5, cy: 10.2, wx: 4.5, wy: 12.7 },
+  lift: { id: 'lift', x: 7, y: 8.5, w: 3, h: 3.4, cx: 8.5, cy: 10.2, wx: 8.5, wy: 12.7 },
+  tire: { id: 'tire', x: 11, y: 8.5, w: 3, h: 3.4, cx: 12.5, cy: 10.2, wx: 12.5, wy: 12.7 },
+  detail: { id: 'detail', x: 15, y: 8.5, w: 3, h: 3.4, cx: 16.5, cy: 10.2, wx: 16.5, wy: 12.7 },
+  paint: { id: 'paint', x: 19.5, y: 8.5, w: 3.4, h: 3.4, cx: 21.2, cy: 10.2, wx: 21.2, wy: 12.7 },
 }
 
 export interface PadDef extends Rect {
@@ -56,7 +56,7 @@ export const EXTRA_PADS: PadDef[] = [
   padOf('pressure', { x: 9.6, y: 2.4, w: 1.2, h: 2.4 }),
   padOf('parking', { x: 10.6, y: 14.2, w: 5.4, h: 2.2 }),
   padOf('usedlot', { x: 24, y: 2, w: 5, h: 5.6 }),
-  padOf('billboard', { x: 18, y: 14.2, w: 2.6, h: 1.8 }),
+  padOf('billboard', { x: 30, y: 16.8, w: 2.6, h: 1.8 }),
   padOf('showroom', { x: 23.4, y: 13.4, w: 5.6, h: 4 }),
 ]
 
@@ -95,7 +95,9 @@ export const SHOWROOM_SLOTS: { x: number; y: number }[] = [
   { x: 28.2, y: 15.6 },
 ]
 
-export const HIRE_BOARD = { x: 10.5, y: 13.6 }
+export const HIRE_BOARD = { x: 6, y: 5.9 }
+/** Roadside billboard pad, east of the sales column by the road. */
+export const BILLBOARD = { x: 31.3, y: 17.7 }
 export const ENTRANCE = { x: 13.5, y: 21.4 }
 export const STAGING = { x: 13.5, y: 18.2 }
 export const LANE_Y = 13.1
@@ -136,8 +138,8 @@ export const DECOR: DecoProp[] = [
   { kind: 'lamp', x: 10.4, y: 6.6, s: 1 },
   { kind: 'lamp', x: 19, y: 6.6, s: 1 },
   { kind: 'lamp', x: 6, y: 13.2, s: 1 },
-  { kind: 'cone', x: 11.6, y: 18.6, s: 1 },
-  { kind: 'cone', x: 15.4, y: 18.6, s: 1 },
+  { kind: 'cone', x: 10.6, y: 18.6, s: 1 },
+  { kind: 'cone', x: 16.4, y: 18.6, s: 1 },
   { kind: 'crate', x: 6.6, y: 5.4, s: 1 },
   { kind: 'bench', x: 19.5, y: 13.6, s: 1 },
   { kind: 'plant', x: 23, y: 6.4, s: 1 },

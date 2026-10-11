@@ -12,6 +12,7 @@ import { PAINTS, SKINS, makeCarRig, makeCharRig, type CarRig, type CharRig } fro
 import { STATIONS, UNLOCKS, carValue, offerPrice, type StationId } from './config'
 import type { Car, Game } from './sim'
 import {
+  BILLBOARD,
   DECOR,
   ENTRANCE,
   GARAGE_BUILDING,
@@ -98,6 +99,45 @@ function emojiTex(emoji: string, bg: string | null, size = 128): THREE.CanvasTex
   return t
 }
 
+/** Entrance logo panel: the game name as a texture (world signage, not UI). */
+let logoTexCache: THREE.CanvasTexture | null = null
+function logoTex(): THREE.CanvasTexture {
+  if (logoTexCache) return logoTexCache
+  const c = document.createElement('canvas')
+  c.width = 512
+  c.height = 168
+  const g = c.getContext('2d')
+  if (g) {
+    g.fillStyle = '#0f172a'
+    g.beginPath()
+    g.roundRect(4, 4, 504, 160, 26)
+    g.fill()
+    g.strokeStyle = '#fbbf24'
+    g.lineWidth = 9
+    g.beginPath()
+    g.roundRect(12, 12, 488, 144, 20)
+    g.stroke()
+    g.textAlign = 'center'
+    g.textBaseline = 'middle'
+    let size = 62
+    g.font = `900 ${size}px system-ui, sans-serif`
+    while (g.measureText('GARAGE EMPIRE').width > 452 && size > 30) {
+      size -= 2
+      g.font = `900 ${size}px system-ui, sans-serif`
+    }
+    g.fillStyle = '#fbbf24'
+    g.fillText('GARAGE EMPIRE', 256, 66)
+    g.font = '700 30px system-ui, sans-serif'
+    g.fillStyle = '#f1f5f9'
+    g.fillText('★ WASH • FIX • FLIP ★', 256, 122)
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = 4
+  logoTexCache = t
+  return t
+}
+
 export class Renderer {
   canvas: HTMLCanvasElement
   private renderer: THREE.WebGLRenderer
@@ -151,13 +191,13 @@ export class Renderer {
     this.sun.shadow.camera.near = 1
     this.sun.shadow.camera.far = 70
     this.sun.shadow.bias = -0.0004
-    this.sun.shadow.normalBias = 0.02
+    this.sun.shadow.normalBias = 0.05
     this.scene.add(this.sun)
     this.scene.add(this.sun.target)
 
     const aspect = 16 / 10
     this.camera = new THREE.OrthographicCamera(
-      -this.halfH * aspect, this.halfH * aspect, this.halfH, -this.halfH, 0.1, 200,
+      -this.halfH * aspect, this.halfH * aspect, this.halfH, -this.halfH, 1, 90,
     )
     this.camera.position.set(this.cam.x + 20, 17, this.cam.y + 20)
     this.camera.lookAt(this.cam.x, 0, this.cam.y)
@@ -172,7 +212,7 @@ export class Renderer {
     this.scene.add(this.guideArrow)
     this.guideRing = new THREE.Mesh(
       new THREE.TorusGeometry(0.7, 0.05, 8, 40),
-      new THREE.MeshBasicMaterial({ color: '#facc15', transparent: true, opacity: 0.9 }),
+      new THREE.MeshBasicMaterial({ color: '#facc15', transparent: true, opacity: 0.9, depthWrite: false }),
     )
     this.guideRing.rotation.x = -Math.PI / 2
     this.guideRing.visible = false
@@ -181,7 +221,7 @@ export class Renderer {
     // player tracking ring
     this.playerRing = new THREE.Mesh(
       new THREE.TorusGeometry(0.42, 0.045, 8, 32),
-      new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.55 }),
+      new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.55, depthWrite: false }),
     )
     this.playerRing.rotation.x = -Math.PI / 2
     this.scene.add(this.playerRing)
@@ -248,10 +288,10 @@ export class Renderer {
   burst(x: number, y: number): void {
     const mesh = new THREE.Mesh(
       new THREE.TorusGeometry(0.4, 0.07, 8, 32),
-      new THREE.MeshBasicMaterial({ color: '#facc15', transparent: true, opacity: 1 }),
+      new THREE.MeshBasicMaterial({ color: '#facc15', transparent: true, opacity: 1, depthWrite: false }),
     )
     mesh.rotation.x = -Math.PI / 2
-    mesh.position.set(x, 0.15, y)
+    mesh.position.set(x, 0.18, y)
     this.scene.add(mesh)
     this.bursts.push({ mesh, t: 0 })
     const cols = ['#facc15', '#4ade80', '#38bdf8', '#f472b6']
@@ -417,17 +457,32 @@ export class Renderer {
   }
 
   private buildArch(root: THREE.Group): void {
+    // wide entrance gate: brick pillars, steel truss, hanging logo sign
     const g = new THREE.Group()
     root.add(g)
-    for (const px of [ENTRANCE.x - 2.3, ENTRANCE.x + 2]) {
-      this.bx(g, 0.5, 2.1, 0.5, '#b45309', px + 0.25, 0, 20.45)
-      this.bx(g, 0.6, 0.14, 0.6, '#e8e2d4', px + 0.25, 2.1, 20.45)
-      for (let i = 1; i < 5; i++) {
-        this.bx(g, 0.52, 0.05, 0.52, '#7c3f0c', px + 0.25, i * 0.42, 20.45)
+    const half = 3.2
+    for (const px of [ENTRANCE.x - half, ENTRANCE.x + half]) {
+      this.bx(g, 0.6, 2.4, 0.6, '#b45309', px + 0.3, 0, 20.45)
+      this.bx(g, 0.7, 0.16, 0.7, '#e8e2d4', px + 0.3, 2.4, 20.45)
+      for (let i = 1; i < 6; i++) {
+        this.bx(g, 0.62, 0.06, 0.62, '#7c3f0c', px + 0.3, i * 0.4, 20.45)
       }
     }
-    this.bx(g, 5.1, 0.22, 0.22, '#334155', ENTRANCE.x + 0.1, 2.1, 20.45)
-    this.plaque(g, '⭐', ENTRANCE.x + 0.1, 1.55, 20.45, 0.6)
+    this.bx(g, half * 2 + 0.6, 0.24, 0.24, '#334155', ENTRANCE.x + 0.1, 2.4, 20.45)
+    for (let i = -3; i <= 3; i++) {
+      this.bx(g, 0.09, 0.5, 0.09, '#475569', ENTRANCE.x + 0.1 + i * 0.85, 2.02, 20.45)
+    }
+    // hanging logo panel with the game name
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.6, 1.15),
+      new THREE.MeshBasicMaterial({ map: logoTex(), transparent: true, side: THREE.DoubleSide }),
+    )
+    sign.position.set(ENTRANCE.x + 0.1, 1.72, 20.45)
+    sign.rotation.y = Math.PI / 4
+    g.add(sign)
+    for (const ox of [-1.4, 1.4]) {
+      this.bx(g, 0.07, 0.35, 0.07, '#1f2937', ENTRANCE.x + 0.1 + ox, 2.02, 20.45)
+    }
   }
 
   private buildHireBoard(root: THREE.Group): void {
@@ -518,7 +573,7 @@ export class Renderer {
       const pts: THREE.Vector3[] = []
       for (let i = 0; i <= 48; i++) {
         const a = (i / 48) * Math.PI * 2
-        pts.push(new THREE.Vector3(r.cx + Math.cos(a) * 1.9, 0.04, r.cy + Math.sin(a) * 1.0))
+        pts.push(new THREE.Vector3(r.cx + Math.cos(a) * 1.9, 0.07, r.cy + Math.sin(a) * 1.0))
       }
       ring = new THREE.LineLoop(
         new THREE.BufferGeometry().setFromPoints(pts),
@@ -605,10 +660,10 @@ export class Renderer {
     const r = STATION_RECTS[id]
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(1.85, 2.15, 40),
-      new THREE.MeshBasicMaterial({ color: STATIONS[id].color, transparent: true, opacity: 0.55, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ color: STATIONS[id].color, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }),
     )
     ring.rotation.x = -Math.PI / 2
-    ring.position.set(r.cx - r.x, 0.02, r.cy - r.y)
+    ring.position.set(r.cx - r.x, 0.06, r.cy - r.y)
     const wrap = new THREE.Group()
     wrap.position.set(r.x, 0, r.y)
     wrap.add(ring)
@@ -651,10 +706,10 @@ export class Renderer {
       // puddle sheen
       const pud = new THREE.Mesh(
         new THREE.CircleGeometry(1.15, 24),
-        new THREE.MeshStandardMaterial({ color: '#7dd3fc', transparent: true, opacity: 0.3, roughness: 0.2 }),
+        new THREE.MeshStandardMaterial({ color: '#7dd3fc', transparent: true, opacity: 0.3, roughness: 0.2, depthWrite: false }),
       )
       pud.rotation.x = -Math.PI / 2
-      pud.position.set(r.cx, 0.015, r.cy + 0.7)
+      pud.position.set(r.cx, 0.05, r.cy + 0.7)
       pud.receiveShadow = true
       g.add(pud)
     } else if (id === 'repair1') {
@@ -809,37 +864,39 @@ export class Renderer {
   private buildBillboard(root: THREE.Group): void {
     const g = new THREE.Group()
     g.name = 'billboard'
+    const bx = BILLBOARD.x
+    const bz = BILLBOARD.y
     const put = (w: number, h: number, d: number, c: string, x: number, yb: number, z: number) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c))
       m.position.set(x, yb + h / 2, z)
       m.castShadow = true
       g.add(m)
     }
-    put(0.3, 2.0, 0.3, '#44403c', 19.0, 0, 14.85)
-    put(0.3, 2.0, 0.3, '#44403c', 19.75, 0, 14.85)
+    put(0.3, 2.0, 0.3, '#44403c', bx - 0.75, 0, bz)
+    put(0.3, 2.0, 0.3, '#44403c', bx + 0.75, 0, bz)
     const panel: Array<[string, number, number, number, number]> = [
-      ['#f59e0b', 3.4, 1.45, 19.37, 1.35],
-      ['#fffbeb', 3.2, 0.6, 19.37, 1.75],
+      ['#f59e0b', 3.4, 1.45, bx, 1.35],
+      ['#fffbeb', 3.2, 0.6, bx, 1.75],
     ]
     for (const [c, w, h, x, y] of panel) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.12), mat(c))
-      m.position.set(x, y, 14.85)
+      m.position.set(x, y, bz)
       m.castShadow = true
       g.add(m)
     }
     const words: Array<[string, number, number, number]> = [
-      ['🚗', 18.5, 1.78, 0.5], ['✨', 19.37, 1.78, 0.5], ['💰', 20.25, 1.78, 0.5],
+      ['🚗', bx - 0.87, 1.78, 0.5], ['✨', bx, 1.78, 0.5], ['💰', bx + 0.87, 1.78, 0.5],
     ]
     for (const [e, x, y, s] of words) {
       const m = new THREE.Mesh(
         new THREE.PlaneGeometry(s, s),
         new THREE.MeshBasicMaterial({ map: emojiTex(e, null), transparent: true }),
       )
-      m.position.set(x, y, 14.78)
+      m.position.set(x, y, bz - 0.07)
       m.rotation.y = Math.PI / 4
       g.add(m)
     }
-    put(1.6, 0.18, 0.18, '#78350f', 19.37, 0.55, 14.85)
+    put(1.6, 0.18, 0.18, '#78350f', bx, 0.55, bz)
     root.add(g)
   }
 
@@ -855,7 +912,7 @@ export class Renderer {
     }
     put(5.6, 0.12, 4, '#eef2f6', 26.2, 0, 15.4)
     const glassMat = new THREE.MeshStandardMaterial({
-      color: '#aed6f2', transparent: true, opacity: 0.35, roughness: 0.15, metalness: 0.1,
+      color: '#aed6f2', transparent: true, opacity: 0.35, roughness: 0.15, metalness: 0.1, depthWrite: false,
     })
     const back = new THREE.Mesh(new THREE.BoxGeometry(5.6, 1.25, 0.12), glassMat)
     back.position.set(26.2, 0.62, 13.55)
@@ -1043,7 +1100,7 @@ export class Renderer {
       }
       this.playerRig = pe.rig
       this.playerTool = pe.tool
-      this.playerRing.position.set(game.player.x, 0.03, game.player.y)
+      this.playerRing.position.set(game.player.x, 0.06, game.player.y)
     } catch (e) {
       console.warn('[models] player failed', e)
     }
@@ -1332,9 +1389,9 @@ function paintGround(canvas: HTMLCanvasElement, game: Game): void {
     g.fillRect(-S * 0.28, -2, S * 0.56, 4)
     g.restore()
   }
-  // driveway + chevrons
+  // driveway apron + chevrons
   g.fillStyle = '#c0b7a4'
-  g.fillRect(X(12.4), Y(17.6), 2.2 * S, 1.4 * S)
+  g.fillRect(X(11.4), Y(17.4), 4.2 * S, 1.8 * S)
   g.fillStyle = 'rgba(255,255,255,0.5)'
   for (const cx of [6, 13.5, 21]) {
     const px = X(cx)

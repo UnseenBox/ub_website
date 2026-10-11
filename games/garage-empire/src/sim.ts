@@ -26,6 +26,7 @@ import {
   type WorkerRole,
 } from './config'
 import {
+  BILLBOARD,
   ENTRANCE,
   HIRE_BOARD,
   HOUSES,
@@ -1228,8 +1229,8 @@ export class Game {
     const solids = [
       { x: 3, y: 1.4, w: 6, h: 3.2 },
       { x: 23.4, y: 13.4, w: 5.6, h: 1.2 },
-      { x: 18, y: 14.2, w: 2.6, h: 1.8 },
-      { x: 10.1, y: 13.2, w: 0.8, h: 0.8 },
+      { x: BILLBOARD.x - 1.3, y: BILLBOARD.y - 0.9, w: 2.6, h: 1.8 },
+      { x: 5.6, y: 5.5, w: 0.8, h: 0.8 },
       ...HOUSES,
     ]
     for (const s of solids) {
