@@ -942,8 +942,8 @@ export class Game {
     if (moving) this.player.angle = Math.atan2(this.player.vy, this.player.vx)
     this.player.moving = moving
     // clamp + building collision (bigger roamable outskirts)
-    this.player.x = Math.max(0.8, Math.min(33.2, this.player.x))
-    this.player.y = Math.max(0.8, Math.min(25.2, this.player.y))
+    this.player.x = Math.max(0.8, Math.min(39.2, this.player.x))
+    this.player.y = Math.max(0.8, Math.min(29.2, this.player.y))
     this.collide(this.player, 0.42)
 
     // tutorial + objectives

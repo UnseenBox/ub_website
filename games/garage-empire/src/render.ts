@@ -58,8 +58,8 @@ export class Renderer {
   private caching = false
   private ground: { canvas: HTMLCanvasElement; camX: number; camY: number; w: number; h: number } | null = null
   private groundKey = ''
-  private sky: CanvasGradient | null = null
-  private vignette: CanvasGradient | null = null
+  private sky: HTMLCanvasElement | null = null
+  private vignette: HTMLCanvasElement | null = null
   particles: Particle[] = []
   bursts: { x: number; y: number; t: number }[] = []
 
@@ -80,9 +80,19 @@ export class Renderer {
     this.canvas.height = Math.round(h * dpr)
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     this.tw = Math.max(30, Math.min(64, Math.min(w, h) / 13))
-    // viewport-sized gradients must be rebuilt for the new dimensions
+    // viewport-sized layers must be rebuilt for the new dimensions
     this.sky = null
     this.vignette = null
+  }
+
+  /** Low-res full-screen layer, stretched on blit: identical look, cheap fill. */
+  private screenLayer(paint: (g: CanvasRenderingContext2D, w: number, h: number) => void): HTMLCanvasElement {
+    const c = document.createElement('canvas')
+    c.width = 200
+    c.height = 125
+    const g = c.getContext('2d')
+    if (g) paint(g, c.width, c.height)
+    return c
   }
 
   get w(): number {
@@ -183,16 +193,16 @@ export class Renderer {
   }
 
   private buildGround(game: Game): void {
-    // world-iso extents for the 34x26 map, plus margin
-    const cw = Math.max(1, Math.ceil(33 * this.tw))
-    const ch = Math.max(1, Math.ceil(17 * this.tw))
+    // world-iso extents for the 40x30 map, plus margin
+    const cw = Math.max(1, Math.ceil(36 * this.tw))
+    const ch = Math.max(1, Math.ceil(19 * this.tw))
     const canvas = document.createElement('canvas')
     canvas.width = cw
     canvas.height = ch
     const gctx = canvas.getContext('2d')
     if (!gctx) return
-    const camX = 17
-    const camY = 13
+    const camX = 20
+    const camY = 15
     const prevCtx = this.ctx
     const prevCam = { x: this.cam.x, y: this.cam.y }
     const prevW = this.vw
@@ -245,14 +255,16 @@ export class Renderer {
     this.cam.x += (tx - this.cam.x) * Math.min(1, dt * 4)
     this.cam.y += (ty - this.cam.y) * Math.min(1, dt * 4)
 
-    const g = this.sky ?? (this.sky = (() => {
-      const grad = ctx.createLinearGradient(0, 0, 0, this.h)
-      grad.addColorStop(0, '#86c96f')
-      grad.addColorStop(1, '#69ad57')
-      return grad
-    })())
-    ctx.fillStyle = g
-    ctx.fillRect(0, 0, this.w, this.h)
+    if (!this.sky) {
+      this.sky = this.screenLayer((g, w, h) => {
+        const grad = g.createLinearGradient(0, 0, 0, h)
+        grad.addColorStop(0, '#86c96f')
+        grad.addColorStop(1, '#69ad57')
+        g.fillStyle = grad
+        g.fillRect(0, 0, w, h)
+      })
+    }
+    ctx.drawImage(this.sky, 0, 0, this.w, this.h)
 
     this.blitGround(game)
 
@@ -383,17 +395,19 @@ export class Renderer {
 
   private drawVignette(): void {
     const { ctx } = this
-    const g = this.vignette ?? (this.vignette = (() => {
-      const grad = ctx.createRadialGradient(
-        this.w / 2, this.h / 2, Math.min(this.w, this.h) * 0.45,
-        this.w / 2, this.h / 2, Math.max(this.w, this.h) * 0.75,
-      )
-      grad.addColorStop(0, 'rgba(0,0,0,0)')
-      grad.addColorStop(1, 'rgba(10,15,30,0.26)')
-      return grad
-    })())
-    ctx.fillStyle = g
-    ctx.fillRect(0, 0, this.w, this.h)
+    if (!this.vignette) {
+      this.vignette = this.screenLayer((g, cw, ch) => {
+        const grad = g.createRadialGradient(
+          cw / 2, ch / 2, Math.min(cw, ch) * 0.45,
+          cw / 2, ch / 2, Math.max(cw, ch) * 0.75,
+        )
+        grad.addColorStop(0, 'rgba(0,0,0,0)')
+        grad.addColorStop(1, 'rgba(10,15,30,0.26)')
+        g.fillStyle = grad
+        g.fillRect(0, 0, cw, ch)
+      })
+    }
+    ctx.drawImage(this.vignette, 0, 0, this.w, this.h)
   }
 
   // ---- ground (world-locked, viewport-culled; never cached) ----
@@ -849,15 +863,8 @@ export class Renderer {
       const def = UNLOCKS.find((u) => u.id === st.unlock)
       const afford = def ? game.money >= def.cost : false
       const near = Math.hypot(r.cx - game.player.x, r.cy - game.player.y) < 7.5
-      // Progressive disclosure: pin at range, price up close, and a preview of
-      // the real equipment only when you are right next to it. Showing every
-      // locked station at once turned the yard into translucent fog.
-      if (Math.hypot(r.cx - game.player.x, r.cy - game.player.y) < 5.5) {
-        ctx.save()
-        ctx.globalAlpha = 0.22
-        this.drawEquipment(game, id, r, time)
-        ctx.restore()
-      }
+      // Locked spots stay empty shells: dashed claim + pin/chip only.
+      // Equipment appears when purchased, never on proximity.
       ctx.save()
       ctx.strokeStyle = afford ? 'rgba(250,204,21,0.9)' : 'rgba(148,163,184,0.55)'
       ctx.lineWidth = 3
@@ -975,6 +982,23 @@ export class Renderer {
     this.bx(r.x + 2.05, r.y + 0.35, 0.7, 0.4, 0.14, '#64748b', 0.5)
     this.bx(r.x + 2.05, r.y + 0.35, 0.7, 0.4, 0.14, '#64748b', 0.9)
     this.bx(r.x + 0.5, r.y + 1.9, 0.28, 0.28, 0.4, '#dc2626')
+    // dressing that belongs to this bench: wheel stack + parts crate
+    this.drawTireStack(r.x + 3.1, r.y + 3.5)
+    this.bx(r.x - 1.0, r.y + 3.3, 0.64, 0.64, 0.52, '#c99a5b')
+    this.bx(r.x - 1.0, r.y + 3.52, 0.64, 0.2, 0.53, '#8a5a2b')
+  }
+
+  private drawTireStack(x: number, y: number): void {
+    const { ctx } = this
+    this.shadow(x, y, 0.3, 0.15)
+    for (const dz of [0.16, 0.44]) {
+      const cx = this.sx(x, y)
+      const cy = this.sy(x, y, dz)
+      ctx.fillStyle = '#1f2937'
+      ctx.beginPath(); ctx.arc(cx, cy, this.tw * 0.26, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#6b7280'
+      ctx.beginPath(); ctx.arc(cx, cy, this.tw * 0.11, 0, Math.PI * 2); ctx.fill()
+    }
   }
 
   private drawLift(r: { x: number; y: number }): void {
