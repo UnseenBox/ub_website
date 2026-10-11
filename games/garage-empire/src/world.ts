@@ -3,8 +3,8 @@
 
 import type { StationId } from './config'
 
-export const MAP_W = 30
-export const MAP_H = 22
+export const MAP_W = 34
+export const MAP_H = 26
 
 export interface Rect {
   x: number
@@ -105,17 +105,40 @@ export const GARAGE_BUILDING: Rect = { x: 3, y: 1.4, w: 6, h: 3.4 }
 export const OFFICE: Rect = { x: 3.4, y: 5.2, w: 2.2, h: 1.6 }
 
 export interface DecoProp {
-  kind: 'tree' | 'cone' | 'crate' | 'lamp' | 'bench' | 'tank' | 'tire' | 'plant'
+  kind: 'tree' | 'bush' | 'cone' | 'crate' | 'lamp' | 'bench' | 'tank' | 'tire' | 'plant' | 'house'
   x: number
   y: number
   s: number
 }
+
+/** Neighbor houses (solid) and the pond anchor on the new outskirts. */
+export const HOUSES: { x: number; y: number; w: number; h: number }[] = [
+  { x: 30.4, y: 4.6, w: 2.0, h: 1.8 },
+  { x: 30.9, y: 11.0, w: 2.0, h: 1.8 },
+]
+export const POND = { x: 23.5, y: 23.6, rx: 2.6, ry: 1.1 }
 
 export const DECOR: DecoProp[] = [
   { kind: 'tree', x: 0.8, y: 2, s: 1 },
   { kind: 'tree', x: 29, y: 2, s: 1.2 },
   { kind: 'tree', x: 0.8, y: 18, s: 1.1 },
   { kind: 'tree', x: 29.2, y: 19, s: 1 },
+  { kind: 'tree', x: 30.2, y: 8.6, s: 1 },
+  { kind: 'tree', x: 32.6, y: 15.4, s: 1.1 },
+  { kind: 'tree', x: 29.6, y: 21.2, s: 1 },
+  { kind: 'tree', x: 6, y: 23.8, s: 1.2 },
+  { kind: 'tree', x: 13, y: 24.6, s: 1 },
+  { kind: 'tree', x: 19, y: 23.4, s: 0.9 },
+  { kind: 'tree', x: 28.6, y: 24.2, s: 1.1 },
+  { kind: 'tree', x: 33, y: 24.6, s: 1 },
+  { kind: 'bush', x: 29.8, y: 6.8, s: 1 },
+  { kind: 'bush', x: 32.8, y: 12.4, s: 1 },
+  { kind: 'bush', x: 2, y: 22.6, s: 1 },
+  { kind: 'bush', x: 10.5, y: 24.4, s: 1 },
+  { kind: 'bush', x: 21, y: 22.4, s: 1 },
+  { kind: 'bush', x: 27.4, y: 22.6, s: 1 },
+  { kind: 'house', x: 30.4, y: 4.6, s: 1 },
+  { kind: 'house', x: 30.9, y: 11.0, s: 1 },
   { kind: 'lamp', x: 10.4, y: 6.6, s: 1 },
   { kind: 'lamp', x: 19, y: 6.6, s: 1 },
   { kind: 'lamp', x: 6, y: 13.2, s: 1 },

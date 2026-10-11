@@ -20,7 +20,7 @@ describe('soak', () => {
     const g = new Game(freshSave())
     g.save.money = 30000
     const evs: GameEvent[] = []
-    for (const u of ['pressure', 'wash2', 'parking', 'lift', 'tire', 'detail', 'usedlot', 'paint', 'billboard', 'showroom']) {
+    for (const u of ['repair1', 'pressure', 'wash2', 'parking', 'lift', 'tire', 'detail', 'usedlot', 'paint', 'billboard', 'showroom']) {
       g.buyUnlock(u, evs)
       g.buyUnlock(u, evs) // confirm expensive ones
     }

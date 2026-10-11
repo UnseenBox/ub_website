@@ -28,6 +28,7 @@ import {
 import {
   ENTRANCE,
   HIRE_BOARD,
+  HOUSES,
   OFFER_PADS,
   PARKING_BASE,
   PARKING_EXTRA,
@@ -104,6 +105,7 @@ export type GameEvent =
 
 export interface Interact {
   kind: 'work' | 'buy' | 'hire' | 'inspect' | 'sell' | 'info'
+  icon: string
   label: string
   sub: string
   carId: number
@@ -114,6 +116,12 @@ export interface Interact {
   affordable: boolean
   cost: number
   progress: number
+}
+
+/** World-space guidance marker: where the player should go next, no words. */
+export interface Guide {
+  x: number
+  y: number
 }
 
 let nextId = 1
@@ -312,7 +320,11 @@ export class Game {
       shine: rand(15, 60),
     }
     const needs = neededServices(cond).filter((s) => {
-      if (s === 'wash' || s === 'tires' || s === 'engine' || s === 'body') return true
+      // wash-only opening: mechanical needs appear once a bench can serve them
+      if (s === 'tires' || s === 'engine' || s === 'body') {
+        return u('repair1') || u('lift') || u('tire') || u('paint')
+      }
+      if (s === 'wash') return true
       if (s === 'detail') return u('detail')
       return false
     })
@@ -639,7 +651,7 @@ export class Game {
       this.earn(reward, ev, car.x, car.y - 1, SERVICES[w.service].label)
       ev.push({ t: 'sfx', name: w.service === 'engine' ? 'engine' : 'done' })
     } else {
-      ev.push({ t: 'floater', x: car.x, y: car.y - 1, text: `${SERVICES[w.service].icon} done!`, color: '#facc15' })
+      ev.push({ t: 'floater', x: car.x, y: car.y - 1, text: SERVICES[w.service].icon, color: '#facc15' })
       ev.push({ t: 'sfx', name: w.service === 'engine' ? 'engine' : 'done' })
       if (w.service === 'wash') this.save.stats.washed++
       else this.save.stats.fixed++
@@ -673,7 +685,7 @@ export class Game {
       car.bay = null
       car.parkIdx = -1
       this.save.stats.served++
-      ev.push({ t: 'floater', x: car.x, y: car.y - 1.2, text: 'Thanks! ⭐', color: '#facc15' })
+      ev.push({ t: 'floater', x: car.x, y: car.y - 1.2, text: '⭐', color: '#facc15' })
     } else {
       // owned: head to a sale slot
       const saleIdx = this.freeSaleIdx(false)
@@ -743,30 +755,52 @@ export class Game {
     }
   }
 
-  currentObjective(): string {
+  currentObjective(): { icon: string; text: string } {
     const list = objectives()
-    for (const o of list) if (!this.save.doneObj.includes(o.id)) return o.text
-    return '👑 Empire complete — keep flipping for profit!'
+    for (const o of list) if (!this.save.doneObj.includes(o.id)) return { icon: o.icon, text: o.text }
+    return { icon: '👑', text: 'Empire!' }
   }
 
-  private tutorial(ev: GameEvent[]): void {
-    const t = this.save.tutorial
-    if (t === 0) {
-      ev.push({ t: 'toast', text: '🚗 Walk to the dirty car' })
-      this.save.tutorial = 1
-    } else if (t === 1) {
-      const car = this.cars[0]
-      if (car && dist(this.player.x, this.player.y, car.x, car.y) < 3.4) {
-        ev.push({ t: 'toast', text: '🧽 HOLD E to wash' })
-        this.save.tutorial = 2
-      }
-    } else if (t === 2 && this.save.stats.washed >= 1) {
-      ev.push({ t: 'toast', text: '💰 Paid! Buy a yellow sign' })
-      this.save.tutorial = 3
-    } else if (t === 3 && this.save.money >= 300) {
-      ev.push({ t: 'toast', text: '🧑‍🔧 Visit the STAFF board' })
-      this.save.tutorial = 4
+  /** Silent onboarding: retire the tutorial toasts, point at the next goal. */
+  private tutorial(): void {
+    if (this.save.tutorial < 4) this.save.tutorial = 4
+  }
+
+  /** Bouncing world marker for the current goal; null once the player is free. */
+  guideTarget(): Guide | null {
+    const s = this.save
+    if (s.stats.washed < 1) {
+      const car = this.cars.find((c) => c.phase === 'inBay' && c.needs.length > 0)
+        ?? this.cars.find((c) => c.owner === 'customer')
+      if (car) return { x: car.x, y: car.y }
+      const w = STATION_RECTS.wash1
+      return { x: w.cx, y: w.cy }
     }
+    if (s.unlocks.length < 1) {
+      const pad = this.cheapestLockedPad()
+      if (pad) return { x: pad.x, y: pad.y }
+    } else if (s.hires.length < 1 && s.money >= 300) {
+      return { x: HIRE_BOARD.x, y: HIRE_BOARD.y }
+    }
+    return null
+  }
+
+  private cheapestLockedPad(): { x: number; y: number } | null {
+    let best: { x: number; y: number; cost: number } | null = null
+    const consider = (id: string, x: number, y: number) => {
+      const def = this.unlockDef(id)
+      if (!def || this.hasUnlock(id)) return
+      if (!best || def.cost < best.cost) best = { x, y, cost: def.cost }
+    }
+    for (const sid of Object.keys(STATION_RECTS) as StationId[]) {
+      const u = STATIONS[sid].unlock
+      if (u) {
+        const r = STATION_RECTS[sid]
+        consider(u, r.cx, r.cy)
+      }
+    }
+    for (const pd of EXTRA_PADS) consider(pd.unlockId, pd.cx, pd.cy)
+    return best
   }
 
   // ---- interaction ----
@@ -788,7 +822,7 @@ export class Game {
       const inShow = best.parkIdx >= 100
       const price = carValue(best.type, best.cond, { showroom: inShow, seller: false })
       this.current = {
-        kind: 'sell', label: `SELL ${best.type.name}`, sub: `$${price} • profit $${price - best.boughtFor - best.invested}`,
+        kind: 'sell', icon: '💰', label: 'Sell', sub: `$${price} · +$${price - best.boughtFor - best.invested}`,
         carId: best.id, service: null, stationId: null, unlockId: null, offerIdx: -1,
         affordable: true, cost: 0, progress: 0,
       }
@@ -801,7 +835,7 @@ export class Game {
         if (dist(p.x, p.y, c.x, c.y) < 2.6) {
           const buy = offerPrice(c.type, c.cond)
           this.current = {
-            kind: 'inspect', label: `INSPECT ${c.type.name}`, sub: `Buy $${buy} • resale ~$${carValue(c.type, { clean: 100, mech: 100, body: 100, tires: 100, shine: 100 })}`,
+            kind: 'inspect', icon: '🔍', label: c.type.name, sub: `$${buy} → ~$${carValue(c.type, { clean: 100, mech: 100, body: 100, tires: 100, shine: 100 })}`,
             carId: c.id, service: null, stationId: null, unlockId: null, offerIdx: c.parkIdx,
             affordable: this.money >= buy, cost: buy, progress: 0,
           }
@@ -812,7 +846,7 @@ export class Game {
     // 3. hire board
     if (dist(p.x, p.y, HIRE_BOARD.x, HIRE_BOARD.y) < 2.2) {
       this.current = {
-        kind: 'hire', label: 'STAFF BOARD', sub: 'Hire washers, mechanics & more',
+        kind: 'hire', icon: '🧑‍🔧', label: 'Staff', sub: 'from $300',
         carId: -1, service: null, stationId: null, unlockId: null, offerIdx: -1,
         affordable: true, cost: 0, progress: 0,
       }
@@ -841,19 +875,17 @@ export class Game {
     }
     if (wBest && wStation && wService) {
       if (wBest.work && wBest.work.by !== 'player') {
-        const who = this.workers[wBest.work.by as number]
         this.current = {
-          kind: 'info', label: `${who ? '🧑‍🔧' : '⏳'} Busy`, sub: 'Your worker is on this job',
+          kind: 'info', icon: '⏳', label: '', sub: '',
           carId: wBest.id, service: null, stationId: null, unlockId: null, offerIdx: -1,
           affordable: true, cost: 0, progress: wBest.work.progress,
         }
         return
       }
-      const parts = wBest.owner === 'player' ? ` (+$${SERVICES[wService].parts} parts)` : ''
-      const pay = wBest.owner === 'customer' ? ` (+$${SERVICES[wService].reward})` : ''
+      const parts = wBest.owner === 'player' ? ` · $${SERVICES[wService].parts} parts` : ''
+      const pay = wBest.owner === 'customer' ? `+$${SERVICES[wService].reward}` : ''
       this.current = {
-        kind: 'work', label: `${SERVICES[wService].icon} ${SERVICES[wService].label} ${wBest.type.name}`,
-        sub: `Hold E to work${pay}${parts}`,
+        kind: 'work', icon: SERVICES[wService].icon, label: SERVICES[wService].label, sub: `${pay}${parts}`,
         carId: wBest.id, service: wService, stationId: wStation, unlockId: null, offerIdx: -1,
         affordable: true, cost: 0, progress: wBest.work ? wBest.work.progress : 0,
       }
@@ -884,7 +916,7 @@ export class Game {
       const def = this.unlockDef(padBest.unlockId)
       if (def) {
         this.current = {
-          kind: 'buy', label: `${def.icon} ${def.name}`, sub: `$${def.cost} — ${def.desc}`,
+          kind: 'buy', icon: def.icon, label: def.name, sub: `$${def.cost}`,
           carId: -1, service: null, stationId: null, unlockId: def.id, offerIdx: -1,
           affordable: this.money >= def.cost, cost: def.cost, progress: 0,
         }
@@ -909,13 +941,13 @@ export class Game {
     const moving = this.player.speed > 0.6
     if (moving) this.player.angle = Math.atan2(this.player.vy, this.player.vx)
     this.player.moving = moving
-    // clamp + building collision
-    this.player.x = Math.max(0.8, Math.min(29.2, this.player.x))
-    this.player.y = Math.max(0.8, Math.min(21.2, this.player.y))
+    // clamp + building collision (bigger roamable outskirts)
+    this.player.x = Math.max(0.8, Math.min(33.2, this.player.x))
+    this.player.y = Math.max(0.8, Math.min(25.2, this.player.y))
     this.collide(this.player, 0.42)
 
     // tutorial + objectives
-    this.tutorial(ev)
+    this.tutorial()
 
     // customer spawner
     this.spawnT -= dt
@@ -1186,12 +1218,13 @@ export class Game {
   }
 
   private collide(p: { x: number; y: number }, r: number): void {
-    // garage building + office
+    // garage building + showroom counter + billboard + hire post + houses
     const solids = [
       { x: 3, y: 1.4, w: 6, h: 3.2 },
       { x: 23.4, y: 13.4, w: 5.6, h: 1.2 },
       { x: 18, y: 14.2, w: 2.6, h: 1.8 },
       { x: 10.1, y: 13.2, w: 0.8, h: 0.8 },
+      ...HOUSES,
     ]
     for (const s of solids) {
       const cx = Math.max(s.x, Math.min(p.x, s.x + s.w))

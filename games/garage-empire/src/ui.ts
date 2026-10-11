@@ -91,27 +91,31 @@ export class UI {
   sync(game: Game): void {
     const m = money(game.money)
     if (this.moneyEl.textContent !== m) this.moneyEl.textContent = m
-    const lvl = `LV ${game.level + 1} · ${game.levelName}`
+    const lvl = `★ ${game.level + 1}`
     if (this.levelEl.textContent !== lvl) {
       this.levelEl.textContent = lvl
-      this.levelEl.title = lvl
+      this.levelEl.title = `Level ${game.level + 1}: ${game.levelName}`
     }
-    const obj = `🎯 ${game.currentObjective()}`
+    const o = game.currentObjective()
+    const obj = `${o.icon} ${o.text}`
     if (this.objEl.textContent !== obj) this.objEl.textContent = obj
 
     const it = game.current
-    if (!it) {
+    if (!it || it.kind === 'info') {
       this.promptEl.classList.add('hidden')
     } else {
       this.promptEl.classList.remove('hidden')
       const key = this.isTouch ? 'ACTION' : 'E'
       const afford = it.kind === 'buy' && !it.affordable ? 'cant' : ''
+      const action = it.kind === 'work' || it.kind === 'buy' || it.kind === 'sell' || it.kind === 'inspect' || it.kind === 'hire'
       this.promptEl.innerHTML = `
         <div class="prompt-card ${it.kind} ${afford}">
-          <div class="prompt-label">${escapeHtml(it.label)}</div>
-          <div class="prompt-sub">${escapeHtml(it.sub)}</div>
-          ${it.kind === 'work' || it.kind === 'buy' || it.kind === 'sell' || it.kind === 'inspect' || it.kind === 'hire'
-            ? `<div class="prompt-key">${it.kind === 'work' ? `HOLD ${key}` : `PRESS ${key}`}</div>` : ''}
+          <div class="prompt-icon">${escapeHtml(it.icon)}</div>
+          <div class="prompt-text">
+            ${it.label ? `<div class="prompt-label">${escapeHtml(it.label)}</div>` : ''}
+            ${it.sub ? `<div class="prompt-sub">${escapeHtml(it.sub)}</div>` : ''}
+          </div>
+          ${action ? `<div class="prompt-key">${it.kind === 'work' ? `HOLD ${key}` : key}</div>` : ''}
         </div>`
     }
   }

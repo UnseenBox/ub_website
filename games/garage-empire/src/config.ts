@@ -43,7 +43,7 @@ export interface StationDef {
 export const STATIONS: Record<StationId, StationDef> = {
   wash1: { id: 'wash1', name: 'Wash Bay', services: ['wash'], speed: 1, unlock: null, color: '#38bdf8' },
   wash2: { id: 'wash2', name: 'Wash Bay II', services: ['wash'], speed: 1.15, unlock: 'wash2', color: '#38bdf8' },
-  repair1: { id: 'repair1', name: 'Repair Bench', services: ['tires', 'engine', 'body'], speed: 1, unlock: null, color: '#fb923c' },
+  repair1: { id: 'repair1', name: 'Repair Bench', services: ['tires', 'engine', 'body'], speed: 1, unlock: 'repair1', color: '#fb923c' },
   lift: { id: 'lift', name: 'Hydraulic Lift', services: ['engine', 'body'], speed: 1.35, unlock: 'lift', color: '#f472b6' },
   tire: { id: 'tire', name: 'Tire Station', services: ['tires'], speed: 1.6, unlock: 'tire', color: '#a78bfa' },
   detail: { id: 'detail', name: 'Detail Studio', services: ['detail'], speed: 1.2, unlock: 'detail', color: '#2dd4bf' },
@@ -60,6 +60,7 @@ export interface UnlockDef {
 }
 
 export const UNLOCKS: UnlockDef[] = [
+  { id: 'repair1', name: 'Repair Bench', cost: 250, desc: 'Fix tires, engines, bodywork', icon: '🧰', stage: 1 },
   { id: 'pressure', name: 'Pro Pressure Kit', cost: 350, desc: 'Wash 80% faster everywhere', icon: '💦', stage: 1 },
   { id: 'wash2', name: 'Second Wash Bay', cost: 450, desc: '+1 wash bay, washes 15% faster', icon: '🧼', stage: 2 },
   { id: 'parking', name: 'Extra Parking', cost: 500, desc: '+2 customer parking slots', icon: '🅿️', stage: 2 },
@@ -210,17 +211,17 @@ export const TIP_CHANCE = 0.35
 export const START_MONEY = 150
 export const SAVE_KEY = 'garage-empire:save:v1'
 
-/** Ordered onboarding objectives shown in the HUD. Kept to a few words. */
-export function objectives(): { id: string; text: string }[] {
+/** Ordered onboarding goals: icon + micro-label, never a sentence. */
+export function objectives(): { id: string; icon: string; text: string }[] {
   return [
-    { id: 'wash1', text: 'Wash your first car' },
-    { id: 'earn500', text: 'Earn $500 revenue' },
-    { id: 'buy1', text: 'Buy a yellow sign' },
-    { id: 'hire1', text: 'Hire an employee' },
-    { id: 'lift', text: 'Unlock the Lift' },
-    { id: 'flipbuy', text: 'Buy a car to flip' },
-    { id: 'flipsell', text: 'Sell a restored car' },
-    { id: 'showroom', text: 'Open the Showroom' },
-    { id: 'empire', text: 'Reach $12,000 revenue' },
+    { id: 'wash1', icon: '🧽', text: 'First wash' },
+    { id: 'earn500', icon: '💰', text: '$500' },
+    { id: 'buy1', icon: '🪧', text: '1 sign' },
+    { id: 'hire1', icon: '🧑‍🔧', text: 'Hire' },
+    { id: 'lift', icon: '🏗️', text: 'Lift' },
+    { id: 'flipbuy', icon: '🏷️', text: 'Buy car' },
+    { id: 'flipsell', icon: '💰', text: 'Sell car' },
+    { id: 'showroom', icon: '🏆', text: 'Showroom' },
+    { id: 'empire', icon: '👑', text: '$12k' },
   ]
 }

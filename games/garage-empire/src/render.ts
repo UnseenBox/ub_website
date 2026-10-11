@@ -13,6 +13,7 @@ import {
   MAP_W,
   PARKING_BASE,
   PARKING_EXTRA,
+  POND,
   STATION_RECTS,
 } from './world'
 
@@ -182,15 +183,16 @@ export class Renderer {
   }
 
   private buildGround(game: Game): void {
-    const cw = Math.max(1, Math.ceil(26 * this.tw))
-    const ch = Math.max(1, Math.ceil(13 * this.tw))
+    // world-iso extents for the 34x26 map, plus margin
+    const cw = Math.max(1, Math.ceil(33 * this.tw))
+    const ch = Math.max(1, Math.ceil(17 * this.tw))
     const canvas = document.createElement('canvas')
     canvas.width = cw
     canvas.height = ch
     const gctx = canvas.getContext('2d')
     if (!gctx) return
-    const camX = 15.8
-    const camY = 11.8
+    const camX = 17
+    const camY = 13
     const prevCtx = this.ctx
     const prevCam = { x: this.cam.x, y: this.cam.y }
     const prevW = this.vw
@@ -334,6 +336,9 @@ export class Renderer {
     items.sort((a, b) => a.d - b.d)
     for (const it of items) it.f()
 
+    // silent onboarding arrow above everything world-space
+    this.drawGuide(game, time)
+
     for (const p of this.particles) {
       const a = 1 - p.life / p.max
       ctx.globalAlpha = Math.max(0, a)
@@ -406,8 +411,8 @@ export class Renderer {
   }
 
   private drawGround(game: Game): void {
-    // concrete yard
-    for (let x = 0; x < MAP_W; x++) {
+    // concrete yard (west); the east outskirts stay grass
+    for (let x = 0; x < 29; x++) {
       for (let y = 0; y < 19; y++) {
         if (!this.inView(x + 0.5, y + 0.5, 90)) continue
         this.diamond(x, y, 1, 1, (x + y) % 2 === 0 ? '#d8d1c2' : '#d1c9b8')
@@ -416,7 +421,7 @@ export class Renderer {
     // expansion joints every 4 tiles
     this.ctx.strokeStyle = 'rgba(120,110,95,0.35)'
     this.ctx.lineWidth = 1.5
-    for (let x = 2; x < MAP_W; x += 4) {
+    for (let x = 2; x < 29; x += 4) {
       if (!this.inView(x, 9, 200)) continue
       this.ctx.beginPath()
       this.ctx.moveTo(this.sx(x, 1), this.sy(x, 1))
@@ -489,6 +494,30 @@ export class Renderer {
         this.ctx.restore()
       }
     }
+    // pond on the south lawn
+    {
+      const px = this.sx(POND.x, POND.y)
+      const py = this.sy(POND.x, POND.y)
+      const rx = POND.rx * this.tw
+      const ry = POND.ry * this.tw
+      this.ctx.fillStyle = '#cbb98f'
+      this.ctx.beginPath()
+      this.ctx.ellipse(px, py, rx * 1.12, ry * 1.35, 0, 0, Math.PI * 2)
+      this.ctx.fill()
+      this.ctx.fillStyle = '#3f9db8'
+      this.ctx.beginPath()
+      this.ctx.ellipse(px, py, rx, ry, 0, 0, Math.PI * 2)
+      this.ctx.fill()
+      this.ctx.strokeStyle = 'rgba(255,255,255,0.55)'
+      this.ctx.lineWidth = 2.5
+      this.ctx.beginPath()
+      this.ctx.ellipse(px - rx * 0.15, py - ry * 0.2, rx * 0.55, ry * 0.45, -0.2, Math.PI * 1.05, Math.PI * 1.6)
+      this.ctx.stroke()
+      this.ctx.fillStyle = '#3e9e4f'
+      this.ctx.beginPath()
+      this.ctx.ellipse(px + rx * 0.4, py + ry * 0.25, 5, 3, 0.4, 0, Math.PI * 2)
+      this.ctx.fill()
+    }
     // drain grates + oil stains (static garage dressing)
     this.ctx.fillStyle = '#3c434f'
     for (const [gx, gy] of [[9.2, 6.4], [14.8, 12.6]] as const) {
@@ -546,6 +575,52 @@ export class Renderer {
   private bx(x: number, y: number, w: number, h: number, z: number, baseColor: string, base = 0): void {
     const [t, l, r] = faces(baseColor)
     this.box3d(x, y, w, h, z, t, l, r, base)
+  }
+
+  /** Round icon plaque: signage without words. */
+  private plaque(x: number, y: number, z: number, icon: string, size = 15, bg = 'rgba(15,23,42,0.9)'): void {
+    const { ctx } = this
+    const px = this.sx(x, y)
+    const py = this.sy(x, y, z)
+    const r = (size * this.tw) / 56
+    ctx.fillStyle = bg
+    ctx.beginPath()
+    ctx.arc(px, py, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    ctx.font = `${r * 1.15}px system-ui`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(icon, px, py + 1)
+  }
+
+  /** Bouncing guide arrow over the current goal. No words, just "go here". */
+  private drawGuide(game: Game, time: number): void {
+    const t = game.guideTarget()
+    if (!t || !this.inView(t.x, t.y, 60)) return
+    const { ctx } = this
+    const bob = Math.sin(time * 4) * 0.12
+    const px = this.sx(t.x, t.y)
+    const py = this.sy(t.x, t.y, 1.7 + bob)
+    const s = this.tw / 56
+    ctx.fillStyle = '#facc15'
+    ctx.strokeStyle = '#713f12'
+    ctx.lineWidth = 2.5
+    ctx.beginPath()
+    ctx.moveTo(px - 11 * s, py - 8 * s)
+    ctx.lineTo(px + 11 * s, py - 8 * s)
+    ctx.lineTo(px, py + 8 * s)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+    const ring = (time % 1.2) / 1.2
+    ctx.strokeStyle = `rgba(250,204,21,${1 - ring})`
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.ellipse(this.sx(t.x, t.y), this.sy(t.x, t.y), this.tw * (0.5 + ring * 0.9), this.tw * (0.28 + ring * 0.45), 0, 0, Math.PI * 2)
+    ctx.stroke()
   }
 
   private label(text: string, x: number, y: number, z: number, opts?: { bg?: string; fg?: string; size?: number }): void {
@@ -666,7 +741,7 @@ export class Renderer {
       ctx.stroke()
     }
     const sway = Math.sin(time * 1.2) * 0.02
-    this.label('★ GARAGE EMPIRE ★', ENTRANCE.x + sway, 20.45, yT - 0.62, { bg: '#0f172a', fg: '#fbbf24', size: 15 })
+    this.plaque(ENTRANCE.x + sway, 20.45, yT - 0.5, '⭐', 17)
   }
 
   private drawGarage(time: number): void {
@@ -717,7 +792,7 @@ export class Renderer {
     this.bx(b.x + 1.2, b.y + 0.5, 0.28, 0.28, 1.5, '#075985')
     this.bx(b.x + 4.5, b.y + 0.5, 0.28, 0.28, 1.5, '#075985')
     this.bx(b.x + 0.9, b.y + 0.35, 4.2, 0.55, 0.62, '#0e7490', 1.5)
-    this.label('🔧 GARAGE', b.x + 3, b.y + 0.62, 2.32, { bg: 'rgba(12,74,110,0.95)', fg: '#fff', size: 14 })
+    this.plaque(b.x + 3, b.y + 0.62, 2.32, '🔧', 15)
   }
 
   private drawShowroom(time: number): void {
@@ -738,7 +813,7 @@ export class Renderer {
       ctx.stroke()
     }
     this.bx(23.9, 13.2, 4.6, 0.34, 0.2, '#b2781f', 1.25)
-    this.label('🏆 SHOWROOM', 26.2, 13.4, 1.72, { bg: '#78350f', fg: '#fde68a', size: 13 })
+    this.plaque(26.2, 13.4, 1.72, '🏆', 14)
   }
 
   // ---- stations ----
@@ -1016,7 +1091,6 @@ export class Renderer {
     ctx.beginPath()
     ctx.arc(this.sx(10.15, 3.6), this.sy(10.15, 3.6, 0.2), 7, 0, Math.PI * 2)
     ctx.stroke()
-    this.label('💦 PRO', 10.15, 3.0, 1.35, { size: 11 })
   }
 
   private drawBillboard(): void {
@@ -1056,7 +1130,7 @@ export class Renderer {
     ctx.fillRect(bx + 1, by - 8, 11, 13)
     ctx.fillStyle = '#fecaca'
     ctx.fillRect(bx - 7, by - 2, 11, 12)
-    this.label('🧑‍🔧 STAFF', HIRE_BOARD.x, HIRE_BOARD.y, 1.6, { bg: '#1e3a8a', fg: '#bfdbfe' })
+    this.plaque(HIRE_BOARD.x, HIRE_BOARD.y, 1.62, '🧑‍🔧', 13, 'rgba(30,58,138,0.92)')
   }
 
   private drawBuntingLot(time: number): void {
@@ -1148,6 +1222,39 @@ export class Renderer {
       this.bx(x - 0.75, y - 0.28, 1.5, 0.56, 0.28, '#8a5a2b')
       this.bx(x - 0.65, y - 0.2, 0.2, 0.2, 0.28, '#57370c', 0.28)
       this.bx(x + 0.45, y - 0.2, 0.2, 0.2, 0.28, '#57370c', 0.28)
+    } else if (kind === 'bush') {
+      const cx = this.sx(x, y)
+      const cy = this.sy(x, y, 0.2 * s)
+      ctx.fillStyle = '#1d8a44'
+      ctx.beginPath(); ctx.arc(cx - 6 * s, cy, this.tw * 0.16 * s, 0, Math.PI * 2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx + 6 * s, cy - 2, this.tw * 0.18 * s, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#35b862'
+      ctx.beginPath(); ctx.arc(cx, cy - 6 * s, this.tw * 0.15 * s, 0, Math.PI * 2); ctx.fill()
+    } else if (kind === 'house') {
+      // neighbor house: plaster walls, pyramid roof, door + window, chimney
+      this.bx(x, y, 2.0, 1.8, 1.0, '#e7dcc8')
+      const ax = this.sx(x + 1, y + 0.9)
+      const apexY = this.sy(x + 1, y + 0.9, 1.85)
+      const corners: [number, number][] = [[x, y], [x + 2.0, y], [x + 2.0, y + 1.8], [x, y + 1.8]]
+      ctx.fillStyle = '#b45309'
+      ctx.beginPath()
+      ctx.moveTo(ax, apexY)
+      for (const [wx, wy] of corners) ctx.lineTo(this.sx(wx, wy), this.sy(wx, wy, 1.0))
+      ctx.closePath()
+      ctx.fill()
+      // door + warm window on the street faces
+      const dx = this.sx(x + 0.9, y + 1.8)
+      const dy = this.sy(x + 0.9, y + 1.8, 0)
+      ctx.fillStyle = '#6b3f16'
+      ctx.fillRect(dx - 6, dy - this.tw * 0.5, 12, this.tw * 0.5)
+      const fx = this.sx(x + 2.0, y + 0.9)
+      const fy = this.sy(x + 2.0, y + 0.9, 0.55)
+      ctx.fillStyle = '#fde68a'
+      ctx.fillRect(fx - 8, fy - 7, 16, 14)
+      ctx.strokeStyle = '#6b3f16'
+      ctx.lineWidth = 2
+      ctx.strokeRect(fx - 8, fy - 7, 16, 14)
+      this.bx(x + 1.5, y + 0.3, 0.28, 0.28, 0.9, '#9a6a4a', 1.0)
     } else {
       // plant: pot + foliage
       this.bx(x - 0.16, y - 0.16, 0.32, 0.32, 0.3, '#b45309')
