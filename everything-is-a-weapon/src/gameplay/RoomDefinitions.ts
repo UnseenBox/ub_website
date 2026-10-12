@@ -7,6 +7,8 @@ import type { RoomDefinition } from './Room';
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // 1 — bedroom: throwing. A chair directly between you and the door.
+  // First-60-seconds tuning: chair one step away (grab range + a step), shoe as
+  // the second experiment within sight, first mover arrives fast but alone.
   {
     id: 'room-1', name: 'THE BEDROOM', theme: 'bedroom', width: 860, height: 500, seed: 101, tutorial: true,
     playerStart: { x: 200, y: 270 },
@@ -17,14 +19,14 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'bed', x: 100, y: 92 },
       { type: 'pillow', x: 82, y: 50, angle: 0.2, on: 0 },
       { type: 'pillow', x: 120, y: 54, angle: -0.3, on: 0 },
-      { type: 'chair', x: 340, y: 260 },
-      { type: 'shoe', x: 260, y: 400, angle: 0.5 },
-      { type: 'book', x: 420, y: 130, angle: -0.3 },
+      { type: 'chair', x: 300, y: 268 },
+      { type: 'shoe', x: 250, y: 345, angle: 0.5 },
+      { type: 'book', x: 380, y: 160, angle: -0.3 },
       { type: 'teddy', x: 640, y: 420 },
       { type: 'alarmclock', x: 220, y: 110 },
     ],
     zones: [],
-    enemies: [{ type: 'basic', delay: 1.4 }],
+    enemies: [{ type: 'basic', delay: 1.0 }],
   },
 
   // 2 — home office: objects hit other objects. A lamp to topple, a loaded desk to shove.

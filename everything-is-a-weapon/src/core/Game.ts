@@ -856,7 +856,11 @@ export class Game {
 
   private wireFeedback(): void {
     const bus = this.bus;
-
+    // First-hit guarantee for room 1 (independent of funnel listener order).
+    let firstRoomHitDone = false;
+    bus.on('ROOM_START', () => {
+      firstRoomHitDone = false;
+    });
     bus.on('OBJECT_BROKEN', (e) => {
       const object = e.object;
       const b = object.body;
@@ -889,6 +893,12 @@ export class Game {
       const cause = e.cause;
       const pitch = enemy.type.voice;
       const big = e.damage >= 20;
+      // First-60-seconds: the very first hit of room 1 must land, even on a weak
+      // undercharged throw. Same material-specific sounds, just guaranteed readable
+      // feedback (word + ring + settle) without changing damage or balance.
+      const firstHit = this.room.index === 0 && !firstRoomHitDone;
+      if (this.room.index === 0) firstRoomHitDone = true;
+      const showWord = big || firstHit;
 
       if (cause.type === 'shock') {
         this.audio.voice('yelp', pitch);
@@ -897,7 +907,7 @@ export class Game {
         this.audio.voice('panic', pitch);
       } else {
         this.audio.voice('oof', pitch);
-        if (big) {
+        if (showWord) {
           const source = cause.source;
           const quirk = source && source.kind === 'object' ? source.def.quirk : undefined;
           const word =
@@ -927,11 +937,13 @@ export class Game {
         220,
         directional ? { dirX: cause.dirX, dirY: cause.dirY, spread: 0.75 } : undefined,
       );
-      if (big) this.fx.ring(b.x, b.y, 6, 30 + e.damage * 0.5, 0.26, 'rgba(255,255,255,0.85)', 3);
-      this.camera.addShake(Math.min(0.4, e.damage / 140));
+      if (big || firstHit) this.fx.ring(b.x, b.y, 6, 30 + e.damage * 0.5, 0.26, 'rgba(255,255,255,0.85)', 3);
+      this.camera.addShake(firstHit ? Math.max(0.3, Math.min(0.4, e.damage / 140)) : Math.min(0.4, e.damage / 140));
+      if (showWord) this.camera.punchZoom(0.02);
       if (directional) this.camera.kick(cause.dirX * Math.min(7, e.damage / 7), cause.dirY * Math.min(7, e.damage / 7));
       if (e.damage >= 50) this.hitStop(0.09);
       else if (e.damage >= 28) this.hitStop(0.055);
+      else if (firstHit) this.hitStop(0.06);
     });
 
     bus.on('ENEMY_DEFEATED', (e) => {

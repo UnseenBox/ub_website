@@ -1,4 +1,5 @@
 import type { Game } from '../core/Game';
+import type { PhysicsObject } from '../entities/PhysicsObject';
 import { moveKeysLabel } from '../input/KeyLabels';
 
 export interface WorldHint {
@@ -12,11 +13,15 @@ type Step = 'intro' | 'grab' | 'throw' | 'hit' | 'done';
 /**
  * The whole tutorial is two lines of attitude and two one-word hints.
  * It only runs in rooms flagged `tutorial` and steps forward on real player actions.
- * The first room's intruder arrives ~1.4s in, so the hints must be instant: the grab
+ * The first room's intruder arrives ~1s in, so the hints must be instant: the grab
  * hint is visible within the first second, never gated behind a banner sequence.
+ * `focus` is the object the player should notice right now, so the renderer can
+ * give it a subtle pulsing halo using the existing hover-highlight art.
  */
 export class Tutorial {
   hint: WorldHint | null = null;
+  /** Object to subtly highlight while in the `grab` step (null otherwise). */
+  focus: PhysicsObject | null = null;
 
   private step: Step = 'done';
   private timer = 0;
@@ -26,16 +31,23 @@ export class Tutorial {
   constructor(private readonly game: Game) {
     game.bus.on('OBJECT_GRABBED', () => {
       if (this.step === 'grab' || this.step === 'intro') this.step = 'throw';
+      this.focus = null;
     });
     game.bus.on('OBJECT_THROWN', () => {
       if (this.step === 'throw') this.step = 'hit';
+      this.focus = null;
     });
     game.bus.on('ENEMY_HIT', (e) => {
       if (this.step === 'done' || e.cause.type !== 'impact') return;
       this.step = 'done';
       this.hint = null;
+      this.focus = null;
       game.hud.banner('EVERYTHING CAN BE A WEAPON.', '', 2.4);
     });
+  }
+
+  get active(): boolean {
+    return this.step !== 'done';
   }
 
   begin(active: boolean): void {
@@ -43,11 +55,13 @@ export class Tutorial {
     this.timer = 0;
     this.said = 0;
     this.hint = null;
+    this.focus = null;
   }
 
   update(dt: number): void {
     if (this.step === 'done') {
       this.hint = null;
+      this.focus = null;
       return;
     }
     const game = this.game;
@@ -62,13 +76,13 @@ export class Tutorial {
       else this.hint = null;
       if (this.said === 0 && this.timer > 0.15) {
         game.audio.play('yawn', 1);
-        game.hud.banner('YOU HAVE NO WEAPON.', '', 1.4);
+        game.hud.banner('YOU HAVE NO WEAPON.', '', 1.2);
         this.said = 1;
-      } else if (this.said === 1 && this.timer > 0.9) {
-        game.hud.banner('USE THE ROOM.', '', 1.4);
+      } else if (this.said === 1 && this.timer > 0.6) {
+        game.hud.banner('GRAB SOMETHING. THROW IT.', '', 1.2);
         this.said = 2;
         this.step = 'grab';
-      } else if (moved && this.timer > 0.5 && this.said >= 1) {
+      } else if (moved && this.timer > 0.4 && this.said >= 1) {
         // They already figured out movement: skip the remaining patter, show the grab hint.
         this.step = 'grab';
       }
@@ -88,7 +102,16 @@ export class Tutorial {
           best = object;
         }
       }
-      if (best) this.show(game.input.touch ? 'WALK UP, TAP RIGHT SIDE' : 'CLICK TO GRAB', best.body.x, best.body.y - best.def.height - 30);
+      this.focus = best;
+      if (best) {
+        const isChair = best.def.id === 'chair';
+        const text = game.input.touch
+          ? isChair ? 'TAP RIGHT SIDE: GRAB CHAIR' : 'WALK UP, TAP RIGHT SIDE'
+          : isChair ? 'CLICK TO GRAB THE CHAIR' : 'CLICK TO GRAB';
+        this.show(text, best.body.x, best.body.y - best.def.height - 30);
+      } else {
+        this.hint = null;
+      }
     } else if (this.step === 'throw') {
       if (player.held) this.show(game.input.touch ? 'HOLD RIGHT SIDE, RELEASE' : 'HOLD CLICK, AIM, RELEASE', player.body.x, player.body.y - 78);
       else this.step = 'grab';
