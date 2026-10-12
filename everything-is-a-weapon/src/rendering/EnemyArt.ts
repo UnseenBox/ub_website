@@ -18,11 +18,9 @@ import { hash, mix, onTop, prism, type Ctx } from './draw';
  *   Chucker    a long-armed Box in a sweatband; throws your furniture back at you
  *   Bulwark    a walking safe door: riveted plate up front, nothing behind but spite
  *
- *   BOSSES are not boxes. Each of the seven has a fully custom silhouette drawn
- *   by drawBossBody (no prism, no tape, no flaps): a chair mech, a toilet, a sofa
- *   with cushion tentacles, a horned fridge, an eight-legged piano, a mower and
- *   MOM herself. They share only the hit-flash tone, the defeat tumble, the
- *   overhead telegraphs and the HP tape.
+ *   BOSSES are not boxes. Each of the twenty has a fully custom silhouette drawn
+ *   by drawBossBody (no prism, no tape, no flaps). They share only the hit-flash
+ *   tone, the defeat tumble, the overhead telegraphs and the HP tape.
  *
  * Each is drawn in passes (legs → body → tape and flaps → face → props) and every pass reacts
  * to state: flaps perk up before a lunge, the eyes follow you, the lid bursts when it is beaten.
@@ -60,18 +58,34 @@ const BUILDS: Readonly<Record<EnemyTypeId, Build>> = {
   hurler: { hw: 15, hd: 10, h: 24, side: '#7d3f2c', top: '#b5654a' },
   bulwark: { hw: 18, hd: 11, h: 27, side: '#3a4552', top: '#5a6b7d' },
   // Bosses: rough extents only — the silhouette is fully custom below.
-  chairman: { hw: 20, hd: 13, h: 34, side: '#232e3b', top: '#3a4a5c' },
-  flusher: { hw: 20, hd: 14, h: 32, side: '#9fb3c4', top: '#dfeaf2' },
-  kraken: { hw: 26, hd: 14, h: 26, side: '#522741', top: '#7a3b5c' },
-  fridgezilla: { hw: 20, hd: 13, h: 40, side: '#8fa8b8', top: '#cfe0e8' },
-  piano: { hw: 26, hd: 14, h: 26, side: '#121017', top: '#26232e' },
-  mower: { hw: 22, hd: 13, h: 24, side: '#7d241c', top: '#c23b2e' },
-  mom: { hw: 20, hd: 12, h: 38, side: '#5c2540', top: '#8a3b5c' },
+  // Supersized: every boss reads across the room at a glance.
+  chairman: { hw: 26, hd: 17, h: 44, side: '#232e3b', top: '#3a4a5c' },
+  flusher: { hw: 26, hd: 18, h: 42, side: '#9fb3c4', top: '#dfeaf2' },
+  kraken: { hw: 34, hd: 18, h: 34, side: '#522741', top: '#7a3b5c' },
+  fridgezilla: { hw: 26, hd: 17, h: 52, side: '#8fa8b8', top: '#cfe0e8' },
+  piano: { hw: 34, hd: 18, h: 34, side: '#121017', top: '#26232e' },
+  mower: { hw: 28, hd: 17, h: 32, side: '#7d241c', top: '#c23b2e' },
+  mom: { hw: 26, hd: 16, h: 50, side: '#5c2540', top: '#8a3b5c' },
+  vacuumasaurus: { hw: 28, hd: 18, h: 44, side: '#2c3a24', top: '#4a5c3a' },
+  hydra: { hw: 26, hd: 17, h: 42, side: '#4d5a75', top: '#7a8ba8' },
+  fan: { hw: 24, hd: 14, h: 30, side: '#647687', top: '#9fb3c4' },
+  popcorn: { hw: 22, hd: 15, h: 36, side: '#a87a24', top: '#e8b13c' },
+  cables: { hw: 26, hd: 17, h: 38, side: '#1f1f2a', top: '#3a3a4a' },
+  cooker: { hw: 27, hd: 17, h: 46, side: '#7d7668', top: '#b8b0a0' },
+  train: { hw: 30, hd: 17, h: 36, side: '#1a2236', top: '#2e3a55' },
+  junk: { hw: 29, hd: 18, h: 52, side: '#453a58', top: '#6b5a86' },
+  house: { hw: 30, hd: 18, h: 52, side: '#74382e', top: '#a85848' },
+  clock: { hw: 24, hd: 15, h: 44, side: '#2a736f', top: '#3fa7a3' },
+  toybox: { hw: 26, hd: 17, h: 38, side: '#8f3f1c', top: '#d4652e' },
+  dishwasher: { hw: 26, hd: 17, h: 42, side: '#4d6a7d', top: '#7a9bb0' },
+  cardboard: { hw: 26, hd: 17, h: 40, side: '#9c7446', top: '#c9a070' },
 };
 
 /** Bosses with fully custom silhouettes (no box prism). */
 const CUSTOM_BOSS_IDS: ReadonlyArray<EnemyTypeId> = [
   'chairman', 'flusher', 'kraken', 'fridgezilla', 'piano', 'mower', 'mom',
+  'vacuumasaurus', 'hydra', 'fan', 'popcorn', 'cables', 'cooker', 'train',
+  'junk', 'house', 'clock', 'toybox', 'dishwasher', 'cardboard',
 ];
 
 const BULBS = ['#ff5a4e', '#ffd23f', '#6fe0c2', '#4ad6e8', '#ff9ec4'];
@@ -830,7 +844,1154 @@ function momBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: Boss
   mitt(ctx, x - 9, baseY - 30, x - 15, baseY - 16 + Math.sin(e.walkPhase) * 2, tone('#f2c19b'));
 }
 
-/** Dispatches the seven custom boss silhouettes. */
+/** Vacuumasaurus: treaded apex predator with a trunk hose and opinions. */
+function vacuumasaurusBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, windup } = p;
+  const baseY = y + hd + 1;
+  const fa = e.facing;
+  // caterpillar treads
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = tone('#1f2a1c');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.ellipse(x + side * (hw * 0.55), baseY - 6, hw * 0.5, 9, 0, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone('#7a8a68');
+    for (let k = -1; k <= 1; k++) {
+      ctx.beginPath();
+      ctx.arc(x + side * (hw * 0.55) + k * 9 + Math.sin(e.walkPhase * 2) * 2, baseY - 6, 2.6, 0, TAU);
+      ctx.fill();
+    }
+  }
+  // barrel body + dome head with a jaw that opens while it inhales
+  ctx.fillStyle = tone('#4a5c3a');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(x, baseY - 30, hw, 20, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#5c7048');
+  ctx.beginPath();
+  ctx.ellipse(x + 6, baseY - 44, 13, 10, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  const jaw = e.sucking && !e.defeated ? 9 : 2;
+  ctx.fillStyle = '#17132a';
+  ctx.beginPath();
+  ctx.ellipse(x + 10, baseY - 40, 8, 3 + jaw, 0.2, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath();
+    ctx.moveTo(x + 4 + k * 4, baseY - 44);
+    ctx.lineTo(x + 6 + k * 4, baseY - 40);
+    ctx.lineTo(x + 8 + k * 4, baseY - 44);
+    ctx.closePath();
+    ctx.fill();
+  }
+  if (!e.defeated) eyes(ctx, x + 2, baseY - 48, 5, Math.cos(fa), Math.sin(fa), 3, false);
+  // tail spikes
+  ctx.fillStyle = tone('#2c3a24');
+  for (let k = 0; k < 3; k++) {
+    const sx = x - hw + 2 - k * 7;
+    ctx.beginPath();
+    ctx.moveTo(sx, baseY - 34 + k * 4);
+    ctx.lineTo(sx - 8, baseY - 30 + k * 4);
+    ctx.lineTo(sx, baseY - 26 + k * 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  // trunk hose towards the facing, nozzle gaping while it sucks
+  const nx = x + Math.cos(fa) * (hw + 16);
+  const ny = baseY - 26 + Math.sin(fa) * 10;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 10;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x + hw * 0.5, baseY - 30);
+  ctx.quadraticCurveTo(x + Math.cos(fa) * (hw + 10), baseY - 44, nx, ny);
+  ctx.stroke();
+  ctx.strokeStyle = tone('#3a4a30');
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  const gape = e.sucking && !e.defeated ? 8 : 3.4;
+  ctx.fillStyle = '#17132a';
+  ctx.beginPath();
+  ctx.ellipse(nx, ny, gape + 3, gape, fa, 0, TAU);
+  ctx.fill();
+  // tiny arms, purely decorative, deeply confident
+  mitt(ctx, x - 6, baseY - 26, x - 12, baseY - 18, tone('#2c3a24'));
+  mitt(ctx, x + 6, baseY - 26, x + 12, baseY - 18 - windup * 6, tone('#2c3a24'));
+}
+
+/** Laundry Hydra: one basket, three sock serpents, zero matching pairs. */
+function hydraBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy } = p;
+  const baseY = y + hd + 1;
+  const lash = e.lashProgress;
+  // sock serpents first (behind the basket)
+  const socks: ReadonlyArray<readonly [string, string]> = [['#d4652e', '#fbf6e9'], ['#3fa7a3', '#17132a'], ['#b56576', '#ffd23f']];
+  for (let i = 0; i < 3; i++) {
+    const [sock, trim] = socks[i]!;
+    const spread = (i - 1) * 0.75;
+    const rest = -Math.PI / 2 + spread;
+    const wave = Math.sin(time * 2.6 + i * 2.1 + e.seed) * 0.25;
+    const dir = rest + wave + angleDiffSafe(rest, e.facing) * lash * 0.5;
+    const len = 34 + Math.sin(time * 2.6 + i * 2.1) * 5 + lash * 16;
+    const tx = x + Math.cos(dir) * len;
+    const ty = baseY - 20 + Math.sin(dir) * len;
+    const mx = x + Math.cos(dir) * len * 0.55;
+    const my = baseY - 20 + Math.sin(dir) * len * 0.55;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY - 18);
+    ctx.quadraticCurveTo(mx, my, tx, ty);
+    ctx.stroke();
+    ctx.strokeStyle = tone(sock);
+    ctx.lineWidth = 6.4;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY - 18);
+    ctx.quadraticCurveTo(mx, my, tx, ty);
+    ctx.stroke();
+    ctx.strokeStyle = tone(trim);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + (mx - x) * 0.4, baseY - 18 + (my - baseY + 18) * 0.4 - 3);
+    ctx.lineTo(x + (mx - x) * 0.4, baseY - 18 + (my - baseY + 18) * 0.4 + 3);
+    ctx.moveTo(x + (mx - x) * 0.75, baseY - 18 + (my - baseY + 18) * 0.75 - 3);
+    ctx.lineTo(x + (mx - x) * 0.75, baseY - 18 + (my - baseY + 18) * 0.75 + 3);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    // toe-cap head with eyes
+    ctx.fillStyle = tone(sock);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(tx, ty, 7.5, 6, dir, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    if (!e.defeated) eyes(ctx, tx, ty - 1, 3.4, fx, fy, 2.2, false);
+  }
+  // the basket: weave, rim, and one escapee sock over the edge
+  ctx.fillStyle = tone('#7a8ba8');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  ctx.moveTo(x - hw, baseY - 30);
+  ctx.lineTo(x + hw, baseY - 30);
+  ctx.lineTo(x + hw - 8, baseY);
+  ctx.lineTo(x - hw + 8, baseY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(34, 27, 54, 0.5)';
+  ctx.lineWidth = 1.6;
+  for (let r = 0; r < 3; r++) {
+    ctx.beginPath();
+    ctx.moveTo(x - hw + 3 + r * 2, baseY - 24 + r * 8);
+    ctx.lineTo(x + hw - 3 - r * 2, baseY - 24 + r * 8);
+    ctx.stroke();
+  }
+  ctx.fillStyle = tone('#4d5a75');
+  ctx.fillRect(x - hw - 2, baseY - 34, hw * 2 + 4, 6);
+  ctx.strokeRect(x - hw - 2, baseY - 34, hw * 2 + 4, 6);
+  ctx.strokeStyle = tone('#d4652e');
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x + hw - 12, baseY - 30);
+  ctx.quadraticCurveTo(x + hw - 4, baseY - 18, x + hw - 10, baseY - 8);
+  ctx.stroke();
+}
+
+/** Fan-tastic Nightmare: hovers, swoops, and seeds cyclones. */
+function fanBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const hover = 14 + Math.sin(time * 3 + e.seed) * 4;
+  const baseY = y + hd + 1 - hover;
+  // ribbon streamers trailing underneath
+  ctx.strokeStyle = tone('#e5383b');
+  ctx.lineWidth = 2.4;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + side * 8, baseY + 6);
+    ctx.quadraticCurveTo(
+      x + side * (12 + Math.sin(time * 5 + side) * 5), baseY + 16,
+      x + side * (8 + Math.cos(time * 5) * 5), baseY + 26,
+    );
+    ctx.stroke();
+  }
+  // light dome (glowing) + motor + spinning blades with blur
+  ctx.fillStyle = 'rgba(255, 242, 122, 0.9)';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.ellipse(x, baseY + 2, 9, 7, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#647687');
+  ctx.beginPath();
+  ctx.ellipse(x, baseY - 8, 10, 8, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  const spin = time * 12;
+  for (const pass of [0.35, 1]) {
+    ctx.fillStyle = pass === 1 ? tone('#9fb3c4') : 'rgba(159, 179, 196, 0.35)';
+    for (let k = 0; k < 4; k++) {
+      const a = spin * (pass === 1 ? 1 : 1.06) + (k * TAU) / 4;
+      ctx.save();
+      ctx.translate(x, baseY - 8);
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.ellipse(hw * 0.62, 0, hw * 0.55, 7, 0.12, 0, TAU);
+      ctx.fill();
+      if (pass === 1) {
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  ctx.fillStyle = tone('#3a4552');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(x, baseY - 8, 5, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  // pull chains + eyes on the motor, glaring down the spin
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(x + 4, baseY - 2);
+  ctx.lineTo(x + 4 + Math.sin(time * 9) * 2, baseY + 8);
+  ctx.stroke();
+  ctx.fillStyle = tone('#ffd23f');
+  ctx.beginPath();
+  ctx.arc(x + 4 + Math.sin(time * 9) * 2, baseY + 10, 2, 0, TAU);
+  ctx.fill();
+  if (!e.defeated) eyes(ctx, x + fx * 3, baseY - 10, 4.6, fx, fy, 2.8, false);
+  if (windup > 0.2 && !e.defeated) {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(x - 10, baseY - 22);
+    ctx.lineTo(x - 2, baseY - 18);
+    ctx.moveTo(x + 10, baseY - 22);
+    ctx.lineTo(x + 2, baseY - 18);
+    ctx.stroke();
+  }
+}
+
+/** Popcorn Apocalypse: a microwave wizard. The hat is load-bearing. */
+function popcornBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy } = p;
+  const baseY = y + hd + 1;
+  // stubby feet + cape
+  ctx.fillStyle = tone('#5c3a1c');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  for (const side of [-1, 1]) {
+    const step = Math.sin(e.walkPhase + (side > 0 ? Math.PI : 0)) * 3;
+    ctx.beginPath();
+    ctx.ellipse(x + side * 10, baseY - 2 + step * 0.3, 6, 4, 0, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = tone('#8f2a3a');
+  ctx.beginPath();
+  ctx.moveTo(x - hw, baseY - 34);
+  ctx.lineTo(x - hw - 8, baseY - 2);
+  ctx.lineTo(x - hw + 6, baseY - 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // microwave body: door window with popcorn, buttons, countdown bars
+  ctx.fillStyle = tone('#e8b13c');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.8;
+  ctx.fillRect(x - hw, baseY - 52, hw * 2, 34);
+  ctx.strokeRect(x - hw, baseY - 52, hw * 2, 34);
+  ctx.fillStyle = '#17132a';
+  ctx.fillRect(x - hw + 4, baseY - 48, hw * 1.1, 26);
+  const pop = Math.abs(Math.sin(time * 7 + e.seed));
+  ctx.fillStyle = '#fbf6e9';
+  for (let k = 0; k < 5; k++) {
+    const px = x - hw + 8 + ((k * 7919) % 23);
+    const py = baseY - 46 + ((k * 4799 + Math.floor(time * 7) * 3) % 20);
+    ctx.fillRect(px, py, 3, 3);
+  }
+  void pop;
+  ctx.fillStyle = tone('#2a2330');
+  ctx.fillRect(x + hw - 12, baseY - 48, 8, 26);
+  ctx.fillStyle = '#ff5a4e';
+  ctx.font = '700 7px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('3:33', x + hw - 8, baseY - 36);
+  ctx.fillStyle = tone('#ffd23f');
+  ctx.fillRect(x + hw - 11, baseY - 32, 6, 3);
+  if (!e.defeated) eyes(ctx, x + fx * 4, baseY - 56, 6, fx, fy, 3, false);
+  // wizard hat with stars + wand raised with the throw telegraph
+  ctx.fillStyle = tone('#2f4fb5');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(x - 13, baseY - 58);
+  ctx.lineTo(x + 2 + Math.sin(time * 2) * 3, baseY - 96);
+  ctx.lineTo(x + 15, baseY - 58);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#ffd23f');
+  for (const [sx, sy] of [[-5, -68], [4, -78], [0, -88]] as const) {
+    ctx.beginPath();
+    ctx.arc(x + sx, baseY + sy, 1.8, 0, TAU);
+    ctx.fill();
+  }
+  const raise = e.hurlProgress;
+  mitt(ctx, x + hw - 2, baseY - 40, x + hw + 8, baseY - 52 - raise * 14, tone('#a87a24'));
+  ctx.strokeStyle = tone('#6b4d1c');
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x + hw + 8, baseY - 52 - raise * 14);
+  ctx.lineTo(x + hw + 16, baseY - 62 - raise * 14);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.fillStyle = tone('#ffd23f');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(x + hw + 16, baseY - 64 - raise * 14, 4, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+}
+
+/** Cable Kraken: live wire nest with plug tentacles and a breaker-switch mouth. */
+function cablesBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy } = p;
+  const baseY = y + hd + 1;
+  const lash = e.lashProgress;
+  // plug tentacles behind the nest
+  for (let i = -1; i <= 1; i++) {
+    const rest = -Math.PI / 2 + i * 0.8;
+    const wave = Math.sin(time * 4 + i * 2.4 + e.seed) * 0.2;
+    const dir = rest + wave + angleDiffSafe(rest, e.facing) * lash * 0.5;
+    const len = 34 + lash * 18;
+    const tx = x + Math.cos(dir) * len;
+    const ty = baseY - 16 + Math.sin(dir) * len;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY - 14);
+    ctx.quadraticCurveTo(x + Math.cos(dir) * len * 0.5, baseY - 16 + Math.sin(dir) * len * 0.5, tx, ty);
+    ctx.stroke();
+    ctx.strokeStyle = tone(i === 0 ? '#e5383b' : i > 0 ? '#2f4fb5' : '#ffd23f');
+    ctx.lineWidth = 3.6;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY - 14);
+    ctx.quadraticCurveTo(x + Math.cos(dir) * len * 0.5, baseY - 16 + Math.sin(dir) * len * 0.5, tx, ty);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    // plug head + prongs + spark tip
+    ctx.fillStyle = tone('#fbf6e9');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(dir);
+    ctx.fillRect(-3, -5, 9, 10);
+    ctx.strokeRect(-3, -5, 9, 10);
+    ctx.fillRect(6, -3.4, 4, 2.4);
+    ctx.fillRect(6, 1, 4, 2.4);
+    ctx.restore();
+    const flick = hash(Math.floor(time * 20) + i * 7 + e.seed);
+    if (flick > 0.45 && !e.defeated) {
+      ctx.fillStyle = flick > 0.75 ? '#fff27a' : '#4ad6e8';
+      ctx.beginPath();
+      ctx.arc(tx + Math.cos(dir) * 12, ty + Math.sin(dir) * 12, 2.4 + flick * 2, 0, TAU);
+      ctx.fill();
+    }
+  }
+  // the nest: looping live wire
+  ctx.lineCap = 'round';
+  for (const [w, c] of [[16, INK], [11, '#3a3a4a']] as const) {
+    ctx.strokeStyle = tone(c);
+    ctx.lineWidth = w as number;
+    ctx.beginPath();
+    ctx.ellipse(x, baseY - 18, hw, 15, 0.15, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = tone('#565664');
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(x - 6, baseY - 22, hw * 0.7, 10, -0.2, 0.4, 2.6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(x + 8, baseY - 14, hw * 0.6, 9, 0.3, 3.4, 5.6);
+  ctx.stroke();
+  // socket faceplate: slot eyes + breaker-switch mouth
+  ctx.fillStyle = tone('#fbf6e9');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  ctx.fillRect(x - 11, baseY - 30, 22, 18);
+  ctx.strokeRect(x - 11, baseY - 30, 22, 18);
+  if (!e.defeated) {
+    ctx.fillStyle = INK;
+    ctx.fillRect(x - 6 + fx * 1.5, baseY - 25 + fy, 3, 6);
+    ctx.fillRect(x + 3 + fx * 1.5, baseY - 25 + fy, 3, 6);
+    const open = e.shockTimer > 0 || lash > 0.3 ? 6 : 2;
+    ctx.fillRect(x - 4, baseY - 16, 8, open);
+  }
+}
+
+/** Pressure Cooker: a boiler with a gauge, a rocking weight, and no chill. */
+function cookerBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  const boiling = e.phaseIndex > 0 && !e.defeated;
+  // feet + pot belly
+  ctx.fillStyle = tone('#3a352c');
+  ctx.fillRect(x - 14, baseY - 4, 8, 4);
+  ctx.fillRect(x + 6, baseY - 4, 8, 4);
+  ctx.fillStyle = tone('#b8b0a0');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x - hw, baseY - 4);
+  ctx.lineTo(x - hw + 5, baseY - 44);
+  ctx.lineTo(x + hw - 5, baseY - 44);
+  ctx.lineTo(x + hw, baseY - 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // MAX fill line + side handles
+  ctx.strokeStyle = tone('#e5383b');
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(x - hw + 7, baseY - 30);
+  ctx.lineTo(x - hw + 16, baseY - 30);
+  ctx.stroke();
+  for (const side of [-1, 1]) {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x + side * hw, baseY - 26);
+    ctx.lineTo(x + side * (hw + 10), baseY - 30);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  }
+  // lid + rocking weight + gauge with a nervous needle
+  ctx.fillStyle = tone('#8f8878');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.ellipse(x, baseY - 46, hw - 2, 7, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  const rock = boiling ? Math.sin(time * 14) * 0.35 : Math.sin(time * 3) * 0.08;
+  ctx.save();
+  ctx.translate(x, baseY - 54);
+  ctx.rotate(rock);
+  ctx.fillStyle = tone('#5c564a');
+  ctx.fillRect(-4, -8, 8, 9);
+  ctx.strokeRect(-4, -8, 8, 9);
+  ctx.restore();
+  const needle = Math.sin(time * (boiling ? 9 : 2) + e.seed) * 0.7 - 0.4;
+  ctx.fillStyle = tone('#fbf6e9');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x + hw - 12, baseY - 32, 7, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = tone('#e5383b');
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + hw - 12, baseY - 32);
+  ctx.lineTo(x + hw - 12 + Math.sin(needle) * 5, baseY - 32 - Math.cos(needle) * 5);
+  ctx.stroke();
+  // worried eyes + valve brows + whistle mouth
+  if (!e.defeated) {
+    eyes(ctx, x + fx * 4, baseY - 24, 7, fx, fy, 3.2, false);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(x - 13, baseY - 36);
+    ctx.lineTo(x - 4, baseY - 33);
+    ctx.moveTo(x + 13, baseY - 36);
+    ctx.lineTo(x + 4, baseY - 33);
+    ctx.stroke();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.ellipse(x + fx * 3, baseY - 13, 3.4, 2.4 + windup * 3 + (e.ai === 'slam' ? 3 : 0), 0, 0, TAU);
+    ctx.fill();
+  }
+  // steam valves on both sides, always leaking a little, gushing on slam
+  const gush = e.ai === 'slam' && !e.defeated ? 3 : 1;
+  ctx.fillStyle = 'rgba(228, 247, 251, 0.85)';
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 2; i++) {
+      const t = (time * 1.6 + i * 0.5 + (side > 0 ? 0.25 : 0) + e.seed * 0.01) % 1;
+      ctx.beginPath();
+      ctx.arc(x + side * (hw + 6 + t * 12 * gush), baseY - 34 - t * 16, (2 + t * 3) * (gush > 1 ? 1.4 : 1), 0, TAU);
+      ctx.fill();
+    }
+  }
+}
+
+/** Midnight Express: side-view engine with cars, rotating to face travel. */
+function trainBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx } = p;
+  const baseY = y + hd + 1;
+  const dir = fx >= 0 ? 1 : -1;
+  const charging = e.ai === 'lunge' || e.ai === 'windup';
+  ctx.save();
+  ctx.translate(x, 0);
+  ctx.scale(dir, 1);
+  ctx.translate(-x, 0);
+  // cars behind (drawn first)
+  for (let c = 1; c <= 2; c++) {
+    const cx = x - c * 44;
+    ctx.fillStyle = tone(c === 1 ? '#5c4a6e' : '#3f5a4c');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.6;
+    ctx.fillRect(cx - 18, baseY - 34, 36, 22);
+    ctx.strokeRect(cx - 18, baseY - 34, 36, 22);
+    // cargo: a fridge, then a lamp
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    if (c === 1) {
+      ctx.fillStyle = tone('#aab4c4');
+      ctx.fillRect(cx - 8, baseY - 48, 16, 14);
+      ctx.strokeRect(cx - 8, baseY - 48, 16, 14);
+    } else {
+      ctx.fillStyle = tone('#ffd23f');
+      ctx.beginPath();
+      ctx.moveTo(cx, baseY - 34);
+      ctx.lineTo(cx, baseY - 48);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(cx, baseY - 51, 7, 5, 0, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+    }
+    for (const wx of [-10, 10]) {
+      ctx.fillStyle = INK;
+      ctx.beginPath();
+      ctx.arc(cx + wx, baseY - 8, 6, 0, TAU);
+      ctx.fill();
+    }
+  }
+  const spin = e.walkPhase * (charging ? 5 : 2.5);
+  // engine: boiler, cab, chimney, cowcatcher, headlight
+  ctx.fillStyle = tone('#2e3a55');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(x + 6, baseY - 26, 26, 13, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#1a2236');
+  ctx.fillRect(x - 22, baseY - 48, 24, 24);
+  ctx.strokeRect(x - 22, baseY - 48, 24, 24);
+  ctx.fillStyle = '#9fd8e8';
+  ctx.fillRect(x - 18, baseY - 44, 16, 10);
+  ctx.strokeRect(x - 18, baseY - 44, 16, 10);
+  if (!e.defeated) {
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x - 13, baseY - 39, 3, 0, TAU);
+    ctx.arc(x - 5, baseY - 39, 3, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(x - 13, baseY - 39, 1.4, 0, TAU);
+    ctx.arc(x - 5, baseY - 39, 1.4, 0, TAU);
+    ctx.fill();
+  }
+  ctx.fillStyle = tone('#1a2236');
+  ctx.fillRect(x + 22, baseY - 52, 8, 16);
+  ctx.strokeRect(x + 22, baseY - 52, 8, 16);
+  // smoke: faster while charging
+  ctx.fillStyle = 'rgba(120, 120, 130, 0.75)';
+  for (let i = 0; i < 3; i++) {
+    const t = (time * (charging ? 2.4 : 1.1) + i * 0.33 + e.seed * 0.01) % 1;
+    ctx.beginPath();
+    ctx.arc(x + 26 + t * 22, baseY - 56 - t * 26, 3 + t * 6, 0, TAU);
+    ctx.fill();
+  }
+  // cowcatcher + headlight + drivers
+  ctx.fillStyle = tone('#c23b2e');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(x + hw - 2, baseY - 6);
+  ctx.lineTo(x + hw + 14, baseY - 6);
+  ctx.lineTo(x + hw - 2, baseY - 20);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff6c9';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(x + hw - 4, baseY - 28, 5, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  for (const wx of [-14, 8, 26]) {
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(x + wx, baseY - 8, 8, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = tone('#aab4c4');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + wx + Math.cos(spin) * 6, baseY - 8 + Math.sin(spin) * 6);
+    ctx.lineTo(x + wx - Math.cos(spin) * 6, baseY - 8 - Math.sin(spin) * 6);
+    ctx.stroke();
+  }
+  ctx.restore();
+  void time;
+}
+
+/** King of Junk: wardrobe tower, lamp arms, TV head, bottle-cap crown. */
+function junkBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  const top = baseY - 72;
+  // wardrobe tower + drawers, one hanging open with a sock in it
+  ctx.fillStyle = tone('#6b5a86');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.fillRect(x - hw + 4, top + 18, hw * 2 - 8, 52);
+  ctx.strokeRect(x - hw + 4, top + 18, hw * 2 - 8, 52);
+  ctx.strokeStyle = 'rgba(34, 27, 54, 0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x, top + 18);
+  ctx.lineTo(x, top + 70);
+  ctx.stroke();
+  ctx.fillStyle = tone('#453a58');
+  for (const dy of [24, 38, 52]) {
+    ctx.beginPath();
+    ctx.arc(x - 5, top + dy, 2, 0, TAU);
+    ctx.arc(x + 5, top + dy, 2, 0, TAU);
+    ctx.fill();
+  }
+  ctx.fillStyle = tone('#453a58');
+  ctx.fillRect(x + 6, top + 58, 16, 10);
+  ctx.strokeStyle = INK;
+  ctx.strokeRect(x + 6, top + 58, 16, 10);
+  ctx.strokeStyle = tone('#d4652e');
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(x + 10, top + 58);
+  ctx.quadraticCurveTo(x + 16, top + 50, x + 12, top + 44);
+  ctx.stroke();
+  // lamp arms, one lit
+  for (const side of [-1, 1]) {
+    mitt(ctx, x + side * (hw - 4), baseY - 44, x + side * (hw + 8), baseY - 52, tone('#453a58'));
+    ctx.fillStyle = side < 0 && !e.defeated ? 'rgba(255, 242, 122, 0.9)' : tone('#ecdcab');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(x + side * (hw + 8) - 7, baseY - 62);
+    ctx.lineTo(x + side * (hw + 8) + 7, baseY - 62);
+    ctx.lineTo(x + side * (hw + 8) + 4, baseY - 48);
+    ctx.lineTo(x + side * (hw + 8) - 4, baseY - 48);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  // TV head with static + crown of bottle caps
+  ctx.fillStyle = tone('#2a2330');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.fillRect(x - 17, top - 4, 34, 24);
+  ctx.strokeRect(x - 17, top - 4, 34, 24);
+  for (let k = 0; k < 14; k++) {
+    const flick = hash(Math.floor(time * 12) + k * 31 + e.seed);
+    if (flick > 0.5) {
+      ctx.fillStyle = 'rgba(251, 246, 233, 0.8)';
+      ctx.fillRect(x - 14 + (k * 53) % 28, top + (k * 37) % 18, 2, 2);
+    }
+  }
+  if (!e.defeated) eyes(ctx, x + fx * 3, top + 8, 7, fx, fy, 3.2, false);
+  for (let k = -1; k <= 1; k++) {
+    ctx.fillStyle = tone(k === 0 ? '#ffd23f' : '#c23b2e');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(x + k * 11, top - 8, 4.4, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  }
+  // cable scarf + drawer mouth that opens with the windup
+  ctx.strokeStyle = tone('#1f1f2a');
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x - hw + 2, top + 34);
+  ctx.quadraticCurveTo(x, top + 42 + Math.sin(time * 2) * 2, x + hw - 2, top + 34);
+  ctx.stroke();
+  if (!e.defeated) {
+    ctx.fillStyle = '#17132a';
+    ctx.fillRect(x - 10, top + 44, 20, 4 + windup * 8);
+  }
+  void time;
+}
+
+/** The House That Hates You: roof, chimney, window eyes, door mouth. */
+function houseBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  const wallTop = baseY - 46;
+  const roofTop = baseY - 72;
+  // walls + roof + chimney with smoke
+  ctx.fillStyle = tone('#a85848');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.fillRect(x - hw, wallTop, hw * 2, 46);
+  ctx.strokeRect(x - hw, wallTop, hw * 2, 46);
+  ctx.fillStyle = tone('#5c2e28');
+  ctx.beginPath();
+  ctx.moveTo(x - hw - 6, wallTop);
+  ctx.lineTo(x, roofTop);
+  ctx.lineTo(x + hw + 6, wallTop);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#74382e');
+  ctx.fillRect(x + hw * 0.4, roofTop + 4, 10, 16);
+  ctx.strokeRect(x + hw * 0.4, roofTop + 4, 10, 16);
+  ctx.fillStyle = 'rgba(120, 120, 130, 0.7)';
+  for (let i = 0; i < 2; i++) {
+    const t = (time * 0.9 + i * 0.5 + e.seed * 0.01) % 1;
+    ctx.beginPath();
+    ctx.arc(x + hw * 0.4 + 5 + t * 10, roofTop - t * 22, 2.5 + t * 4, 0, TAU);
+    ctx.fill();
+  }
+  // attic eye + window eyes with curtains
+  ctx.fillStyle = tone('#ffd23f');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, roofTop + 12, 5, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  if (!e.defeated) {
+    for (const side of [-1, 1]) {
+      const wx = x + side * (hw * 0.55);
+      ctx.fillStyle = tone('#fbf6e9');
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2.2;
+      ctx.fillRect(wx - 9, wallTop + 8, 18, 14);
+      ctx.strokeRect(wx - 9, wallTop + 8, 18, 14);
+      ctx.fillStyle = tone('#8a3b5c');
+      ctx.fillRect(wx - 9, wallTop + 8, 4, 14);
+      ctx.fillRect(wx + 5, wallTop + 8, 4, 14);
+      eyes(ctx, wx + fx * 2, wallTop + 15, 4.4, fx, fy, 2.6, false);
+    }
+    // brows on the walls
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(x - hw + 4, wallTop + 4);
+    ctx.lineTo(x - 12, wallTop + 8);
+    ctx.moveTo(x + hw - 4, wallTop + 4);
+    ctx.lineTo(x + 12, wallTop + 8);
+    ctx.stroke();
+  }
+  // the door mouth: planks for teeth, opens with the windup
+  const gape = 3 + windup * 12 + (e.ai === 'slam' ? 8 : 0);
+  ctx.fillStyle = tone('#3a231e');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.fillRect(x - 11, baseY - 26, 22, 8 + gape);
+  ctx.strokeRect(x - 11, baseY - 26, 22, 8 + gape);
+  ctx.fillStyle = tone('#ecdcab');
+  for (let k = 0; k < 4; k++) {
+    ctx.fillRect(x - 9 + k * 5.4, baseY - 26, 3, 4);
+    if (gape > 6) ctx.fillRect(x - 9 + k * 5.4, baseY - 22 + gape, 3, 3);
+  }
+  // doormat: GO AWAY
+  ctx.fillStyle = tone('#5c6b58');
+  ctx.fillRect(x - 14, baseY - 4, 28, 5);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.4;
+  ctx.strokeRect(x - 14, baseY - 4, 28, 5);
+}
+
+/** Time-Thief Alarm Clock: twin bells, spinning hands, cracked glass at half. */
+function clockBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy } = p;
+  const baseY = y + hd + 1;
+  const r = hw;
+  // legs + twin bells + hammer going spare
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + side * 10, baseY - r * 0.7);
+    ctx.lineTo(x + side * 14, baseY);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = tone('#c9a24f');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(x + side * (r * 0.62), baseY - r * 1.62, 7, Math.PI, TAU);
+    ctx.fill();
+    ctx.stroke();
+  }
+  const hammer = Math.sin(time * 30) * 0.5;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(x, baseY - r * 1.62 - 4);
+  ctx.lineTo(x + hammer * 14, baseY - r * 1.62 - 12);
+  ctx.stroke();
+  // face + ticks + spinning hands
+  ctx.fillStyle = tone('#fbf6e9');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3.2;
+  ctx.beginPath();
+  ctx.arc(x, baseY - r * 0.75, r, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  for (let k = 0; k < 12; k++) {
+    const a = (k * TAU) / 12;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * (r - 2), baseY - r * 0.75 + Math.sin(a) * (r - 2));
+    ctx.lineTo(x + Math.cos(a) * (r - 7), baseY - r * 0.75 + Math.sin(a) * (r - 7));
+    ctx.stroke();
+  }
+  const cy = baseY - r * 0.75;
+  const ha = time * 0.8 + e.seed;
+  const ma = -time * 3.2;
+  ctx.lineWidth = 3.4;
+  ctx.beginPath();
+  ctx.moveTo(x, cy);
+  ctx.lineTo(x + Math.cos(ha) * r * 0.45, cy + Math.sin(ha) * r * 0.45);
+  ctx.stroke();
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(x, cy);
+  ctx.lineTo(x + Math.cos(ma) * r * 0.7, cy + Math.sin(ma) * r * 0.7);
+  ctx.stroke();
+  ctx.strokeStyle = tone('#e5383b');
+  ctx.lineWidth = 1.6;
+  const sa = time * 7;
+  ctx.beginPath();
+  ctx.moveTo(x, cy);
+  ctx.lineTo(x + Math.cos(sa) * r * 0.8, cy + Math.sin(sa) * r * 0.8);
+  ctx.stroke();
+  // eyes ride the minute hand's hub; cracked glass past half health
+  if (!e.defeated) eyes(ctx, x + fx * 2, cy + 9, 5, fx, fy, 2.8, false);
+  if (e.phaseIndex > 0) {
+    ctx.strokeStyle = 'rgba(34, 27, 54, 0.7)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x + r * 0.5, cy - r * 0.8);
+    ctx.lineTo(x + r * 0.2, cy - r * 0.3);
+    ctx.lineTo(x + r * 0.5, cy);
+    ctx.lineTo(x + r * 0.1, cy + r * 0.4);
+    ctx.stroke();
+  }
+}
+
+/** Toybox Titan: open chest, peeking toys, crank, and a lid that means it. */
+function toyboxBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  const bounce = Math.abs(Math.sin(e.walkPhase)) * 2;
+  // chest + open lid
+  ctx.fillStyle = tone('#d4652e');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.fillRect(x - hw, baseY - 26, hw * 2, 26);
+  ctx.strokeRect(x - hw, baseY - 26, hw * 2, 26);
+  ctx.strokeStyle = tone('#ffd23f');
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x - hw + 4, baseY - 22, hw * 2 - 8, 18);
+  ctx.save();
+  ctx.translate(x - hw + 3, baseY - 26);
+  ctx.rotate(-0.5 - bounce * 0.02);
+  ctx.fillStyle = tone('#a84a20');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.fillRect(0, -14, hw * 2 - 6, 13);
+  ctx.strokeRect(0, -14, hw * 2 - 6, 13);
+  ctx.restore();
+  // peeking toys: ball, duck, blocks
+  ctx.fillStyle = tone('#e5383b');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x - hw * 0.55, baseY - 32 - bounce, 7, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#ffd23f');
+  ctx.beginPath();
+  ctx.arc(x + hw * 0.1, baseY - 34 - bounce * 1.4, 6, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#2f4fb5');
+  ctx.fillRect(x + hw * 0.42, baseY - 40 - bounce * 0.7, 11, 11);
+  ctx.strokeRect(x + hw * 0.42, baseY - 40 - bounce * 0.7, 11, 11);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 8px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('B', x + hw * 0.42 + 5.5, baseY - 32 - bounce * 0.7);
+  // crank turning steadily towards the next toy
+  const crank = time * 2.2 + e.seed;
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(x + hw, baseY - 14);
+  ctx.lineTo(x + hw + 8, baseY - 14);
+  ctx.lineTo(x + hw + 8 + Math.cos(crank) * 6, baseY - 14 + Math.sin(crank) * 6);
+  ctx.stroke();
+  ctx.fillStyle = tone('#aab4c4');
+  ctx.beginPath();
+  ctx.arc(x + hw + 8 + Math.cos(crank) * 6, baseY - 14 + Math.sin(crank) * 6, 2.6, 0, TAU);
+  ctx.fill();
+  // lock-eyes + keyhole mouth that opens for the lid slam
+  if (!e.defeated) {
+    eyes(ctx, x + fx * 4, baseY - 15, 6.4, fx, fy, 3, false);
+    ctx.fillStyle = '#17132a';
+    const gape = 2.4 + windup * 4 + (e.ai === 'slam' ? 5 : 0);
+    ctx.beginPath();
+    ctx.arc(x + fx * 4, baseY - 5, 3, 0, TAU);
+    ctx.fillRect(x + fx * 4 - 1.4, baseY - 5, 2.8, gape);
+    ctx.fill();
+  }
+}
+
+/** Dishwasher Demon: front-loader with a storm behind glass. */
+function dishwasherBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  // feet + body + control panel
+  ctx.fillStyle = tone('#3a4a56');
+  ctx.fillRect(x - 13, baseY - 4, 7, 4);
+  ctx.fillRect(x + 6, baseY - 4, 7, 4);
+  ctx.fillStyle = tone('#7a9bb0');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.fillRect(x - hw, baseY - 56, hw * 2, 56);
+  ctx.strokeRect(x - hw, baseY - 56, hw * 2, 56);
+  ctx.fillStyle = tone('#4d6a7d');
+  ctx.fillRect(x - hw, baseY - 56, hw * 2, 12);
+  ctx.strokeRect(x - hw, baseY - 56, hw * 2, 12);
+  // dial + panel eyes
+  const dial = time * 1.5 + e.seed;
+  ctx.fillStyle = tone('#fbf6e9');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x - hw + 10, baseY - 50, 5, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - hw + 10, baseY - 50);
+  ctx.lineTo(x - hw + 10 + Math.cos(dial) * 4, baseY - 50 + Math.sin(dial) * 4);
+  ctx.stroke();
+  if (!e.defeated) eyes(ctx, x + hw * 0.3 + fx * 2, baseY - 50, 5, fx, fy, 2.6, false);
+  // porthole: dark glass, spinning spray arcs, tumbling plates
+  ctx.fillStyle = '#101821';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(x, baseY - 26, 15, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(159, 216, 232, 0.9)';
+  ctx.lineWidth = 2.2;
+  for (let k = 0; k < 2; k++) {
+    const a0 = time * 4 + k * Math.PI + e.seed;
+    ctx.beginPath();
+    ctx.arc(x, baseY - 26, 6 + k * 4, a0, a0 + 2.2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(251, 246, 233, 0.85)';
+  for (let k = 0; k < 2; k++) {
+    const a = -time * 3 + k * Math.PI * 0.9;
+    ctx.beginPath();
+    ctx.ellipse(x + Math.cos(a) * 8, baseY - 26 + Math.sin(a) * 8, 4, 2.6, a, 0, TAU);
+    ctx.fill();
+  }
+  // water pouring from the vent + worried brows
+  ctx.fillStyle = 'rgba(159, 216, 232, 0.8)';
+  for (let k = 0; k < 3; k++) {
+    const t = (time * 2 + k * 0.33 + e.seed * 0.01) % 1;
+    ctx.beginPath();
+    ctx.arc(x - 8 + k * 8, baseY - 2 - t * 4, 1.6 + t, 0, TAU);
+    ctx.fill();
+  }
+  if (!e.defeated) {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(x - 14, baseY - 62);
+    ctx.lineTo(x - 5, baseY - 59);
+    ctx.moveTo(x + 14, baseY - 62);
+    ctx.lineTo(x + 5, baseY - 59);
+    ctx.stroke();
+    tearMouth(ctx, x + fx * 3, baseY - 8, 5, windup);
+  }
+}
+
+/** King of Cardboard in three coronations: tank, chopper, robot. */
+function cardboardBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy } = p;
+  const baseY = y + hd + 1;
+  const form = e.form % 3;
+  if (form === 0) {
+    // TANK: low hull, turret, barrel, treads
+    for (const side of [-1, 1]) {
+      ctx.fillStyle = INK;
+      ctx.beginPath();
+      ctx.ellipse(x + side * hw * 0.55, baseY - 7, hw * 0.5, 9, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = tone('#7a5f36');
+      for (let k = -1; k <= 1; k++) {
+        ctx.beginPath();
+        ctx.arc(x + side * hw * 0.55 + k * 9 + Math.sin(e.walkPhase * 2) * 2, baseY - 7, 2.8, 0, TAU);
+        ctx.fill();
+      }
+    }
+    ctx.fillStyle = tone('#c9a070');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.ellipse(x, baseY - 22, hw, 13, 0, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone('#9c7446');
+    ctx.beginPath();
+    ctx.arc(x - fx * 2, baseY - 30, 11, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone('#6e522e');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
+    ctx.save();
+    ctx.translate(x - fx * 2, baseY - 30);
+    ctx.rotate(Math.atan2(fy, fx));
+    ctx.fillRect(0, -3.4, hw + 12, 6.8);
+    ctx.strokeRect(0, -3.4, hw + 12, 6.8);
+    ctx.restore();
+    if (!e.defeated) eyes(ctx, x - fx * 2, baseY - 32, 5, fx, fy, 2.6, false);
+    ctx.fillStyle = tone('#e5383b');
+    ctx.font = '700 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('★', x + hw * 0.4, baseY - 18);
+  } else if (form === 1) {
+    // CHOPPER: hovering cabin, tail boom, spinning rotor, skids
+    const hover = 10 + Math.sin(time * 3.4 + e.seed) * 3;
+    const cy = baseY - 22 - hover;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.6;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x + side * 8, baseY - 14);
+      ctx.lineTo(x + side * 12, baseY - 2);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = tone('#6e522e');
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x - hw, cy + 2);
+    ctx.lineTo(x - hw - 16, cy - 8);
+    ctx.stroke();
+    ctx.fillStyle = tone('#c9a070');
+    ctx.fillRect(x - hw - 20, cy - 12, 8, 8);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - hw - 20, cy - 12, 8, 8);
+    ctx.fillStyle = tone('#c9a070');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.ellipse(x, cy, hw * 0.72, 13, 0, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    const spin = time * 16;
+    for (const pass of [0.3, 1]) {
+      ctx.strokeStyle = pass === 1 ? INK : 'rgba(34, 27, 54, 0.3)';
+      ctx.lineWidth = pass === 1 ? 4 : 8;
+      ctx.beginPath();
+      ctx.moveTo(x - hw - 6, cy - 16);
+      ctx.lineTo(x + hw + 6, cy - 16);
+      ctx.stroke();
+      void spin;
+    }
+    ctx.save();
+    ctx.translate(x, cy - 16);
+    ctx.rotate(spin * 0.2);
+    ctx.strokeStyle = 'rgba(34, 27, 54, 0.35)';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(-hw - 6, 0);
+    ctx.lineTo(hw + 6, 0);
+    ctx.stroke();
+    ctx.restore();
+    if (!e.defeated) {
+      ctx.fillStyle = '#9fd8e8';
+      ctx.fillRect(x - 2, cy - 4, 16, 9);
+      ctx.strokeRect(x - 2, cy - 4, 16, 9);
+      eyes(ctx, x + 6, cy, 5, fx, fy, 2.4, false);
+    }
+  } else {
+    // ROBOT: torso, visor head, cannon arm, stompy legs
+    legs(ctx, x, baseY, e.walkPhase, 9, 5.5);
+    ctx.fillStyle = tone('#c9a070');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.8;
+    ctx.fillRect(x - 13, baseY - 40, 26, 24);
+    ctx.strokeRect(x - 13, baseY - 40, 26, 24);
+    ctx.fillStyle = tone('#9c7446');
+    ctx.fillRect(x - 13, baseY - 26, 26, 5);
+    ctx.fillStyle = tone('#2a2530');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.6;
+    ctx.fillRect(x - 11, baseY - 56, 22, 15);
+    ctx.strokeRect(x - 11, baseY - 56, 22, 15);
+    if (!e.defeated) {
+      ctx.fillStyle = '#ff5a4e';
+      ctx.beginPath();
+      ctx.arc(x - 4 + fx * 2, baseY - 48, 2.6, 0, TAU);
+      ctx.arc(x + 4 + fx * 2, baseY - 48, 2.6, 0, TAU);
+      ctx.fill();
+      const raise = e.hurlProgress;
+      mitt(ctx, x - 13, baseY - 32, x - 19, baseY - 24, tone('#9c7446'));
+      mitt(ctx, x + 13, baseY - 32, x + 19 + fx * 4, baseY - 34 - raise * 12, tone('#9c7446'));
+      ctx.fillStyle = tone('#4a4440');
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2.4;
+      ctx.fillRect(x + 14 + fx * 4, baseY - 42 - raise * 12, 16, 9);
+      ctx.strokeRect(x + 14 + fx * 4, baseY - 42 - raise * 12, 16, 9);
+    }
+  }
+}
+
+/** Dispatches the twenty custom boss silhouettes. */
 function drawBossBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
   switch (e.type.id) {
     case 'chairman': chairmanBody(ctx, e, x, y, time, p); break;
@@ -840,6 +2001,19 @@ function drawBossBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p:
     case 'piano': pianoBody(ctx, e, x, y, time, p); break;
     case 'mower': mowerBody(ctx, e, x, y, time, p); break;
     case 'mom': momBody(ctx, e, x, y, time, p); break;
+    case 'vacuumasaurus': vacuumasaurusBody(ctx, e, x, y, time, p); break;
+    case 'hydra': hydraBody(ctx, e, x, y, time, p); break;
+    case 'fan': fanBody(ctx, e, x, y, time, p); break;
+    case 'popcorn': popcornBody(ctx, e, x, y, time, p); break;
+    case 'cables': cablesBody(ctx, e, x, y, time, p); break;
+    case 'cooker': cookerBody(ctx, e, x, y, time, p); break;
+    case 'train': trainBody(ctx, e, x, y, time, p); break;
+    case 'junk': junkBody(ctx, e, x, y, time, p); break;
+    case 'house': houseBody(ctx, e, x, y, time, p); break;
+    case 'clock': clockBody(ctx, e, x, y, time, p); break;
+    case 'toybox': toyboxBody(ctx, e, x, y, time, p); break;
+    case 'dishwasher': dishwasherBody(ctx, e, x, y, time, p); break;
+    case 'cardboard': cardboardBody(ctx, e, x, y, time, p); break;
   }
 }
 
