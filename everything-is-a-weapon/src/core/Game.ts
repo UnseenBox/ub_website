@@ -893,55 +893,71 @@ export class Game {
       const cause = e.cause;
       const pitch = enemy.type.voice;
       const big = e.damage >= 20;
+      const huge = e.damage >= 40;
+      const massive = e.damage >= 55;
       // First-60-seconds: the very first hit of room 1 must land, even on a weak
       // undercharged throw. Same material-specific sounds, just guaranteed readable
       // feedback (word + ring + settle) without changing damage or balance.
       const firstHit = this.room.index === 0 && !firstRoomHitDone;
       if (this.room.index === 0) firstRoomHitDone = true;
       const showWord = big || firstHit;
+      const source = cause.source;
+      const weapon = source && source.kind === 'object' ? source : null;
 
       if (cause.type === 'shock') {
         this.audio.voice('yelp', pitch);
         this.fx.burst('ZZAP!', b.x, b.y - 36, 1.05, '#fff27a');
+        this.particles.burst('spark', b.x, b.y - 10, 10, 260);
       } else if (cause.type === 'fire') {
         this.audio.voice('panic', pitch);
       } else {
         this.audio.voice('oof', pitch);
         if (showWord) {
-          const source = cause.source;
-          const quirk = source && source.kind === 'object' ? source.def.quirk : undefined;
+          const quirk = weapon ? weapon.def.quirk : undefined;
           const word =
             quirk === 'gong'
               ? 'DONG!'
               : quirk === 'squeak'
                 ? 'SQUEAK!'
-                : cause.type === 'impact' && source && source.kind === 'object'
-              ? impactWord(source.material.sound)
-              : cause.type === 'slam'
-                ? 'WHAM!'
-                : cause.type === 'glass'
-                  ? 'OUCH!'
-                  : cause.type === 'explosion'
-                    ? ''
-                    : 'BONK!';
-          if (word) this.fx.burst(word, b.x - cause.dirX * 8, b.y - 34, 0.75 + Math.min(0.6, e.damage / 70));
+                : cause.type === 'impact' && weapon
+                  ? impactWord(weapon.material.sound)
+                  : cause.type === 'slam'
+                    ? 'WHAM!'
+                    : cause.type === 'glass'
+                      ? 'OUCH!'
+                      : cause.type === 'explosion'
+                        ? ''
+                        : 'BONK!';
+          if (word) this.fx.burst(word, b.x - cause.dirX * 8, b.y - 34, 0.85 + Math.min(0.8, e.damage / 55));
         }
       }
 
       const directional = cause.dirX !== 0 || cause.dirY !== 0;
-      this.particles.burst(
-        'star',
-        b.x,
-        b.y - 12,
-        Math.min(9, 2 + Math.floor(e.damage / 9)),
-        220,
-        directional ? { dirX: cause.dirX, dirY: cause.dirY, spread: 0.75 } : undefined,
-      );
-      if (big || firstHit) this.fx.ring(b.x, b.y, 6, 30 + e.damage * 0.5, 0.26, 'rgba(255,255,255,0.85)', 3);
-      this.camera.addShake(firstHit ? Math.max(0.3, Math.min(0.4, e.damage / 140)) : Math.min(0.4, e.damage / 140));
-      if (showWord) this.camera.punchZoom(0.02);
-      if (directional) this.camera.kick(cause.dirX * Math.min(7, e.damage / 7), cause.dirY * Math.min(7, e.damage / 7));
-      if (e.damage >= 50) this.hitStop(0.09);
+      const cone = directional ? { dirX: cause.dirX, dirY: cause.dirY, spread: 0.75 } : undefined;
+      // Impact stars, scaled up: a heavy chair should erupt, a tossed shoe should pfft.
+      this.particles.burst('star', b.x, b.y - 12, Math.min(16, 3 + Math.floor(e.damage / 5)), 260, cone);
+      // Shrapnel of whatever did the hitting: splinters for wood, sparks for metal,
+      // shards for glass/ceramic — a frying pan reads differently from a lamp.
+      if (weapon && (big || firstHit)) {
+        this.particles.burst(
+          weapon.material.debris,
+          b.x,
+          b.y - 14,
+          Math.min(12, 2 + Math.floor(e.damage / 6)),
+          320,
+          cone ? { ...cone, spread: 0.95 } : undefined,
+        );
+      }
+      if (big) this.particles.burst('dust', b.x, b.y + 6, Math.min(8, 2 + Math.floor(e.damage / 10)), 110);
+      if (big || firstHit) this.fx.ring(b.x, b.y, 6, 34 + e.damage * 0.7, 0.3, 'rgba(255,255,255,0.85)', 4);
+      // Huge hits get a second, tighter shockwave on top: the "double-crack" feel.
+      if (huge) this.fx.ring(b.x, b.y, 4, 22 + e.damage * 0.45, 0.32, 'rgba(255,210,63,0.9)', 3);
+      // Massive hits flash the room for a beat (scaled by the reduced-shake setting).
+      if (massive) this.fx.flash('#ffffff', 0.15);
+      this.camera.addShake(firstHit ? Math.max(0.3, Math.min(0.6, e.damage / 100)) : Math.min(0.6, e.damage / 100));
+      if (showWord) this.camera.punchZoom(0.02 + Math.min(0.035, e.damage / 1400));
+      if (directional) this.camera.kick(cause.dirX * Math.min(8, e.damage / 6), cause.dirY * Math.min(8, e.damage / 6));
+      if (e.damage >= 50) this.hitStop(0.1);
       else if (e.damage >= 28) this.hitStop(0.055);
       else if (firstHit) this.hitStop(0.06);
     });
@@ -953,9 +969,19 @@ export class Game {
         this.hud.banner('LANDLORD EVICTED', 'the flat is yours. for now.', 2.6);
         this.discoveries.unlock('boss_evicted');
       }
-      // the box bursts: packing peanuts everywhere
-      this.particles.burst('peanut', b.x, b.y - 14, 22, 300);
-      this.fx.ring(b.x, b.y, 10, 70, 0.4, 'rgba(255,255,255,0.9)', 4);
+      // the box bursts: packing peanuts everywhere, plus a starburst in the
+      // direction of the killing blow so the knockout tops the hit that caused it
+      this.particles.burst('peanut', b.x, b.y - 14, 30, 340);
+      const killDir = e.cause.dirX !== 0 || e.cause.dirY !== 0;
+      this.particles.burst(
+        'star',
+        b.x,
+        b.y - 12,
+        8,
+        300,
+        killDir ? { dirX: e.cause.dirX, dirY: e.cause.dirY, spread: 0.8 } : undefined,
+      );
+      this.fx.ring(b.x, b.y, 10, 92, 0.42, 'rgba(255,255,255,0.9)', 5);
       if (this.enemiesRemaining === 0) {
         // The last one out gets the full treatment: letterbox, slow motion, a push-in.
         this.cinema = 1.25;
@@ -967,9 +993,10 @@ export class Game {
         this.particles.burst('confetti', b.x, b.y - 14, 26, 420);
         this.hitStop(0.12);
       } else {
-        this.camera.addShake(0.3);
-        this.camera.punchZoom(0.025);
-        this.hitStop(0.09);
+        this.camera.addShake(0.38);
+        this.camera.punchZoom(0.035);
+        this.fx.flash('#ffffff', 0.12);
+        this.hitStop(0.11);
       }
       this.analytics.track('enemy_defeat', {
         enemy: e.enemy.type.id,
