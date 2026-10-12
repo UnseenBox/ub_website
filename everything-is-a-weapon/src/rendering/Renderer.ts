@@ -143,6 +143,7 @@ export class Renderer {
     const catX = cat ? lerp(cat.prevX, cat.x, alpha) : 0;
     const catY = cat ? lerp(cat.prevY, cat.y, alpha) : 0;
     this.drawRings();
+    this.drawWalls(time);
     drawPowerRings(ctx, game, this.bx(pb), this.by(pb), catX, catY, time);
     this.drawShadows();
     this.drawEntities(time);
@@ -184,6 +185,63 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     game.cutscene.draw(ctx, w, h);
+  }
+
+  /** Interior partitions: flat on the floor under everything, like low room dividers. */
+  private drawWalls(time: number): void {
+    const walls = this.game.walls;
+    if (walls.length === 0) return;
+    const ctx = this.ctx;
+    for (const wall of walls) {
+      const { x, y, hw, hh } = wall;
+      const sliding = wall.spec.slide !== undefined;
+      // soft shadow on the floor
+      ctx.fillStyle = 'rgba(34, 27, 54, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(x + 3, y + 5, hw + 4, hh * 0.5 + 4, 0, 0, TAU);
+      ctx.fill();
+      // block face
+      ctx.fillStyle = sliding ? '#4a3b2a' : '#3a3348';
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.rect(x - hw, y - hh, hw * 2, hh * 2);
+      ctx.fill();
+      ctx.stroke();
+      // lighter top edge so it reads as something with height
+      ctx.fillStyle = sliding ? '#c96f2e' : '#554d6e';
+      ctx.fillRect(x - hw + 2, y - hh + 2, hw * 2 - 4, 5);
+      if (sliding) {
+        // hazard chevrons crawl along a moving wall; direction flips with travel
+        const dir = Math.cos((wall.t / wall.spec.slide!.period) * Math.PI * 2) >= 0 ? 1 : -1;
+        const off = ((time * 40 * dir) % 28 + 28) % 28;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x - hw + 2, y + hh - 12, hw * 2 - 4, 8);
+        ctx.clip();
+        ctx.fillStyle = '#ffd23f';
+        for (let sx = x - hw - 28 + off; sx < x + hw + 28; sx += 28) {
+          ctx.beginPath();
+          ctx.moveTo(sx, y + hh - 4);
+          ctx.lineTo(sx + 9, y + hh - 12);
+          ctx.lineTo(sx + 15, y + hh - 12);
+          ctx.lineTo(sx + 6, y + hh - 4);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      } else {
+        // rivets along a still partition
+        ctx.fillStyle = 'rgba(251, 246, 233, 0.5)';
+        const nx = Math.max(2, Math.floor(hw / 26));
+        for (let i = 0; i < nx; i++) {
+          const rx = nx === 1 ? x : x - hw + 14 + ((hw * 2 - 28) * i) / (nx - 1);
+          ctx.beginPath();
+          ctx.arc(rx, y, 2.2, 0, TAU);
+          ctx.fill();
+        }
+      }
+    }
   }
 
   /** Shockwaves, drawn flat on the floor under everything standing on it. */

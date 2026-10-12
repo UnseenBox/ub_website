@@ -19,6 +19,11 @@ export const INTERACTION_RULES: readonly InteractionRule[] = [
     effects: [{ type: 'impactDamage', scale: 0 }],
   },
   {
+    // Thrown back at you by a Chucker (or shed by the Sofa King): lighter, but aimed.
+    id: 'hurled_player', trigger: 'impact', source: ['object', 'hurled', '!held'], target: ['player'], minImpulse: 400,
+    effects: [{ type: 'impactDamage', scale: 0 }], discovery: 'incoming',
+  },
+  {
     id: 'structural', trigger: 'impact', source: ['solid'], target: ['breakable'], minImpulse: 450,
     effects: [{ type: 'structuralDamage', scale: 0.004 }],
   },

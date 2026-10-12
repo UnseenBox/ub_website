@@ -1,9 +1,11 @@
 import type { RoomDefinition } from './Room';
 
 /**
- * The handcrafted tour of the flat. Each room introduces one new idea and places the
- * ingredients so the obvious experiment pays off, without scripting the outcome.
- * Objects marked `on` sit on top of the object at that index in the same list.
+ * The handcrafted tour of the flat. Every room has its own floor plan, silhouette
+ * and gimmick — partitions to hide behind, narrow gaps to funnel movers through,
+ * machinery that changes the fight, and a set piece per room. `walls` are interior
+ * partitions (static, or sliding machinery); coordinates are interior space and every
+ * gap between walls, furniture and doors is wide enough to walk through.
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // 1 — bedroom: throwing. You start mid-room with a chair an arm's length away,
@@ -39,108 +41,147 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     ],
   },
 
-  // 2 — home office: objects hit other objects. A lamp to topple, a loaded desk to shove.
+  // 2 — CUBICLE FARM: partition maze. Three cubicles with loaded desks; shove a
+  // table and everything on it goes sliding down the aisles. Movers funnel through
+  // the gaps, so one good throw can catch two of them.
   {
-    id: 'room-2', name: 'HOME OFFICE', theme: 'office', width: 960, height: 540, seed: 202, challenge: 'no_chair',
-    playerStart: { x: 160, y: 280 },
+    id: 'room-2', name: 'CUBICLE FARM', theme: 'office', width: 960, height: 540, seed: 202, challenge: 'no_chair',
+    playerStart: { x: 130, y: 420 },
     entrance: { side: 'right', pos: 270 },
     exit: { side: 'top', pos: 480 },
-    rug: { x: 480, y: 280, w: 360, h: 220, color: '#5a8fa8' },
+    rug: { x: 480, y: 420, w: 380, h: 150, color: '#5a8fa8' },
+    walls: [
+      // two hanging partitions make three cubicles; wide aisles all round
+      { x: 400, y: 125, hw: 10, hh: 115 },
+      { x: 640, y: 125, hw: 10, hh: 115 },
+      // a low divider shielding the player's corner
+      { x: 150, y: 300, hw: 110, hh: 10 },
+    ],
     objects: [
-      { type: 'table', x: 470, y: 270 },
-      { type: 'computer', x: 448, y: 262, angle: 0.1, on: 0 },
-      { type: 'book', x: 512, y: 286, angle: 0.4, on: 0 },
-      { type: 'chair', x: 360, y: 270 },
-      { type: 'chair', x: 610, y: 400, angle: 0.6 },
-      { type: 'lamp', x: 700, y: 200 },
-      { type: 'shoe', x: 230, y: 440, angle: -0.4 },
-      { type: 'book', x: 290, y: 120, angle: 0.2 },
-      { type: 'trashcan', x: 180, y: 110 },
+      { type: 'table', x: 280, y: 130 },
+      { type: 'computer', x: 262, y: 124, angle: 0.1, on: 0 },
+      { type: 'book', x: 322, y: 146, angle: 0.4, on: 0 },
+      { type: 'table', x: 520, y: 130 },
+      { type: 'candle', x: 520, y: 128, on: 3 },
+      { type: 'book', x: 560, y: 140, angle: -0.5, on: 3 },
+      { type: 'table', x: 770, y: 130 },
+      { type: 'flowerpot', x: 770, y: 126, on: 6 },
+      { type: 'chair', x: 280, y: 280 },
+      { type: 'chair', x: 520, y: 280 },
+      { type: 'chair', x: 770, y: 280, angle: 0.6 },
+      { type: 'lamp', x: 880, y: 420 },
+      { type: 'shoe', x: 200, y: 470, angle: -0.4 },
+      { type: 'trashcan', x: 880, y: 100 },
+      { type: 'officechair', x: 640, y: 420, angle: 1.2 },
+      { type: 'ball', x: 420, y: 460 },
     ],
     zones: [],
     enemies: [
       { type: 'basic', delay: 1.6 },
-      { type: 'basic', delay: 5.5 },
+      { type: 'fast', delay: 6 },
     ],
   },
 
-  // 3 — bathroom: water + electricity. The puddle is on the movers' path; the lamp stands beside it.
+  // 3 — FLOODED LAUNDRY: a partition splits the wet room; two gaps, one big puddle,
+  // a wall socket, and standing water everywhere it matters. Then THE HOOVER walks
+  // in and starts eating the room. Feed it something explosive.
   {
-    id: 'room-3', name: 'THE BATHROOM', theme: 'bathroom', width: 1000, height: 560, seed: 303, challenge: 'environment_only',
+    id: 'room-3', name: 'FLOODED LAUNDRY', theme: 'bathroom', width: 1000, height: 560, seed: 303, challenge: 'environment_only',
     playerStart: { x: 170, y: 300 },
     entrance: { side: 'right', pos: 290 },
     exit: { side: 'top', pos: 520 },
     rug: { x: 280, y: 110, w: 150, h: 64, color: '#f2c14e' },
+    walls: [
+      // the laundry partition: cross through either gap, never around
+      { x: 520, y: 125, hw: 12, hh: 115 },
+      { x: 520, y: 455, hw: 12, hh: 95 },
+    ],
     objects: [
       { type: 'bathtub', x: 280, y: 29 },
       { type: 'toilet', x: 890, y: 22 },
-      { type: 'lamp', x: 560, y: 205 },
+      { type: 'lamp', x: 560, y: 300 },
       { type: 'hairdryer', x: 420, y: 170, angle: 0.6 },
-      { type: 'chair', x: 330, y: 320 },
+      { type: 'chair', x: 330, y: 400 },
       { type: 'soap', x: 240, y: 230, angle: 0.4 },
       { type: 'duck', x: 420, y: 100, angle: 0.8 },
       { type: 'plunger', x: 820, y: 110 },
       { type: 'mirror', x: 130, y: 440, angle: 0.3 },
-      { type: 'bottle', x: 250, y: 450 },
+      { type: 'bottle', x: 250, y: 470 },
       { type: 'bottle', x: 430, y: 480 },
-      { type: 'trashcan', x: 800, y: 470 },
-      { type: 'shoe', x: 480, y: 390, angle: 1.1 },
-      { type: 'bucket', x: 200, y: 110 },
-      { type: 'broom', x: 600, y: 480, angle: 0.3 },
+      { type: 'bucket', x: 620, y: 420 },
+      { type: 'broom', x: 700, y: 480, angle: 0.3 },
+      { type: 'spraycan', x: 760, y: 200 },
+      { type: 'shoe', x: 180, y: 380, angle: 1.1 },
     ],
     zones: [
-      { kind: 'water', x: 660, y: 290, r: 82 },
+      { kind: 'water', x: 340, y: 300, r: 86 },
       { kind: 'electric', x: 760, y: 12, r: 18, outlet: true },
     ],
     enemies: [
       { type: 'basic', delay: 1.8 },
-      { type: 'fast', delay: 6.5 },
+      { type: 'fast', delay: 6 },
     ],
+    boss: 'hoover',
   },
 
-  // 4 — living room: fire. A candle, a sofa full of cushions, one tin of bad decisions.
+  // 4 — EMBER LOUNGE: one lit fireplace, one extinguisher, and a swarm of gnats.
+  // Everything flammable is fuel, everything fast is hard to hit, and the fire
+  // does not care which side you are on.
   {
-    id: 'room-4', name: 'THE LIVING ROOM', theme: 'living', width: 1000, height: 560, seed: 404, challenge: 'one_throw_two',
-    playerStart: { x: 150, y: 320 },
+    id: 'room-4', name: 'EMBER LOUNGE', theme: 'living', width: 1000, height: 560, seed: 404, challenge: 'one_throw_two',
+    playerStart: { x: 150, y: 400 },
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'left', pos: 130 },
-    rug: { x: 500, y: 320, w: 340, h: 200, color: '#8a6fb0' },
+    rug: { x: 500, y: 380, w: 360, h: 190, color: '#8a6fb0' },
+    walls: [
+      // two seating nooks flanking the hearth
+      { x: 250, y: 200, hw: 90, hh: 10 },
+      { x: 750, y: 200, hw: 90, hh: 10 },
+    ],
     objects: [
-      { type: 'sofa', x: 500, y: 150 },
-      { type: 'pillow', x: 465, y: 156, angle: 0.3, on: 0 },
-      { type: 'pillow', x: 540, y: 158, angle: -0.2, on: 0 },
-      { type: 'table', x: 500, y: 320 },
-      { type: 'candle', x: 500, y: 316, on: 3 },
-      { type: 'book', x: 455, y: 330, angle: 0.5, on: 3 },
-      { type: 'chair', x: 390, y: 330 },
-      { type: 'chair', x: 610, y: 330 },
+      { type: 'sofa', x: 500, y: 420 },
+      { type: 'pillow', x: 465, y: 426, angle: 0.3, on: 0 },
+      { type: 'pillow', x: 540, y: 428, angle: -0.2, on: 0 },
+      { type: 'table', x: 250, y: 320 },
+      { type: 'book', x: 230, y: 326, angle: 0.5, on: 3 },
+      { type: 'candle', x: 272, y: 318, on: 3 },
+      { type: 'chair', x: 380, y: 420 },
+      { type: 'chair', x: 620, y: 420 },
       { type: 'bookshelf', x: 240, y: 20 },
       { type: 'tv', x: 800, y: 110 },
       { type: 'vase', x: 150, y: 190 },
-      { type: 'spraycan', x: 660, y: 460 },
-      { type: 'lamp', x: 850, y: 450 },
-      { type: 'bottle', x: 200, y: 460 },
-      { type: 'extinguisher', x: 110, y: 110 },
-      { type: 'plank', x: 760, y: 490, angle: 0.7 },
-      { type: 'shoe', x: 330, y: 450, angle: 2 },
-      { type: 'fishtank', x: 860, y: 250 },
-      { type: 'hoover', x: 300, y: 240 },
-      { type: 'boomerang', x: 150, y: 420, angle: 0.4 },
+      { type: 'spraycan', x: 660, y: 480 },
+      { type: 'bottle', x: 200, y: 480 },
+      { type: 'extinguisher', x: 110, y: 280 },
+      { type: 'shoe', x: 330, y: 480, angle: 2 },
+      { type: 'boomerang', x: 850, y: 450, angle: 0.4 },
+      { type: 'ball', x: 500, y: 250 },
     ],
-    zones: [],
+    zones: [
+      // the hearth: a permanent fireplace. Mind the rug.
+      { kind: 'fire', x: 500, y: 60, r: 26 },
+    ],
     enemies: [
-      { type: 'basic', delay: 1.8 },
-      { type: 'fragile', delay: 5 },
-      { type: 'heavy', delay: 9 },
+      { type: 'gnat', delay: 1.8 },
+      { type: 'gnat', delay: 2.6 },
+      { type: 'gnat', delay: 3.4 },
+      { type: 'fragile', delay: 7.5 },
     ],
   },
 
-  // 5 — kitchen: slippery, flammable, explosive. Everything here is an ingredient.
+  // 5 — GREASE TRAP: a kitchen of islands and slicks. The Chucker debuts here and
+  // throws your own pans back at you — keep moving, keep it interrupted, and never
+  // stand still next to the flour.
   {
-    id: 'room-5', name: 'THE KITCHEN', theme: 'kitchen', width: 1000, height: 560, seed: 515, challenge: 'no_direct_hits',
+    id: 'room-5', name: 'GREASE TRAP', theme: 'kitchen', width: 1000, height: 560, seed: 515, challenge: 'no_direct_hits',
     playerStart: { x: 150, y: 320 },
     entrance: { side: 'right', pos: 320 },
     exit: { side: 'left', pos: 470 },
+    walls: [
+      // kitchen islands with a wide middle lane
+      { x: 350, y: 300, hw: 80, hh: 12 },
+      { x: 650, y: 300, hw: 80, hh: 12 },
+    ],
     objects: [
       { type: 'counter', x: 250, y: 25 },
       { type: 'stove', x: 354, y: 25 },
@@ -151,126 +192,144 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'plate', x: 480, y: 22, on: 2 },
       { type: 'plate', x: 502, y: 30, on: 2 },
       { type: 'fridge', x: 640, y: 26 },
-      { type: 'table', x: 520, y: 340 },
-      { type: 'plate', x: 490, y: 332, on: 9 },
-      { type: 'bottle', x: 548, y: 350, on: 9 },
-      { type: 'chair', x: 430, y: 340 },
-      { type: 'chair', x: 612, y: 340 },
-      { type: 'banana', x: 300, y: 300, angle: 0.7 },
+      { type: 'table', x: 500, y: 470 },
+      { type: 'plate', x: 478, y: 462, on: 9 },
+      { type: 'bottle', x: 528, y: 478, on: 9 },
+      { type: 'chair', x: 410, y: 470 },
+      { type: 'chair', x: 590, y: 470 },
+      { type: 'banana', x: 500, y: 300, angle: 0.7 },
       { type: 'oilbottle', x: 770, y: 200 },
       { type: 'flour', x: 190, y: 450 },
       { type: 'trashcan', x: 870, y: 480 },
       { type: 'extinguisher', x: 110, y: 200 },
-      { type: 'shoe', x: 340, y: 470, angle: 1.3 },
       { type: 'book', x: 700, y: 470, angle: 0.3 },
       { type: 'cooker', x: 372, y: 27, on: 1 },
       { type: 'mousetrap', x: 840, y: 330, angle: 0.2 },
       { type: 'broom', x: 130, y: 110, angle: 1.3 },
+      { type: 'spraycan', x: 620, y: 180 },
     ],
-    zones: [],
+    zones: [
+      { kind: 'oil', x: 300, y: 420, r: 55 },
+      { kind: 'oil', x: 700, y: 420, r: 55 },
+    ],
     enemies: [
-      { type: 'basic', delay: 1.8 },
-      { type: 'kaboom', delay: 5 },
-      { type: 'helmet', delay: 8.5 },
+      { type: 'hurler', delay: 2.2 },
+      { type: 'kaboom', delay: 6 },
+      { type: 'helmet', delay: 9.5 },
     ],
   },
 
-  // 6 — open plan: everything at once. Enough ingredients for a four-step chain in several ways.
+  // 6 — SHOWROOM: the display furniture is the encounter. The Sofa King wakes up
+  // at the back of the shop with a Nested Box and an Express for company. Burn it.
   {
-    id: 'room-6', name: 'OPEN PLAN', theme: 'office', width: 1040, height: 580, seed: 505, challenge: 'chain_4',
+    id: 'room-6', name: 'SHOWROOM', theme: 'living', width: 1040, height: 580, seed: 505, challenge: 'chain_4',
     playerStart: { x: 150, y: 300 },
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'top', pos: 380 },
+    rug: { x: 520, y: 300, w: 420, h: 240, color: '#8a6fb0' },
+    walls: [
+      // display plinths splitting the showroom into aisles
+      { x: 400, y: 150, hw: 90, hh: 12 },
+      { x: 660, y: 430, hw: 90, hh: 12 },
+    ],
     objects: [
-      { type: 'table', x: 250, y: 140 },
-      { type: 'computer', x: 235, y: 134, on: 0 },
-      { type: 'bottle', x: 292, y: 150, on: 0 },
-      { type: 'lamp', x: 470, y: 232 },
-      { type: 'lamp', x: 890, y: 380 },
-      { type: 'fan', x: 150, y: 450, angle: -0.15 },
-      { type: 'shoe', x: 215, y: 442, angle: 0.3 },
-      { type: 'chair', x: 330, y: 320 },
-      { type: 'chair', x: 640, y: 470, angle: 0.4 },
-      { type: 'bottle', x: 380, y: 480 },
-      { type: 'spraycan', x: 610, y: 150 },
-      { type: 'candle', x: 700, y: 480 },
-      { type: 'bookshelf', x: 560, y: 20 },
-      { type: 'trashcan', x: 900, y: 500 },
-      { type: 'flowerpot', x: 110, y: 290 },
+      { type: 'sofa', x: 520, y: 120 },
+      { type: 'pillow', x: 488, y: 126, angle: 0.3, on: 0 },
+      { type: 'pillow', x: 552, y: 128, angle: -0.2, on: 0 },
+      { type: 'table', x: 250, y: 420 },
+      { type: 'candle', x: 250, y: 416, on: 3 },
+      { type: 'book', x: 290, y: 428, on: 3 },
+      { type: 'lamp', x: 880, y: 150 },
+      { type: 'fan', x: 150, y: 480, angle: -0.15 },
+      { type: 'shoe', x: 215, y: 500, angle: 0.3 },
+      { type: 'chair', x: 400, y: 320 },
+      { type: 'chair', x: 660, y: 250, angle: 0.4 },
+      { type: 'bottle', x: 380, y: 500 },
+      { type: 'spraycan', x: 760, y: 150 },
+      { type: 'bookshelf', x: 880, y: 20 },
+      { type: 'trashcan', x: 920, y: 500 },
+      { type: 'flowerpot', x: 110, y: 200 },
       { type: 'extinguisher', x: 960, y: 90 },
-      { type: 'book', x: 420, y: 400, angle: 0.9 },
-      { type: 'alarmclock', x: 760, y: 430 },
-      { type: 'watercooler', x: 430, y: 80 },
-      { type: 'officechair', x: 250, y: 230 },
-      { type: 'magnet', x: 300, y: 520 },
-      { type: 'teeth', x: 480, y: 500 },
+      { type: 'alarmclock', x: 760, y: 470 },
+      { type: 'watercooler', x: 200, y: 120 },
+      { type: 'officechair', x: 520, y: 480 },
+      { type: 'magnet', x: 320, y: 180 },
+      { type: 'teeth', x: 600, y: 520 },
+      { type: 'oilbottle', x: 830, y: 330 },
     ],
     zones: [
-      { kind: 'water', x: 560, y: 300, r: 74 },
-      { kind: 'water', x: 790, y: 150, r: 52 },
+      { kind: 'water', x: 790, y: 480, r: 52 },
       { kind: 'electric', x: 790, y: 12, r: 18, outlet: true },
     ],
     enemies: [
       { type: 'basic', delay: 1.8 },
-      { type: 'fast', delay: 5 },
+      { type: 'fast', delay: 5.5 },
       { type: 'nested', delay: 8.5 },
-      { type: 'shield', delay: 12.5 },
     ],
+    boss: 'sofa',
   },
 
-  // 7 — garage: heavy, rolling and flammable. There is already oil on the floor.
+  // 7 — THE COMPACTOR: a warehouse with a moving wall. Crates lane the floor, oil
+  // pools where the forklift bled out, and the Bulwark walks the lanes daring you
+  // to throw things at its front. Don't. Burn it, shock it, or go around.
   {
-    id: 'room-7', name: 'THE GARAGE', theme: 'garage', width: 1040, height: 580, seed: 707, challenge: 'untouched',
+    id: 'room-7', name: 'THE COMPACTOR', theme: 'garage', width: 1040, height: 580, seed: 707, challenge: 'untouched',
     playerStart: { x: 150, y: 300 },
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'left', pos: 480 },
+    walls: [
+      // the compactor: slides east-west forever, never sealing the room
+      { x: 700, y: 290, hw: 14, hh: 170, slide: { axis: 'x', range: 60, period: 9 } },
+    ],
     objects: [
-      { type: 'table', x: 250, y: 90 },
-      { type: 'toolbox', x: 232, y: 84, on: 0 },
-      { type: 'spraycan', x: 290, y: 98, on: 0 },
-      { type: 'bookshelf', x: 640, y: 20 },
-      { type: 'tire', x: 420, y: 450 },
-      { type: 'tire', x: 462, y: 492 },
-      { type: 'skateboard', x: 600, y: 180, angle: 0.2 },
-      { type: 'jerrycan', x: 850, y: 140 },
-      { type: 'paintcan', x: 700, y: 480 },
-      { type: 'paintcan', x: 150, y: 480 },
+      { type: 'bookshelf', x: 320, y: 60 },
+      { type: 'bookshelf', x: 320, y: 520 },
+      { type: 'tire', x: 480, y: 150 },
+      { type: 'tire', x: 522, y: 192 },
+      { type: 'skateboard', x: 420, y: 380, angle: 0.2 },
+      { type: 'jerrycan', x: 900, y: 140 },
+      { type: 'paintcan', x: 480, y: 480 },
+      { type: 'paintcan', x: 200, y: 480 },
       { type: 'wrench', x: 380, y: 200, angle: 0.8 },
-      { type: 'wrench', x: 300, y: 330, angle: 2.1 },
       { type: 'extinguisher', x: 960, y: 500 },
       { type: 'trashcan', x: 920, y: 90 },
       { type: 'lamp', x: 470, y: 250 },
-      { type: 'plank', x: 760, y: 420, angle: 0.4 },
-      { type: 'plank', x: 200, y: 200, angle: 1.2 },
+      { type: 'plank', x: 250, y: 200, angle: 1.2 },
       { type: 'ball', x: 560, y: 520 },
-      { type: 'shoe', x: 330, y: 520, angle: 0.6 },
-      { type: 'chair', x: 150, y: 400 },
+      { type: 'shoe', x: 330, y: 420, angle: 0.6 },
+      { type: 'chair', x: 150, y: 420 },
       { type: 'rake', x: 900, y: 300 },
-      { type: 'battery', x: 740, y: 190 },
-      { type: 'firework', x: 250, y: 430, angle: -0.3 },
-      { type: 'bowlingball', x: 340, y: 430 },
+      { type: 'battery', x: 850, y: 450 },
+      { type: 'firework', x: 250, y: 350, angle: -0.3 },
+      { type: 'bowlingball', x: 340, y: 300 },
       { type: 'magnet', x: 520, y: 110 },
+      { type: 'book', x: 600, y: 420, angle: 0.5 },
     ],
     zones: [
-      { kind: 'oil', x: 610, y: 320, r: 60 },
-      { kind: 'water', x: 800, y: 300, r: 56 },
+      { kind: 'oil', x: 450, y: 320, r: 60 },
+      { kind: 'water', x: 880, y: 480, r: 50 },
       { kind: 'electric', x: 900, y: 12, r: 18, outlet: true },
     ],
     enemies: [
-      { type: 'shield', delay: 1.8 },
-      { type: 'trolley', delay: 4.5 },
-      { type: 'heavy', delay: 8 },
-      { type: 'electric', delay: 12 },
+      { type: 'bulwark', delay: 2 },
+      { type: 'trolley', delay: 6 },
+      { type: 'shield', delay: 10 },
     ],
   },
 
-  // 8 — break room: every kind of mover, and a table worth shoving.
+  // 8 — PENTHOUSE: the Landlord himself, phased and furious, with the whole crew.
+  // Everything you have learned, all at once, on expensive carpet.
   {
-    id: 'room-8', name: 'BREAK ROOM', theme: 'kitchen', width: 1040, height: 580, seed: 606, challenge: 'kill_with_book',
+    id: 'room-8', name: 'PENTHOUSE', theme: 'living', width: 1040, height: 580, seed: 606, challenge: 'kill_with_book',
     playerStart: { x: 150, y: 290 },
     entrance: { side: 'right', pos: 290 },
     exit: { side: 'left', pos: 460 },
-    rug: { x: 520, y: 300, w: 300, h: 200, color: '#6fa37a' },
+    rug: { x: 520, y: 300, w: 420, h: 240, color: '#6fa37a' },
+    walls: [
+      // foyer fins by the door: drama on entry, never in the way
+      { x: 880, y: 120, hw: 10, hh: 80 },
+      { x: 880, y: 460, hw: 10, hh: 80 },
+    ],
     objects: [
       { type: 'table', x: 520, y: 300 },
       { type: 'bottle', x: 490, y: 290, on: 0 },
@@ -287,9 +346,9 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'book', x: 285, y: 180, angle: -0.6 },
       { type: 'ball', x: 200, y: 460 },
       { type: 'lamp', x: 330, y: 480 },
-      { type: 'computer', x: 880, y: 500, angle: 0.3 },
+      { type: 'computer', x: 880, y: 300, angle: 0.3 },
       { type: 'trashcan', x: 140, y: 130 },
-      { type: 'fan', x: 900, y: 140, angle: 2.4 },
+      { type: 'fan', x: 900, y: 200, angle: 2.4 },
       { type: 'spraycan', x: 700, y: 480 },
       { type: 'banana', x: 640, y: 180 },
       { type: 'shoe', x: 440, y: 150, angle: 1.4 },
@@ -297,14 +356,15 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'teeth', x: 660, y: 430 },
       { type: 'boomerang', x: 200, y: 250, angle: 0.7 },
       { type: 'bucket', x: 900, y: 420 },
+      { type: 'candle', x: 560, y: 288, on: 0 },
+      { type: 'extinguisher', x: 120, y: 480 },
     ],
     zones: [{ kind: 'water', x: 780, y: 320, r: 62 }],
     enemies: [
       { type: 'fragile', delay: 1.8 },
-      { type: 'kaboom', delay: 4.5 },
-      { type: 'nested', delay: 8 },
-      { type: 'electric', delay: 12 },
-      { type: 'trolley', delay: 16 },
+      { type: 'kaboom', delay: 5 },
+      { type: 'fast', delay: 8.5 },
     ],
+    boss: 'boss',
   },
 ];

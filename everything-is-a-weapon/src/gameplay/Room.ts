@@ -1,0 +1,97 @@
+import type { EnemyTypeId } from '../entities/EnemyTypes';
+import type { ZoneKind } from '../hazards/Zone';
+
+export type Side = 'left' | 'right' | 'top' | 'bottom';
+
+/** Which part of the flat this is: decides the floor, the walls and what hangs on them. */
+export type RoomTheme = 'bedroom' | 'office' | 'bathroom' | 'living' | 'kitchen' | 'garage';
+
+export interface DoorSpec {
+  readonly side: Side;
+  /** Position along that wall, in room units from its left/top end. */
+  readonly pos: number;
+}
+
+export interface RoomObjectSpec {
+  readonly type: string;
+  readonly x: number;
+  readonly y: number;
+  readonly angle?: number;
+  /** Index (in this room's object list) of the surface this object sits on. */
+  readonly on?: number;
+}
+
+export interface RoomZoneSpec {
+  readonly kind: ZoneKind;
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+  /** A wall socket: an electricity source that only matters once water reaches it. */
+  readonly outlet?: boolean;
+}
+
+export interface RoomEnemySpec {
+  readonly type: EnemyTypeId;
+  /** Seconds after the room starts before this intruder walks in. */
+  readonly delay: number;
+}
+
+export interface RugSpec {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+  readonly color: string;
+}
+
+/** A partition wall inside the room: a static collider drawn like the outer walls. */
+export interface WallSpec {
+  readonly x: number;
+  readonly y: number;
+  /** Half-extents of the wall block, in room units. */
+  readonly hw: number;
+  readonly hh: number;
+  /**
+   * Sliding machinery (the warehouse compactor): the wall oscillates along one
+   * axis by `range` units with the given period in seconds. Gaps at both ends
+   * must stay passable at every point of the travel — the validator enforces it.
+   */
+  readonly slide?: { readonly axis: 'x' | 'y'; readonly range: number; readonly period: number };
+}
+
+/** A room is pure data. Coordinates are in interior space: (0,0) is the top-left floor corner. */
+export interface RoomDefinition {
+  readonly id: string;
+  readonly name: string;
+  readonly theme?: RoomTheme;
+  readonly width: number;
+  readonly height: number;
+  readonly objects: readonly RoomObjectSpec[];
+  readonly zones: readonly RoomZoneSpec[];
+  readonly enemies: readonly RoomEnemySpec[];
+  /** Optional boss for this room (replaces the every-third-room Landlord here). */
+  readonly boss?: EnemyTypeId;
+  /** Interior partition walls. Omit for a plain open arena. */
+  readonly walls?: readonly WallSpec[];
+  readonly entrance: DoorSpec;
+  readonly exit: DoorSpec;
+  readonly playerStart: { readonly x: number; readonly y: number };
+  readonly rug?: RugSpec;
+  readonly challenge?: string;
+  readonly tutorial?: boolean;
+  /** Seed for gameplay randomness in this room, so it can be replayed exactly. */
+  readonly seed: number;
+}
+
+export function doorPosition(room: RoomDefinition, door: DoorSpec, inset: number): { x: number; y: number; dirX: number; dirY: number } {
+  switch (door.side) {
+    case 'left':
+      return { x: inset, y: door.pos, dirX: 1, dirY: 0 };
+    case 'right':
+      return { x: room.width - inset, y: door.pos, dirX: -1, dirY: 0 };
+    case 'top':
+      return { x: door.pos, y: inset, dirX: 0, dirY: 1 };
+    case 'bottom':
+      return { x: door.pos, y: room.height - inset, dirX: 0, dirY: -1 };
+  }
+}

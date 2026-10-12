@@ -2,9 +2,10 @@ import type { Game } from '../core/Game';
 import { HEROES, type HeroId } from '../core/Hero';
 import { createPet } from '../entities/Pets';
 import { Player } from '../entities/Player';
+import { HANDCRAFTED_ROOMS } from '../gameplay/RoomDefinitions';
 import { drawPet } from '../rendering/PetArt';
 import { drawPlayer } from '../rendering/PlayerArt';
-import { button, el, ransom } from './dom';
+import { button, el, formatScore, ransom } from './dom';
 
 export interface MenuActions {
   play(roomIndex: number): void;
@@ -82,19 +83,48 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     button('SETTINGS', '', actions.settings),
   );
 
-  // every open room, pinned to the wall beside the buttons; the furthest is flagged
+  // The evidence wall: every handmade room pinned up in order — cleared rooms show
+  // their best damage bill, open rooms show their name, locked rooms stay masked.
   const wall = el('div', 'room-wall board');
-  const total = resumeRoom + 1;
-  wall.append(el('div', 'tape-label', total === 1 ? '1 ROOM OPEN' : `${total} ROOMS OPEN`));
+  const total = HANDCRAFTED_ROOMS.length;
+  const open = Math.min(resumeRoom + 1, total);
+  wall.append(el('div', 'tape-label', open >= total ? 'ALL ROOMS OPEN' : `${open} OF ${total} ROOMS OPEN`));
   const grid = el('div', 'rack-grid');
-  for (let i = 0; i < total; i++) {
-    const slot = el('div', i === resumeRoom ? 'rack-slot latest' : 'rack-slot');
+  HANDCRAFTED_ROOMS.forEach((def, i) => {
+    const locked = i > resumeRoom;
+    const best = save.roomBests[def.id];
+    const slot = el('div', `rack-slot${locked ? ' locked' : ''}${i === resumeRoom ? ' latest' : ''}${best ? ' cleared' : ''}`);
     const pin = el('span', 'pin');
     pin.style.setProperty('--pin', PIN_COLORS[i % PIN_COLORS.length]!);
-    const tag = button(String(i + 1), 'key-tag', () => actions.play(i));
-    tag.setAttribute('aria-label', i === resumeRoom ? `Room ${i + 1}, your furthest` : `Room ${i + 1}`);
-    slot.append(pin, tag);
-    if (i === resumeRoom && total > 1) slot.append(el('span', 'rack-flag', 'furthest'));
+    slot.append(pin);
+    if (locked) {
+      const mask = el('span', 'key-tag locked', '?');
+      mask.setAttribute('aria-label', `Room ${i + 1}: clear room ${i} to unlock`);
+      slot.append(mask, el('span', 'rack-name', '???'));
+    } else {
+      const tag = button(String(i + 1), 'key-tag', () => actions.play(i));
+      tag.setAttribute('aria-label', best
+        ? `Room ${i + 1}: ${def.name}, cleared, best ${best.score}`
+        : i === resumeRoom ? `Room ${i + 1}: ${def.name}, your furthest` : `Room ${i + 1}: ${def.name}`);
+      slot.append(tag, el('span', 'rack-name', def.name.toLowerCase()));
+      if (best) {
+        slot.append(el('span', 'rack-tick', '✓'));
+        slot.append(el('span', 'rack-best', `${formatScore(best.score)} · x${best.chain}`));
+      } else if (def.boss) {
+        slot.append(el('span', 'rack-boss', 'BOSS'));
+      }
+    }
+    if (i === resumeRoom && total > 1 && !locked) slot.append(el('span', 'rack-flag', 'furthest'));
+    grid.append(slot);
+  });
+  if (resumeRoom >= total) {
+    // Past the handmade tour: the generated depths, endless and meaner.
+    const slot = el('div', 'rack-slot latest endless');
+    const pin = el('span', 'pin');
+    pin.style.setProperty('--pin', PIN_COLORS[total % PIN_COLORS.length]!);
+    const tag = button('∞', 'key-tag', () => actions.play(resumeRoom));
+    tag.setAttribute('aria-label', `Endless depths, room ${resumeRoom + 1}`);
+    slot.append(pin, tag, el('span', 'rack-name', 'the depths'), el('span', 'rack-flag', 'furthest'));
     grid.append(slot);
   }
   wall.append(grid);

@@ -160,8 +160,8 @@ export class ScoreSystem {
     const chain = cause.chain;
     stats.kills++;
     if (enemy.type.id === 'heavy') stats.heavyKills++;
-    // Every kill salvages scrap for the ability shop; the Landlord pays out big.
-    stats.scrap += enemy.type.id === 'boss' ? 150 : 12 + Math.round(enemy.type.scoreBonus / 10);
+    // Every kill salvages scrap for the ability shop; bosses pay out big.
+    stats.scrap += enemy.type.boss ? 150 : 12 + Math.round(enemy.type.scoreBonus / 10);
 
     let points = 100 + enemy.type.scoreBonus;
     let color = '#fff3d6';

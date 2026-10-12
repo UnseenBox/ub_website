@@ -150,6 +150,12 @@ export const DISCOVERIES: readonly DiscoveryDefinition[] = [
   { id: 'chain_5', title: 'HOW DID THAT WORK?!', recipe: ['A', 'B', 'C', 'D', 'E', 'INTRUDER'], group: 'style' },
   { id: 'hands_off', title: 'HANDS OFF', recipe: ['THE ROOM', 'DEFEATED INTRUDER', 'YOU DID NOTHING'], group: 'style' },
   { id: 'boss_evicted', title: 'EVICTION NOTICE', recipe: ['THE LANDLORD', 'EVERYTHING YOU OWN', 'DEFEATED'], group: 'style' },
+  { id: 'caught_bug', title: 'CAUGHT BUG', recipe: ['GNAT', 'SWATTED'], group: 'impact' },
+  { id: 'incoming', title: 'INCOMING', recipe: ['CHUCKER', 'THROWS BACK', 'DUCK'], group: 'impact' },
+  { id: 'down_to_earth', title: 'DOWN TO EARTH', recipe: ['FLOOR SLAM', 'YOU', 'FLAT'], group: 'impact' },
+  { id: 'taste_test', title: 'TASTE TEST', recipe: ['SPRAY CAN', 'THE HOOVER', 'INDIGESTION'], group: 'gadget' },
+  { id: 'unplugged', title: 'UNPLUGGED', recipe: ['THE HOOVER', 'EVERYTHING YOU FED IT', 'DEFEATED'], group: 'style' },
+  { id: 'reupholstered', title: 'REUPHOLSTERED', recipe: ['THE SOFA KING', 'FIRE AND FURNITURE', 'DEFEATED'], group: 'style' },
   { id: 'big_red_button', title: 'BIG RED BUTTON', recipe: ['SCRAP', 'AN ABILITY', 'KABOOM ON DEMAND'], group: 'style' },
   { id: 'deep_freeze', title: 'DEEP FREEZE', recipe: ['SCRAP', 'AN ABILITY', 'EVERYONE CHILLS OUT'], group: 'style' },
 ];
