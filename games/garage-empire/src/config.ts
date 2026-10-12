@@ -215,14 +215,14 @@ export const SAVE_KEY = 'garage-empire:save:v1'
 /** Ordered onboarding goals: icon + micro-label, never a sentence. */
 export function objectives(): { id: string; icon: string; text: string }[] {
   return [
-    { id: 'washbay', icon: '🪧', text: 'Buy bay' },
-    { id: 'wash1', icon: '🧽', text: 'First wash' },
-    { id: 'earn500', icon: '💰', text: '$500' },
-    { id: 'hire1', icon: '🧑‍🔧', text: 'Hire' },
-    { id: 'lift', icon: '🏗️', text: 'Lift' },
-    { id: 'flipbuy', icon: '🏷️', text: 'Buy car' },
-    { id: 'flipsell', icon: '💰', text: 'Sell car' },
-    { id: 'showroom', icon: '🏆', text: 'Showroom' },
-    { id: 'empire', icon: '👑', text: '$12k' },
+    { id: 'washbay', icon: '🪧', text: 'Buy Wash Bay' },
+    { id: 'wash1', icon: '🧽', text: 'Finish First Wash' },
+    { id: 'earn500', icon: '💰', text: 'Earn $500' },
+    { id: 'hire1', icon: '🧑‍🔧', text: 'Hire Staff' },
+    { id: 'lift', icon: '🏗️', text: 'Buy Lift' },
+    { id: 'flipbuy', icon: '🏷️', text: 'Buy Flip Car' },
+    { id: 'flipsell', icon: '💰', text: 'Sell Flip Car' },
+    { id: 'showroom', icon: '🏆', text: 'Build Showroom' },
+    { id: 'empire', icon: '👑', text: 'Earn $12k' },
   ]
 }
