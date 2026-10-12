@@ -787,6 +787,13 @@ body.cinema .hud-hint {
   opacity: 0;
 }
 
+/* First minute: the world hint teaches the controls, so the control strip
+   stays out of the way until the first solid hit lands. */
+body.tutorial .hud-hint {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ───────────── screens ───────────── */
 
 #screens {

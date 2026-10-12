@@ -8,19 +8,19 @@ import { RAGE_CHARGE, RAGE_SPEED, RAGE_THROW, absorbHit, consumePickup } from '.
 import type { PhysicsObject } from './PhysicsObject';
 
 export const PLAYER_RADIUS = 15;
-const MOVE_SPEED = 235;
+const MOVE_SPEED = 252;
 const DASH_SPEED = 640;
 const DASH_TIME = 0.16;
 const DASH_COOLDOWN = 0.65;
-const GRAB_RANGE = 112;
-const AUTO_GRAB_RANGE = 68;
-const LOSE_GRIP_DISTANCE = 150;
-export const FULL_CHARGE_SECONDS = 0.7;
-const THROW_SPEED_MIN = 500;
-const THROW_SPEED_MAX = 1380;
+const GRAB_RANGE = 148;
+const AUTO_GRAB_RANGE = 94;
+const LOSE_GRIP_DISTANCE = 195;
+export const FULL_CHARGE_SECONDS = 0.5;
+const THROW_SPEED_MIN = 820;
+const THROW_SPEED_MAX = 1520;
 /** Mass at which throw speed is halved. */
-const THROW_MASS_HALF = 13;
-const SHOVE_IMPULSE = 13000;
+const THROW_MASS_HALF = 16;
+const SHOVE_IMPULSE = 17500;
 const CARRY_HEIGHT = 14;
 
 export class Player {
@@ -133,8 +133,8 @@ export class Player {
     let speed = MOVE_SPEED;
     if (this.rage > 0) speed *= RAGE_SPEED;
     const held = this.held;
-    if (held) speed *= held.def.throwable ? 1 / (1 + held.body.mass / 45) : 0.45;
-    if (this.charging) speed *= 0.75;
+    if (held) speed *= held.def.throwable ? 1 / (1 + held.body.mass / 55) : 0.5;
+    if (this.charging) speed *= 0.85;
     if (this.slowTimer > 0) speed *= this.slowFactor;
 
     if (input.dodgePressed && this.dashCooldown <= 0) {
@@ -255,10 +255,10 @@ export class Player {
         continue;
       }
       // Fallback: something roughly in front of you, even if the cursor is not exactly on it.
-      const reach = PLAYER_RADIUS + ob.boundR + 24;
+      const reach = PLAYER_RADIUS + ob.boundR + 44;
       if (toPlayer < reach && toPlayer > 0.01) {
         const facing = ((ob.x - b.x) * this.aimX + (ob.y - b.y) * this.aimY) / toPlayer;
-        if (facing > 0.35) {
+        if (facing > 0.1) {
           const score = 1000 + toPlayer;
           if (score < bestScore) {
             bestScore = score;
@@ -361,8 +361,8 @@ export class Player {
       ob.vx = this.aimX * speed + b.vx * 0.5;
       ob.vy = this.aimY * speed + b.vy * 0.5;
       ob.z = Math.max(ob.z, 10);
-      ob.vz = 90 + 190 * charge;
-      ob.w = (game.rng.sign() * (5 + 12 * charge)) / (1 + ob.mass / 6);
+      ob.vz = 110 + 210 * charge;
+      ob.w = (game.rng.sign() * (7 + 14 * charge)) / (1 + ob.mass / 7);
       ob.ignoreId = b.id;
       ob.ignoreTimer = 0.25;
       b.vx -= this.aimX * 30 * charge;
