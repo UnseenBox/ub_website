@@ -80,6 +80,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'basic', delay: 1.6 },
       { type: 'fast', delay: 6 },
     ],
+    boss: 'chairman',
   },
 
   // 3 — FLOODED LAUNDRY: a partition splits the wet room; two gaps, one big puddle,
@@ -121,7 +122,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'basic', delay: 1.8 },
       { type: 'fast', delay: 6 },
     ],
-    boss: 'hoover',
+    boss: 'flusher',
   },
 
   // 4 — EMBER LOUNGE: one lit fireplace, one extinguisher, and a swarm of gnats.
@@ -167,6 +168,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'gnat', delay: 3.4 },
       { type: 'fragile', delay: 7.5 },
     ],
+    boss: 'kraken',
   },
 
   // 5 — GREASE TRAP: a kitchen of islands and slicks. The Chucker debuts here and
@@ -217,6 +219,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'kaboom', delay: 6 },
       { type: 'helmet', delay: 9.5 },
     ],
+    boss: 'fridgezilla',
   },
 
   // 6 — SHOWROOM: the display furniture is the encounter. The Sofa King wakes up
@@ -266,7 +269,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'fast', delay: 5.5 },
       { type: 'nested', delay: 8.5 },
     ],
-    boss: 'sofa',
+    boss: 'piano',
   },
 
   // 7 — THE COMPACTOR: a warehouse with a moving wall. Crates lane the floor, oil
@@ -315,6 +318,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'trolley', delay: 6 },
       { type: 'shield', delay: 10 },
     ],
+    boss: 'mower',
   },
 
   // 8 — PENTHOUSE: the Landlord himself, phased and furious, with the whole crew.
@@ -365,6 +369,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'kaboom', delay: 5 },
       { type: 'fast', delay: 8.5 },
     ],
-    boss: 'boss',
+    boss: 'mom',
   },
 ];

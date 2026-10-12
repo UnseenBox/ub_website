@@ -48,10 +48,16 @@ export interface RoomRuntime {
  * Every third room ends with the Landlord himself, a while after the regular
  * crew has arrived. Returns null for other rooms and the daily challenge.
  */
+/** The generated depths rotate through the boss roster every third room. */
+const DEPTH_BOSSES: ReadonlyArray<RoomEnemySpec['type']> = [
+  'chairman', 'flusher', 'kraken', 'fridgezilla', 'piano', 'mower',
+];
+
 export function bossSpecFor(index: number, daily: boolean, def: RoomDefinition): RoomEnemySpec | null {
   if (daily || (index + 1) % 3 !== 0) return null;
   const latest = def.enemies.reduce((max, spec) => Math.max(max, spec.delay), 0);
-  return { type: 'boss', delay: latest + 5 };
+  const type = DEPTH_BOSSES[Math.floor(index / 3) % DEPTH_BOSSES.length]!;
+  return { type, delay: latest + 5 };
 }
 
 /** Resolves room indices to definitions and builds the physical room from data. */
