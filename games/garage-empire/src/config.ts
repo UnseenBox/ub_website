@@ -212,6 +212,13 @@ export const TIP_CHANCE = 0.35
 export const START_MONEY = 150
 export const SAVE_KEY = 'garage-empire:save:v1'
 
+/** save.tutorial steps before the full economy / spawn loop unlocks. */
+export const OPENING_DONE = 4
+
+export function openingComplete(tutorial: number): boolean {
+  return tutorial >= OPENING_DONE
+}
+
 /** Ordered onboarding goals: icon + micro-label, never a sentence. */
 export function objectives(): { id: string; icon: string; text: string }[] {
   return [

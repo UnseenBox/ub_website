@@ -152,6 +152,8 @@ export class Renderer {
   private groundKey = ''
   private stationGroups = new Map<StationId, THREE.Group>()
   private builtProps: THREE.Group | null = null
+  private sceneryFull: THREE.Group | null = null
+  private sceneryRoad: THREE.Group | null = null
   private cars = new Map<number, { rig: CarRig; paintSeen: number; flatSeen: number; lastX: number; lastZ: number }>()
   private paintByCar = new Map<number, number>()
   private playerRig: CharRig | null = null
@@ -324,8 +326,9 @@ export class Renderer {
     this.camera.lookAt(this.cam.x, 0, this.cam.y)
 
     this.syncGround(game)
+    this.syncScenery(game)
     this.syncStations(game, time)
-    if (this.hireBoardGroup) this.hireBoardGroup.visible = game.showPads()
+    if (this.hireBoardGroup) this.hireBoardGroup.visible = game.openingDone()
     this.syncCars(game, time, dt)
     this.syncActors(game, time, dt)
     this.syncGuide(game, time)
@@ -338,7 +341,7 @@ export class Renderer {
   // ---------- ground ----------
 
   private groundSig(game: Game): string {
-    return game.save.unlocks.join(',')
+    return `${game.worldTier()}|${game.save.unlocks.join(',')}`
   }
 
   private syncGround(game: Game): void {
@@ -406,10 +409,15 @@ export class Renderer {
   }
 
   private buildStatic(): void {
-    const root = new THREE.Group()
-    this.scene.add(root)
-    this.buildGarage(root)
-    this.buildArch(root)
+    this.sceneryFull = new THREE.Group()
+    this.sceneryRoad = new THREE.Group()
+    this.scene.add(this.sceneryFull)
+    this.scene.add(this.sceneryRoad)
+    this.buildGarage(this.sceneryFull)
+    this.buildDecor(this.sceneryFull)
+    this.mergeStatic(this.sceneryFull)
+    this.buildArch(this.sceneryRoad)
+    this.mergeStatic(this.sceneryRoad)
     this.hireBoardGroup = new THREE.Group()
     this.scene.add(this.hireBoardGroup)
     this.buildHireBoard(this.hireBoardGroup)
@@ -422,8 +430,12 @@ export class Renderer {
       this.stationGroups.set(id, g)
       this.scene.add(g)
     }
-    this.buildDecor(root)
-    this.mergeStatic(root)
+  }
+
+  private syncScenery(game: Game): void {
+    const tier = game.worldTier()
+    if (this.sceneryFull) this.sceneryFull.visible = tier >= 2
+    if (this.sceneryRoad) this.sceneryRoad.visible = tier >= 1
   }
 
   private buildGarage(root: THREE.Group): void {
@@ -1354,6 +1366,7 @@ export class Renderer {
 function paintGround(canvas: HTMLCanvasElement, game: Game): void {
   const g = canvas.getContext('2d')
   if (!g) return
+  const tier = game.worldTier()
   const S = canvas.width / MAP_W
   const X = (x: number) => x * S
   const Y = (y: number) => y * S
@@ -1363,13 +1376,25 @@ function paintGround(canvas: HTMLCanvasElement, game: Game): void {
   grad.addColorStop(1, '#69ad57')
   g.fillStyle = grad
   g.fillRect(0, 0, canvas.width, canvas.height)
-  // concrete yard (west)
-  for (let x = 1; x < 29; x++) {
-    for (let y = 1; y < 19; y++) {
-      g.fillStyle = (x + y) % 2 === 0 ? '#d8d1c2' : '#d1c9b8'
-      g.fillRect(X(x), Y(y), S + 1, S + 1)
+  const slab = (x0: number, y0: number, x1: number, y1: number) => {
+    for (let x = x0; x < x1; x++) {
+      for (let y = y0; y < y1; y++) {
+        g.fillStyle = (x + y) % 2 === 0 ? '#d8d1c2' : '#d1c9b8'
+        g.fillRect(X(x), Y(y), S + 1, S + 1)
+      }
     }
   }
+  if (tier === 0) {
+    slab(10, 2, 16, 12)
+    g.strokeStyle = 'rgba(56,189,248,0.45)'
+    g.lineWidth = 3
+    g.setLineDash([10, 8])
+    g.strokeRect(X(10.8), Y(2.2), 2.8 * S, 3.2 * S)
+    g.setLineDash([])
+    return
+  }
+  // concrete yard (west)
+  slab(1, 1, 29, 19)
   g.strokeStyle = 'rgba(120,110,95,0.35)'
   g.lineWidth = 1.5
   for (let x = 2; x < 29; x += 4) {
@@ -1384,10 +1409,12 @@ function paintGround(canvas: HTMLCanvasElement, game: Game): void {
     g.fillRect(X(x), Y(y), w * S, h * S)
   }
   tint(10.6, 1.6, 8.6, 4.2, 'rgba(56,189,248,0.16)')
-  tint(2.6, 7.6, 20.6, 4.4, 'rgba(234,88,12,0.10)')
-  if (game.hasUnlock('usedlot')) tint(23.6, 1.6, 5.4, 6.2, 'rgba(190,165,120,0.5)')
-  tint(23.6, 8.6, 5, 3.6, 'rgba(167,139,250,0.12)')
-  if (game.hasUnlock('showroom')) tint(23.2, 13.2, 6, 4.4, 'rgba(248,250,252,0.5)')
+  if (tier >= 2) tint(2.6, 7.6, 20.6, 4.4, 'rgba(234,88,12,0.10)')
+  if (tier >= 2) {
+    if (game.hasUnlock('usedlot')) tint(23.6, 1.6, 5.4, 6.2, 'rgba(190,165,120,0.5)')
+    tint(23.6, 8.6, 5, 3.6, 'rgba(167,139,250,0.12)')
+    if (game.hasUnlock('showroom')) tint(23.2, 13.2, 6, 4.4, 'rgba(248,250,252,0.5)')
+  }
   // curb + road
   g.fillStyle = '#e8e2d4'
   g.fillRect(0, Y(18.55), canvas.width, 0.45 * S)
@@ -1425,41 +1452,43 @@ function paintGround(canvas: HTMLCanvasElement, game: Game): void {
     g.fill()
   }
   // parking slots + wheel stops
-  const slots = game.hasUnlock('parking') ? [...PARKING_BASE, ...PARKING_EXTRA] : PARKING_BASE
-  g.strokeStyle = 'rgba(255,255,255,0.7)'
-  g.lineWidth = 2
-  for (const p of slots) {
-    g.beginPath()
-    g.ellipse(X(p.x), Y(p.y), S * 1.0, S * 0.52, 0, 0, Math.PI * 2)
-    g.stroke()
-    g.fillStyle = '#9aa0ab'
-    for (const ox of [-0.55, 0.55]) g.fillRect(X(p.x + ox) - S * 0.16, Y(p.y - 0.75) - 3, S * 0.32, 6)
-  }
-  // drains + oil stains
-  g.fillStyle = '#3c434f'
-  for (const [gx, gy] of [[9.2, 6.4], [14.8, 12.6]] as const) {
-    g.save()
-    g.translate(X(gx), Y(gy))
-    g.rotate(0.46)
-    g.fillRect(-10, -5, 20, 10)
-    g.fillStyle = '#565e6d'
-    for (let i = -7; i <= 7; i += 3.5) g.fillRect(i, -5, 1.6, 10)
+  if (tier >= 2) {
+    const slots = game.hasUnlock('parking') ? [...PARKING_BASE, ...PARKING_EXTRA] : PARKING_BASE
+    g.strokeStyle = 'rgba(255,255,255,0.7)'
+    g.lineWidth = 2
+    for (const p of slots) {
+      g.beginPath()
+      g.ellipse(X(p.x), Y(p.y), S * 1.0, S * 0.52, 0, 0, Math.PI * 2)
+      g.stroke()
+      g.fillStyle = '#9aa0ab'
+      for (const ox of [-0.55, 0.55]) g.fillRect(X(p.x + ox) - S * 0.16, Y(p.y - 0.75) - 3, S * 0.32, 6)
+    }
+    // drains + oil stains
     g.fillStyle = '#3c434f'
-    g.restore()
-  }
-  for (const [ox, oy, r] of [[4.5, 10.6, 9], [8.5, 10.8, 7], [12.3, 10.5, 6]] as const) {
-    g.fillStyle = 'rgba(40,36,30,0.28)'
+    for (const [gx, gy] of [[9.2, 6.4], [14.8, 12.6]] as const) {
+      g.save()
+      g.translate(X(gx), Y(gy))
+      g.rotate(0.46)
+      g.fillRect(-10, -5, 20, 10)
+      g.fillStyle = '#565e6d'
+      for (let i = -7; i <= 7; i += 3.5) g.fillRect(i, -5, 1.6, 10)
+      g.fillStyle = '#3c434f'
+      g.restore()
+    }
+    for (const [ox, oy, r] of [[4.5, 10.6, 9], [8.5, 10.8, 7], [12.3, 10.5, 6]] as const) {
+      g.fillStyle = 'rgba(40,36,30,0.28)'
+      g.beginPath()
+      g.ellipse(X(ox), Y(oy), r, r * 0.5, 0.3, 0, Math.PI * 2)
+      g.fill()
+    }
+    // pond
+    g.fillStyle = '#cbb98f'
     g.beginPath()
-    g.ellipse(X(ox), Y(oy), r, r * 0.5, 0.3, 0, Math.PI * 2)
+    g.ellipse(X(POND.x), Y(POND.y), POND.rx * S * 1.12, POND.ry * S * 1.35, 0, 0, Math.PI * 2)
+    g.fill()
+    g.fillStyle = '#3f9db8'
+    g.beginPath()
+    g.ellipse(X(POND.x), Y(POND.y), POND.rx * S, POND.ry * S, 0, 0, Math.PI * 2)
     g.fill()
   }
-  // pond
-  g.fillStyle = '#cbb98f'
-  g.beginPath()
-  g.ellipse(X(POND.x), Y(POND.y), POND.rx * S * 1.12, POND.ry * S * 1.35, 0, 0, Math.PI * 2)
-  g.fill()
-  g.fillStyle = '#3f9db8'
-  g.beginPath()
-  g.ellipse(X(POND.x), Y(POND.y), POND.rx * S, POND.ry * S, 0, 0, Math.PI * 2)
-  g.fill()
 }

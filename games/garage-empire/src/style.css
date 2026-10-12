@@ -117,6 +117,25 @@ body {
   margin: 0 auto;
 }
 
+.pill.hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  max-width: min(92vw, 420px);
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0f2fe;
+  border-color: rgba(56, 189, 248, 0.45);
+  text-align: center;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.pill.hint.hidden {
+  display: none;
+}
+
 .icon-btn {
   width: 46px;
   height: 46px;

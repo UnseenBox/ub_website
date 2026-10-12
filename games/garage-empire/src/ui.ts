@@ -23,6 +23,7 @@ export class UI {
   moneyEl!: HTMLElement
   levelEl!: HTMLElement
   objEl!: HTMLElement
+  hintEl!: HTMLElement
   promptEl!: HTMLElement
   toastEl!: HTMLElement
   floatEl!: HTMLElement
@@ -45,6 +46,7 @@ export class UI {
           <div id="level" class="pill lvl">LV 1</div>
         </div>
         <div id="objective" class="pill obj">…</div>
+        <div id="tutorial-hint" class="pill hint hidden"></div>
         <div class="hud-right">
           <button id="btn-mute" class="icon-btn" aria-label="Mute">🔊</button>
           <button id="btn-help" class="icon-btn" aria-label="Help">?</button>
@@ -63,6 +65,7 @@ export class UI {
     this.moneyEl = root.querySelector('#money')!
     this.levelEl = root.querySelector('#level')!
     this.objEl = root.querySelector('#objective')!
+    this.hintEl = root.querySelector('#tutorial-hint')!
     this.promptEl = root.querySelector('#prompt')!
     this.toastEl = root.querySelector('#toasts')!
     this.floatEl = root.querySelector('#floaters')!
@@ -99,6 +102,14 @@ export class UI {
     const o = game.currentObjective()
     const obj = `${o.icon} ${o.text}`
     if (this.objEl.textContent !== obj) this.objEl.textContent = obj
+
+    const hint = game.tutorialHint()
+    if (hint) {
+      this.hintEl.classList.remove('hidden')
+      if (this.hintEl.textContent !== hint) this.hintEl.textContent = hint
+    } else {
+      this.hintEl.classList.add('hidden')
+    }
 
     const it = game.current
     if (!it || it.kind === 'info') {

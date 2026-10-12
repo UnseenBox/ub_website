@@ -54,11 +54,11 @@ describe('bare-floor opening', () => {
     const g = new Game(freshSave())
     const evs: GameEvent[] = []
     expect(g.buyUnlock('wash1', evs)).toBe(true)
-    expect(g.money).toBe(150 - 100 + bonusFor('washbay'))
+    expect(g.money).toBe(50)
     expect(g.save.doneObj).toContain('washbay')
-    expect(g.showPads()).toBe(true)
-    // arrival, routing, then hold E at the bay until the wash completes
-    step(g, 700)
+    expect(g.showPads()).toBe(false)
+    // build-in, scripted first car, routing, then hold E at the bay until the wash completes
+    step(g, 900)
     expect(g.cars.length).toBeGreaterThan(0)
     g.player.x = 12.5
     g.player.y = 6.6
@@ -81,15 +81,15 @@ describe('progression purchases', () => {
     g.save.money = 1000
     const evs: GameEvent[] = []
     expect(g.buyUnlock('wash1', evs)).toBe(true)
-    expect(g.money).toBe(1000 - 100 + bonusFor('washbay'))
+    expect(g.money).toBe(900)
     expect(g.save.doneObj).toContain('washbay')
     expect(g.buyUnlock('wash2', evs)).toBe(true)
-    expect(g.money).toBe(1000 - 100 + bonusFor('washbay') - 450)
+    expect(g.money).toBe(900 - 450)
     expect(g.save.unlocks).toContain('wash2')
     expect(g.stationUnlocked('wash2')).toBe(true)
     // second buy is rejected
     expect(g.buyUnlock('wash2', evs)).toBe(false)
-    expect(g.money).toBe(1000 - 100 + bonusFor('washbay') - 450)
+    expect(g.money).toBe(450)
   })
 
   it('rejects purchases it cannot afford without touching the wallet', () => {
@@ -106,9 +106,9 @@ describe('progression purchases', () => {
     const evs: GameEvent[] = []
     expect(g.buyUnlock('wash1', evs)).toBe(true)
     expect(g.buyUnlock('paint', evs)).toBe(false) // arms
-    expect(g.money).toBe(5000 - 100 + bonusFor('washbay'))
+    expect(g.money).toBe(4900)
     expect(g.buyUnlock('paint', evs)).toBe(true) // confirms
-    expect(g.money).toBe(5000 - 100 + bonusFor('washbay') - 1600)
+    expect(g.money).toBe(3300)
   })
 
   it('hires a washer who then completes a real wash job', () => {
@@ -118,12 +118,12 @@ describe('progression purchases', () => {
     expect(g.buyUnlock('wash1', evs)).toBe(true)
     expect(g.hire('washer', evs)).toBe(true)
     expect(g.workers).toHaveLength(1)
-    // $2000 - $100 bay + $40 bonus - $300 hire + $130 bonus
-    expect(g.money).toBe(2000 - 100 + 40 - 300 + 130)
+    expect(g.money).toBe(1600)
+    g.save.tutorial = 4
     // let a customer arrive, then the washer walks over and washes it
     step(g, 1200)
     expect(g.save.stats.washed).toBe(1)
-    expect(g.money).toBeGreaterThan(2000 - 100 + 40 - 300 + 130)
+    expect(g.money).toBeGreaterThan(1600)
   })
 })
 
