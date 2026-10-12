@@ -88,6 +88,13 @@ const CUSTOM_BOSS_IDS: ReadonlyArray<EnemyTypeId> = [
   'junk', 'house', 'clock', 'toybox', 'dishwasher', 'cardboard',
 ];
 
+/**
+ * Boss bodies are drawn at fixed pixel sizes while their physics radius is
+ * doubled, so every silhouette is blown up around the feet to match. The
+ * shared telegraphs and HP strip stay unscaled and readable.
+ */
+const BOSS_DRAW_SCALE = 2;
+
 const BULBS = ['#ff5a4e', '#ffd23f', '#6fe0c2', '#4ad6e8', '#ff9ec4'];
 
 type Tone = (color: string) => string;
@@ -2337,11 +2344,15 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
   const away = fy < -0.6 && !e.defeated;
 
   // Bosses skip the whole box pipeline: custom silhouette, shared telegraphs + HP.
+  // The silhouette is drawn doubled around the feet to match the boss collider.
   if ((CUSTOM_BOSS_IDS as ReadonlyArray<string>).includes(id)) {
+    ctx.translate(x, y);
+    ctx.scale(BOSS_DRAW_SCALE, BOSS_DRAW_SCALE);
+    ctx.translate(-x, -y);
     drawBossBody(ctx, e, x, y, time, { hw, hd, tone, fx, fy, windup, hop, topY, lift });
     ctx.restore();
-    if (!e.defeated) drawOverhead(ctx, e, x, time, topY);
-    drawHpBar(ctx, e, x, y, hw, hd);
+    if (!e.defeated) drawOverhead(ctx, e, x, time, y + (topY - y) * BOSS_DRAW_SCALE);
+    drawHpBar(ctx, e, x, y, hw * BOSS_DRAW_SCALE, hd);
     return;
   }
 

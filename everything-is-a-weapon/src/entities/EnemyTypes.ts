@@ -314,7 +314,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // CHAIRMAN OF CHAOS: middle management fused to its office chair. Rolls at you,
   // staples whatever is at hand, and slams the desk when angry. No parachute.
   chairman: {
-    id: 'chairman', name: 'Chairman', hp: 380, speed: 112, mass: 150, radius: 24, reaction: 0.5, awareness: 460,
+    id: 'chairman', name: 'Chairman', hp: 380, speed: 112, mass: 450, radius: 48, reaction: 0.5, awareness: 460,
     impactFactor: 1, lightObjectFactor: 0.7, staggerFactor: 0.6, turnRate: 7, burnFactor: 1.1,
     lungeRange: 300, lungeSpeed: 620, lungeTime: 0.5, windup: 0.8, recover: 0.9,
     color: '#3a4a5c', shade: '#232e3b', scoreBonus: 400, voice: 120,
@@ -326,7 +326,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // THE FLUSHER: the toilet achieved sentience and it is furious. Whirlpools drag
   // the room into its bowl; it spits plungers and leaves water wherever it sits.
   flusher: {
-    id: 'flusher', name: 'Flusher', hp: 350, speed: 62, mass: 180, radius: 27, reaction: 0.7, awareness: 440,
+    id: 'flusher', name: 'Flusher', hp: 350, speed: 62, mass: 540, radius: 54, reaction: 0.7, awareness: 440,
     impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 4.5, burnFactor: 1,
     color: '#dfeaf2', shade: '#9fb3c4', scoreBonus: 400, voice: 75,
     boss: true, bossTitle: 'FLUSHER UNBLOCKED', bossDiscovery: 'do_not_flush',
@@ -338,7 +338,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // SOFA KRAKEN: the lounge display woke up with cushion tentacles and a spring
   // chassis. It hugs at range and sits on you up close. Allergic to open flame.
   kraken: {
-    id: 'kraken', name: 'Sofa Kraken', hp: 430, speed: 60, mass: 190, radius: 29, reaction: 0.7, awareness: 440,
+    id: 'kraken', name: 'Sofa Kraken', hp: 430, speed: 60, mass: 570, radius: 58, reaction: 0.7, awareness: 440,
     impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.45, turnRate: 4.5, burnFactor: 1.2,
     color: '#7a3b5c', shade: '#522741', scoreBonus: 500, voice: 65,
     boss: true, bossTitle: 'KRAKEN DEFLATED', bossDiscovery: 'release_the_kraken',
@@ -353,7 +353,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // wherever it stands and frozen fish fly wherever it looks. Poorly insulated
   // against its own supply chain: feed it fire.
   fridgezilla: {
-    id: 'fridgezilla', name: 'Fridgezilla', hp: 430, speed: 52, mass: 200, radius: 29, reaction: 0.8, awareness: 420,
+    id: 'fridgezilla', name: 'Fridgezilla', hp: 430, speed: 52, mass: 600, radius: 58, reaction: 0.8, awareness: 420,
     impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.4, turnRate: 3.5, burnFactor: 0.8,
     color: '#cfe0e8', shade: '#8fa8b8', scoreBonus: 500, voice: 70,
     boss: true, bossTitle: 'FRIDGEZILLA DEFROSTED', bossDiscovery: 'brain_freeze',
@@ -365,7 +365,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // PIANO SPIDER: the showroom grand grew eight legs and perfect pitch. It crawls
   // the aisles fast and every landing is a sonic boom. Applaud from a distance.
   piano: {
-    id: 'piano', name: 'Piano Spider', hp: 470, speed: 118, mass: 190, radius: 29, reaction: 0.6, awareness: 480,
+    id: 'piano', name: 'Piano Spider', hp: 470, speed: 118, mass: 570, radius: 58, reaction: 0.6, awareness: 480,
     impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.45, turnRate: 6, burnFactor: 1.1,
     color: '#26232e', shade: '#121017', scoreBonus: 600, voice: 55,
     boss: true, bossTitle: 'PIANO OUT OF TUNE', bossDiscovery: 'grand_finale',
@@ -381,7 +381,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // LAWN MOWER MANIAC: escaped the shed and mows everything, including the room.
   // It picks a lane, revs, and comes the whole length of it. Do not be a lane.
   mower: {
-    id: 'mower', name: 'Mower Maniac', hp: 400, speed: 95, mass: 180, radius: 26, reaction: 0.5, awareness: 480,
+    id: 'mower', name: 'Mower Maniac', hp: 400, speed: 95, mass: 540, radius: 52, reaction: 0.5, awareness: 480,
     impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 5, burnFactor: 1.2,
     lungeRange: 380, lungeSpeed: 720, lungeTime: 0.8, windup: 0.9, recover: 1,
     color: '#c23b2e', shade: '#7d241c', scoreBonus: 500, voice: 90,
@@ -393,7 +393,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // your throws (and catches the slow ones), tidies the arena mid-fight, throws
   // shoes back, and gets strictly worse in three phases. Bedtime is non-negotiable.
   mom: {
-    id: 'mom', name: 'Mom', hp: 800, speed: 95, mass: 170, radius: 29, reaction: 0.4, awareness: 560,
+    id: 'mom', name: 'Mom', hp: 800, speed: 95, mass: 510, radius: 58, reaction: 0.4, awareness: 560,
     impactFactor: 1, lightObjectFactor: 0.7, staggerFactor: 0.5, turnRate: 10, burnFactor: 1,
     color: '#8a3b5c', shade: '#5c2540', scoreBonus: 1500, voice: 300,
     boss: true, bossTitle: 'MOM CALMED DOWN', bossDiscovery: 'mom_says_no',
@@ -413,7 +413,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // VACUUMASAURUS: the apex predator of dust. Inhales furniture, projectiles
   // and — when hungry — its own colleagues. Do not stand between it and lunch.
   vacuumasaurus: {
-    id: 'vacuumasaurus', name: 'Vacuumasaurus', hp: 460, speed: 70, mass: 220, radius: 30, reaction: 0.7, awareness: 480,
+    id: 'vacuumasaurus', name: 'Vacuumasaurus', hp: 460, speed: 70, mass: 660, radius: 60, reaction: 0.7, awareness: 480,
     impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.4, turnRate: 4, burnFactor: 1,
     color: '#4a5c3a', shade: '#2c3a24', scoreBonus: 700, voice: 60,
     boss: true, bossTitle: 'SAURUS EXTINCT', bossDiscovery: 'saurus_fed',
@@ -427,7 +427,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // LAUNDRY HYDRA: one basket, three sock serpents, zero matching pairs. Each
   // head has its own opinion and they are all aimed at you.
   hydra: {
-    id: 'hydra', name: 'Laundry Hydra', hp: 380, speed: 66, mass: 170, radius: 27, reaction: 0.6, awareness: 450,
+    id: 'hydra', name: 'Laundry Hydra', hp: 380, speed: 66, mass: 510, radius: 54, reaction: 0.6, awareness: 450,
     impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 5, burnFactor: 1.1,
     color: '#7a8ba8', shade: '#4d5a75', scoreBonus: 600, voice: 200,
     boss: true, bossTitle: 'HYDRA FOLDED', bossDiscovery: 'split_ends',
@@ -441,7 +441,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // FAN-TASTIC NIGHTMARE: a ceiling fan that filed for flight. It hovers, it
   // swoops, and it seeds cyclones that steal your throws mid-air.
   fan: {
-    id: 'fan', name: 'Fan-tastic', hp: 340, speed: 130, mass: 90, radius: 22, reaction: 0.4, awareness: 520,
+    id: 'fan', name: 'Fan-tastic', hp: 340, speed: 130, mass: 270, radius: 44, reaction: 0.4, awareness: 520,
     impactFactor: 1, lightObjectFactor: 0.8, staggerFactor: 0.7, turnRate: 8, burnFactor: 1.2,
     lungeRange: 200, lungeSpeed: 560, lungeTime: 0.4, windup: 0.5, recover: 0.7,
     color: '#9fb3c4', shade: '#647687', scoreBonus: 600, voice: 240,
@@ -455,7 +455,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // POPCORN APOCALYPSE: a microwave wizard that blinks around the room lobbing
   // fresh cans. Every throw is a timer. Stand somewhere else.
   popcorn: {
-    id: 'popcorn', name: 'Popcorn', hp: 320, speed: 80, mass: 110, radius: 23, reaction: 0.5, awareness: 500,
+    id: 'popcorn', name: 'Popcorn', hp: 320, speed: 80, mass: 330, radius: 46, reaction: 0.5, awareness: 500,
     impactFactor: 1, lightObjectFactor: 0.7, staggerFactor: 0.6, turnRate: 7, burnFactor: 1.3,
     color: '#e8b13c', shade: '#a87a24', scoreBonus: 600, voice: 260,
     boss: true, bossTitle: 'POPCORN BURNT', bossDiscovery: 'burnt_popcorn',
@@ -469,7 +469,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // CABLE KRAKEN: a nest of live wire with plug tentacles. It lashes, it
   // crackles, and standing close is a billing event.
   cables: {
-    id: 'cables', name: 'Cable Kraken', hp: 400, speed: 58, mass: 180, radius: 28, reaction: 0.7, awareness: 450,
+    id: 'cables', name: 'Cable Kraken', hp: 400, speed: 58, mass: 540, radius: 56, reaction: 0.7, awareness: 450,
     impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.4, turnRate: 4, burnFactor: 1,
     shockImmune: true,
     color: '#3a3a4a', shade: '#1f1f2a', scoreBonus: 650, voice: 150,
@@ -484,7 +484,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // PRESSURE COOKER: a boiler with a grudge and a whistle. It sits on you in a
   // cloud of steam, and past half pressure the lid starts coming off.
   cooker: {
-    id: 'cooker', name: 'Pressure Cooker', hp: 420, speed: 55, mass: 200, radius: 29, reaction: 0.8, awareness: 430,
+    id: 'cooker', name: 'Pressure Cooker', hp: 420, speed: 55, mass: 600, radius: 58, reaction: 0.8, awareness: 430,
     impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.35, turnRate: 3.5, burnFactor: 0.9,
     color: '#b8b0a0', shade: '#7d7668', scoreBonus: 650, voice: 75,
     boss: true, bossTitle: 'COOKER DEPRESSURIZED', bossDiscovery: 'pressure_drop',
@@ -498,7 +498,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // MIDNIGHT EXPRESS: a runaway train of fused appliances. It picks a track,
   // whistles once, and then there is only track. Be elsewhere.
   train: {
-    id: 'train', name: 'Midnight Express', hp: 450, speed: 85, mass: 240, radius: 30, reaction: 0.6, awareness: 520,
+    id: 'train', name: 'Midnight Express', hp: 450, speed: 85, mass: 720, radius: 60, reaction: 0.6, awareness: 520,
     impactFactor: 1, lightObjectFactor: 0.4, staggerFactor: 0.3, turnRate: 3, burnFactor: 1,
     lungeRange: 500, lungeSpeed: 800, lungeTime: 0.9, windup: 1, recover: 1.2,
     color: '#2e3a55', shade: '#1a2236', scoreBonus: 700, voice: 70,
@@ -512,7 +512,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // LANDLORD, KING OF JUNK: eviction day, final form. A tower of wardrobes,
   // lamps and cable that pulls the room's junk into orbit and reigns it down.
   junk: {
-    id: 'junk', name: 'King of Junk', hp: 520, speed: 60, mass: 230, radius: 30, reaction: 0.7, awareness: 460,
+    id: 'junk', name: 'King of Junk', hp: 520, speed: 60, mass: 690, radius: 60, reaction: 0.7, awareness: 460,
     impactFactor: 1, lightObjectFactor: 0.4, staggerFactor: 0.3, turnRate: 4, burnFactor: 1.1,
     color: '#6b5a86', shade: '#453a58', scoreBonus: 800, voice: 65,
     boss: true, bossTitle: 'JUNK REMOVED', bossDiscovery: 'junk_removed',
@@ -531,7 +531,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // THE HOUSE THAT HATES YOU: the building got up. Slow, vast, and throwing
   // pieces of itself. The floor is lava is the least of it — the floor is mad.
   house: {
-    id: 'house', name: 'The House', hp: 560, speed: 38, mass: 300, radius: 32, reaction: 0.9, awareness: 480,
+    id: 'house', name: 'The House', hp: 560, speed: 38, mass: 900, radius: 64, reaction: 0.9, awareness: 480,
     impactFactor: 1, lightObjectFactor: 0.4, staggerFactor: 0.25, turnRate: 2.5, burnFactor: 1.2,
     color: '#a85848', shade: '#74382e', scoreBonus: 900, voice: 50,
     boss: true, bossTitle: 'HOUSE CONDEMNED', bossDiscovery: 'condemned',
@@ -546,7 +546,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // TIME-THIEF ALARM CLOCK: it rings, and physics files a complaint. Time
   // freezes around you while the furniture gets fast and spiteful.
   clock: {
-    id: 'clock', name: 'Time-Thief', hp: 360, speed: 70, mass: 130, radius: 25, reaction: 0.4, awareness: 540,
+    id: 'clock', name: 'Time-Thief', hp: 360, speed: 70, mass: 390, radius: 50, reaction: 0.4, awareness: 540,
     impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 6, burnFactor: 1,
     color: '#3fa7a3', shade: '#2a736f', scoreBonus: 700, voice: 400,
     boss: true, bossTitle: 'CLOCK SNOOZED', bossDiscovery: 'snoozed_forever',
@@ -560,7 +560,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // TOYBOX TITAN: a toy chest with a crank and no bedtime. Toys come out on a
   // timer, and every third toy is a bigger toy. Playtime never ends.
   toybox: {
-    id: 'toybox', name: 'Toybox Titan', hp: 380, speed: 55, mass: 180, radius: 27, reaction: 0.7, awareness: 450,
+    id: 'toybox', name: 'Toybox Titan', hp: 380, speed: 55, mass: 540, radius: 54, reaction: 0.7, awareness: 450,
     impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.45, turnRate: 4, burnFactor: 1.2,
     color: '#d4652e', shade: '#8f3f1c', scoreBonus: 650, voice: 220,
     boss: true, bossTitle: 'TOYS PUT AWAY', bossDiscovery: 'put_away',
@@ -574,7 +574,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // DISHWASHER DEMON: rinse aid and rage. It floods its own arena, then bowls
   // plates down the slipway. Do not chase it through the puddle.
   dishwasher: {
-    id: 'dishwasher', name: 'Dishwasher Demon', hp: 360, speed: 60, mass: 180, radius: 27, reaction: 0.7, awareness: 440,
+    id: 'dishwasher', name: 'Dishwasher Demon', hp: 360, speed: 60, mass: 540, radius: 54, reaction: 0.7, awareness: 440,
     impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.45, turnRate: 4, burnFactor: 0.9,
     color: '#7a9bb0', shade: '#4d6a7d', scoreBonus: 600, voice: 130,
     boss: true, bossTitle: 'DISHWASHER AIR-DRIED', bossDiscovery: 'air_dried',
@@ -588,7 +588,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // KING OF CARDBOARD: flat-pack royalty with three coronations. Tank crawls and
   // crushes, chopper swoops, robot throws the room back. Watch the announcement.
   cardboard: {
-    id: 'cardboard', name: 'King of Cardboard', hp: 500, speed: 80, mass: 170, radius: 27, reaction: 0.5, awareness: 480,
+    id: 'cardboard', name: 'King of Cardboard', hp: 500, speed: 80, mass: 510, radius: 54, reaction: 0.5, awareness: 480,
     impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.45, turnRate: 6, burnFactor: 1.4,
     lungeRange: 150, lungeSpeed: 480, lungeTime: 0.4, windup: 0.5, recover: 0.7,
     color: '#c9a070', shade: '#9c7446', scoreBonus: 900, voice: 140,
