@@ -1490,6 +1490,17 @@ body.tutorial .hud-hint {
   transform: rotate(-3deg);
 }
 
+/* tester wall (?unlock): dashed red frame so nobody mistakes it for progression */
+.tester-wall {
+  outline: 2px dashed var(--red);
+  outline-offset: 5px;
+}
+
+.tester-wall .tape-label {
+  background: var(--red);
+  color: #fff;
+}
+
 /* evidence board */
 .screen.discoveries {
   width: min(100%, 920px);
