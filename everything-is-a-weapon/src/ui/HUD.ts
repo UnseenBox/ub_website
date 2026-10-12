@@ -126,7 +126,7 @@ export class HUD {
   private buildLineup(): void {
     this.lineup.replaceChildren(el('span', 'lineup-label', 'WANTED'));
     const specs = [...this.game.room.def.enemies];
-    if (this.game.room.hasBoss) specs.push({ type: 'boss', delay: 0 });
+    if (this.game.room.hasBoss) specs.push({ type: this.game.room.bossType ?? 'boss', delay: 0 });
     this.mugs = specs.map((spec) => {
       const type = ENEMY_TYPES[spec.type];
       const node = el('span', `mug mug-${spec.type} waiting`);

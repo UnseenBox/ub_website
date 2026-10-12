@@ -14,6 +14,11 @@ import { hash, mix, onTop, prism, type Ctx } from './draw';
  *   Pan Head   a Box that has already looted your saucepan and is wearing it
  *   Bailiff    wears a tie, hides behind the eviction notice
  *   Tangle     a box of Christmas lights that should not have been plugged in
+ *   Gnat       a waspish speck: too fast to box, swats like a grudge
+ *   Chucker    a long-armed Box in a sweatband; throws your furniture back at you
+ *   Bulwark    a walking safe door: riveted plate up front, nothing behind but spite
+ *   Hoover     a possessed vacuum canister on wheels; inhales the room, hates spice
+ *   Sofa King  the showroom display, up and walking; velvet, buttons, bad intentions
  *
  * Each is drawn in passes (legs → body → tape and flaps → face → props) and every pass reacts
  * to state: flaps perk up before a lunge, the eyes follow you, the lid bursts when it is beaten.
@@ -48,6 +53,11 @@ const BUILDS: Readonly<Record<EnemyTypeId, Build>> = {
   kaboom: { hw: 15, hd: 10, h: 23, side: '#c9483f', top: '#ef7a6c' },
   trolley: { hw: 15, hd: 10, h: 25, side: '#86623c', top: '#b58d60' },
   boss: { hw: 26, hd: 16, h: 38, side: '#4a3560', top: '#6b4d86' },
+  gnat: { hw: 11, hd: 7, h: 17, side: '#9a8f2e', top: '#e0d24a' },
+  hurler: { hw: 15, hd: 10, h: 24, side: '#7d3f2c', top: '#b5654a' },
+  bulwark: { hw: 18, hd: 11, h: 27, side: '#3a4552', top: '#5a6b7d' },
+  hoover: { hw: 20, hd: 13, h: 30, side: '#8e2a38', top: '#c23b4e' },
+  sofa: { hw: 26, hd: 14, h: 30, side: '#54406e', top: '#7a5a9e' },
 };
 
 const BULBS = ['#ff5a4e', '#ffd23f', '#6fe0c2', '#4ad6e8', '#ff9ec4'];
@@ -262,6 +272,107 @@ function newcomerProps(
     ctx.strokeStyle = INK;
     ctx.lineWidth = 1.4;
     ctx.strokeRect(x - hw + 2, faceTop + 2, hw * 2 - 4, 6);
+  } else if (id === 'gnat') {
+    // wasp stripes round the middle and blurred wings on top
+    ctx.fillStyle = tone('#17132a');
+    ctx.fillRect(x - hw + 1, faceBottom - 11, hw * 2 - 2, 3);
+    ctx.fillRect(x - hw + 1, faceBottom - 6, hw * 2 - 2, 2.4);
+    const buzz = Math.sin(time * 55 + e.seed) * 2;
+    ctx.fillStyle = 'rgba(251, 246, 233, 0.75)';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.2;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(x + side * (hw * 0.5), topY - 4 + buzz * side * 0.4, 7, 3.2, side * 0.5, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else if (id === 'hurler') {
+    // a sweatband, and chalk on the throwing mitt when it is winding up
+    ctx.fillStyle = tone('#2f4fb5');
+    ctx.fillRect(x - hw + 1, faceTop + 3, hw * 2 - 2, 5);
+    ctx.fillStyle = 'rgba(251, 246, 233, 0.85)';
+    ctx.fillRect(x - hw + 4, faceTop + 4.6, 4, 1.8);
+    if (e.ai === 'hurl' && !e.defeated) {
+      ctx.fillStyle = tone('#fbf6e9');
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(e.facing) * (hw + 4), faceTop - 6, 5, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else if (id === 'bulwark') {
+    // shoulder pauldrons bolted through the lid
+    ctx.fillStyle = tone(STEEL_DARK);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(x + side * (hw - 2), topY + 2, 6, Math.PI, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = tone('#ffd23f');
+      ctx.beginPath();
+      ctx.arc(x + side * (hw - 2), topY - 1, 1.6, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = tone(STEEL_DARK);
+    }
+  } else if (id === 'hoover') {
+    // the canister lid, a dust bag swelling while it sucks, and the hose
+    ctx.fillStyle = tone('#2a2330');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.ellipse(x, topY + 3, hw * 0.55, hd * 0.55, 0, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    const bag = e.sucking && !e.defeated ? 1 + Math.sin(time * 9) * 0.12 : 0.55;
+    ctx.fillStyle = tone('#ecdcab');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x - hw * 0.55, topY + 8, 7 * bag + 3, 9 * bag + 3, 0.3, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    const nx = x + Math.cos(e.facing) * (hw + 10);
+    const ny = y - 6 + Math.sin(e.facing) * 8;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 7;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(e.facing) * hw * 0.6, y - 10);
+    ctx.quadraticCurveTo(x + Math.cos(e.facing) * (hw + 12), y - 16, nx, ny);
+    ctx.stroke();
+    ctx.strokeStyle = tone('#3b3550');
+    ctx.lineWidth = 3.6;
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    // the nozzle gapes while it inhales
+    const gape = e.sucking && !e.defeated ? 5 : 2.4;
+    ctx.fillStyle = '#17132a';
+    ctx.beginPath();
+    ctx.ellipse(nx, ny, gape + 2, gape, Math.atan2(Math.sin(e.facing), Math.cos(e.facing)), 0, TAU);
+    ctx.fill();
+  } else if (id === 'sofa') {
+    // upholstery buttons and a throw blanket over one arm
+    ctx.fillStyle = tone('#3d2f56');
+    for (const [bx, by] of [[-hw * 0.45, 0.4], [0, 0.52], [hw * 0.45, 0.4]] as const) {
+      ctx.beginPath();
+      ctx.arc(x + bx, faceTop + faceH * by, 2.4, 0, TAU);
+      ctx.fill();
+    }
+    ctx.fillStyle = tone('#c23b4e');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x + hw - 12, topY - 2);
+    ctx.lineTo(x + hw + 2, topY - 2);
+    ctx.lineTo(x + hw, topY + hd + 6);
+    ctx.lineTo(x + hw - 13, topY + hd + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
   } else if (id === 'trolley') {
 
   // wheels, and a strap holding the box on
@@ -360,9 +471,33 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
     ctx.lineCap = 'butt';
   }
 
-  if (!e.defeated) legs(ctx, x, y + hd + 1, e.walkPhase, hw * 0.5, id === 'heavy' ? 6.5 : id === 'fast' ? 4 : 5);
+  if (!e.defeated && id !== 'hoover') {
+    legs(ctx, x, y + hd + 1, e.walkPhase, hw * 0.5, id === 'heavy' || id === 'sofa' ? 6.5 : id === 'fast' || id === 'gnat' ? 4 : 5);
+  }
+  if (id === 'hoover' && !e.defeated) {
+    // it rolls: two fat wheels that spin with the walk phase
+    for (const side of [-1, 1]) {
+      const wx = x + side * (hw * 0.7);
+      ctx.fillStyle = INK;
+      ctx.beginPath();
+      ctx.arc(wx, y + hd + 1, 7, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = tone('#aab4c4');
+      ctx.beginPath();
+      ctx.arc(wx, y + hd + 1, 2.8, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = tone('#aab4c4');
+      ctx.lineWidth = 1.4;
+      const roll = e.walkPhase * 2;
+      ctx.beginPath();
+      ctx.moveTo(wx + Math.cos(roll) * 5.4, y + hd + 1 + Math.sin(roll) * 5.4);
+      ctx.lineTo(wx - Math.cos(roll) * 5.4, y + hd + 1 - Math.sin(roll) * 5.4);
+      ctx.stroke();
+    }
+  }
 
-  // the Bailiff's notice board is carried in front, so it is drawn behind the body when he faces away
+  // The shield-bearers carry their protection in front, drawn behind the body
+  // when they face away. The Bailiff hides behind paper; the Bulwark behind steel.
   const board = (): void => {
     const bx = x + fx * (hw + 7);
     const by = y + hd - 4 + fy * 12 - hop;
@@ -372,6 +507,34 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
     const ay1 = by - py * 9;
     const tall = 27;
     ctx.lineJoin = 'round';
+    if (id === 'bulwark') {
+      ctx.fillStyle = e.blockFlash > 0.1 ? '#ffffff' : tone(STEEL_DARK);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(ax0, ay0);
+      ctx.lineTo(ax1, ay1);
+      ctx.lineTo(ax1, ay1 - tall - 4);
+      ctx.lineTo(ax0, ay0 - tall - 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // rivets and a hazard chevron: this side means nothing good
+      ctx.fillStyle = tone(STEEL);
+      for (const [rx, ry] of [[0.12, -8], [0.88, -8], [0.12, -tall + 2], [0.88, -tall + 2], [0.5, -tall / 2 - 2]] as const) {
+        ctx.beginPath();
+        ctx.arc(ax0 + (ax1 - ax0) * rx, ay0 + (ay1 - ay0) * rx + ry, 1.8, 0, TAU);
+        ctx.fill();
+      }
+      ctx.strokeStyle = tone('#ffd23f');
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(ax0 + (ax1 - ax0) * 0.2, ay0 - 12);
+      ctx.lineTo(ax0 + (ax1 - ax0) * 0.5, ay0 - 20);
+      ctx.lineTo(ax0 + (ax1 - ax0) * 0.8, ay0 - 12);
+      ctx.stroke();
+      return;
+    }
     ctx.fillStyle = e.blockFlash > 0.1 ? '#ffffff' : tone('#fbf6e9');
     ctx.strokeStyle = INK;
     ctx.lineWidth = 3;
@@ -400,14 +563,14 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
     }
     ctx.stroke();
   };
-  if (type.shield && !e.defeated && fy < -0.1) board();
+  if ((id === 'shield' || id === 'bulwark') && !e.defeated && fy < -0.1) board();
 
   // ── body ──
   const outline = (c: Ctx): void => c.rect(-hw, -hd, hw * 2, hd * 2);
   prism(ctx, x, y, 0, lift, h + hop, outline, tone(build.side), tone(build.top));
 
-  // ── top: tape, lid, flaps ──
-  if (id !== 'fast' && id !== 'heavy') {
+  // ── top: tape, lid, flaps (boxes only; machines and royalty dress otherwise) ──
+  if (id !== 'fast' && id !== 'heavy' && id !== 'hoover' && id !== 'sofa' && id !== 'gnat') {
     onTop(ctx, x, y, 0, h + hop, (c) => {
       c.fillStyle = tone(id === 'electric' ? '#ffd23f' : TAPE);
       c.fillRect(-4, -hd, 8, hd * 2);
@@ -800,14 +963,14 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
     mitt(ctx, x + hw, armY, x + hw + 6 + fx * reach, armY + 4 - swing - raise + fy * reach * 0.6, color);
   }
 
-  if (type.shield && !e.defeated && fy >= -0.1) board();
+  if ((id === 'shield' || id === 'bulwark') && !e.defeated && fy >= -0.1) board();
   ctx.restore();
 
   if (e.defeated) return;
 
   // overhead status
   const top = topY - 16 - (e.helmetHp > 0 ? 8 : 0);
-  if (e.ai === 'windup') {
+  if (e.ai === 'windup' || e.ai === 'hurl') {
     ctx.fillStyle = '#ffd23f';
     ctx.strokeStyle = INK;
     ctx.lineWidth = 3;

@@ -2,8 +2,14 @@ import { ABILITY_IDS } from '../gameplay/Abilities';
 import { isHeroId, type HeroId } from '../core/Hero';
 import type { PortalStorage } from '../platform/Portal';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 const STORAGE_KEY = 'everything-is-a-weapon/save';
+
+/** Best run on one room, for the level-select wall and replay bragging rights. */
+export interface RoomBest {
+  score: number;
+  chain: number;
+}
 
 export interface Settings {
   volume: number;
@@ -27,6 +33,8 @@ export interface SaveData {
   unlockedRoom: number;
   completedChallenges: string[];
   roomsCleared: number;
+  /** Per-room bests by room id (new in version 2). */
+  roomBests: Record<string, RoomBest>;
   hero: HeroId;
   settings: Settings;
 }
@@ -42,6 +50,7 @@ function defaults(): SaveData {
     unlockedRoom: 0,
     completedChallenges: [],
     roomsCleared: 0,
+    roomBests: {},
     hero: 'tenant',
     settings: { volume: 0.7, muted: false, music: true, reducedShake: false, highContrast: false },
   };
@@ -64,11 +73,29 @@ function finite(value: unknown, fallback: number): number {
  *   if (version < 2) { ...transform raw...; version = 2; }
  */
 function migrate(raw: Record<string, unknown>): Record<string, unknown> {
-  const version = finite(raw.version, 0);
+  let version = finite(raw.version, 0);
   if (version > SAVE_VERSION) {
     console.warn('[save] save is from a newer version; loading what is understood.');
   }
+  if (version < 2) {
+    // Version 2 adds per-room bests; older saves simply start collecting them.
+    raw.roomBests = {};
+    version = 2;
+  }
   return raw;
+}
+
+function roomBests(value: unknown): Record<string, RoomBest> {
+  const out: Record<string, RoomBest> = {};
+  if (!isRecord(value)) return out;
+  for (const [id, entry] of Object.entries(value)) {
+    if (!isRecord(entry)) continue;
+    out[id] = {
+      score: Math.max(0, Math.floor(finite(entry.score, 0))),
+      chain: Math.max(0, Math.floor(finite(entry.chain, 0))),
+    };
+  }
+  return out;
 }
 
 function sanitize(raw: unknown): SaveData {
@@ -86,6 +113,7 @@ function sanitize(raw: unknown): SaveData {
     unlockedRoom: Math.max(0, Math.floor(finite(data.unlockedRoom, 0))),
     completedChallenges: [...new Set(stringArray(data.completedChallenges))],
     roomsCleared: Math.max(0, Math.floor(finite(data.roomsCleared, 0))),
+    roomBests: roomBests(data.roomBests),
     hero: isHeroId(data.hero) ? data.hero : base.hero,
     settings: {
       volume: Math.min(1, Math.max(0, finite(settings.volume, base.settings.volume))),

@@ -388,6 +388,11 @@ body {
 .mug-trolley { box-shadow: -4px 3px 0 -1px var(--ink), 4px 3px 0 -1px var(--ink); }
 .mug-boss { width: 30px; height: 28px; box-shadow: inset 0 -7px 0 #ffd23f; }
 .mug-electric { background: linear-gradient(90deg, transparent 38%, var(--yellow) 38% 62%, transparent 62%), var(--mug); }
+.mug-gnat { width: 14px; height: 15px; background: repeating-linear-gradient(0deg, var(--mug) 0 3px, #17132a 3px 4.5px); }
+.mug-hurler { box-shadow: inset 0 5px 0 #2f4fb5; }
+.mug-bulwark { width: 27px; height: 24px; background: var(--mug); box-shadow: inset 0 0 0 2px #aab4c4; }
+.mug-hoover { width: 28px; height: 24px; border-radius: 9px; background: var(--mug); }
+.mug-sofa { width: 32px; height: 22px; background: linear-gradient(0deg, transparent 30%, rgba(34, 27, 54, 0.5) 30% 38%, transparent 38%), var(--mug); }
 
 /* eyes glaring out of the hand-hole */
 .mug-face {
@@ -1404,6 +1409,67 @@ body.tutorial .hud-hint {
   color: #fff;
   font: 700 10px var(--hand);
   transform: rotate(-4deg);
+}
+
+/* the evidence wall: names, locks, ticks and bests under every room tag */
+.rack-name {
+  margin-top: 2px;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 10px var(--hand);
+  color: var(--ink);
+  opacity: 0.85;
+}
+
+.rack-slot.locked {
+  filter: grayscale(0.9) brightness(0.82);
+}
+
+.rack-slot.locked .key-tag.locked {
+  display: inline-block;
+  width: 46px;
+  height: 54px;
+  padding-top: 12px;
+  border: 2px dashed var(--ink);
+  border-radius: 3px;
+  background: rgba(34, 27, 54, 0.25);
+  color: var(--ink);
+  font: 700 20px var(--type);
+  text-align: center;
+  cursor: not-allowed;
+}
+
+.rack-tick {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--lime, #9be564);
+  color: var(--ink);
+  font: 700 11px/16px var(--type);
+  text-align: center;
+}
+
+.rack-best {
+  margin-top: 1px;
+  font: 700 10px var(--type);
+  color: var(--ink);
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.rack-boss {
+  margin-top: 2px;
+  padding: 0 5px;
+  background: var(--ink);
+  color: #ffd23f;
+  font: 700 9px var(--type);
+  letter-spacing: 0.12em;
+  transform: rotate(-3deg);
 }
 
 /* evidence board */

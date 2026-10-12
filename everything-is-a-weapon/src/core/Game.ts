@@ -15,7 +15,7 @@ import { NavField } from '../gameplay/Navigation';
 import { placePickups, updateRage } from '../gameplay/Pickups';
 import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
-import { bossSpecFor, RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
+import { bossSpecFor, RoomManager, type RoomRuntime, type WallRuntime } from '../gameplay/RoomManager';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { Tutorial } from '../gameplay/Tutorial';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
@@ -64,6 +64,8 @@ export interface RoomSummary {
   challengeText: string | null;
   challengePassed: boolean;
   challengeBonus: number;
+  /** Scrap bonus for clearing a room for the first time (0 when replaying). */
+  firstClearBonus: number;
   canContinue: boolean;
   /** The player asked for the rewarded ad and none could be shown. */
   adMissed?: boolean;
@@ -136,6 +138,8 @@ export class Game {
 
   readonly objects: PhysicsObject[] = [];
   readonly enemies: Enemy[] = [];
+  /** Interior partition walls of the current room (static or sliding machinery). */
+  readonly walls: WallRuntime[] = [];
   readonly popups: Popup[] = [];
   readonly decals: Decal[] = [];
   player: Player = new Player(0, 0);
@@ -348,13 +352,16 @@ export class Game {
 
   private enterRoom(def: RoomDefinition, index: number, daily: boolean): void {
     this.loadRoom(def, index, daily);
-    // Every third room ends with the Landlord, after the regular crew has arrived.
-    const boss = bossSpecFor(index, daily, def);
+    // Handcrafted rooms name their own boss; otherwise every third room ends
+    // with the Landlord, after the regular crew has arrived.
+    const latest = def.enemies.reduce((max, spec) => Math.max(max, spec.delay), 0);
+    const boss = def.boss ? { type: def.boss, delay: latest + 4 } : bossSpecFor(index, daily, def);
     if (boss) {
       this.room.pending.push(boss);
       this.room.pending.sort((a, b) => a.delay - b.delay);
       this.room.totalEnemies++;
       this.room.hasBoss = true;
+      this.room.bossType = boss.type;
     }
     this.portal.setContext({ room: daily ? 'daily' : index + 1, hero: this.hero });
     this.setState('playing');
@@ -443,9 +450,24 @@ export class Game {
     if (isHighScore) save.highScore = this.score.score;
     save.bestChain = Math.max(save.bestChain, this.score.stats.bestChain);
     save.scrap += this.score.stats.scrap;
+    let firstClearBonus = 0;
     if (cleared && !this.room.daily) {
       save.roomsCleared++;
+      // First clear pays out scrap for the ability shop: bosses pay double.
+      if (save.unlockedRoom <= this.room.index) {
+        firstClearBonus = this.room.hasBoss ? 100 : 40;
+        save.scrap += firstClearBonus;
+      }
       save.unlockedRoom = Math.max(save.unlockedRoom, this.room.index + 1);
+      // Per-room bests for the level-select wall and replay bragging rights.
+      const id = this.room.def.id;
+      const prev = save.roomBests[id];
+      if (!prev || this.score.score > prev.score) {
+        save.roomBests[id] = {
+          score: this.score.score,
+          chain: Math.max(this.score.stats.bestChain, prev?.chain ?? 0),
+        };
+      }
     }
     this.save.write();
     const challenge = this.challenges.current;
@@ -463,6 +485,7 @@ export class Game {
       challengeText: challenge ? challenge.text : null,
       challengePassed: challengeBonus > 0,
       challengeBonus,
+      firstClearBonus,
       canContinue: !cleared && !this.revived && this.ads.isAvailable('rewarded'),
     };
   }
@@ -536,6 +559,7 @@ export class Game {
 
     const room = this.room;
     this.rooms.updateSpawns(this, room, dt);
+    this.rooms.updateWalls(this, dt);
     this.nav.update(this, dt);
 
     this.player.update(this, input, dt);
@@ -972,9 +996,9 @@ export class Game {
     bus.on('ENEMY_DEFEATED', (e) => {
       const b = e.enemy.body;
       this.audio.voice('defeat', e.enemy.type.voice);
-      if (e.enemy.type.id === 'boss') {
-        this.hud.banner('LANDLORD EVICTED', 'the flat is yours. for now.', 2.6);
-        this.discoveries.unlock('boss_evicted');
+      if (e.enemy.type.boss) {
+        this.hud.banner(e.enemy.type.bossTitle ?? 'LANDLORD EVICTED', 'the flat is yours. for now.', 2.6);
+        this.discoveries.unlock(e.enemy.type.bossDiscovery ?? 'boss_evicted');
       }
       // the box bursts: packing peanuts everywhere, plus a starburst in the
       // direction of the killing blow so the knockout tops the hit that caused it

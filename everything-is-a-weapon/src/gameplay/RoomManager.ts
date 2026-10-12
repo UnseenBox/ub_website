@@ -1,11 +1,24 @@
 import { WALL } from '../core/constants';
 import type { Game } from '../core/Game';
+import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import { Layer, RigidBody } from '../physics/RigidBody';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import type { PhysicsObject } from '../entities/PhysicsObject';
-import { doorPosition, type RoomDefinition, type RoomEnemySpec } from './Room';
+import { doorPosition, type RoomDefinition, type RoomEnemySpec, type WallSpec } from './Room';
 import { HANDCRAFTED_ROOMS } from './RoomDefinitions';
 import { generateRoom } from './RoomGenerator';
+
+/** A live interior wall: static partition, or sliding machinery (kinematic). */
+export interface WallRuntime {
+  readonly spec: WallSpec;
+  readonly body: RigidBody;
+  x: number;
+  y: number;
+  hw: number;
+  hh: number;
+  /** Seconds since the room started (drives sliding walls). */
+  t: number;
+}
 
 export interface RoomRuntime {
   readonly def: RoomDefinition;
@@ -27,6 +40,8 @@ export interface RoomRuntime {
   entranceRattle: number;
   /** A Landlord walks in this room (every third room). */
   hasBoss: boolean;
+  /** Which boss walks in, when hasBoss is set. */
+  bossType: RoomEnemySpec['type'] | null;
 }
 
 /**
@@ -103,6 +118,23 @@ export class RoomManager {
     game.player.body.teleport(def.playerStart.x, def.playerStart.y);
     world.add(game.player.body);
 
+    // Interior partitions: static colliders, or sliding machinery on a kinematic body.
+    game.walls.length = 0;
+    for (const spec of def.walls ?? []) {
+      const sliding = spec.slide !== undefined;
+      const body = new RigidBody({
+        type: sliding ? 'kinematic' : 'static',
+        shape: { kind: 'box', hw: spec.hw, hh: spec.hh },
+        x: spec.x,
+        y: spec.y,
+        layer: Layer.Wall,
+        friction: 0.4,
+        restitution: 0.1,
+      });
+      world.add(body);
+      game.walls.push({ spec, body, x: spec.x, y: spec.y, hw: spec.hw, hh: spec.hh, t: 0 });
+    }
+
     return {
       def,
       index,
@@ -118,7 +150,41 @@ export class RoomManager {
       knocked: false,
       entranceRattle: 0,
       hasBoss: false,
+      bossType: null,
     };
+  }
+
+  /**
+   * Advances sliding walls. Runs before the physics step: the kinematic body is
+   * velocity-driven so it shoves dynamics aside, while the analytic position
+   * (what navigation and rendering read) never drifts.
+   */
+  updateWalls(game: Game, dt: number): void {
+    for (const wall of game.walls) {
+      const slide = wall.spec.slide;
+      if (!slide) continue;
+      wall.t += dt;
+      const phase = (wall.t / slide.period) * Math.PI * 2;
+      const offset = Math.sin(phase) * slide.range;
+      const speed = Math.cos(phase) * ((Math.PI * 2 * slide.range) / slide.period);
+      if (slide.axis === 'x') {
+        wall.x = wall.spec.x + offset;
+        wall.body.vx = speed;
+        wall.body.vy = 0;
+        if (Math.abs(wall.body.x - wall.x) > 3) {
+          wall.body.teleport(wall.x, wall.body.y, wall.body.angle);
+          wall.body.vx = speed;
+        }
+      } else {
+        wall.y = wall.spec.y + offset;
+        wall.body.vx = 0;
+        wall.body.vy = speed;
+        if (Math.abs(wall.body.y - wall.y) > 3) {
+          wall.body.teleport(wall.body.x, wall.y, wall.body.angle);
+          wall.body.vy = speed;
+        }
+      }
+    }
   }
 
   /** Brings in every intruder whose time has come. */
@@ -142,13 +208,14 @@ export class RoomManager {
       room.knocked = false;
       game.audio.play('door', 0.8);
       game.audio.voice('alert', enemy.type.voice);
-      if (spec.type === 'boss') {
-        game.hud.banner('THE LANDLORD', 'eviction day — bring the whole room', 2.6);
-        game.camera.addShake(0.5);
-      }
       game.particles.burst('dust', door.x, door.y, 10, 150, { dirX: door.dirX, dirY: door.dirY, spread: 0.9 });
       game.fx.ring(door.x, door.y, 8, 54, 0.3, 'rgba(255,255,255,0.7)', 3);
       game.camera.addShake(0.22);
+      const bossType = ENEMY_TYPES[spec.type];
+      if (bossType.boss) {
+        game.hud.banner(bossType.bossBanner ?? bossType.name.toUpperCase(), bossType.bossBlurb ?? '', 2.8);
+        game.camera.addShake(0.5);
+      }
     }
   }
 }
