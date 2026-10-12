@@ -212,6 +212,7 @@ export class Game {
 
     this.wireFeedback();
     this.wireFunnel();
+    this.audio.prefetchSamples();
     this.input.onAction((action) => {
       if (action === 'pause') this.togglePause();
       else if (action === 'restart') {
@@ -913,6 +914,10 @@ export class Game {
         this.audio.voice('panic', pitch);
       } else {
         this.audio.voice('oof', pitch);
+        // Flesh thump under the material hit when a thrown thing connects.
+        if (cause.type === 'impact' && cause.source && cause.source.kind === 'object') {
+          this.audio.impactFlesh(e.damage);
+        }
         if (showWord) {
           const quirk = weapon ? weapon.def.quirk : undefined;
           const word =
@@ -1010,6 +1015,7 @@ export class Game {
 
     bus.on('PLAYER_DEFEATED', () => {
       this.slowMotion(0.25, 1.2);
+      this.audio.play('scream', 0.8);
       this.particles.burst('star', this.player.body.x, this.player.body.y, 16, 240);
     });
 
