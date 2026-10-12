@@ -325,6 +325,7 @@ export class Renderer {
 
     this.syncGround(game)
     this.syncStations(game, time)
+    if (this.hireBoardGroup) this.hireBoardGroup.visible = game.showPads()
     this.syncCars(game, time, dt)
     this.syncActors(game, time, dt)
     this.syncGuide(game, time)
@@ -409,7 +410,10 @@ export class Renderer {
     this.scene.add(root)
     this.buildGarage(root)
     this.buildArch(root)
-    this.buildHireBoard(root)
+    this.hireBoardGroup = new THREE.Group()
+    this.scene.add(this.hireBoardGroup)
+    this.buildHireBoard(this.hireBoardGroup)
+    this.mergeStatic(this.hireBoardGroup)
     if (!this.builtProps) this.builtProps = new THREE.Group()
     this.scene.add(this.builtProps)
     // stations get their own groups (build-in animation + unlock gating)
@@ -564,6 +568,7 @@ export class Renderer {
 
   // ---------- stations ----------
 
+  private hireBoardGroup: THREE.Group | null = null
   private lockRings = new Map<StationId, THREE.LineLoop>()
 
   private lockRing(id: StationId): THREE.LineLoop {
@@ -644,7 +649,15 @@ export class Renderer {
         const s = t >= 1 ? 1 : Math.max(0.01, easeOutBack(Math.max(0, t)))
         g.scale.setScalar(s)
       }
-      this.lockRing(id).visible = !unlocked
+      this.lockRing(id).visible = !unlocked && (game.showPads() || id === 'wash1')
+      // the unowned first wash bay shines: gold pulsing ring
+      if (id === 'wash1' && !unlocked) {
+        const ring = this.lockRing(id)
+        ring.visible = true
+        const lm = ring.material as THREE.LineDashedMaterial
+        lm.color.set('#facc15')
+        lm.opacity = 0.65 + Math.sin(time * 4) * 0.3
+      }
       this.syncStationFx(game, id, time)
     }
     this.syncBuiltProps(game, time)
@@ -1297,19 +1310,24 @@ export class Renderer {
         use('🔧', 'wl-bubble', car.x, car.y, 1.0)
       }
     }
-    // locked pads: pin far, price chip near
+    // locked pads: pin far, price chip near. Hidden until the first bay is
+    // owned, except the wash bay itself.
     const lockedPads: Array<{ x: number; y: number; icon: string; cost: number }> = []
+    const showAll = game.showPads()
     for (const id of Object.keys(STATION_RECTS) as StationId[]) {
       if (game.stationUnlocked(id)) continue
+      if (!showAll && id !== 'wash1') continue
       const u = STATIONS[id].unlock
       const def = UNLOCKS.find((d) => d.id === u)
       if (!def) continue
       const r = STATION_RECTS[id]
       lockedPads.push({ x: r.cx, y: r.cy, icon: def.icon, cost: def.cost })
     }
-    for (const pd of game.pads()) {
-      const def = UNLOCKS.find((d) => d.id === pd.unlockId)
-      if (def) lockedPads.push({ x: pd.cx, y: pd.cy, icon: def.icon, cost: def.cost })
+    if (showAll) {
+      for (const pd of game.pads()) {
+        const def = UNLOCKS.find((d) => d.id === pd.unlockId)
+        if (def) lockedPads.push({ x: pd.cx, y: pd.cy, icon: def.icon, cost: def.cost })
+      }
     }
     for (const pd of lockedPads) {
       const near = Math.hypot(pd.x - game.player.x, pd.y - game.player.y) < 7.5

@@ -290,9 +290,9 @@ export class UI {
   openHelp(): void {
     this.show(`
       <h2>❓ How to play</h2>
-      <div class="how"><span>🧽</span><p>Walk into the blue bay, <b>HOLD E</b> — get paid per job.</p></div>
-      <div class="how"><span>🪧</span><p>Spend on <b>yellow signs</b>: bays, lot, showroom.</p></div>
-      <div class="how"><span>🧑‍🔧</span><p>Hire at <b>STAFF</b> — workers do real jobs.</p></div>
+      <div class="how"><span>🪧</span><p>Buy the glowing <b>Wash Bay</b> ($100 — you have $150).</p></div>
+      <div class="how"><span>🧽</span><p>Cars roll in — <b>HOLD E</b> in the blue bay, get paid.</p></div>
+      <div class="how"><span>🧑‍🔧</span><p>Spend on <b>yellow signs</b>, hire at <b>STAFF</b>.</p></div>
       <div class="how"><span>🏷️</span><p>Buy wrecks, restore them, <b>flip for profit</b>.</p></div>
       <button class="btn primary wide" data-close>Let's go!</button>`, 'help')
     this.modalEl.querySelector('[data-close]')?.addEventListener('click', () => this.closeModal())

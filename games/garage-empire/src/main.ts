@@ -285,7 +285,14 @@ if (demoMode && new URLSearchParams(location.search).has('demo')) {
     localStorage.setItem('garage-empire:seen', '1')
   } catch { /* ignore */ }
   // Teleport next to the first wash bay, then hold ACTION to work.
+  // Buys the bay first: the bare-floor opening owns nothing.
   const hop = setInterval(() => {
+    if (!game.hasUnlock('wash1')) {
+      game.player.x = 12.5
+      game.player.y = 6.4
+      game.buyUnlock('wash1', [])
+      return
+    }
     const car = game.cars[0]
     if (car && car.phase === 'inBay' && car.bay === 'wash1') {
       demo.tp(12.5, 6.4)

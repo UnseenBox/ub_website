@@ -41,7 +41,7 @@ export interface StationDef {
 }
 
 export const STATIONS: Record<StationId, StationDef> = {
-  wash1: { id: 'wash1', name: 'Wash Bay', services: ['wash'], speed: 1, unlock: null, color: '#38bdf8' },
+  wash1: { id: 'wash1', name: 'Wash Bay', services: ['wash'], speed: 1, unlock: 'wash1', color: '#38bdf8' },
   wash2: { id: 'wash2', name: 'Wash Bay II', services: ['wash'], speed: 1.15, unlock: 'wash2', color: '#38bdf8' },
   repair1: { id: 'repair1', name: 'Repair Bench', services: ['tires', 'engine', 'body'], speed: 1, unlock: 'repair1', color: '#fb923c' },
   lift: { id: 'lift', name: 'Hydraulic Lift', services: ['engine', 'body'], speed: 1.35, unlock: 'lift', color: '#f472b6' },
@@ -60,6 +60,7 @@ export interface UnlockDef {
 }
 
 export const UNLOCKS: UnlockDef[] = [
+  { id: 'wash1', name: 'Wash Bay', cost: 100, desc: 'Your first bay: wash cars for cash', icon: '🧽', stage: 1 },
   { id: 'repair1', name: 'Repair Bench', cost: 250, desc: 'Fix tires, engines, bodywork', icon: '🧰', stage: 1 },
   { id: 'pressure', name: 'Pro Pressure Kit', cost: 350, desc: 'Wash 80% faster everywhere', icon: '💦', stage: 1 },
   { id: 'wash2', name: 'Second Wash Bay', cost: 450, desc: '+1 wash bay, washes 15% faster', icon: '🧼', stage: 2 },
@@ -214,9 +215,9 @@ export const SAVE_KEY = 'garage-empire:save:v1'
 /** Ordered onboarding goals: icon + micro-label, never a sentence. */
 export function objectives(): { id: string; icon: string; text: string }[] {
   return [
+    { id: 'washbay', icon: '🪧', text: 'Buy bay' },
     { id: 'wash1', icon: '🧽', text: 'First wash' },
     { id: 'earn500', icon: '💰', text: '$500' },
-    { id: 'buy1', icon: '🪧', text: '1 sign' },
     { id: 'hire1', icon: '🧑‍🔧', text: 'Hire' },
     { id: 'lift', icon: '🏗️', text: 'Lift' },
     { id: 'flipbuy', icon: '🏷️', text: 'Buy car' },

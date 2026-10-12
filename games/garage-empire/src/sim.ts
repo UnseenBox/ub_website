@@ -195,6 +195,11 @@ export class Game {
     return u === null || this.hasUnlock(u)
   }
 
+  /** Future purchase spots stay hidden until the first wash bay is owned. */
+  showPads(): boolean {
+    return this.hasUnlock('wash1')
+  }
+
   parkingCount(): number {
     return this.hasUnlock('parking') ? PARKING_BASE.length + PARKING_EXTRA.length : PARKING_BASE.length
   }
@@ -218,38 +223,8 @@ export class Game {
   // ---- setup ----
 
   private seedOpening(): void {
-    // The first customer is already waiting in the wash bay: instant first job.
-    const sedan = CAR_TYPES[1]
-    const car: Car = {
-      id: nextId++,
-      type: sedan,
-      color: '#e5e7eb',
-      seed: Math.random() * 100,
-      cond: { clean: 12, mech: 96, body: 94, tires: 95, shine: 70 },
-      needs: ['wash'],
-      wantPaint: false,
-      owner: 'customer',
-      phase: 'inBay',
-      x: STATION_RECTS.wash1.cx,
-      y: STATION_RECTS.wash1.cy,
-      angle: -0.4,
-      path: [],
-      bay: 'wash1',
-      parkIdx: -1,
-      work: null,
-      boughtFor: 0,
-      invested: 0,
-      tip: 0,
-      flash: 0,
-      sellT: 0,
-      sellerBy: null,
-      done: false,
-      notified: false,
-      repaint: 0,
-      bounce: 0,
-      pop: 0,
-    }
-    this.cars.push(car)
+    // Bare-floor start: no bay, no cars. The player buys the first wash bay,
+    // then the first customer arrives. Nothing to seed.
   }
 
   private spawnWorker(role: WorkerRole, instant: boolean): void {
@@ -447,8 +422,11 @@ export class Game {
     this.armedUnlock = null
     ev.push({ t: 'sfx', name: 'buy' })
     const pad = EXTRA_PADS.find((p) => p.unlockId === id)
-    ev.push({ t: 'unlockFx', x: pad ? pad.cx : this.player.x, y: pad ? pad.cy : this.player.y })
-    ev.push({ t: 'toast', text: `${def.icon} ${def.name} unlocked! ${def.desc}` })
+    const stationEntry = (Object.keys(STATION_RECTS) as StationId[]).find((s) => STATIONS[s].unlock === id)
+    const fx = pad ?? (stationEntry ? STATION_RECTS[stationEntry] : null)
+    ev.push({ t: 'unlockFx', x: fx ? fx.cx : this.player.x, y: fx ? fx.cy : this.player.y })
+    ev.push({ t: 'toast', text: id === 'wash1' ? '🧽 Bay open — first car incoming!' : `${def.icon} ${def.name} unlocked! ${def.desc}` })
+    if (id === 'wash1') this.spawnT = Math.min(this.spawnT, 3)
     ev.push({ t: 'pulse' })
     this.checkObjectives(ev)
     return true
@@ -738,9 +716,9 @@ export class Game {
   private checkObjectives(ev: GameEvent[]): void {
     const s = this.save
     const cond: Record<string, boolean> = {
+      washbay: s.unlocks.includes('wash1'),
       wash1: s.stats.washed >= 1,
       earn500: s.lifetime >= 500,
-      buy1: s.unlocks.length >= 1,
       hire1: s.hires.length >= 1,
       lift: s.unlocks.includes('lift'),
       flipbuy: this.boughtCount >= 1,
@@ -776,6 +754,10 @@ export class Game {
   /** Bouncing world marker for the current goal; null once the player is free. */
   guideTarget(): Guide | null {
     const s = this.save
+    if (!this.hasUnlock('wash1')) {
+      const w = STATION_RECTS.wash1
+      return { x: w.cx, y: w.cy }
+    }
     if (s.stats.washed < 1) {
       const car = this.cars.find((c) => c.phase === 'inBay' && c.needs.length > 0)
         ?? this.cars.find((c) => c.owner === 'customer')
@@ -783,7 +765,7 @@ export class Game {
       const w = STATION_RECTS.wash1
       return { x: w.cx, y: w.cy }
     }
-    if (s.unlocks.length < 1) {
+    if (s.unlocks.length < 2) {
       const pad = this.cheapestLockedPad()
       if (pad) return { x: pad.x, y: pad.y }
     } else if (s.hires.length < 1 && s.money >= 300) {
@@ -850,8 +832,8 @@ export class Game {
         }
       }
     }
-    // 3. hire board
-    if (dist(p.x, p.y, HIRE_BOARD.x, HIRE_BOARD.y) < 2.2) {
+    // 3. hire board (appears once the first bay is owned)
+    if (this.showPads() && dist(p.x, p.y, HIRE_BOARD.x, HIRE_BOARD.y) < 2.2) {
       this.current = {
         kind: 'hire', icon: '🧑‍🔧', label: 'Staff', sub: 'from $300',
         carId: -1, service: null, stationId: null, unlockId: null, offerIdx: -1,
@@ -898,16 +880,19 @@ export class Game {
       }
       return
     }
-    // 5. purchase pads (locked stations + extras)
+    // 5. purchase pads (locked stations + extras). Before the first bay is
+    // owned, only the wash bay itself is offered.
     const pads: { cx: number; cy: number; w: number; h: number; unlockId: string }[] = []
+    const showAll = this.showPads()
     for (const id of Object.keys(STATION_RECTS) as StationId[]) {
-      if (this.stationLockedPad(id)) {
+      if (this.stationLockedPad(id) && (showAll || STATIONS[id].unlock === 'wash1')) {
         const s = STATION_RECTS[id]
         const u = STATIONS[id].unlock
         if (u) pads.push({ cx: s.cx, cy: s.cy, w: s.w, h: s.h, unlockId: u })
       }
     }
     for (const pd of this.pads()) {
+      if (!showAll) continue
       pads.push({ cx: pd.cx, cy: pd.cy, w: pd.w, h: pd.h, unlockId: (pd as PadDef).unlockId })
     }
     let padBest: { unlockId: string } | null = null
@@ -956,13 +941,15 @@ export class Game {
     // tutorial + objectives
     this.tutorial()
 
-    // customer spawner
+    // customer spawner (silent until the first wash bay is owned)
     this.spawnT -= dt
     if (this.spawnT <= 0) {
       const billboard = this.hasUnlock('billboard')
       this.spawnT = spawnInterval(this.save.lifetime, billboard) * rand(0.85, 1.15)
       const cap = this.parkingCount() + 4
-      if (this.activeCount() < cap && this.freeParkIdx() >= 0) this.spawnCustomer(ev)
+      if (this.stationUnlocked('wash1') && this.activeCount() < cap && this.freeParkIdx() >= 0) {
+        this.spawnCustomer(ev)
+      }
     }
 
     // used-lot offers

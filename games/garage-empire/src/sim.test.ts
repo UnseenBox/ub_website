@@ -35,26 +35,36 @@ beforeEach(() => {
   for (const k of Object.keys(mem)) delete mem[k]
 })
 
-describe('opening minute', () => {
-  it('boots with one dirty car waiting in the wash bay', () => {
+describe('bare-floor opening', () => {
+  it('boots empty: no bay, no cars, guide points at the wash spot', () => {
     const g = new Game(freshSave())
-    expect(g.cars).toHaveLength(1)
-    expect(g.cars[0].phase).toBe('inBay')
-    expect(g.cars[0].needs).toContain('wash')
+    expect(g.cars).toHaveLength(0)
     expect(g.money).toBe(150)
+    expect(g.stationUnlocked('wash1')).toBe(false)
+    expect(g.showPads()).toBe(false)
+    step(g, 1200)
+    expect(g.cars).toHaveLength(0)
+    const guide = g.guideTarget()
+    expect(guide).not.toBeNull()
+    expect(guide!.x).toBeCloseTo(12.5, 0)
+    expect(guide!.y).toBeCloseTo(3.7, 0)
   })
 
-  it('washing the first car pays out and completes the objective', () => {
+  it('buying the bay summons the first car, which can then be washed', () => {
     const g = new Game(freshSave())
+    const evs: GameEvent[] = []
+    expect(g.buyUnlock('wash1', evs)).toBe(true)
+    expect(g.money).toBe(150 - 100 + bonusFor('washbay'))
+    expect(g.save.doneObj).toContain('washbay')
+    expect(g.showPads()).toBe(true)
+    // arrival, routing, then hold E at the bay until the wash completes
+    step(g, 700)
+    expect(g.cars.length).toBeGreaterThan(0)
     g.player.x = 12.5
     g.player.y = 6.6
-    const evs = step(g, 320, { ...IDLE, actionHeld: true })
+    step(g, 400, { ...IDLE, actionHeld: true })
     expect(g.save.stats.washed).toBe(1)
-    // $60 wash reward + $40 first-objective bonus
-    expect(g.money).toBe(150 + 60 + 40)
-    expect(g.save.lifetime).toBe(60 + 40)
     expect(g.save.doneObj).toContain('wash1')
-    expect(evs.some((e) => e.t === 'objective')).toBe(true)
   })
 
   it('player movement actually moves the player', () => {
@@ -70,15 +80,16 @@ describe('progression purchases', () => {
     const g = new Game(freshSave())
     g.save.money = 1000
     const evs: GameEvent[] = []
+    expect(g.buyUnlock('wash1', evs)).toBe(true)
+    expect(g.money).toBe(1000 - 100 + bonusFor('washbay'))
+    expect(g.save.doneObj).toContain('washbay')
     expect(g.buyUnlock('wash2', evs)).toBe(true)
-    // price + first-purchase objective bonus
-    expect(g.money).toBe(1000 - 450 + bonusFor('buy1'))
+    expect(g.money).toBe(1000 - 100 + bonusFor('washbay') - 450)
     expect(g.save.unlocks).toContain('wash2')
-    expect(g.save.doneObj).toContain('buy1')
     expect(g.stationUnlocked('wash2')).toBe(true)
     // second buy is rejected
     expect(g.buyUnlock('wash2', evs)).toBe(false)
-    expect(g.money).toBe(1000 - 450 + 100)
+    expect(g.money).toBe(1000 - 100 + bonusFor('washbay') - 450)
   })
 
   it('rejects purchases it cannot afford without touching the wallet', () => {
@@ -93,23 +104,26 @@ describe('progression purchases', () => {
     const g = new Game(freshSave())
     g.save.money = 5000
     const evs: GameEvent[] = []
+    expect(g.buyUnlock('wash1', evs)).toBe(true)
     expect(g.buyUnlock('paint', evs)).toBe(false) // arms
-    expect(g.money).toBe(5000)
+    expect(g.money).toBe(5000 - 100 + bonusFor('washbay'))
     expect(g.buyUnlock('paint', evs)).toBe(true) // confirms
-    expect(g.money).toBe(5000 - 1600 + bonusFor('buy1'))
+    expect(g.money).toBe(5000 - 100 + bonusFor('washbay') - 1600)
   })
 
   it('hires a washer who then completes a real wash job', () => {
     const g = new Game(freshSave())
     g.save.money = 2000
     const evs: GameEvent[] = []
+    expect(g.buyUnlock('wash1', evs)).toBe(true)
     expect(g.hire('washer', evs)).toBe(true)
     expect(g.workers).toHaveLength(1)
-    expect(g.money).toBe(2000 - 300 + bonusFor('hire1'))
-    // let the washer walk over and wash the opening car
-    step(g, 900)
+    // $2000 - $100 bay + $40 bonus - $300 hire + $130 bonus
+    expect(g.money).toBe(2000 - 100 + 40 - 300 + 130)
+    // let a customer arrive, then the washer walks over and washes it
+    step(g, 1200)
     expect(g.save.stats.washed).toBe(1)
-    expect(g.money).toBeGreaterThan(2000 - 300 + bonusFor('hire1'))
+    expect(g.money).toBeGreaterThan(2000 - 100 + 40 - 300 + 130)
   })
 })
 
@@ -118,6 +132,7 @@ describe('car flipping', () => {
     const g = new Game(freshSave())
     g.save.money = 20000
     const evs: GameEvent[] = []
+    g.buyUnlock('wash1', evs)
     g.buyUnlock('usedlot', evs) // armed first (cost>=1000)
     g.buyUnlock('usedlot', evs)
     expect(g.hasUnlock('usedlot')).toBe(true)
