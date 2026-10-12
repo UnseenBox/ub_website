@@ -32,6 +32,11 @@ const TOUCH_CONTROLS: ReadonlyArray<readonly [string, string]> = [
   ['dodge / drop', 'buttons, bottom right'],
 ];
 
+/** The fight manual, shared by the pause screen and the main-menu controls sheet. */
+export function controlRows(touch: boolean): ReadonlyArray<readonly [string, string]> {
+  return touch ? TOUCH_CONTROLS : controls();
+}
+
 /** Pause is a hotel door hanger; the controls are a note someone left next to it. */
 export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions): HTMLElement {
   const screen = el('div', 'screen pause');

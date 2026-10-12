@@ -19,6 +19,8 @@ import {
   offerPrice,
   restoreCost,
   spawnInterval,
+  OPENING_DONE,
+  openingComplete,
   type CarType,
   type Conditions,
   type ServiceKind,
@@ -38,6 +40,7 @@ import {
   SHOWROOM_SLOTS,
   STAGING,
   STATION_RECTS,
+  LANE_Y,
   type PadDef,
 } from './world'
 import { EXTRA_PADS } from './world'
@@ -164,12 +167,40 @@ export class Game {
   private assignT = 0
   private washing = false
   boughtCount = 0
+  /** first scripted customer after the wash bay build-in */
+  private firstCarDue = false
+  private openingWrapT = 0
 
   constructor(save: SaveData) {
     this.save = save
+    this.migrateOpening()
     for (const u of save.unlocks) this.builtAt[u] = -99
     for (const h of save.hires) this.spawnWorker(h as WorkerRole, true)
     this.seedOpening()
+    if (this.hasUnlock('wash1') && !this.openingDone()) {
+      this.firstCarDue = true
+    }
+  }
+
+  private migrateOpening(): void {
+    const s = this.save
+    if (s.stats.washed >= 1 || s.lifetime >= 500 || s.unlocks.length > 2) {
+      s.tutorial = Math.max(s.tutorial, OPENING_DONE)
+      return
+    }
+    if (s.unlocks.includes('wash1')) s.tutorial = Math.max(s.tutorial, 1)
+  }
+
+  /** Full garage layout, extra pads, random customers. */
+  openingDone(): boolean {
+    return openingComplete(this.save.tutorial)
+  }
+
+  /** 0 = bare slab, 1 = bay + road for first car, 2 = full lot decals & scenery. */
+  worldTier(): 0 | 1 | 2 {
+    if (this.openingDone()) return 2
+    if (!this.hasUnlock('wash1')) return 0
+    return 1
   }
 
   // ---- derived ----
@@ -195,9 +226,9 @@ export class Game {
     return u === null || this.hasUnlock(u)
   }
 
-  /** Future purchase spots stay hidden until the first wash bay is owned. */
+  /** Extra purchase spots appear after the first paid wash. */
   showPads(): boolean {
-    return this.hasUnlock('wash1')
+    return this.openingDone()
   }
 
   parkingCount(): number {
@@ -284,6 +315,56 @@ export class Game {
     if (this.save.lifetime > 600 || this.hasUnlock('lift')) pool.push(CAR_TYPES[3], CAR_TYPES[4])
     if (this.hasUnlock('paint') && this.save.lifetime > 3000) pool.push(CAR_TYPES[5])
     return pick(pool)
+  }
+
+  /** Scripted milestone: one dirty compact drives straight to wash bay 1. */
+  private spawnFirstCustomer(ev: GameEvent[]): void {
+    if (this.cars.some((c) => c.owner === 'customer')) return
+    const type = CAR_TYPES[0]
+    const r = STATION_RECTS.wash1
+    const cond: Conditions = {
+      clean: rand(18, 38),
+      mech: rand(92, 100),
+      body: rand(92, 100),
+      tires: rand(92, 100),
+      shine: rand(70, 88),
+    }
+    this.cars.push({
+      id: nextId++,
+      type,
+      color: type.palette[0],
+      seed: 0.42,
+      cond,
+      needs: ['wash'],
+      wantPaint: false,
+      owner: 'customer',
+      phase: 'toBay',
+      x: ENTRANCE.x,
+      y: ENTRANCE.y,
+      angle: -Math.PI / 2,
+      path: [
+        { x: STAGING.x, y: STAGING.y },
+        { x: r.cx, y: LANE_Y },
+        { x: r.cx, y: r.cy },
+      ],
+      bay: 'wash1',
+      parkIdx: -1,
+      work: null,
+      boughtFor: 0,
+      invested: 0,
+      tip: 0,
+      flash: 0,
+      sellT: 0,
+      sellerBy: null,
+      done: false,
+      notified: false,
+      repaint: 0,
+      bounce: 0,
+      pop: 0,
+    })
+    this.save.tutorial = Math.max(this.save.tutorial, 2)
+    this.firstCarDue = false
+    ev.push({ t: 'sfx', name: 'horn' })
   }
 
   private spawnCustomer(ev: GameEvent[]): void {
@@ -425,8 +506,13 @@ export class Game {
     const stationEntry = (Object.keys(STATION_RECTS) as StationId[]).find((s) => STATIONS[s].unlock === id)
     const fx = pad ?? (stationEntry ? STATION_RECTS[stationEntry] : null)
     ev.push({ t: 'unlockFx', x: fx ? fx.cx : this.player.x, y: fx ? fx.cy : this.player.y })
-    ev.push({ t: 'toast', text: id === 'wash1' ? '🧽 Bay open — first car incoming!' : `${def.icon} ${def.name} unlocked! ${def.desc}` })
-    if (id === 'wash1') this.spawnT = Math.min(this.spawnT, 3)
+    if (id === 'wash1') {
+      this.save.tutorial = Math.max(this.save.tutorial, 1)
+      this.firstCarDue = true
+      ev.push({ t: 'toast', text: '🧽 Wash bay installing…' })
+    } else {
+      ev.push({ t: 'toast', text: `${def.icon} ${def.name} unlocked! ${def.desc}` })
+    }
     ev.push({ t: 'pulse' })
     this.checkObjectives(ev)
     return true
@@ -631,9 +717,15 @@ export class Game {
       let reward = SERVICES[w.service].reward + car.tip
       car.tip = 0
       if (by !== 'player' && this.hasUnlock('billboard')) reward = Math.round(reward * 1.1)
+      const firstOpeningWash = !this.openingDone() && w.service === 'wash' && this.save.stats.washed === 0
       if (w.service === 'wash') this.save.stats.washed++
       else this.save.stats.fixed++
       this.earn(reward, ev, car.x, car.y - 1, SERVICES[w.service].label)
+      if (firstOpeningWash) {
+        this.save.tutorial = 3
+        this.openingWrapT = 0
+        ev.push({ t: 'toast', text: `💰 First job done — +$${reward}` })
+      }
       ev.push({ t: 'sfx', name: w.service === 'engine' ? 'engine' : 'done' })
     } else {
       ev.push({ t: 'floater', x: car.x, y: car.y - 1, text: SERVICES[w.service].icon, color: '#facc15' })
@@ -732,9 +824,13 @@ export class Game {
       if (!s.doneObj.includes(o.id) && cond[o.id]) {
         s.doneObj.push(o.id)
         const bonus = 40 + i * 30
-        s.money += bonus
-        s.lifetime += bonus
-        ev.push({ t: 'objective', text: `✅ ${o.text}`, bonus })
+        if (this.openingDone()) {
+          s.money += bonus
+          s.lifetime += bonus
+          ev.push({ t: 'objective', text: `✅ ${o.text}`, bonus })
+        } else {
+          ev.push({ t: 'objective', text: `✅ ${o.text}`, bonus: 0 })
+        }
         ev.push({ t: 'sfx', name: 'done' })
       }
     }
@@ -746,23 +842,53 @@ export class Game {
     return { icon: '👑', text: 'Empire!' }
   }
 
-  /** Silent onboarding: retire the tutorial toasts, point at the next goal. */
-  private tutorial(): void {
-    if (this.save.tutorial < 4) this.save.tutorial = 4
+  /** One-line HUD hint during the opening; null once the player is free. */
+  tutorialHint(): string | null {
+    if (this.openingDone()) return null
+    switch (this.save.tutorial) {
+      case 0:
+        return 'Your empty lot — walk to the glowing bay ($100)'
+      case 1:
+        return this.firstCarDue ? 'Bay installing…' : 'Almost ready…'
+      case 2:
+        return 'First customer — stand in the bay, hold E to wash'
+      case 3:
+        return 'Open for business!'
+      default:
+        return null
+    }
+  }
+
+  private runOpening(ev: GameEvent[], dt: number): void {
+    if (this.openingDone()) return
+    if (this.save.tutorial >= 1 && this.firstCarDue && this.hasUnlock('wash1')) {
+      const built = this.builtAt.wash1 ?? 0
+      const age = built < 0 ? 99 : this.time - built
+      if (age >= 0.65 && !this.cars.some((c) => c.owner === 'customer')) {
+        this.spawnFirstCustomer(ev)
+      }
+    }
+    if (this.save.tutorial === 3) {
+      this.openingWrapT += dt
+      if (this.openingWrapT >= 2.2) {
+        this.save.tutorial = OPENING_DONE
+        ev.push({ t: 'toast', text: '✨ Expand your wash — yellow signs show upgrades' })
+        this.spawnT = Math.min(this.spawnT, 4)
+      }
+    }
   }
 
   /** Bouncing world marker for the current goal; null once the player is free. */
   guideTarget(): Guide | null {
     const s = this.save
-    if (!this.hasUnlock('wash1')) {
+    if (!this.hasUnlock('wash1') || (s.stats.washed < 1 && !this.openingDone())) {
       const w = STATION_RECTS.wash1
-      return { x: w.cx, y: w.cy }
-    }
-    if (s.stats.washed < 1) {
-      const car = this.cars.find((c) => c.phase === 'inBay' && c.needs.length > 0)
-        ?? this.cars.find((c) => c.owner === 'customer')
-      if (car) return { x: car.x, y: car.y }
-      const w = STATION_RECTS.wash1
+      if (s.stats.washed < 1 && this.hasUnlock('wash1')) {
+        const car =
+          this.cars.find((c) => c.phase === 'inBay' && c.needs.length > 0)
+          ?? this.cars.find((c) => c.owner === 'customer' && c.phase !== 'leaving')
+        if (car) return { x: car.x, y: car.y }
+      }
       return { x: w.cx, y: w.cy }
     }
     if (s.unlocks.length < 2) {
@@ -944,16 +1070,20 @@ export class Game {
     this.player.y = Math.max(0.8, Math.min(29.2, this.player.y))
     this.collide(this.player, 0.42)
 
-    // tutorial + objectives
-    this.tutorial()
+    this.runOpening(ev, dt)
 
-    // customer spawner (silent until the first wash bay is owned)
+    // customer spawner (after the opening milestone; bay required)
     this.spawnT -= dt
     if (this.spawnT <= 0) {
       const billboard = this.hasUnlock('billboard')
       this.spawnT = spawnInterval(this.save.lifetime, billboard) * rand(0.85, 1.15)
       const cap = this.parkingCount() + 4
-      if (this.stationUnlocked('wash1') && this.activeCount() < cap && this.freeParkIdx() >= 0) {
+      if (
+        this.openingDone()
+        && this.stationUnlocked('wash1')
+        && this.activeCount() < cap
+        && this.freeParkIdx() >= 0
+      ) {
         this.spawnCustomer(ev)
       }
     }
@@ -1218,14 +1348,18 @@ export class Game {
   }
 
   private collide(p: { x: number; y: number }, r: number): void {
-    // garage building + showroom counter + billboard + hire post + houses
-    const solids = [
-      { x: 3, y: 1.4, w: 6, h: 3.2 },
-      { x: 23.4, y: 13.4, w: 5.6, h: 1.2 },
-      { x: BILLBOARD.x - 1.3, y: BILLBOARD.y - 0.9, w: 2.6, h: 1.8 },
-      { x: 5.6, y: 5.5, w: 0.8, h: 0.8 },
-      ...HOUSES,
-    ]
+    const solids: { x: number; y: number; w: number; h: number }[] = []
+    if (this.worldTier() >= 2) {
+      solids.push(
+        { x: 3, y: 1.4, w: 6, h: 3.2 },
+        { x: 23.4, y: 13.4, w: 5.6, h: 1.2 },
+        { x: 5.6, y: 5.5, w: 0.8, h: 0.8 },
+        ...HOUSES,
+      )
+    }
+    if (this.hasUnlock('billboard')) {
+      solids.push({ x: BILLBOARD.x - 1.3, y: BILLBOARD.y - 0.9, w: 2.6, h: 1.8 })
+    }
     for (const s of solids) {
       const cx = Math.max(s.x, Math.min(p.x, s.x + s.w))
       const cy = Math.max(s.y, Math.min(p.y, s.y + s.h))

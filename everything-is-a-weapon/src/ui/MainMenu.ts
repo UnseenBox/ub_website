@@ -15,6 +15,7 @@ import { drawObject } from '../rendering/ObjectArt';
 import { drawPet } from '../rendering/PetArt';
 import { drawPlayer } from '../rendering/PlayerArt';
 import { RoomArt } from '../rendering/RoomArt';
+import { controlRows } from './PauseMenu';
 import { button, el, formatScore } from './dom';
 
 export interface MenuActions {
@@ -119,7 +120,6 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const total = HANDCRAFTED_ROOMS.length;
   const resumeRoom = save.unlockedRoom;
   const openThrough = tester ? total + 60 : resumeRoom;
-  const openCount = Math.min(openThrough + 1, total);
 
   // ── left: logo + living splash ──
   const left = el('div', 'mm-left');
@@ -148,8 +148,9 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   splashModel.aimX = 1;
   splashModel.aimY = 0.12;
   splashModel.walkPhase = 1.2;
-  splashModel.throwAnim = 1;
+  splashModel.throwAnim = 0.4;
   const splashPan = createObject('pan', 0, 0);
+  if (splashPan) splashModel.held = splashPan;
   const splashPet = createPet(heroId, 0, 0);
   const splashFoeA = new Enemy(ENEMY_TYPES.basic, 0, 0, -1, 0);
   const splashFoeB = new Enemy(ENEMY_TYPES.basic, 0, 0, -1, 0.2);
@@ -197,13 +198,13 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
       ctx.scale(k, k);
       drawPlayer(ctx, splashModel, 0, 0, t, heroId);
       ctx.restore();
-      // the pan, caught mid-swing in front of them
+      // the pan, carried at the hands exactly the way gameplay carries it
       if (splashPan) {
-        const swing = Math.sin(t * 3.1 + 0.7) * 0.16;
+        const swing = Math.sin(t * 3.1 + 0.7) * 0.12;
         ctx.save();
-        ctx.translate(258, 218 + bob * 0.7);
+        ctx.translate(168 + 31 * k, 300 - 11 * k + bob * 0.5);
         ctx.scale(k, k);
-        ctx.rotate(-0.9 + swing);
+        ctx.rotate(-0.35 + swing);
         drawObject(ctx, splashPan, 0, 0, 0, 0, t);
         ctx.restore();
       }
@@ -272,7 +273,8 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
       el('span', 'mm-stat-key', '♛ best combo'),
       el('span', 'mm-stat-val', best && best.chain > 0 ? `x${best.chain}` : '—'),
     );
-    playBtn.querySelector('.btn-label')!.textContent = `▶ PLAY · ${endless ? `DEPTHS ${n}` : `ROOM ${n}`}`;
+    playBtn.querySelector('.btn-label')!.textContent = '▶ PLAY';
+    playBtn.querySelector('.mm-play-sub')!.textContent = endless ? `DEPTHS ${n}` : `ROOM ${n}`;
     for (const tile of grid.querySelectorAll('.mm-tile')) {
       tile.classList.toggle('picked', tile.getAttribute('data-room') === String(preview));
     }
@@ -361,6 +363,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   // Bottom: one huge red PLAY, cream daily, compact settings + controls.
   const actionsRow = el('div', 'mm-actions');
   const playBtn = button('▶ PLAY', 'primary mm-play', () => actions.play(preview >= total ? resumeRoom : preview));
+  playBtn.append(el('span', 'mm-play-sub', ''));
   const dailyBtn = button('🏆 DAILY CHALLENGE', 'mm-daily', actions.daily);
   const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   dailyBtn.append(el('span', 'mm-daily-sub', `fresh every day · ${today}`));
@@ -407,25 +410,7 @@ export function buildControls(game: Game, onBack: () => void): HTMLElement {
   const head = el('div', 'sheet-head');
   head.append(el('span', 'sheet-title', 'CONTROLS'), el('span', 'sheet-no', 'how to fight'));
   sheet.append(head);
-  const rows: ReadonlyArray<readonly [string, string]> = game.input.touch
-    ? [
-      ['left thumb', 'move'],
-      ['tap right side', 'grab what is highlighted'],
-      ['hold right side', 'charge, let go to throw'],
-      ['drag right thumb', 'aim by hand'],
-      ['dodge / drop', 'buttons, bottom right'],
-    ]
-    : [
-      ['WASD / arrows', 'move'],
-      ['mouse', 'aim'],
-      ['click', 'grab'],
-      ['hold + let go', 'charge and throw'],
-      ['right click', 'drop'],
-      ['space', 'dodge'],
-      ['R', 'restart the room'],
-      ['P / Esc', 'pause'],
-    ];
-  for (const [key, action] of rows) {
+  for (const [key, action] of controlRows(game.input.touch)) {
     const row = el('div', 'control-row');
     row.append(el('span', 'key', key), el('span', '', action));
     sheet.append(row);
