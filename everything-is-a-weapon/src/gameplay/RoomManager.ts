@@ -62,6 +62,16 @@ export function bossSpecFor(index: number, daily: boolean, def: RoomDefinition):
   return { type, delay: latest + 5 };
 }
 
+/**
+ * Every depths boss with the generated room index it haunts, for the tester
+ * wall. Roster slot k surfaces at index 3k+2 (the (index+1)%3===0 rule above),
+ * skipping slots that fall inside the handmade tour.
+ */
+export function depthsBossSlots(): ReadonlyArray<{ type: RoomEnemySpec['type']; index: number }> {
+  return DEPTH_BOSSES.map((type, k) => ({ type, index: 3 * k + 2 }))
+    .filter(({ index }) => index >= HANDCRAFTED_ROOMS.length);
+}
+
 /** Resolves room indices to definitions and builds the physical room from data. */
 export class RoomManager {
   private readonly generatedSeeds = new Map<number, number>();
