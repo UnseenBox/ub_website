@@ -2437,297 +2437,371 @@ body.touch #game {
   white-space: nowrap;
 }
 
-.mm-splash-wrap {
-  position: relative;
-  background: linear-gradient(165deg, #34305e 0%, #232047 55%, #1a1737 100%);
-  border: 3px solid var(--ink);
-  border-radius: 14px;
-  box-shadow: 5px 6px 0 var(--shadow);
-  padding: 8px 8px 4px;
-  overflow: hidden;
-}
-.mm-splash {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 46vh;
-  object-fit: contain;
-}
-.mm-splash-caption {
-  text-align: center;
-  font: 700 13px var(--hand);
-  color: var(--paper);
-  opacity: 0.85;
-  padding: 2px 0 6px;
-}
+/* ───────────── key-wall menu ───────────── */
 
-.mm-right {
+.screen.menu-keys {
+  width: min(100%, 1020px);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-
-.mm-toprow {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 12px;
   align-items: stretch;
+  gap: 16px;
 }
 
-.mm-preview {
-  position: relative;
-  background: var(--grain), var(--paper);
-  color: var(--ink);
-  border-radius: 6px;
-  padding: 26px 12px 10px;
-  box-shadow: 4px 5px 0 var(--shadow);
-  transform: rotate(-0.6deg);
-}
-.mm-tab {
-  position: absolute;
-  top: -13px;
-  left: 12px;
-  transform: rotate(-2deg);
-}
-.mm-shot-wrap {
-  position: relative;
+.mk-head {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+/* the wall of keys: a varnished board with a brass rail, keys swinging below */
+.mk-wall {
+  position: relative;
+  background: linear-gradient(175deg, #4a3423 0%, #3a2718 60%, #2e1f12 100%);
+  border: 4px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 5px 6px 0 var(--shadow);
+  padding: 26px 14px 12px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 4px;
 }
-.mm-shot {
-  flex: 1;
-  min-width: 0;
-  height: clamp(120px, 20vh, 190px);
-  background: #141126;
-  border: 3px solid var(--ink);
-  border-radius: 6px;
-}
-.mm-arrow {
-  flex: none;
-  width: 34px;
-  height: 44px;
-  font-size: 16px;
-  color: var(--paper);
-  background: var(--ink);
-  border: 2px solid var(--ink);
-  border-radius: 8px;
-  cursor: pointer;
-  box-shadow: 2px 3px 0 var(--shadow);
-  transition: transform 0.12s ease-out;
-}
-.mm-arrow:hover {
-  transform: translateY(-2px);
-}
-.mm-room-title {
-  margin-top: 8px;
-  font: 400 clamp(22px, 3vw, 34px)/1 var(--shout);
-  color: var(--ink);
-  text-align: center;
-}
-.mm-room-name {
-  font: 700 clamp(13px, 1.6vw, 17px) var(--hand);
-  color: var(--ink);
-  opacity: 0.8;
-  text-align: center;
-}
-.mm-stats {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-.mm-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-}
-.mm-stat-key {
-  font: 700 10.5px var(--type);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.65;
-}
-.mm-stat-val {
-  font: 700 clamp(12px, 1.5vw, 15px)/1.25 var(--hand);
-  max-width: 170px;
-  text-align: center;
-}
-
-.mm-levels {
-  position: relative;
-  background: linear-gradient(170deg, #2b2752 0%, #201c40 100%);
-  border: 3px solid var(--ink);
-  border-radius: 12px;
-  box-shadow: 4px 5px 0 var(--shadow);
-  padding: 24px 10px 10px;
-}
-.mm-levels .tape-label {
+.mk-wall > .tape-label {
   position: absolute;
-  top: -12px;
+  top: -14px;
   left: 50%;
-  transform: translateX(-50%) rotate(1.5deg);
+  transform: translateX(-50%) rotate(-1.5deg);
   white-space: nowrap;
 }
-.mm-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+
+.key-rack {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  overflow-x: auto;
+  padding: 30px 14px 10px;
+  scrollbar-width: thin;
 }
-.mm-tile {
+
+.key {
   position: relative;
+  flex: none;
+  width: 76px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  background: var(--grain), var(--paper);
-  border: 2px solid var(--ink);
-  border-radius: 6px;
-  padding: 8px 2px 4px;
-  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0 6px 4px;
   cursor: pointer;
-  box-shadow: 2px 3px 0 var(--shadow);
-  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
+  transform-origin: 50% 0;
+  transition: transform 0.15s ease-out;
 }
-button.mm-tile:hover {
-  transform: translateY(-3px) rotate(-1deg);
+button.key:hover {
+  animation: key-swing 0.9s ease-in-out infinite;
 }
-.mm-tile .pin {
-  position: absolute;
-  top: -7px;
-  left: 50%;
-  margin-left: -7px;
-}
-.mm-tile.picked {
-  outline: 3px solid var(--yellow);
-  transform: rotate(-1.5deg);
-}
-.mm-thumb {
-  width: 100%;
-  height: 52px;
-  border: 2px solid var(--ink);
-  border-radius: 4px;
-  background: #141126;
-}
-.mm-num {
-  font: 700 12px var(--type);
-  color: var(--ink);
-}
-.mm-tick {
-  position: absolute;
-  right: 3px;
-  bottom: 16px;
-  font: 700 13px var(--type);
-  color: var(--green);
-}
-.mm-boss {
-  font: 700 9px var(--type);
-  letter-spacing: 0.06em;
-  color: #fff;
-  background: var(--red);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-.mm-flag {
-  font: 700 8.5px var(--type);
-  color: var(--ink);
-  background: var(--yellow);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-.mm-tile.locked {
-  background: #1a1737;
-  cursor: default;
-  color: var(--paper);
-}
-.mm-tile.locked .mm-thumb {
-  opacity: 0.25;
-}
-.mm-tile.locked .mm-num {
-  color: var(--paper);
-  opacity: 0.7;
-}
-.mm-lock {
-  position: absolute;
-  top: 22px;
-  left: 50%;
-  width: 20px;
-  height: 16px;
-  margin-left: -10px;
-  background: #9aa3b8;
-  border: 2px solid var(--ink);
-  border-radius: 4px;
-}
-.mm-lock::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: -12px;
-  width: 10px;
-  height: 12px;
-  margin-left: -7px;
-  border: 3px solid var(--ink);
-  border-bottom: none;
-  border-radius: 7px 7px 0 0;
+@keyframes key-swing {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
 }
 
-.mm-chars {
-  position: relative;
-  background: linear-gradient(170deg, #2b2752 0%, #201c40 100%);
-  border: 3px solid var(--ink);
-  border-radius: 12px;
-  box-shadow: 4px 5px 0 var(--shadow);
-  padding: 24px 10px 10px;
+/* the peg it hangs from */
+.key-hook {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #d7dee9, #6d7689 70%);
+  border: 2px solid var(--ink);
+  margin-bottom: -7px;
+  z-index: 2;
 }
-.mm-chars .tape-label {
+
+/* brass key: ring bow, shaft, two teeth */
+.key-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(2px 3px 0 rgba(10, 8, 24, 0.5));
+}
+.key-body::before {
+  content: '';
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 7px solid #c9a24f;
+  outline: 2px solid var(--ink);
+  background: transparent;
+}
+.key-body::after {
+  content: '';
+  width: 9px;
+  height: 38px;
+  margin-top: -2px;
+  background: linear-gradient(90deg, #8f6f33, #e8c87a 45%, #8f6f33);
+  border: 2px solid var(--ink);
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  box-shadow: 8px 13px 0 #c9a24f, 8px 24px 0 #c9a24f;
+}
+.key-tag {
+  position: relative;
+  margin-top: 6px;
+  min-width: 40px;
+  padding: 3px 8px 4px;
+  background: #fbf6e9;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  font: 700 17px var(--type);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 2px 2px 0 rgba(10, 8, 24, 0.5);
+}
+.key-tag::before {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin: 0 auto 2px;
+  border-radius: 50%;
+  background: var(--ink);
+  opacity: 0.55;
+}
+/* teeth notches hanging off the shaft, drawn on the tag's top edge */
+.key-body + .key-tag {
+  margin-top: -1px;
+}
+
+/* locked: iron, dark tag, no swing */
+.key.locked {
+  cursor: default;
+}
+.key.locked .key-body::before {
+  border-color: #5a5f6e;
+}
+.key.locked .key-body::after {
+  background: linear-gradient(90deg, #343842, #5a5f6e 45%, #343842);
+  box-shadow: 8px 13px 0 #5a5f6e, 8px 24px 0 #5a5f6e;
+}
+.key.locked .key-tag {
+  background: #2b2e38;
+  color: #9aa3b8;
+}
+
+/* selected: lifted, glowing, red tag */
+.key.selected {
+  transform: translateY(-9px);
+}
+button.key.selected:hover {
+  animation: none;
+  transform: translateY(-9px);
+}
+.key.selected .key-tag {
+  background: var(--red);
+  border-color: var(--ink);
+  color: #fff;
+}
+.key.selected::after {
+  content: '';
   position: absolute;
-  top: -12px;
+  inset: 12px -3px -4px;
+  border: 3px solid var(--yellow);
+  border-radius: 12px;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(255, 210, 63, 0.65));
+}
+button.key:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+.key-boss {
+  margin-top: 4px;
+  padding: 0 6px 1px;
+  background: var(--ink);
+  color: #ffd23f;
+  font: 700 9px var(--type);
+  letter-spacing: 0.12em;
+  border-radius: 4px;
+  transform: rotate(-3deg);
+}
+
+/* one readable line about the chosen key */
+.key-info {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  min-height: 30px;
+  padding: 2px 10px 0;
+  color: #fbf6e9;
+  text-align: center;
+}
+.key-info-room {
+  font: 400 clamp(20px, 2.6vw, 30px)/1.1 var(--shout);
+  letter-spacing: 0.02em;
+}
+.key-info-best,
+.key-info-challenge {
+  font: 700 clamp(13px, 1.6vw, 16px) var(--hand);
+  opacity: 0.9;
+}
+.key-info-boss {
+  font: 700 11px var(--type);
+  letter-spacing: 0.14em;
+  color: #ffd23f;
+  border: 2px solid #ffd23f;
+  border-radius: 5px;
+  padding: 1px 7px;
+}
+
+/* characters: four paper cards, frames blank until artwork arrives */
+.mk-chars {
+  position: relative;
+  background: var(--grain), var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 4px 5px 0 var(--shadow);
+  padding: 26px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.mk-chars > .tape-label {
+  position: absolute;
+  top: -13px;
   left: 50%;
   transform: translateX(-50%) rotate(-1deg);
   white-space: nowrap;
 }
-.mm-cards {
+.mk-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
 }
-.mm-card {
+.mk-card {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  background: var(--grain), var(--paper);
-  border: 2px solid var(--ink);
+  gap: 5px;
+  background: var(--grain), #fffdf6;
+  border: 3px solid var(--ink);
   border-radius: 8px;
-  padding: 6px 2px 5px;
+  padding: 8px 6px 9px;
   font: inherit;
   cursor: pointer;
-  box-shadow: 2px 3px 0 var(--shadow);
-  filter: grayscale(0.95) brightness(0.94);
-  transition: transform 0.12s ease-out, filter 0.15s ease-out;
+  box-shadow: 3px 4px 0 var(--shadow);
+  transition: transform 0.12s ease-out;
 }
-button.mm-card:hover {
-  transform: translateY(-3px);
-  filter: grayscale(0.4);
+.mk-card:nth-child(2n) {
+  transform: rotate(1.6deg);
 }
-.mm-card.picked {
-  filter: none;
-  outline: 3px solid var(--yellow);
-  transform: rotate(-1deg);
+.mk-card:nth-child(2n+1) {
+  transform: rotate(-1.6deg);
 }
-.mm-card .hero-photo {
+button.mk-card:hover {
+  transform: rotate(0deg) translateY(-3px);
+}
+.mk-card.picked {
+  outline: 4px solid var(--yellow);
+}
+.mk-card.picked::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 48px;
+  height: 16px;
+  margin-left: -24px;
+  background: var(--tape);
+  clip-path: var(--tape-shape);
+  transform: rotate(-4deg);
+}
+/* genuinely blank cream frame: artwork goes here later */
+.hero-blank {
   width: 100%;
-  height: 56px;
-  object-fit: cover;
-  object-position: 50% 12%;
+  height: 104px;
+  background: #fbf6e9;
   border: 2px solid var(--ink);
-  border-radius: 5px;
-  background: #141126;
+  border-radius: 6px;
 }
+
+/* actions: one huge red PLAY, daily cream, settings + controls small and dark */
+.mk-actions {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+.mk-actions .btn {
+  margin: 0;
+}
+.btn.mk-play {
+  flex: 2.4;
+  font-size: clamp(30px, 3.8vw, 48px);
+  background: var(--red);
+  transform: rotate(-1deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 12px 12px;
+}
+.btn.mk-play .btn-label {
+  font-family: var(--shout);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.mk-play-sub {
+  font: 700 13px var(--type);
+  letter-spacing: 0.24em;
+  color: #fff;
+  opacity: 0.92;
+}
+.btn.mk-play:hover {
+  transform: rotate(-1deg) scale(1.02);
+}
+.btn.mk-daily {
+  flex: 1.2;
+  background: var(--grain), var(--paper);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(15px, 1.8vw, 20px);
+}
+.mk-daily-sub {
+  display: block;
+  font: 700 11px var(--hand);
+  opacity: 0.75;
+}
+.mk-secondary {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+}
+.btn.mk-small {
+  flex: 1;
+  color: var(--paper);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn.mk-small::before {
+  background: var(--grain), #2b2752;
+}
+.btn.mk-small .btn-label {
+  color: var(--paper);
+}
+
+/* (old card frames retired with the key wall; names + crown live on) */
 .mm-card-name {
   font: 700 12.5px var(--type);
   color: var(--ink);
@@ -2757,97 +2831,45 @@ button.mm-card:hover {
   50% { transform: translateY(-3px) rotate(3deg); }
 }
 
-.mm-actions {
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
-}
-.mm-actions .btn {
-  margin: 0;
-}
-.btn.mm-play {
-  flex: 2.2;
-  font-size: clamp(26px, 3.4vw, 44px);
-  background: var(--red);
-  transform: rotate(-1deg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-}
-.btn.mm-play .btn-label {
-  font-family: var(--shout);
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-.mm-play-sub {
-  font: 700 13px var(--type);
-  letter-spacing: 0.22em;
-  color: #fff;
-  opacity: 0.92;
-}
-.btn.mm-play:hover {
-  transform: rotate(-1deg) scale(1.02);
-}
-.btn.mm-daily {
-  flex: 1.3;
-  background: var(--grain), var(--paper);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.mm-daily-sub {
-  display: block;
-  font: 700 10.5px var(--hand);
-  opacity: 0.75;
-}
-.btn.mm-small {
-  flex: 0.8;
-  color: var(--paper);
-  font-size: 13px;
-}
-.btn.mm-small::before {
-  background: var(--grain), #2b2752;
-}
-.btn.mm-small .btn-label {
-  color: var(--paper);
-}
+/* (old action row retired with the key wall; see .mk-actions above) */
 
 @media (max-width: 900px) {
-  #screens .screen.menu-new {
-    display: flex;
-    flex-direction: column;
+  #screens .screen.menu-keys {
     width: min(100%, 640px);
+    gap: 12px;
   }
-  #screens .screen.menu-new .mm-left {
-    width: 100%;
+  .mk-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .mm-left {
-    align-items: center;
+  .mk-actions {
+    flex-wrap: wrap;
   }
-  .mm-splash-wrap {
-    width: min(100%, 420px);
+  .btn.mk-play {
+    flex: 1 1 100%;
   }
-  .mm-splash {
-    max-height: 34vh;
+  .btn.mk-daily {
+    flex: 1 1 100%;
+  }
+  .mk-secondary {
+    flex: 1 1 100%;
   }
 }
 
 @media (max-height: 520px) {
-  .mm-splash {
-    max-height: 30vh;
+  .screen.menu-keys {
+    gap: 10px;
   }
-  .mm-shot {
-    height: clamp(96px, 17vh, 150px);
+  .hero-blank {
+    height: 64px;
   }
-  .mm-thumb {
-    height: 40px;
-  }
-  .mm-card .hero-photo {
-    height: 44px;
-  }
-  .btn.mm-play {
+  .btn.mk-play {
     font-size: clamp(22px, 4vh, 32px);
+  }
+  .key-body::before {
+    width: 24px;
+    height: 24px;
+  }
+  .key-body::after {
+    height: 30px;
   }
 }
