@@ -319,11 +319,10 @@ void ads.init().then(() => {
   if (!paused) ads.gameplayStart()
 })
 
-// Fresh players get the help card once; returning players jump straight in.
+// Returning players may open help once; the opening tutorial replaces it for new saves.
 try {
   if (!localStorage.getItem('garage-empire:seen')) {
     localStorage.setItem('garage-empire:seen', '1')
-    ui.openHelp()
   }
 } catch { /* ignore */ }
 
