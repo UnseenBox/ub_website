@@ -398,6 +398,19 @@ body {
 .mug-piano { width: 32px; height: 22px; background: repeating-linear-gradient(90deg, #fbf6e9 0 4px, #17132a 4px 5.5px), var(--mug); }
 .mug-mower { width: 28px; height: 22px; border-radius: 6px; background: linear-gradient(0deg, transparent 60%, #17132a 60% 72%, transparent 72%), var(--mug); box-shadow: -4px 4px 0 -1px var(--ink), 4px 4px 0 -1px var(--ink); }
 .mug-mom { width: 24px; height: 28px; border-radius: 10px 10px 3px 3px; background: radial-gradient(circle at 50% 32%, #f2c19b 20%, transparent 22%), var(--mug); }
+.mug-vacuumasaurus { width: 30px; height: 26px; border-radius: 12px; background: radial-gradient(circle at 50% 55%, #17132a 20%, transparent 22%), var(--mug); }
+.mug-hydra { width: 30px; height: 26px; background: linear-gradient(90deg, transparent 20%, var(--ink) 20% 24%, transparent 24% 48%, var(--ink) 48% 52%, transparent 52% 76%, var(--ink) 76% 80%, transparent 80%), var(--mug); }
+.mug-fan { width: 30px; height: 20px; border-radius: 10px; background: linear-gradient(0deg, transparent 42%, var(--ink) 42% 58%, transparent 58%), var(--mug); }
+.mug-popcorn { width: 24px; height: 28px; background: linear-gradient(0deg, transparent 55%, #17132a 55% 68%, transparent 68%), var(--mug); box-shadow: inset 0 6px 0 #2f4fb5; }
+.mug-cables { width: 28px; height: 26px; background: radial-gradient(circle at 30% 40%, #ffd23f 8%, transparent 10%), radial-gradient(circle at 70% 60%, #4ad6e8 8%, transparent 10%), var(--mug); }
+.mug-cooker { width: 26px; height: 28px; border-radius: 4px 4px 8px 8px; background: linear-gradient(0deg, transparent 75%, rgba(34, 27, 54, 0.6) 75% 80%, transparent 80%), var(--mug); box-shadow: inset 0 4px 0 #8f8878; }
+.mug-train { width: 34px; height: 22px; border-radius: 4px; background: linear-gradient(0deg, transparent 55%, #fff6c9 55% 70%, transparent 70%), var(--mug); box-shadow: -4px 4px 0 -1px var(--ink), 4px 4px 0 -1px var(--ink); }
+.mug-junk { width: 28px; height: 30px; background: linear-gradient(0deg, transparent 30%, rgba(34, 27, 54, 0.55) 30% 35%, transparent 35% 60%, rgba(34, 27, 54, 0.55) 60% 65%, transparent 65%), var(--mug); box-shadow: inset 0 -6px 0 #ffd23f; }
+.mug-house { width: 30px; height: 26px; background: linear-gradient(0deg, transparent 55%, #17132a 55% 75%, transparent 75%), var(--mug); box-shadow: inset 0 6px 0 #5c2e28; }
+.mug-clock { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 50% 50%, var(--ink) 8%, transparent 10%), var(--mug); }
+.mug-toybox { width: 28px; height: 24px; background: linear-gradient(0deg, transparent 30%, #ffd23f 30% 40%, transparent 40%), var(--mug); box-shadow: inset 0 5px 0 #a84a20; }
+.mug-dishwasher { width: 26px; height: 28px; background: radial-gradient(circle at 50% 60%, #101821 22%, transparent 24%), var(--mug); }
+.mug-cardboard { width: 26px; height: 26px; background: linear-gradient(45deg, transparent 44%, var(--red) 44% 56%, transparent 56%), var(--mug); }
 
 /* eyes glaring out of the hand-hole */
 .mug-face {

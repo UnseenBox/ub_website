@@ -72,6 +72,24 @@ export class Enemy {
   /** Frost-aura timer (Fridgezilla). */
   frostTimer = 2;
   private trampleSoundT = 0;
+  /** True for minions called in by a boss (counts towards spawner caps). */
+  summoned = false;
+  /** Blink timer (Popcorn Apocalypse). */
+  teleportTimer = 5;
+  /** Ooze timer (Dishwasher Demon). */
+  seepTimer = 2;
+  /** Time-freeze timer (Time-Thief). */
+  stasisCooldown = 6;
+  /** Toy timer + counter (Toybox Titan). */
+  spawnTimer = 4;
+  spawnCount = 0;
+  /** Current shapeshifter form index (King of Cardboard). */
+  form = 0;
+  formTimer = 8;
+  /** Crackle timer (Cable Kraken). */
+  zapTimer = 2;
+  /** Cyclone timer (Fan-tastic Nightmare). */
+  windTimer = 2;
   burn = 0;
   private burnTick = 0;
   slip = 0;
@@ -197,12 +215,19 @@ export class Enemy {
     if (this.type.dodges) this.updateDodge(game, dt);
     if (this.type.rearranges) this.updateRearrange(game, dt);
     if (this.type.frost) this.updateFrost(game, dt);
+    if (this.type.teleports) this.updateTeleport(game, dt);
+    if (this.type.seeps) this.updateSeep(game, dt);
+    if (this.type.stasis) this.updateStasis(game, dt);
+    if (this.type.spawns) this.updateSpawner(game, dt);
+    if (this.type.forms) this.updateForms(game, dt);
+    if (this.type.zaps) this.updateZap(game, dt);
+    if (this.type.winds) this.updateWinds(game, dt);
 
     const player = game.player;
     const dx = player.body.x - b.x;
     const dy = player.body.y - b.y;
     const dist = Math.hypot(dx, dy) || 1;
-    let speed = this.type.speed * this.rageMult * (this.slowTimer > 0 ? this.slowFactor : 1);
+    let speed = this.type.speed * this.rageMult * this.formSpeedMult() * (this.slowTimer > 0 ? this.slowFactor : 1);
 
     if (this.burn > 0) {
       // On fire: forget the plan, run around.
@@ -294,11 +319,11 @@ export class Enemy {
         this.turnTowards(Math.atan2(dy, dx), dt);
         this.walkPhase += dt * (6 + speed * 0.06);
         // Ranged troublemakers would rather throw the room at you than walk into it.
-        if (this.type.hurls && this.hurlCooldown <= 0 && dist < this.type.hurls.range && dist > 130 && this.confuse <= 0) {
+        if (this.type.hurls && this.allows('hurl') && this.hurlCooldown <= 0 && dist < this.type.hurls.range && dist > 130 && this.confuse <= 0) {
           if (this.startHurl(game)) break;
         }
         // Heavy sitters slam the floor instead of chasing forever.
-        if (this.type.slams && this.slamCooldown <= 0 && dist < this.type.slams.radius * 1.15 && this.confuse <= 0) {
+        if (this.type.slams && this.allows('slam') && this.slamCooldown <= 0 && dist < this.type.slams.radius * 1.15 && this.confuse <= 0) {
           this.startSlam(game);
           break;
         }
@@ -307,7 +332,7 @@ export class Enemy {
           this.startLash(game);
           break;
         }
-        if (dist < this.type.radius + player.body.boundR + (this.type.lungeRange ?? 14) && this.confuse <= 0) {
+        if (dist < this.type.radius + player.body.boundR + (this.formLungeRange() ?? this.type.lungeRange ?? 14) && this.confuse <= 0) {
           this.setState('windup', this.type.windup ?? WINDUP_TIME);
         }
         break;
@@ -673,6 +698,211 @@ export class Enemy {
     }
   }
 
+  /** Shapeshifter plumbing: current form, its speed, and what it allows. */
+  private currentForm(): { key: string; name: string; speedMult: number; slam?: boolean; hurl?: boolean; lungeRange?: number; announce: string } | null {
+    const forms = this.type.forms;
+    if (!forms || forms.length === 0) return null;
+    return forms[this.form % forms.length]!;
+  }
+
+  private formSpeedMult(): number {
+    return this.currentForm()?.speedMult ?? 1;
+  }
+
+  private allows(kind: 'slam' | 'hurl'): boolean {
+    const form = this.currentForm();
+    if (!form) return true;
+    return form[kind] === true;
+  }
+
+  private formLungeRange(): number | undefined {
+    return this.currentForm()?.lungeRange;
+  }
+
+  /** The King of Cardboard refolds itself on a timer, with announcements. */
+  private updateForms(game: Game, dt: number): void {
+    const forms = this.type.forms;
+    if (!forms || this.defeated) return;
+    this.formTimer -= dt;
+    if (this.formTimer > 0) return;
+    this.formTimer = this.type.formInterval ?? 11;
+    this.form = (this.form + 1) % forms.length;
+    const cur = forms[this.form]!;
+    this.squash = 1;
+    game.audio.play('click', 1);
+    game.hud.banner(cur.announce, cur.name, 1.6);
+    game.fx.ring(this.body.x, this.body.y, 8, 70, 0.4, 'rgba(255,210,63,0.9)', 4);
+    game.particles.burst('scrap', this.body.x, this.body.y - 10, 10, 200);
+    game.camera.addShake(0.2);
+  }
+
+  /** Blink-hunting: gone in a puff, back somewhere ruder. */
+  private updateTeleport(game: Game, dt: number): void {
+    const spec = this.type.teleports;
+    if (!spec || this.defeated) return;
+    this.teleportTimer -= dt;
+    if (this.teleportTimer > 0) return;
+    const player = game.player;
+    const b = this.body;
+    const d = Math.hypot(player.body.x - b.x, player.body.y - b.y);
+    if (!player.alive || d < 200) {
+      this.teleportTimer = 1;
+      return;
+    }
+    this.teleportTimer = spec.cooldown * game.rng.range(0.9, 1.15);
+    game.particles.burst('smoke', b.x, b.y, 12, 140);
+    game.particles.burst('spark', b.x, b.y - 10, 8, 200);
+    game.audio.play('poof', 1);
+    const def = game.room.def;
+    const a = game.rng.range(0, Math.PI * 2);
+    const dist = game.rng.range(spec.minDist, spec.minDist + 140);
+    const nx = clamp(player.body.x + Math.cos(a) * dist, 60, def.width - 60);
+    const ny = clamp(player.body.y + Math.sin(a) * dist, 60, def.height - 60);
+    b.teleport(nx, ny, b.angle);
+    b.vx = 0;
+    b.vy = 0;
+    b.wake();
+    game.fx.ring(nx, ny, 8, 60, 0.35, 'rgba(255,255,255,0.85)', 4);
+    game.fx.burst('POP!', nx, ny - 52, 1, '#ff9f1c', true);
+    game.particles.burst('smoke', nx, ny, 10, 120);
+  }
+
+  /** Oozing hazards wherever it stands. */
+  private updateSeep(game: Game, dt: number): void {
+    const spec = this.type.seeps;
+    if (!spec || this.defeated) return;
+    this.seepTimer -= dt;
+    if (this.seepTimer > 0) return;
+    this.seepTimer = spec.interval;
+    const b = this.body;
+    game.zones.spawn(game, spec.kind, b.x, b.y, spec.radius, { ttl: spec.ttl });
+    game.particles.burst('water', b.x, b.y, 10, 160);
+    game.audio.play('splash', 0.6);
+  }
+
+  /**
+   * The Time-Thief rings: you crawl, the furniture rewinds and stampedes.
+   * Dodge the bubble, or spend two seconds watching a chair undo itself at you.
+   */
+  private updateStasis(game: Game, dt: number): void {
+    const spec = this.type.stasis;
+    if (!spec || this.defeated) return;
+    this.stasisCooldown -= dt;
+    if (this.stasisCooldown > 0) return;
+    this.stasisCooldown = spec.cooldown;
+    const b = this.body;
+    const player = game.player;
+    if (player.alive && Math.hypot(player.body.x - b.x, player.body.y - b.y) < spec.radius) {
+      player.slowTimer = spec.slowDuration;
+      player.slowFactor = 0.25;
+    }
+    for (const object of game.objects) {
+      if (!object.alive || object.held) continue;
+      const ob = object.body;
+      if (ob.type !== 'dynamic') continue;
+      if (Math.hypot(ob.x - b.x, ob.y - b.y) > spec.radius) continue;
+      if (object.restingOn) object.leaveSurface();
+      ob.vx = -ob.vx * 1.4 + game.rng.range(-80, 80);
+      ob.vy = -ob.vy * 1.4 + game.rng.range(-80, 80);
+      ob.vz = Math.max(ob.vz, 150);
+      ob.z = Math.max(ob.z, 4);
+      ob.wake();
+    }
+    game.audio.play('alarm', 1);
+    game.fx.burst('TIME OUT!', b.x, b.y - 60, 1.2, '#4ad6e8', true);
+    game.fx.ring(b.x, b.y, 10, spec.radius, 0.6, 'rgba(74,214,232,0.8)', 4);
+    game.hitStop(0.05);
+    game.discoveries.unlock('time_out');
+  }
+
+  /** The Toybox dispenses playmates on a timer, escalating to bigger toys. */
+  private updateSpawner(game: Game, dt: number): void {
+    const spec = this.type.spawns;
+    if (!spec || this.defeated) return;
+    this.spawnTimer -= dt;
+    if (this.spawnTimer > 0) return;
+    this.spawnTimer = spec.interval;
+    let alive = 0;
+    for (const e of game.enemies) {
+      if (e !== this && !e.defeated && e.summoned) alive++;
+    }
+    if (alive >= spec.maxAlive) return;
+    this.spawnCount++;
+    const escalated = spec.escalateEvery !== undefined && spec.escalateType !== undefined &&
+      this.spawnCount % spec.escalateEvery === 0;
+    const type = escalated ? spec.escalateType! : game.rng.pick(spec.pool);
+    const b = this.body;
+    const a = game.rng.range(0, Math.PI * 2);
+    const child = game.spawnEnemy(
+      type,
+      b.x + Math.cos(a) * (this.type.radius + 30),
+      b.y + Math.sin(a) * (this.type.radius + 30),
+      Math.cos(a), Math.sin(a),
+    );
+    child.summoned = true;
+    child.body.vx = Math.cos(a) * 300;
+    child.body.vy = Math.sin(a) * 300;
+    child.squash = 1;
+    game.audio.play('poof', 0.9);
+    game.particles.burst('dust', b.x, b.y, 10, 180);
+    if (escalated) {
+      game.fx.burst('BIGGER TOY!', b.x, b.y - 56, 1.1, '#ff9f1c', true);
+      game.discoveries.unlock('jack_in_the_box');
+    }
+  }
+
+  /** The Cable Kraken crackles: standing close is a billing event. */
+  private updateZap(game: Game, dt: number): void {
+    const spec = this.type.zaps;
+    if (!spec || this.defeated) return;
+    this.zapTimer -= dt;
+    if (this.zapTimer > 0) return;
+    this.zapTimer = spec.interval;
+    const b = this.body;
+    game.audio.play('zap', 1);
+    game.particles.burst('spark', b.x, b.y - 10, 18, 320);
+    game.fx.ring(b.x, b.y, 8, spec.radius, 0.35, 'rgba(255,242,122,0.9)', 4);
+    const player = game.player;
+    if (player.alive && Math.hypot(player.body.x - b.x, player.body.y - b.y) < spec.radius) {
+      if (player.hurt(game, 1, 'ELECTRICITY')) {
+        game.particles.burst('spark', player.body.x, player.body.y - 8, 12, 240);
+        game.discoveries.unlock('high_voltage');
+      }
+    }
+    // Friendly current: rival movers conduct too (bosses excepted).
+    for (const other of game.enemies) {
+      if (other === this || other.defeated || other.type.boss) continue;
+      if (Math.hypot(other.body.x - b.x, other.body.y - b.y) > spec.radius) continue;
+      other.shock(game, 8, 0.5, {
+        type: 'shock', source: this, chain: null, label: this.label, dirX: 0, dirY: 0,
+      });
+    }
+  }
+
+  /** The Fan-tastic Nightmare seeds a cyclone that steals throws mid-air. */
+  private updateWinds(game: Game, dt: number): void {
+    const spec = this.type.winds;
+    if (!spec || this.defeated) return;
+    this.windTimer -= dt;
+    if (this.windTimer > 0) return;
+    this.windTimer = spec.interval;
+    const b = this.body;
+    const base = game.rng.range(0, Math.PI * 2);
+    for (let k = 0; k < 4; k++) {
+      const a = base + (k * Math.PI) / 2;
+      const zone = game.zones.spawn(
+        game, 'wind',
+        b.x + Math.cos(a) * spec.radius * 0.5, b.y + Math.sin(a) * spec.radius * 0.5,
+        spec.radius * 0.55, { ttl: spec.ttl },
+      );
+      zone.dirX = -Math.sin(a);
+      zone.dirY = Math.cos(a);
+    }
+    game.audio.play('hiss', 0.7);
+    game.particles.burst('dust', b.x, b.y, 8, 200);
+    game.discoveries.unlock('cyclone');
+  }
+
   /** Fridgezilla's halo: the floor keeps freezing wherever it has been. */
   private updateFrost(game: Game, dt: number): void {
     const spec = this.type.frost;
@@ -776,6 +1006,30 @@ export class Enemy {
       ob.wake();
       if (d < this.type.radius + 10) this.eatObject(game, object);
     }
+    // The Vacuumasaurus also inhales rival movers. Crew is crew.
+    if (this.type.voracious) {
+      for (const other of game.enemies) {
+        if (other === this || other.defeated || other.type.boss) continue;
+        const ob = other.body;
+        const dx = b.x - ob.x;
+        const dy = b.y - ob.y;
+        const d = Math.hypot(dx, dy);
+        if (d > spec.radius * 0.65 || d < 0.01) continue;
+        ob.vx += (dx / d) * spec.pull * 0.7 * dt;
+        ob.vy += (dy / d) * spec.pull * 0.7 * dt;
+        ob.wake();
+        if (d < this.type.radius + 14) {
+          other.damage(game, 999, {
+            type: 'slam', source: this, chain: null, label: 'DIGESTED', dirX: 0, dirY: 0,
+          });
+          this.hp = Math.min(this.type.hp, this.hp + 15);
+          game.audio.play('chomp', 1);
+          game.fx.burst('TASTY!', b.x, b.y - 52, 1, '#9be564', true);
+          game.particles.burst('dust', b.x, b.y - 10, 10, 200);
+          game.discoveries.unlock('ate_the_crew');
+        }
+      }
+    }
     // Standing too close in bare feet is a bad idea, but escapable.
     const player = game.player;
     if (player.alive) {
@@ -844,6 +1098,7 @@ export class Enemy {
             this.body.y + Math.sin(a) * (this.type.radius + 26),
             Math.cos(a), Math.sin(a),
           );
+          child.summoned = true;
           child.body.vx = Math.cos(a) * 320;
           child.body.vy = Math.sin(a) * 320;
           child.squash = 1;
