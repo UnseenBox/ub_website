@@ -5,4 +5,6 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   base: './',
   build: { target: 'es2020' },
+  // Isolate from website root postcss.config.mjs (tailwind) — game uses plain CSS.
+  css: { postcss: { plugins: [] } },
 })

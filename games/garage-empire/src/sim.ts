@@ -1049,10 +1049,16 @@ export class Game {
   update(dt: number, input: { x: number; y: number; actionHeld: boolean; actionPressed: boolean }): GameEvent[] {
     const ev: GameEvent[] = []
     this.time += dt
-    // player movement with acceleration / deceleration for weight
+    // Player movement with acceleration / deceleration for weight.
+    // Input (x = screen-right, y = screen-down) is camera-relative: the iso
+    // camera sits at (+20, +20) from its target, so screen-up is world
+    // north-west and screen-right is world north-east. Rotate 45° to world
+    // (x = east, y = south) so W always moves up-screen, not north.
+    const wx = (input.x + input.y) * Math.SQRT1_2
+    const wy = (-input.x + input.y) * Math.SQRT1_2
     const k = Math.min(1, dt * 11)
-    this.player.vx += (input.x * PLAYER_SPEED - this.player.vx) * k
-    this.player.vy += (input.y * PLAYER_SPEED - this.player.vy) * k
+    this.player.vx += (wx * PLAYER_SPEED - this.player.vx) * k
+    this.player.vy += (wy * PLAYER_SPEED - this.player.vy) * k
     this.player.x += this.player.vx * dt
     this.player.y += this.player.vy * dt
     this.player.speed = Math.hypot(this.player.vx, this.player.vy)
