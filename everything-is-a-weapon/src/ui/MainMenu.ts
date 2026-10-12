@@ -63,7 +63,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   screen.append(head);
 
   // ── the wall of keys ──
-  const wallSec = el('section', 'mk-wall board');
+  const wallSec = el('section', 'mk-wall');
   wallSec.setAttribute('aria-label', 'Room selection');
   wallSec.append(el('div', 'tape-label', tester ? 'ROOM KEYS · TESTER' : 'ROOM KEYS'));
   const rack = el('div', 'key-rack');
@@ -157,7 +157,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   screen.append(wallSec);
 
   // ── characters: same four cards, frames left blank for future artwork ──
-  const chars = el('section', 'mk-chars board');
+  const chars = el('section', 'mk-chars');
   chars.setAttribute('aria-label', 'Character selection');
   chars.append(el('div', 'tape-label', 'CHOOSE YOUR CHARACTER'));
   const cards = el('div', 'mk-cards');

@@ -2437,36 +2437,57 @@ body.touch #game {
   white-space: nowrap;
 }
 
-/* ───────────── key-wall menu ───────────── */
+/* ───────────── key-wall menu ─────────────
+   One vertical rhythm. Everything is sized in vh/vmin (not fixed px) so the
+   menu keeps its proportions on a 16:9 desktop, a laptop, a tablet and a
+   phone in either orientation. Only the key rack scrolls; the frame never
+   overflows or leaves dead space. */
 
 .screen.menu-keys {
-  width: min(100%, 1020px);
+  width: min(100%, 1120px);
+  height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 16px;
+  gap: clamp(8px, 1.5vh, 18px);
+  padding: clamp(2px, 1vh, 12px) 0;
 }
 
 .mk-head {
+  flex: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding-top: 6px;
+  gap: clamp(4px, 0.9vh, 10px);
 }
 
-/* the wall of keys: a varnished board with a brass rail, keys swinging below */
+.mm-letter {
+  font: 400 clamp(34px, 7.6vmin, 76px)/1 var(--shout);
+  padding: 2px clamp(6px, 1.1vmin, 10px) 6px;
+  border: 4px solid var(--ink);
+  border-radius: 12px;
+}
+
+.mm-tagline-text {
+  font: 700 clamp(13px, 2.2vmin, 21px) var(--hand);
+}
+
+/* the wall of keys: a varnished board, keys hanging off a rail */
 .mk-wall {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   background: linear-gradient(175deg, #4a3423 0%, #3a2718 60%, #2e1f12 100%);
   border: 4px solid var(--ink);
   border-radius: 12px;
   box-shadow: 5px 6px 0 var(--shadow);
-  padding: 26px 14px 12px;
+  padding: clamp(16px, 2.4vh, 30px) clamp(10px, 1.6vw, 18px) clamp(8px, 1.2vh, 14px);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  align-items: stretch;
+  gap: clamp(4px, 0.8vh, 10px);
 }
 .mk-wall > .tape-label {
   position: absolute;
@@ -2477,25 +2498,40 @@ body.touch #game {
 }
 
 .key-rack {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  /* keys float centred in whatever height the wall gets */
+  align-items: center;
+  align-content: center;
+  gap: clamp(4px, 0.9vmin, 12px);
   width: 100%;
+  /* the only scrolling part of the menu */
   overflow-x: auto;
-  padding: 30px 14px 10px;
+  overflow-y: hidden;
+  padding: clamp(14px, 2.4vh, 30px) 2px 6px;
+  scroll-snap-type: x proximity;
   scrollbar-width: thin;
+  scrollbar-color: #6b4526 transparent;
+}
+
+/* one number scales the whole key: bow, shaft, teeth and tag stay in
+   proportion to each other at every viewport size */
+.key-rack {
+  --kw: clamp(52px, 7.4vmin, 92px);
 }
 
 .key {
   position: relative;
   flex: none;
-  width: 76px;
+  width: var(--kw);
+  scroll-snap-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   background: none;
   border: 0;
-  padding: 0 6px 4px;
+  padding: 0 2px 4px;
   cursor: pointer;
   transform-origin: 50% 0;
   transition: transform 0.15s ease-out;
@@ -2510,12 +2546,12 @@ button.key:hover {
 
 /* the peg it hangs from */
 .key-hook {
-  width: 13px;
-  height: 13px;
+  width: calc(var(--kw) * 0.18);
+  height: calc(var(--kw) * 0.18);
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #d7dee9, #6d7689 70%);
   border: 2px solid var(--ink);
-  margin-bottom: -7px;
+  margin-bottom: calc(var(--kw) * -0.1);
   z-index: 2;
 }
 
@@ -2528,33 +2564,35 @@ button.key:hover {
 }
 .key-body::before {
   content: '';
-  width: 30px;
-  height: 30px;
+  width: calc(var(--kw) * 0.4);
+  height: calc(var(--kw) * 0.4);
   border-radius: 50%;
-  border: 7px solid #c9a24f;
+  border: calc(var(--kw) * 0.095) solid #c9a24f;
   outline: 2px solid var(--ink);
   background: transparent;
 }
 .key-body::after {
   content: '';
-  width: 9px;
-  height: 38px;
+  width: calc(var(--kw) * 0.12);
+  height: calc(var(--kw) * 0.5);
   margin-top: -2px;
   background: linear-gradient(90deg, #8f6f33, #e8c87a 45%, #8f6f33);
   border: 2px solid var(--ink);
   border-top: none;
   border-radius: 0 0 3px 3px;
-  box-shadow: 8px 13px 0 #c9a24f, 8px 24px 0 #c9a24f;
+  box-shadow:
+    calc(var(--kw) * 0.105) calc(var(--kw) * 0.17) 0 #c9a24f,
+    calc(var(--kw) * 0.105) calc(var(--kw) * 0.316) 0 #c9a24f;
 }
 .key-tag {
   position: relative;
-  margin-top: 6px;
-  min-width: 40px;
-  padding: 3px 8px 4px;
+  margin-top: clamp(4px, 0.8vh, 8px);
+  min-width: calc(var(--kw) * 0.56);
+  padding: 2px calc(var(--kw) * 0.1) 3px;
   background: #fbf6e9;
   border: 2px solid var(--ink);
   border-radius: 5px;
-  font: 700 17px var(--type);
+  font: 700 calc(var(--kw) * 0.24) var(--type);
   color: var(--ink);
   text-align: center;
   box-shadow: 2px 2px 0 rgba(10, 8, 24, 0.5);
@@ -2583,7 +2621,9 @@ button.key:hover {
 }
 .key.locked .key-body::after {
   background: linear-gradient(90deg, #343842, #5a5f6e 45%, #343842);
-  box-shadow: 8px 13px 0 #5a5f6e, 8px 24px 0 #5a5f6e;
+  box-shadow:
+    calc(var(--kw) * 0.105) calc(var(--kw) * 0.17) 0 #5a5f6e,
+    calc(var(--kw) * 0.105) calc(var(--kw) * 0.316) 0 #5a5f6e;
 }
 .key.locked .key-tag {
   background: #2b2e38;
@@ -2592,11 +2632,11 @@ button.key:hover {
 
 /* selected: lifted, glowing, red tag */
 .key.selected {
-  transform: translateY(-9px);
+  transform: translateY(calc(var(--kw) * -0.12));
 }
 button.key.selected:hover {
   animation: none;
-  transform: translateY(-9px);
+  transform: translateY(calc(var(--kw) * -0.12));
 }
 .key.selected .key-tag {
   background: var(--red);
@@ -2630,27 +2670,28 @@ button.key:focus-visible {
 
 /* one readable line about the chosen key */
 .key-info {
+  flex: none;
   display: flex;
   align-items: baseline;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 6px 16px;
-  min-height: 30px;
-  padding: 2px 10px 0;
+  gap: 4px clamp(8px, 1.6vw, 18px);
+  min-height: clamp(22px, 3.2vh, 34px);
+  padding: 0 10px;
   color: #fbf6e9;
   text-align: center;
 }
 .key-info-room {
-  font: 400 clamp(20px, 2.6vw, 30px)/1.1 var(--shout);
+  font: 400 clamp(18px, 3vmin, 32px)/1.1 var(--shout);
   letter-spacing: 0.02em;
 }
 .key-info-best,
 .key-info-challenge {
-  font: 700 clamp(13px, 1.6vw, 16px) var(--hand);
+  font: 700 clamp(12px, 2vmin, 16px) var(--hand);
   opacity: 0.9;
 }
 .key-info-boss {
-  font: 700 11px var(--type);
+  font: 700 clamp(9px, 1.5vmin, 11px) var(--type);
   letter-spacing: 0.14em;
   color: #ffd23f;
   border: 2px solid #ffd23f;
@@ -2661,15 +2702,17 @@ button.key:focus-visible {
 /* characters: four paper cards, frames blank until artwork arrives */
 .mk-chars {
   position: relative;
+  flex: none;
+  width: 100%;
   background: var(--grain), var(--paper);
   border: 3px solid var(--ink);
   border-radius: 10px;
   box-shadow: 4px 5px 0 var(--shadow);
-  padding: 26px 14px 12px;
+  padding: clamp(16px, 2.2vh, 26px) clamp(10px, 1.6vw, 16px) clamp(8px, 1.4vh, 12px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: clamp(6px, 1vh, 10px);
 }
 .mk-chars > .tape-label {
   position: absolute;
@@ -2681,7 +2724,7 @@ button.key:focus-visible {
 .mk-cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: clamp(6px, 1.2vw, 14px);
   width: 100%;
 }
 .mk-card {
@@ -2689,11 +2732,11 @@ button.key:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: clamp(3px, 0.6vh, 6px);
   background: var(--grain), #fffdf6;
   border: 3px solid var(--ink);
   border-radius: 8px;
-  padding: 8px 6px 9px;
+  padding: clamp(5px, 0.9vh, 9px) 5px clamp(6px, 1vh, 10px);
   font: inherit;
   cursor: pointer;
   box-shadow: 3px 4px 0 var(--shadow);
@@ -2726,16 +2769,28 @@ button.mk-card:hover {
 /* genuinely blank cream frame: artwork goes here later */
 .hero-blank {
   width: 100%;
-  height: 104px;
+  height: clamp(56px, 13vh, 112px);
   background: #fbf6e9;
   border: 2px solid var(--ink);
   border-radius: 6px;
 }
+.mm-card-name {
+  font: 700 clamp(11px, 1.8vmin, 14px) var(--type);
+  color: var(--ink);
+}
+.mm-card-note {
+  font: 700 clamp(9px, 1.5vmin, 10.5px) var(--hand);
+  color: var(--ink);
+  opacity: 0.75;
+  text-align: center;
+  line-height: 1.15;
+}
 
 /* actions: one huge red PLAY, daily cream, settings + controls small and dark */
 .mk-actions {
+  flex: none;
   display: flex;
-  gap: 12px;
+  gap: clamp(8px, 1.2vw, 14px);
   align-items: stretch;
 }
 .mk-actions .btn {
@@ -2743,7 +2798,8 @@ button.mk-card:hover {
 }
 .btn.mk-play {
   flex: 2.4;
-  font-size: clamp(30px, 3.8vw, 48px);
+  min-width: 0;
+  font-size: clamp(26px, 5.4vmin, 48px);
   background: var(--red);
   transform: rotate(-1deg);
   display: flex;
@@ -2751,7 +2807,7 @@ button.mk-card:hover {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 10px 12px 12px;
+  padding: clamp(8px, 1.6vh, 14px) clamp(10px, 1.6vw, 16px);
 }
 .btn.mk-play .btn-label {
   font-family: var(--shout);
@@ -2759,7 +2815,7 @@ button.mk-card:hover {
   white-space: nowrap;
 }
 .mk-play-sub {
-  font: 700 13px var(--type);
+  font: 700 clamp(10px, 1.7vmin, 13px) var(--type);
   letter-spacing: 0.24em;
   color: #fff;
   opacity: 0.92;
@@ -2769,27 +2825,30 @@ button.mk-card:hover {
 }
 .btn.mk-daily {
   flex: 1.2;
+  min-width: 0;
   background: var(--grain), var(--paper);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: clamp(15px, 1.8vw, 20px);
+  font-size: clamp(13px, 2.4vmin, 20px);
 }
 .mk-daily-sub {
   display: block;
-  font: 700 11px var(--hand);
+  font: 700 clamp(9px, 1.5vmin, 11px) var(--hand);
   opacity: 0.75;
 }
 .mk-secondary {
   flex: 1;
+  min-width: 0;
   display: flex;
-  gap: 10px;
+  gap: clamp(6px, 1vw, 10px);
 }
 .btn.mk-small {
   flex: 1;
+  min-width: 0;
   color: var(--paper);
-  font-size: 14px;
+  font-size: clamp(11px, 1.9vmin, 14px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2833,43 +2892,65 @@ button.mk-card:hover {
 
 /* (old action row retired with the key wall; see .mk-actions above) */
 
-@media (max-width: 900px) {
-  #screens .screen.menu-keys {
-    width: min(100%, 640px);
-    gap: 12px;
+/* ── responsive: the key wall is the hero at every size ── */
+
+/* short-and-wide (laptops, landscape phones): side-by-side, wall gets the height */
+@media (min-width: 860px) and (max-height: 620px) {
+  .screen.menu-keys {
+    width: min(100%, 1080px);
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
+    grid-template-areas: 'wall chars' 'wall actions';
+    align-items: stretch;
+    gap: clamp(8px, 1.6vh, 16px);
+  }
+  .mk-head { grid-column: 1 / -1; }
+  .mk-wall { grid-area: wall; }
+  .mk-chars { grid-area: chars; align-self: start; }
+  .mk-actions {
+    grid-area: actions;
+    align-self: end;
+    flex-wrap: wrap;
+  }
+  .btn.mk-play { flex: 1 1 100%; }
+  .btn.mk-daily { flex: 1 1 58%; }
+  .mk-secondary { flex: 1 1 40%; }
+  .key-rack { --kw: clamp(46px, 6.4vh, 78px); }
+  .hero-blank { height: clamp(44px, 9vh, 76px); }
+}
+
+/* narrow (portrait phones and small tablets): stack everything */
+@media (max-width: 859px) {
+  .screen.menu-keys {
+    width: min(100%, 620px);
+    gap: clamp(8px, 1.6vh, 16px);
   }
   .mk-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .mk-actions {
-    flex-wrap: wrap;
-  }
-  .btn.mk-play {
-    flex: 1 1 100%;
-  }
-  .btn.mk-daily {
-    flex: 1 1 100%;
-  }
-  .mk-secondary {
-    flex: 1 1 100%;
-  }
+  .hero-blank { height: clamp(52px, 11vh, 96px); }
+  .key-rack { --kw: clamp(50px, 8.4vmin, 84px); }
+  .mk-actions { flex-wrap: wrap; }
+  .btn.mk-play { flex: 1 1 100%; }
+  .btn.mk-daily { flex: 1 1 100%; }
+  .mk-secondary { flex: 1 1 100%; }
 }
 
-@media (max-height: 520px) {
+/* very short (tiny landscape windows): let the frame scroll rather than clip */
+@media (max-height: 460px) {
   .screen.menu-keys {
-    gap: 10px;
+    height: auto;
+    max-height: none;
   }
-  .hero-blank {
-    height: 64px;
-  }
-  .btn.mk-play {
-    font-size: clamp(22px, 4vh, 32px);
-  }
-  .key-body::before {
-    width: 24px;
-    height: 24px;
-  }
-  .key-body::after {
-    height: 30px;
-  }
+  .key-rack { --kw: clamp(42px, 8.5vh, 64px); }
+  .hero-blank { height: 46px; }
+  .btn.mk-play { font-size: clamp(20px, 6vh, 28px); }
+  .mm-letter { font-size: clamp(28px, 9vmin, 40px); }
+}
+
+/* respect reduced motion: no swinging keys, no crown bob */
+@media (prefers-reduced-motion: reduce) {
+  button.key:hover { animation: none; }
+  .mm-crown { animation: none; }
+  .key { transition: none; }
 }
