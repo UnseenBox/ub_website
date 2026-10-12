@@ -6,27 +6,37 @@ import type { RoomDefinition } from './Room';
  * Objects marked `on` sit on top of the object at that index in the same list.
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
-  // 1 — bedroom: throwing. A chair directly between you and the door.
-  // First-60-seconds tuning: chair one step away (grab range + a step), shoe as
-  // the second experiment within sight, first mover arrives fast but alone.
+  // 1 — bedroom: throwing. You start mid-room with a chair an arm's length away,
+  // a bouncy ball / book / shoe all within one step, and the first mover already
+  // hammering on the door. A second mover arrives ~9s in so the first minute is
+  // "grab, BONK, experiment" with no waiting and no overwhelm.
   {
     id: 'room-1', name: 'THE BEDROOM', theme: 'bedroom', width: 860, height: 500, seed: 101, tutorial: true,
-    playerStart: { x: 200, y: 270 },
+    playerStart: { x: 520, y: 262 },
     entrance: { side: 'right', pos: 250 },
     exit: { side: 'top', pos: 480 },
-    rug: { x: 450, y: 270, w: 300, h: 190, color: '#c96f5a' },
+    rug: { x: 520, y: 280, w: 320, h: 200, color: '#c96f5a' },
     objects: [
       { type: 'bed', x: 100, y: 92 },
       { type: 'pillow', x: 82, y: 50, angle: 0.2, on: 0 },
       { type: 'pillow', x: 120, y: 54, angle: -0.3, on: 0 },
-      { type: 'chair', x: 300, y: 268 },
-      { type: 'shoe', x: 250, y: 345, angle: 0.5 },
-      { type: 'book', x: 380, y: 160, angle: -0.3 },
-      { type: 'teddy', x: 640, y: 420 },
-      { type: 'alarmclock', x: 220, y: 110 },
+      // The opening arsenal: heavy (chair), bouncy (ball), fast (book), funny (shoe),
+      // all inside grab range of the spawn point and on the mover's walk-in line.
+      { type: 'chair', x: 435, y: 258 },
+      { type: 'ball', x: 585, y: 322, angle: 0.4 },
+      { type: 'book', x: 468, y: 348, angle: -0.3 },
+      { type: 'shoe', x: 598, y: 198, angle: 0.5 },
+      // Chaos ingredients slightly further out: a bottle that spills, a teddy to
+      // throw at a face, and the alarm clock as the "movers come to look" demo.
+      { type: 'bottle', x: 380, y: 180 },
+      { type: 'teddy', x: 660, y: 330 },
+      { type: 'alarmclock', x: 350, y: 120 },
     ],
     zones: [],
-    enemies: [{ type: 'basic', delay: 1.0 }],
+    enemies: [
+      { type: 'basic', delay: 0.2 },
+      { type: 'basic', delay: 9 },
+    ],
   },
 
   // 2 — home office: objects hit other objects. A lamp to topple, a loaded desk to shove.

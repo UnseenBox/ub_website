@@ -277,6 +277,7 @@ export class Game {
 
   private setState(state: GameState): void {
     this.state = state;
+    if (state !== 'playing') document.body.classList.remove('tutorial');
     // The portal is told every time the player gains or gives up control of the hero.
     const playing = state === 'playing';
     if (playing !== this.inGameplay) {
@@ -892,9 +893,9 @@ export class Game {
       const b = enemy.body;
       const cause = e.cause;
       const pitch = enemy.type.voice;
-      const big = e.damage >= 20;
-      const huge = e.damage >= 40;
-      const massive = e.damage >= 55;
+      const big = e.damage >= 14;
+      const huge = e.damage >= 28;
+      const massive = e.damage >= 40;
       // First-60-seconds: the very first hit of room 1 must land, even on a weak
       // undercharged throw. Same material-specific sounds, just guaranteed readable
       // feedback (word + ring + settle) without changing damage or balance.
@@ -954,11 +955,12 @@ export class Game {
       if (huge) this.fx.ring(b.x, b.y, 4, 22 + e.damage * 0.45, 0.32, 'rgba(255,210,63,0.9)', 3);
       // Massive hits flash the room for a beat (scaled by the reduced-shake setting).
       if (massive) this.fx.flash('#ffffff', 0.15);
-      this.camera.addShake(firstHit ? Math.max(0.3, Math.min(0.6, e.damage / 100)) : Math.min(0.6, e.damage / 100));
-      if (showWord) this.camera.punchZoom(0.02 + Math.min(0.035, e.damage / 1400));
-      if (directional) this.camera.kick(cause.dirX * Math.min(8, e.damage / 6), cause.dirY * Math.min(8, e.damage / 6));
-      if (e.damage >= 50) this.hitStop(0.1);
-      else if (e.damage >= 28) this.hitStop(0.055);
+      this.camera.addShake(firstHit ? Math.max(0.35, Math.min(0.65, e.damage / 70)) : Math.min(0.65, e.damage / 70));
+      if (showWord) this.camera.punchZoom(0.025 + Math.min(0.04, e.damage / 1000));
+      if (directional) this.camera.kick(cause.dirX * Math.min(10, e.damage / 4.5), cause.dirY * Math.min(10, e.damage / 4.5));
+      if (e.damage >= 38) this.hitStop(0.1);
+      else if (e.damage >= 20) this.hitStop(0.06);
+      else if (e.damage >= 10) this.hitStop(0.035);
       else if (firstHit) this.hitStop(0.06);
     });
 

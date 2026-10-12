@@ -47,7 +47,7 @@ export interface EnemyType {
  */
 export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   basic: {
-    id: 'basic', name: 'Box', hp: 50, speed: 96, mass: 45, radius: 16, reaction: 0.55, awareness: 330,
+    id: 'basic', name: 'Box', hp: 44, speed: 102, mass: 45, radius: 16, reaction: 0.45, awareness: 360,
     impactFactor: 1, lightObjectFactor: 1, staggerFactor: 1, turnRate: 9, burnFactor: 1.25,
     color: '#c9a070', shade: '#9c7446', scoreBonus: 0, voice: 172,
   },
