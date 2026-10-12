@@ -1,6 +1,8 @@
-// Unified keyboard + touch input. Desktop: WASD/arrows to move, E/Space to
-// interact (hold to work), Esc pauses. Touch: virtual joystick + action button
-// rendered as DOM by the UI layer; this module only stores their vector state.
+// Unified keyboard + touch input. Desktop: WASD/arrows to move (screen-space:
+// x = right, y = down), E/Space to interact (hold to work), Esc pauses.
+// Touch: virtual joystick + action button rendered as DOM by the UI layer;
+// this module only stores their vector state. sim.ts rotates the vector 45°
+// into world space to match the isometric camera.
 
 export interface InputState {
   x: number
