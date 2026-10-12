@@ -1,7 +1,10 @@
+import type { ZoneKind } from '../hazards/Zone';
+
 export type EnemyTypeId =
   | 'basic' | 'fast' | 'heavy' | 'helmet' | 'shield' | 'electric'
-  | 'fragile' | 'nested' | 'mini' | 'kaboom' | 'trolley' | 'boss'
-  | 'gnat' | 'hurler' | 'bulwark' | 'hoover' | 'sofa';
+  | 'fragile' | 'nested' | 'mini' | 'kaboom' | 'trolley'
+  | 'gnat' | 'hurler' | 'bulwark'
+  | 'chairman' | 'flusher' | 'kraken' | 'fridgezilla' | 'piano' | 'mower' | 'mom';
 
 /** One boss phase: crossed once when hp falls below `below` (fraction of max). */
 export interface BossPhase {
@@ -31,6 +34,8 @@ export interface SlamSpec {
   readonly damage: number;
   /** Seconds between slams. */
   readonly cooldown: number;
+  /** Hazard left on the floor where it landed (the Flusher's puddle). */
+  readonly spawnZone?: { readonly kind: ZoneKind; readonly radius: number; readonly ttl: number };
 }
 
 /** Throwing furniture back: grabs a loose object and hurls it at the player. */
@@ -41,6 +46,41 @@ export interface HurlSpec {
   readonly cooldown: number;
   /** Aim telegraph before release. */
   readonly windup: number;
+  /**
+   * Conjured ammunition (MOM's endless shoes, the Fridgezilla's frozen fish):
+   * when nothing loose is in reach, this object is spawned and thrown instead.
+   */
+  readonly spawn?: string;
+}
+
+/** A tentacle lash: telegraphed cone attack that slaps and drags things in. */
+export interface LashSpec {
+  readonly range: number;
+  /** Full cone width in radians. */
+  readonly arc: number;
+  readonly cooldown: number;
+  readonly windup: number;
+}
+
+/** Sidestepping thrown objects at the last moment (MOM sees it coming). */
+export interface DodgeSpec {
+  /** Incoming throws are noticed this far out. */
+  readonly radius: number;
+  readonly cooldown: number;
+}
+
+/** Picking the room up and putting it somewhere else (MOM tidies mid-fight). */
+export interface RearrangeSpec {
+  readonly cooldown: number;
+  /** How many loose objects get relocated per tidy-up. */
+  readonly count: number;
+}
+
+/** A freezing aura that leaves slippery patches on the floor. */
+export interface FrostSpec {
+  readonly radius: number;
+  readonly interval: number;
+  readonly ttl: number;
 }
 
 export interface EnemyType {
@@ -96,6 +136,16 @@ export interface EnemyType {
   readonly slams?: SlamSpec;
   /** Throw-furniture-back attack. */
   readonly hurls?: HurlSpec;
+  /** Tentacle-lash cone attack. */
+  readonly lashes?: LashSpec;
+  /** Sidestepping incoming throws (and catching them). */
+  readonly dodges?: DodgeSpec;
+  /** Relocating loose furniture mid-fight. */
+  readonly rearranges?: RearrangeSpec;
+  /** Freezing aura. */
+  readonly frost?: FrostSpec;
+  /** Shreds furniture while charging: debris, shake and noise. */
+  readonly tramples?: boolean;
 }
 
 /**
@@ -163,26 +213,6 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     lungeRange: 250, lungeSpeed: 640, lungeTime: 0.62, windup: 0.8, recover: 1.25,
     color: '#b58d60', shade: '#86623c', scoreBonus: 180, voice: 118,
   },
-  // The Landlord: one per every third room. Slow, enormous, barely staggers, and worth a fortune.
-  boss: {
-    id: 'boss', name: 'Landlord', hp: 550, speed: 54, mass: 160, radius: 26, reaction: 0.9, awareness: 520,
-    impactFactor: 1, lightObjectFactor: 0.3, staggerFactor: 0.3, turnRate: 4, burnFactor: 0.8,
-    lungeRange: 130, lungeSpeed: 380, windup: 0.7, recover: 1, onDefeat: 'split',
-    color: '#6b4d86', shade: '#4a3560', scoreBonus: 800, voice: 70,
-    boss: true, bossTitle: 'LANDLORD EVICTED', bossDiscovery: 'boss_evicted',
-    bossBanner: 'THE LANDLORD', bossBlurb: 'eviction day — bring the whole room',
-    slams: { radius: 135, damage: 1, cooldown: 9 },
-    phases: [
-      {
-        below: 0.66, enrage: 1.3, summon: { type: 'mini', count: 2 },
-        announce: 'EVICTION NOTICE',
-      },
-      {
-        below: 0.33, enrage: 1.6, summon: { type: 'mini', count: 2 },
-        shockwave: { radius: 150, damage: 1 }, announce: 'EVERYONE OUT',
-      },
-    ],
-  },
   // A gnat: tiny, furious, and never alone. Swat the swarm before it nibbles you apart.
   gnat: {
     id: 'gnat', name: 'Gnat', hp: 12, speed: 195, mass: 8, radius: 8, reaction: 0.15, awareness: 620,
@@ -203,30 +233,102 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     impactFactor: 0.9, lightObjectFactor: 0.5, staggerFactor: 0.4, turnRate: 1.6, shield: true, helmetHp: 80,
     burnFactor: 1.4, color: '#5a6b7d', shade: '#3a4552', scoreBonus: 200, voice: 100,
   },
-  // THE HOOVER: a possessed vacuum that eats the room. Feed it something explosive.
-  hoover: {
-    id: 'hoover', name: 'Hoover', hp: 260, speed: 66, mass: 120, radius: 22, reaction: 0.7, awareness: 460,
-    impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 5, burnFactor: 1,
-    color: '#c23b4e', shade: '#8e2a38', scoreBonus: 400, voice: 85,
-    boss: true, bossTitle: 'HOOVER UNPLUGGED', bossDiscovery: 'unplugged',
-    bossBanner: 'THE HOOVER', bossBlurb: 'it eats furniture. do not be furniture.',
-    sucks: { radius: 230, pull: 950 },
+  // CHAIRMAN OF CHAOS: middle management fused to its office chair. Rolls at you,
+  // staples whatever is at hand, and slams the desk when angry. No parachute.
+  chairman: {
+    id: 'chairman', name: 'Chairman', hp: 300, speed: 112, mass: 110, radius: 20, reaction: 0.5, awareness: 460,
+    impactFactor: 1, lightObjectFactor: 0.7, staggerFactor: 0.6, turnRate: 7, burnFactor: 1.1,
+    lungeRange: 300, lungeSpeed: 620, lungeTime: 0.5, windup: 0.8, recover: 0.9,
+    color: '#3a4a5c', shade: '#232e3b', scoreBonus: 400, voice: 120,
+    boss: true, bossTitle: 'CHAIRMAN OUSTED', bossDiscovery: 'hostile_takeover',
+    bossBanner: 'CHAIRMAN OF CHAOS', bossBlurb: 'your 9 a.m. has been rescheduled. forever.',
+    hurls: { range: 480, cooldown: 2.4, windup: 0.5, spawn: 'paperball' },
+    slams: { radius: 110, damage: 1, cooldown: 8 },
+  },
+  // THE FLUSHER: the toilet achieved sentience and it is furious. Whirlpools drag
+  // the room into its bowl; it spits plungers and leaves water wherever it sits.
+  flusher: {
+    id: 'flusher', name: 'Flusher', hp: 280, speed: 62, mass: 140, radius: 23, reaction: 0.7, awareness: 440,
+    impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 4.5, burnFactor: 1,
+    color: '#dfeaf2', shade: '#9fb3c4', scoreBonus: 400, voice: 75,
+    boss: true, bossTitle: 'FLUSHER UNBLOCKED', bossDiscovery: 'do_not_flush',
+    bossBanner: 'THE FLUSHER', bossBlurb: 'do not stand downstream.',
+    sucks: { radius: 210, pull: 800 },
+    slams: { radius: 120, damage: 1, cooldown: 7, spawnZone: { kind: 'water', radius: 60, ttl: 10 } },
+    hurls: { range: 440, cooldown: 4, windup: 0.7, spawn: 'plunger' },
+  },
+  // SOFA KRAKEN: the lounge display woke up with cushion tentacles and a spring
+  // chassis. It hugs at range and sits on you up close. Allergic to open flame.
+  kraken: {
+    id: 'kraken', name: 'Sofa Kraken', hp: 340, speed: 60, mass: 150, radius: 24, reaction: 0.7, awareness: 440,
+    impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.45, turnRate: 4.5, burnFactor: 1.2,
+    color: '#7a3b5c', shade: '#522741', scoreBonus: 500, voice: 65,
+    boss: true, bossTitle: 'KRAKEN DEFLATED', bossDiscovery: 'release_the_kraken',
+    bossBanner: 'SOFA KRAKEN', bossBlurb: 'it wants a hug. decline.',
+    lashes: { range: 175, arc: 0.8, cooldown: 5, windup: 0.6 },
+    slams: { radius: 120, damage: 1, cooldown: 7 },
     phases: [
-      { below: 0.5, enrage: 1.4, announce: 'IT CHOKES. IT HUNGERS.' },
+      { below: 0.5, enrage: 1.3, announce: 'IT HUGS BACK' },
     ],
   },
-  // THE SOFA KING: the showroom got up and walked. Hates fire. Sits on you given half a chance.
-  sofa: {
-    id: 'sofa', name: 'Sofa King', hp: 360, speed: 58, mass: 150, radius: 24, reaction: 0.8, awareness: 420,
-    impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.45, turnRate: 4, burnFactor: 2,
-    color: '#7a5a9e', shade: '#54406e', scoreBonus: 600, voice: 60,
-    boss: true, bossTitle: 'SOFA REUPHOLSTERED', bossDiscovery: 'reupholstered',
-    bossBanner: 'THE SOFA KING', bossBlurb: 'it has chosen comfort. violently.',
-    slams: { radius: 115, damage: 1, cooldown: 6.5 },
+  // FRIDGEZILLA: walks out of the kitchenette breathing frost. The floor freezes
+  // wherever it stands and frozen fish fly wherever it looks. Poorly insulated
+  // against its own supply chain: feed it fire.
+  fridgezilla: {
+    id: 'fridgezilla', name: 'Fridgezilla', hp: 340, speed: 52, mass: 160, radius: 24, reaction: 0.8, awareness: 420,
+    impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.4, turnRate: 3.5, burnFactor: 0.8,
+    color: '#cfe0e8', shade: '#8fa8b8', scoreBonus: 500, voice: 70,
+    boss: true, bossTitle: 'FRIDGEZILLA DEFROSTED', bossDiscovery: 'brain_freeze',
+    bossBanner: 'FRIDGEZILLA', bossBlurb: 'serve chilled. serves you chilled.',
+    hurls: { range: 470, cooldown: 3, windup: 0.6, spawn: 'fish' },
+    frost: { radius: 42, interval: 4, ttl: 9 },
+    slams: { radius: 110, damage: 1, cooldown: 8 },
+  },
+  // PIANO SPIDER: the showroom grand grew eight legs and perfect pitch. It crawls
+  // the aisles fast and every landing is a sonic boom. Applaud from a distance.
+  piano: {
+    id: 'piano', name: 'Piano Spider', hp: 380, speed: 118, mass: 150, radius: 24, reaction: 0.6, awareness: 480,
+    impactFactor: 1, lightObjectFactor: 0.5, staggerFactor: 0.45, turnRate: 6, burnFactor: 1.1,
+    color: '#26232e', shade: '#121017', scoreBonus: 600, voice: 55,
+    boss: true, bossTitle: 'PIANO OUT OF TUNE', bossDiscovery: 'grand_finale',
+    bossBanner: 'PIANO SPIDER', bossBlurb: 'tonight: one night only. every night.',
+    slams: { radius: 150, damage: 1, cooldown: 7 },
     phases: [
       {
-        below: 0.5, enrage: 1.35, summon: { type: 'mini', count: 2 },
-        announce: 'IT CALLS ITS CUSHIONS',
+        below: 0.5, enrage: 1.3, summon: { type: 'gnat', count: 2 },
+        announce: 'THE HIGH NOTES',
+      },
+    ],
+  },
+  // LAWN MOWER MANIAC: escaped the shed and mows everything, including the room.
+  // It picks a lane, revs, and comes the whole length of it. Do not be a lane.
+  mower: {
+    id: 'mower', name: 'Mower Maniac', hp: 320, speed: 95, mass: 140, radius: 22, reaction: 0.5, awareness: 480,
+    impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 5, burnFactor: 1.2,
+    lungeRange: 380, lungeSpeed: 720, lungeTime: 0.8, windup: 0.9, recover: 1,
+    color: '#c23b2e', shade: '#7d241c', scoreBonus: 500, voice: 90,
+    boss: true, bossTitle: 'MOWER RETIRED', bossDiscovery: 'mow_no_mo',
+    bossBanner: 'LAWN MOWER MANIAC', bossBlurb: 'the grass is always greener. you are the grass.',
+    tramples: true,
+  },
+  // MOM — THE FINAL BOSS. Armed with a slipper and zero patience. She sidesteps
+  // your throws (and catches the slow ones), tidies the arena mid-fight, throws
+  // shoes back, and gets strictly worse in three phases. Bedtime is non-negotiable.
+  mom: {
+    id: 'mom', name: 'Mom', hp: 650, speed: 95, mass: 130, radius: 24, reaction: 0.4, awareness: 560,
+    impactFactor: 1, lightObjectFactor: 0.7, staggerFactor: 0.5, turnRate: 10, burnFactor: 1,
+    color: '#8a3b5c', shade: '#5c2540', scoreBonus: 1500, voice: 300,
+    boss: true, bossTitle: 'MOM CALMED DOWN', bossDiscovery: 'mom_says_no',
+    bossBanner: 'MOM', bossBlurb: 'she found the mess. run.',
+    dodges: { radius: 210, cooldown: 2.5 },
+    rearranges: { cooldown: 14, count: 5 },
+    hurls: { range: 500, cooldown: 3.2, windup: 0.6, spawn: 'shoe' },
+    slams: { radius: 130, damage: 1, cooldown: 7 },
+    phases: [
+      { below: 0.66, enrage: 1.2, announce: 'GO TO YOUR ROOM' },
+      {
+        below: 0.33, enrage: 1.5, summon: { type: 'gnat', count: 3 },
+        shockwave: { radius: 150, damage: 1 }, announce: 'NO DESSERT',
       },
     ],
   },

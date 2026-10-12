@@ -17,8 +17,12 @@ import { hash, mix, onTop, prism, type Ctx } from './draw';
  *   Gnat       a waspish speck: too fast to box, swats like a grudge
  *   Chucker    a long-armed Box in a sweatband; throws your furniture back at you
  *   Bulwark    a walking safe door: riveted plate up front, nothing behind but spite
- *   Hoover     a possessed vacuum canister on wheels; inhales the room, hates spice
- *   Sofa King  the showroom display, up and walking; velvet, buttons, bad intentions
+ *
+ *   BOSSES are not boxes. Each of the seven has a fully custom silhouette drawn
+ *   by drawBossBody (no prism, no tape, no flaps): a chair mech, a toilet, a sofa
+ *   with cushion tentacles, a horned fridge, an eight-legged piano, a mower and
+ *   MOM herself. They share only the hit-flash tone, the defeat tumble, the
+ *   overhead telegraphs and the HP tape.
  *
  * Each is drawn in passes (legs → body → tape and flaps → face → props) and every pass reacts
  * to state: flaps perk up before a lunge, the eyes follow you, the lid bursts when it is beaten.
@@ -52,13 +56,23 @@ const BUILDS: Readonly<Record<EnemyTypeId, Build>> = {
   mini: { hw: 15, hd: 10, h: 23, side: '#b08a5a', top: '#d9b687' },
   kaboom: { hw: 15, hd: 10, h: 23, side: '#c9483f', top: '#ef7a6c' },
   trolley: { hw: 15, hd: 10, h: 25, side: '#86623c', top: '#b58d60' },
-  boss: { hw: 26, hd: 16, h: 38, side: '#4a3560', top: '#6b4d86' },
   gnat: { hw: 11, hd: 7, h: 17, side: '#9a8f2e', top: '#e0d24a' },
   hurler: { hw: 15, hd: 10, h: 24, side: '#7d3f2c', top: '#b5654a' },
   bulwark: { hw: 18, hd: 11, h: 27, side: '#3a4552', top: '#5a6b7d' },
-  hoover: { hw: 20, hd: 13, h: 30, side: '#8e2a38', top: '#c23b4e' },
-  sofa: { hw: 26, hd: 14, h: 30, side: '#54406e', top: '#7a5a9e' },
+  // Bosses: rough extents only — the silhouette is fully custom below.
+  chairman: { hw: 20, hd: 13, h: 34, side: '#232e3b', top: '#3a4a5c' },
+  flusher: { hw: 20, hd: 14, h: 32, side: '#9fb3c4', top: '#dfeaf2' },
+  kraken: { hw: 26, hd: 14, h: 26, side: '#522741', top: '#7a3b5c' },
+  fridgezilla: { hw: 20, hd: 13, h: 40, side: '#8fa8b8', top: '#cfe0e8' },
+  piano: { hw: 26, hd: 14, h: 26, side: '#121017', top: '#26232e' },
+  mower: { hw: 22, hd: 13, h: 24, side: '#7d241c', top: '#c23b2e' },
+  mom: { hw: 20, hd: 12, h: 38, side: '#5c2540', top: '#8a3b5c' },
 };
+
+/** Bosses with fully custom silhouettes (no box prism). */
+const CUSTOM_BOSS_IDS: ReadonlyArray<EnemyTypeId> = [
+  'chairman', 'flusher', 'kraken', 'fridgezilla', 'piano', 'mower', 'mom',
+];
 
 const BULBS = ['#ff5a4e', '#ffd23f', '#6fe0c2', '#4ad6e8', '#ff9ec4'];
 
@@ -120,6 +134,773 @@ function eyes(ctx: Ctx, cx: number, cy: number, gap: number, lookX: number, look
     ctx.arc(ex + lookX * 1.2, cy + lookY * 0.9, size * 0.5, 0, TAU);
     ctx.fill();
   }
+}
+
+interface BossDraw {
+  hw: number;
+  hd: number;
+  tone: Tone;
+  fx: number;
+  fy: number;
+  windup: number;
+  hop: number;
+  topY: number;
+  lift: number;
+}
+
+/** Five casters on a star base; the Chairman never walks anywhere. He rolls. */
+function chairmanBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup, hop } = p;
+  const baseY = y + hd + 1;
+  // star base + casters
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  for (let k = 0; k < 5; k++) {
+    const a = (k * TAU) / 5 + Math.sin(e.walkPhase) * 0.05 + 0.4;
+    const wx = x + Math.cos(a) * (hw + 2);
+    ctx.beginPath();
+    ctx.moveTo(x, baseY - 6);
+    ctx.lineTo(wx, baseY);
+    ctx.stroke();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(wx, baseY + 1, 4.4, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = tone('#aab4c4');
+    ctx.beginPath();
+    ctx.arc(wx, baseY + 1, 1.8, 0, TAU);
+    ctx.fill();
+  }
+  ctx.lineCap = 'butt';
+  // gas-lift post + seat + tall backrest
+  ctx.fillStyle = tone('#232e3b');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.fillRect(x - 4, baseY - 22, 8, 18);
+  ctx.strokeRect(x - 4, baseY - 22, 8, 18);
+  ctx.fillStyle = tone('#3a4a5c');
+  ctx.beginPath();
+  ctx.moveTo(x - hw, baseY - 20);
+  ctx.lineTo(x + hw, baseY - 20);
+  ctx.lineTo(x + hw - 5, baseY - 30);
+  ctx.lineTo(x - hw + 5, baseY - 30);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  const backTop = baseY - 30 - 26 - hop * 0.5;
+  ctx.fillStyle = tone('#3a4a5c');
+  ctx.fillRect(x - hw + 4, backTop, hw * 2 - 8, 28);
+  ctx.strokeRect(x - hw + 4, backTop, hw * 2 - 8, 28);
+  // the rider: tie, headset, and a performance review in his eyes
+  const hx = x + fx * 3;
+  const hy = backTop + 2;
+  ctx.fillStyle = tone('#c9a070');
+  ctx.beginPath();
+  ctx.arc(hx, hy + 12, 9, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(hx, hy + 12, 9, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+  if (!e.defeated) eyes(ctx, hx, hy + 12, 4.6, fx, fy, 3, false);
+  ctx.fillStyle = tone('#e5383b');
+  ctx.beginPath();
+  ctx.moveTo(hx - 2.4, hy + 20);
+  ctx.lineTo(hx + 2.4, hy + 20);
+  ctx.lineTo(hx + 3.2, hy + 27);
+  ctx.lineTo(hx, hy + 30);
+  ctx.lineTo(hx - 3.2, hy + 27);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  // stapler arm + pointing arm (raised with the windup)
+  mitt(ctx, x - hw, baseY - 26, x - hw - 10, baseY - 20, tone('#232e3b'));
+  ctx.fillStyle = tone('#8a94a6');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.2;
+  ctx.fillRect(x - hw - 20, baseY - 30, 15, 8);
+  ctx.strokeRect(x - hw - 20, baseY - 30, 15, 8);
+  ctx.fillStyle = tone('#e5383b');
+  ctx.fillRect(x - hw - 20, baseY - 33, 15, 4);
+  ctx.strokeRect(x - hw - 20, baseY - 33, 15, 4);
+  mitt(ctx, x + hw, baseY - 26, x + hw + 8 + fx * 6, baseY - 34 - windup * 12, tone('#232e3b'));
+  void time;
+}
+
+/** The Flusher: a porcelain throne with a grudge and a whirlpool for a mouth. */
+function flusherBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  // pedestal + bowl
+  ctx.fillStyle = tone('#9fb3c4');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(x - 8, baseY);
+  ctx.lineTo(x - 13, baseY - 18);
+  ctx.lineTo(x + 13, baseY - 18);
+  ctx.lineTo(x + 8, baseY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#dfeaf2');
+  ctx.beginPath();
+  ctx.ellipse(x, baseY - 22, hw + 2, 11, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  // the water: swirling harder while it sucks
+  ctx.fillStyle = '#4ad6e8';
+  ctx.beginPath();
+  ctx.ellipse(x, baseY - 22, hw - 5, 7, 0, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = '#1d6f84';
+  ctx.lineWidth = 2;
+  const swirl = e.sucking && !e.defeated ? time * 9 : time * 2;
+  for (const [rr, off] of [[8, 0], [4.5, 2.2]] as const) {
+    ctx.beginPath();
+    ctx.ellipse(x, baseY - 22, rr, rr * 0.55, 0, swirl + off, swirl + off + 4.2);
+    ctx.stroke();
+  }
+  // tank behind, lid, and a jiggling handle
+  const tankTop = baseY - 22 - 26;
+  ctx.fillStyle = tone('#dfeaf2');
+  ctx.fillRect(x - hw + 1, tankTop, hw * 2 - 2, 26);
+  ctx.strokeRect(x - hw + 1, tankTop, hw * 2 - 2, 26);
+  ctx.fillStyle = tone('#9fb3c4');
+  ctx.fillRect(x - hw - 1, tankTop - 4, hw * 2 + 2, 5);
+  ctx.strokeRect(x - hw - 1, tankTop - 4, hw * 2 + 2, 5);
+  const jiggle = e.sucking && !e.defeated ? Math.sin(time * 30) * 2 : 0;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(x + hw - 1, tankTop + 12 + jiggle);
+  ctx.lineTo(x + hw + 8, tankTop + 12 + jiggle);
+  ctx.stroke();
+  // eyes over the rim, pupils on you
+  if (!e.defeated) {
+    eyes(ctx, x + fx * 4, tankTop + 12, 7, fx, fy, 3.6, false);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(x - 12, tankTop + 2);
+    ctx.lineTo(x - 3, tankTop + 5);
+    ctx.moveTo(x + 12, tankTop + 2);
+    ctx.lineTo(x + 3, tankTop + 5);
+    ctx.stroke();
+  }
+  mitt(ctx, x - hw - 2, baseY - 24, x - hw - 10, baseY - 14 + Math.sin(e.walkPhase) * 2, tone('#9fb3c4'));
+  mitt(ctx, x + hw + 2, baseY - 24, x + hw + 10, baseY - 14 - Math.sin(e.walkPhase) * 2 - windup * 8, tone('#9fb3c4'));
+}
+
+/** The Sofa Kraken: lounge seating with five cushion-tipped opinions. */
+function krakenBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  const lash = e.lashProgress;
+  const fa = e.facing;
+  // tentacles first (behind the body), rearing up with the lash telegraph
+  for (let i = -2; i <= 2; i++) {
+    const spread = (i / 2) * 1.05;
+    // rest pose fans upward; a lash swings the whole fan towards the facing
+    const rest = -Math.PI / 2 + spread;
+    const wave = Math.sin(time * 3 + i * 1.7 + e.seed) * 0.22 * (1 - lash * 0.6);
+    const dir = rest + wave + angleDiffSafe(rest, fa) * lash * 0.55;
+    const len = 26 + Math.sin(time * 3 + i * 1.7 + e.seed) * 5 + lash * 20;
+    const mx = x + Math.cos(dir) * len * 0.55;
+    const my = baseY - 14 + Math.sin(dir) * len * 0.55;
+    const tx = x + Math.cos(dir) * len;
+    const ty = baseY - 14 + Math.sin(dir) * len;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 11;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(rest) * hw * 0.5, baseY - 12);
+    ctx.quadraticCurveTo(mx, my, tx, ty);
+    ctx.stroke();
+    ctx.strokeStyle = tone('#7a3b5c');
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(rest) * hw * 0.5, baseY - 12);
+    ctx.quadraticCurveTo(mx, my, tx, ty);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    // cushion-tip pad with a button
+    ctx.fillStyle = tone('#a85a78');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(tx, ty, 7, 5.4, dir, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone('#522741');
+    ctx.beginPath();
+    ctx.arc(tx, ty, 1.8, 0, TAU);
+    ctx.fill();
+  }
+  // sofa base: seat, backrest, armrests, buttons
+  ctx.fillStyle = tone('#522741');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.fillRect(x - hw, baseY - 34, hw * 2, 22);
+  ctx.strokeRect(x - hw, baseY - 34, hw * 2, 22);
+  ctx.fillStyle = tone('#7a3b5c');
+  ctx.beginPath();
+  ctx.ellipse(x, baseY - 16, hw, 9, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = tone('#7a3b5c');
+    ctx.beginPath();
+    ctx.ellipse(x + side * (hw - 2), baseY - 24, 8, 12, 0, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = tone('#3d2033');
+  for (const bx of [-hw * 0.45, 0, hw * 0.45]) {
+    ctx.beginPath();
+    ctx.arc(x + bx, baseY - 24, 2.4, 0, TAU);
+    ctx.fill();
+  }
+  // stalk eyes + a mouth like a torn seam
+  if (!e.defeated) {
+    for (const side of [-1, 1]) {
+      const ex = x + side * 9;
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(ex, baseY - 36);
+      ctx.lineTo(ex + side * 2, baseY - 46);
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(ex + side * 2, baseY - 50, 5, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = INK;
+      ctx.beginPath();
+      ctx.arc(ex + side * 2 + fx * 1.6, baseY - 50 + fy, 2.2, 0, TAU);
+      ctx.fill();
+    }
+    tearMouth(ctx, x + fx * 4, baseY - 22, 8, Math.max(windup, lash));
+  }
+}
+
+/** Fridgezilla: a tall fridge with ice horns, a door ajar, and frostbite. */
+function fridgezillaBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  const top = baseY - 62;
+  // feet + tall body with a rounded top
+  ctx.fillStyle = tone('#5c6b78');
+  ctx.fillRect(x - 12, baseY - 4, 7, 4);
+  ctx.fillRect(x + 5, baseY - 4, 7, 4);
+  ctx.fillStyle = tone('#cfe0e8');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  ctx.moveTo(x - hw + 3, baseY);
+  ctx.lineTo(x - hw + 3, top + 8);
+  ctx.quadraticCurveTo(x - hw + 3, top, x - hw + 11, top);
+  ctx.lineTo(x + hw - 11, top);
+  ctx.quadraticCurveTo(x + hw - 3, top, x + hw - 3, top + 8);
+  ctx.lineTo(x + hw - 3, baseY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // ice horns
+  ctx.fillStyle = tone('#e8f4fb');
+  for (const [ox, s] of [[-10, 9], [0, 12], [10, 9]] as const) {
+    ctx.beginPath();
+    ctx.moveTo(x + ox - s * 0.45, top + 2);
+    ctx.lineTo(x + ox, top - s);
+    ctx.lineTo(x + ox + s * 0.45, top + 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  // freezer gap with eyes in the cold dark
+  ctx.fillStyle = '#17132a';
+  ctx.fillRect(x - hw + 6, top + 12, hw * 2 - 12, 10);
+  if (!e.defeated) eyes(ctx, x + fx * 3, top + 17, 6, fx, fy, 2.8, false);
+  // fridge/freezer split + handle + magnets
+  ctx.strokeStyle = 'rgba(34, 27, 54, 0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - hw + 3, top + 27);
+  ctx.lineTo(x + hw - 3, top + 27);
+  ctx.stroke();
+  ctx.fillStyle = tone('#8fa8b8');
+  ctx.fillRect(x + hw - 9, top + 32, 4, 18);
+  ctx.fillStyle = tone('#e5383b');
+  ctx.fillRect(x - hw + 7, top + 34, 6, 7);
+  ctx.fillStyle = tone('#ffd23f');
+  ctx.fillRect(x - hw + 9, top + 44, 5, 6);
+  // the door hangs ajar: cold light spills out, flickering
+  const flick = 0.5 + Math.sin(time * 4 + e.seed) * 0.2;
+  ctx.fillStyle = `rgba(207, 232, 255, ${flick.toFixed(2)})`;
+  ctx.beginPath();
+  ctx.moveTo(x - hw + 3, top + 30);
+  ctx.lineTo(x - hw - 12, baseY - 6);
+  ctx.lineTo(x - hw + 3, baseY - 6);
+  ctx.closePath();
+  ctx.fill();
+  // frost breath
+  if (!e.defeated) {
+    const puff = (Math.sin(time * 5) + 1) / 2;
+    ctx.fillStyle = 'rgba(232, 244, 251, 0.85)';
+    for (let i = 0; i < 2; i++) {
+      ctx.beginPath();
+      ctx.arc(x + fx * (hw + 10 + i * 7 + puff * 4), baseY - 34 + Math.sin(time * 3 + i * 2) * 3, 3.4 - i, 0, TAU);
+      ctx.fill();
+    }
+  }
+  mitt(ctx, x - hw - 2, baseY - 30, x - hw - 12, baseY - 22 - windup * 8, tone('#8fa8b8'));
+  mitt(ctx, x + hw + 2, baseY - 30, x + hw + 12, baseY - 22 + Math.sin(e.walkPhase) * 2, tone('#8fa8b8'));
+}
+
+/** The Piano Spider: one grand, eight legs, zero mercy. */
+function pianoBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup, hop } = p;
+  const baseY = y + hd + 1;
+  // eight jointed legs around the rim, alternating with the crawl
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * TAU + 0.4;
+    const step = Math.sin(e.walkPhase * 2 + k * (Math.PI / 4)) * 5;
+    const hx = x + Math.cos(a) * hw * 0.8;
+    const hy = baseY - 12 + Math.sin(a) * 6;
+    const kx = x + Math.cos(a) * (hw + 8);
+    const ky = baseY - 6 + step * 0.4;
+    const fxx = x + Math.cos(a) * (hw + 15);
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(kx, ky);
+    ctx.lineTo(fxx, baseY);
+    ctx.stroke();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(fxx, baseY, 2.4, 0, TAU);
+    ctx.fill();
+  }
+  ctx.lineCap = 'butt';
+  // the grand: a black bean with gold trim
+  ctx.fillStyle = tone('#26232e');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x - hw, baseY - 18);
+  ctx.bezierCurveTo(x - hw, baseY - 40, x - 6, baseY - 44, x + hw + 4, baseY - 30);
+  ctx.bezierCurveTo(x + hw + 10, baseY - 20, x + hw * 0.4, baseY - 12, x - hw, baseY - 18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = tone('#c9a24f');
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(x - hw + 4, baseY - 20);
+  ctx.bezierCurveTo(x - hw + 4, baseY - 37, x - 4, baseY - 40, x + hw, baseY - 29);
+  ctx.stroke();
+  // propped lid + stick
+  const lidLift = 10 + hop * 0.4;
+  ctx.fillStyle = tone('#121017');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(x - hw + 2, baseY - 38);
+  ctx.lineTo(x + hw - 2, baseY - 38 - lidLift);
+  ctx.lineTo(x + hw - 6, baseY - 32 - lidLift);
+  ctx.lineTo(x - hw + 2, baseY - 32);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = tone('#c9a24f');
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 4, baseY - 36);
+  ctx.lineTo(x + 10, baseY - 22);
+  ctx.stroke();
+  // keyboard along the front + eyes on the fallboard
+  ctx.fillStyle = tone('#fbf6e9');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  const kbY = baseY - 20;
+  ctx.fillRect(x - hw + 2, kbY, hw * 2 - 4, 7);
+  ctx.strokeRect(x - hw + 2, kbY, hw * 2 - 4, 7);
+  ctx.fillStyle = INK;
+  for (let i = 0; i < 7; i++) ctx.fillRect(x - hw + 6 + i * 6.4, kbY, 3, 4.4);
+  if (!e.defeated) {
+    eyes(ctx, x + fx * 5, kbY - 9, 7, fx, fy, 3.4, false);
+    // one furious eighth-note
+    const bounce = Math.abs(Math.sin(time * 6)) * 3;
+    ctx.fillStyle = tone('#e5383b');
+    ctx.beginPath();
+    ctx.ellipse(x + hw - 8, kbY - 16 - bounce, 3.4, 2.6, 0.3, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = tone('#e5383b');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + hw - 5, kbY - 17 - bounce);
+    ctx.lineTo(x + hw - 5, kbY - 28 - bounce);
+    ctx.stroke();
+  }
+  // pedal lyre
+  ctx.strokeStyle = tone('#c9a24f');
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(x - 4, baseY - 12);
+  ctx.lineTo(x - 4, baseY - 2);
+  ctx.moveTo(x + 4, baseY - 12);
+  ctx.lineTo(x + 4, baseY - 2);
+  ctx.stroke();
+  void windup;
+}
+
+/** The Mower Maniac: red deck, four wheels, one handle, no brakes. */
+function mowerBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  const charging = e.ai === 'lunge';
+  // handle bars up behind
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  const bx = x - fx * (hw + 2);
+  ctx.beginPath();
+  ctx.moveTo(bx - fx * 4, baseY - 22);
+  ctx.lineTo(bx - fx * 22, baseY - 44);
+  ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(bx - fx * 27, baseY - 44);
+  ctx.lineTo(bx - fx * 17, baseY - 44);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  // grass bag
+  ctx.fillStyle = tone('#2f5c3a');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.ellipse(bx - fx * 12, baseY - 26, 10, 8, -fx * 0.3, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = tone('#6fa37a');
+  ctx.lineWidth = 1.6;
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.moveTo(bx - fx * 12 + i * 5 - 2, baseY - 34);
+    ctx.lineTo(bx - fx * 12 + i * 5, baseY - 39);
+    ctx.lineTo(bx - fx * 12 + i * 5 + 2, baseY - 34);
+    ctx.stroke();
+  }
+  // wheels: big backs spin fast, small fronts follow
+  const spin = e.walkPhase * (charging ? 4 : 2);
+  for (const [off, r] of [[-9, 8], [9, 8], [-17, 5], [17, 5]] as const) {
+    const wx = x + off;
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(wx, baseY - r + 1, r, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = tone('#aab4c4');
+    ctx.beginPath();
+    ctx.arc(wx, baseY - r + 1, r * 0.4, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = tone('#aab4c4');
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(wx + Math.cos(spin) * (r - 1), baseY - r + 1 + Math.sin(spin) * (r - 1));
+    ctx.lineTo(wx - Math.cos(spin) * (r - 1), baseY - r + 1 - Math.sin(spin) * (r - 1));
+    ctx.stroke();
+  }
+  // red deck
+  ctx.fillStyle = tone('#c23b2e');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  ctx.moveTo(x - hw, baseY - 10);
+  ctx.lineTo(x + hw, baseY - 10);
+  ctx.lineTo(x + hw - 6, baseY - 26);
+  ctx.lineTo(x - hw + 6, baseY - 26);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // engine block + cap
+  ctx.fillStyle = tone('#2a2330');
+  ctx.fillRect(x - 9, baseY - 36, 18, 11);
+  ctx.strokeRect(x - 9, baseY - 36, 18, 11);
+  ctx.fillStyle = tone('#ffd23f');
+  ctx.beginPath();
+  ctx.arc(x, baseY - 38, 3.4, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  // blade blur underneath at speed
+  if (charging && !e.defeated) {
+    ctx.fillStyle = 'rgba(251, 246, 233, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(x, baseY - 4, hw, 4, spin * 0.2, 0, TAU);
+    ctx.fill();
+  }
+  // headlight eyes + grille mouth on the front
+  const fxx = x + fx * (hw - 2);
+  if (!e.defeated) {
+    for (const side of [-1, 1]) {
+      ctx.fillStyle = '#fff6c9';
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(fxx, baseY - 30 + side * 6, 4.4, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = INK;
+      ctx.beginPath();
+      ctx.arc(fxx + fx * 1.4, baseY - 30 + side * 6 + fy, 1.8, 0, TAU);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#17132a';
+    const gape = windup * 5;
+    ctx.fillRect(fxx - 2, baseY - 18, 4, 6 + gape);
+  }
+  // exhaust puffs
+  if (!e.defeated) {
+    ctx.fillStyle = 'rgba(90, 90, 100, 0.7)';
+    for (let i = 0; i < 2; i++) {
+      const t = (time * 1.4 + i * 0.5 + e.seed) % 1;
+      ctx.beginPath();
+      ctx.arc(x - fx * 6 - t * 14, baseY - 40 - t * 18, 2 + t * 3, 0, TAU);
+      ctx.fill();
+    }
+  }
+}
+
+/**
+ * MOM. Housecoat, curlers, glasses, one raised slipper. The slipper rises with
+ * every telegraph; the brows sink with every phase. Do not test her.
+ */
+function momBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  const { hw, hd, tone, fx, fy, windup } = p;
+  const baseY = y + hd + 1;
+  const anger = e.phaseIndex;
+  // legs + slippers (one tapping)
+  legs(ctx, x, baseY, e.walkPhase, 7, 4.5);
+  for (const side of [-1, 1]) {
+    const tap = side === 1 ? Math.abs(Math.sin(e.walkPhase * 2)) * 3 : 0;
+    ctx.fillStyle = tone('#e89bb4');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(x + side * 7, baseY - 2 - tap, 7, 4, 0, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  }
+  // housecoat: A-line with flowers, belt, collar
+  ctx.fillStyle = tone('#8a3b5c');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  ctx.moveTo(x - 9, baseY - 34);
+  ctx.lineTo(x + 9, baseY - 34);
+  ctx.lineTo(x + hw - 2, baseY - 4);
+  ctx.lineTo(x - hw + 2, baseY - 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = tone('#e8a0b8');
+  for (const [ox, oy] of [[-8, -26], [7, -22], [-2, -14], [10, -10], [-11, -9]] as const) {
+    ctx.beginPath();
+    ctx.arc(x + ox, baseY + oy, 1.8, 0, TAU);
+    ctx.fill();
+  }
+  ctx.strokeStyle = tone('#5c2540');
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x - 11, baseY - 20);
+  ctx.lineTo(x + 11, baseY - 20);
+  ctx.stroke();
+  // head + curlers + glasses + fury
+  const hy = baseY - 44;
+  ctx.fillStyle = tone('#f2c19b');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.arc(x, hy, 11, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  for (let k = 0; k < 5; k++) {
+    const a = Math.PI * (1.08 + (k / 4) * 0.84);
+    const cx = x + Math.cos(a) * 11;
+    const cy = hy + Math.sin(a) * 11;
+    ctx.fillStyle = tone('#8a94a6');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3.4, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone('#e89bb4');
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.4, 0, TAU);
+    ctx.fill();
+  }
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x - 5, hy + 1, 5.4, 0, TAU);
+  ctx.moveTo(x - 5 + 5.4, hy + 1);
+  ctx.lineTo(x + 5 - 5.4, hy + 1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x + 5, hy + 1, 5.4, 0, TAU);
+  ctx.stroke();
+  if (!e.defeated) {
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(x - 5 + fx * 1.8, hy + 1 + fy, 1.9, 0, TAU);
+    ctx.arc(x + 5 + fx * 1.8, hy + 1 + fy, 1.9, 0, TAU);
+    ctx.fill();
+    // brows like thunderheads, lower every phase
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.8;
+    const drop = 2 + anger * 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x - 10, hy - 8 + drop * 0.4);
+    ctx.lineTo(x - 1, hy - 5 + drop);
+    ctx.moveTo(x + 10, hy - 8 + drop * 0.4);
+    ctx.lineTo(x + 1, hy - 5 + drop);
+    ctx.stroke();
+    // frown that opens into a scold
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(x + fx * 2, hy + 12, 4.5, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.stroke();
+    if (windup > 0.2 || e.hurlProgress > 0.2) {
+      ctx.fillStyle = INK;
+      ctx.beginPath();
+      ctx.ellipse(x + fx * 2, hy + 11, 3.6, 4.6, 0, 0, TAU);
+      ctx.fill();
+    }
+    if (anger > 0) {
+      const throb = 1 + Math.sin(time * 8) * 0.25;
+      ctx.strokeStyle = tone('#e5383b');
+      ctx.lineWidth = 2;
+      const vx = x + 8;
+      const vy = hy - 9;
+      ctx.beginPath();
+      ctx.moveTo(vx - 4 * throb, vy);
+      ctx.lineTo(vx + 4 * throb, vy);
+      ctx.moveTo(vx, vy - 4 * throb);
+      ctx.lineTo(vx, vy + 4 * throb);
+      ctx.stroke();
+    }
+  }
+  // THE SLIPPER, raised with every telegraph
+  const raise = 0.5 + windup * 0.9 + e.hurlProgress * 0.9 + (e.ai === 'slam' ? 0.7 : 0);
+  const sx = x + 14;
+  const sy = hy - 16 - raise * 10;
+  mitt(ctx, x + 8, baseY - 30, sx - 4, sy + 14, tone('#f2c19b'));
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(-0.5 - raise * 0.5);
+  ctx.fillStyle = tone('#e89bb4');
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 13, 7, 0, 0, TAU);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = tone('#8a3b5c');
+  ctx.lineWidth = 1.8;
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * 6 - 2, -5);
+    ctx.lineTo(i * 6 - 2, 5);
+    ctx.stroke();
+  }
+  ctx.fillStyle = tone('#ffd23f');
+  ctx.beginPath();
+  ctx.arc(-8, -3, 2.6, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+  mitt(ctx, x - 9, baseY - 30, x - 15, baseY - 16 + Math.sin(e.walkPhase) * 2, tone('#f2c19b'));
+}
+
+/** Dispatches the seven custom boss silhouettes. */
+function drawBossBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  switch (e.type.id) {
+    case 'chairman': chairmanBody(ctx, e, x, y, time, p); break;
+    case 'flusher': flusherBody(ctx, e, x, y, time, p); break;
+    case 'kraken': krakenBody(ctx, e, x, y, time, p); break;
+    case 'fridgezilla': fridgezillaBody(ctx, e, x, y, time, p); break;
+    case 'piano': pianoBody(ctx, e, x, y, time, p); break;
+    case 'mower': mowerBody(ctx, e, x, y, time, p); break;
+    case 'mom': momBody(ctx, e, x, y, time, p); break;
+  }
+}
+
+/** Small helper: signed smallest angle from a to b. */
+function angleDiffSafe(a: number, b: number): number {
+  let d = (b - a) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+/** Overhead telegraphs shared by boxes and bosses. */
+function drawOverhead(ctx: Ctx, e: Enemy, x: number, time: number, topY: number): void {
+  const top = topY - 16 - (e.helmetHp > 0 ? 8 : 0);
+  const windup = e.windupProgress;
+  if (e.ai === 'windup' || e.ai === 'hurl' || e.ai === 'lash') {
+    ctx.fillStyle = '#ffd23f';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
+    const s = 1 + windup * 0.5 + e.hurlProgress * 0.5 + e.lashProgress * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x - 3 * s, top - 14 * s);
+    ctx.lineTo(x + 3 * s, top - 14 * s);
+    ctx.lineTo(x + 1.5 * s, top - 4 * s);
+    ctx.lineTo(x - 1.5 * s, top - 4 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, top, 2.2 * s, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  } else if (e.stun > 0.15 || e.confuse > 0) {
+    for (let i = 0; i < 3; i++) {
+      const a = time * 6 + (i * TAU) / 3;
+      ctx.fillStyle = i === 0 ? '#ffffff' : '#ffd23f';
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * 11, top + Math.sin(a) * 4, 2.6, 0, TAU);
+      ctx.fill();
+    }
+  } else if (e.ai === 'idle' || e.ai === 'investigate') {
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
+    ctx.font = '800 16px sans-serif';
+    ctx.textAlign = 'center';
+    const mark = e.lured ? '♪' : '?';
+    ctx.strokeText(mark, x, top);
+    ctx.fillText(mark, x, top);
+  }
+}
+
+/** The parcel-tape HP strip, shared by boxes and bosses. */
+function drawHpBar(ctx: Ctx, e: Enemy, x: number, y: number, hw: number, hd: number): void {
+  if (e.hp >= e.type.hp) return;
+  const w = hw * 1.8;
+  const ratio = Math.max(0, e.hp / e.type.hp);
+  ctx.fillStyle = INK;
+  ctx.fillRect(x - w / 2 - 1.5, y + hd + 9, w + 3, 6);
+  ctx.fillStyle = ratio > 0.4 ? TAPE : '#ff5a4e';
+  ctx.fillRect(x - w / 2, y + hd + 10.5, w * ratio, 3);
 }
 
 /** Jagged tear for a mouth; it gapes open when the mover is winding up to lunge. */
@@ -256,22 +1037,6 @@ function newcomerProps(
       ctx.arc(sx + 3 + (flick - 0.5) * 3, topY - 14 - flick * 2, 2 + flick * 1.6, 0, TAU);
       ctx.fill();
     }
-  } else if (id === 'boss') {
-    // the Landlord wears a gold band with three spikes: do not mistake him for furniture
-    ctx.fillStyle = tone('#ffd23f');
-    ctx.fillRect(x - hw + 2, faceTop + 2, hw * 2 - 4, 6);
-    ctx.beginPath();
-    for (const off of [-hw + 7, 0, hw - 7]) {
-      const px = x + off;
-      ctx.moveTo(px - 4, faceTop + 2);
-      ctx.lineTo(px, faceTop - 5);
-      ctx.lineTo(px + 4, faceTop + 2);
-      ctx.closePath();
-    }
-    ctx.fill();
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.4;
-    ctx.strokeRect(x - hw + 2, faceTop + 2, hw * 2 - 4, 6);
   } else if (id === 'gnat') {
     // wasp stripes round the middle and blurred wings on top
     ctx.fillStyle = tone('#17132a');
@@ -318,61 +1083,6 @@ function newcomerProps(
       ctx.fill();
       ctx.fillStyle = tone(STEEL_DARK);
     }
-  } else if (id === 'hoover') {
-    // the canister lid, a dust bag swelling while it sucks, and the hose
-    ctx.fillStyle = tone('#2a2330');
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.ellipse(x, topY + 3, hw * 0.55, hd * 0.55, 0, 0, TAU);
-    ctx.fill();
-    ctx.stroke();
-    const bag = e.sucking && !e.defeated ? 1 + Math.sin(time * 9) * 0.12 : 0.55;
-    ctx.fillStyle = tone('#ecdcab');
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(x - hw * 0.55, topY + 8, 7 * bag + 3, 9 * bag + 3, 0.3, 0, TAU);
-    ctx.fill();
-    ctx.stroke();
-    const nx = x + Math.cos(e.facing) * (hw + 10);
-    const ny = y - 6 + Math.sin(e.facing) * 8;
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 7;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x + Math.cos(e.facing) * hw * 0.6, y - 10);
-    ctx.quadraticCurveTo(x + Math.cos(e.facing) * (hw + 12), y - 16, nx, ny);
-    ctx.stroke();
-    ctx.strokeStyle = tone('#3b3550');
-    ctx.lineWidth = 3.6;
-    ctx.stroke();
-    ctx.lineCap = 'butt';
-    // the nozzle gapes while it inhales
-    const gape = e.sucking && !e.defeated ? 5 : 2.4;
-    ctx.fillStyle = '#17132a';
-    ctx.beginPath();
-    ctx.ellipse(nx, ny, gape + 2, gape, Math.atan2(Math.sin(e.facing), Math.cos(e.facing)), 0, TAU);
-    ctx.fill();
-  } else if (id === 'sofa') {
-    // upholstery buttons and a throw blanket over one arm
-    ctx.fillStyle = tone('#3d2f56');
-    for (const [bx, by] of [[-hw * 0.45, 0.4], [0, 0.52], [hw * 0.45, 0.4]] as const) {
-      ctx.beginPath();
-      ctx.arc(x + bx, faceTop + faceH * by, 2.4, 0, TAU);
-      ctx.fill();
-    }
-    ctx.fillStyle = tone('#c23b4e');
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(x + hw - 12, topY - 2);
-    ctx.lineTo(x + hw + 2, topY - 2);
-    ctx.lineTo(x + hw, topY + hd + 6);
-    ctx.lineTo(x + hw - 13, topY + hd + 4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
   } else if (id === 'trolley') {
 
   // wheels, and a strap holding the box on
@@ -452,6 +1162,15 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
   const topY = y - h - hop;
   const away = fy < -0.6 && !e.defeated;
 
+  // Bosses skip the whole box pipeline: custom silhouette, shared telegraphs + HP.
+  if ((CUSTOM_BOSS_IDS as ReadonlyArray<string>).includes(id)) {
+    drawBossBody(ctx, e, x, y, time, { hw, hd, tone, fx, fy, windup, hop, topY, lift });
+    ctx.restore();
+    if (!e.defeated) drawOverhead(ctx, e, x, time, topY);
+    drawHpBar(ctx, e, x, y, hw, hd);
+    return;
+  }
+
   if (id === 'trolley' && !e.defeated) {
     // the sack truck: two handles behind, two fat wheels at the bottom
     ctx.lineCap = 'round';
@@ -471,29 +1190,8 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
     ctx.lineCap = 'butt';
   }
 
-  if (!e.defeated && id !== 'hoover') {
-    legs(ctx, x, y + hd + 1, e.walkPhase, hw * 0.5, id === 'heavy' || id === 'sofa' ? 6.5 : id === 'fast' || id === 'gnat' ? 4 : 5);
-  }
-  if (id === 'hoover' && !e.defeated) {
-    // it rolls: two fat wheels that spin with the walk phase
-    for (const side of [-1, 1]) {
-      const wx = x + side * (hw * 0.7);
-      ctx.fillStyle = INK;
-      ctx.beginPath();
-      ctx.arc(wx, y + hd + 1, 7, 0, TAU);
-      ctx.fill();
-      ctx.fillStyle = tone('#aab4c4');
-      ctx.beginPath();
-      ctx.arc(wx, y + hd + 1, 2.8, 0, TAU);
-      ctx.fill();
-      ctx.strokeStyle = tone('#aab4c4');
-      ctx.lineWidth = 1.4;
-      const roll = e.walkPhase * 2;
-      ctx.beginPath();
-      ctx.moveTo(wx + Math.cos(roll) * 5.4, y + hd + 1 + Math.sin(roll) * 5.4);
-      ctx.lineTo(wx - Math.cos(roll) * 5.4, y + hd + 1 - Math.sin(roll) * 5.4);
-      ctx.stroke();
-    }
+  if (!e.defeated) {
+    legs(ctx, x, y + hd + 1, e.walkPhase, hw * 0.5, id === 'heavy' ? 6.5 : id === 'fast' || id === 'gnat' ? 4 : 5);
   }
 
   // The shield-bearers carry their protection in front, drawn behind the body
@@ -570,7 +1268,7 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
   prism(ctx, x, y, 0, lift, h + hop, outline, tone(build.side), tone(build.top));
 
   // ── top: tape, lid, flaps (boxes only; machines and royalty dress otherwise) ──
-  if (id !== 'fast' && id !== 'heavy' && id !== 'hoover' && id !== 'sofa' && id !== 'gnat') {
+  if (id !== 'fast' && id !== 'heavy' && id !== 'gnat') {
     onTop(ctx, x, y, 0, h + hop, (c) => {
       c.fillStyle = tone(id === 'electric' ? '#ffd23f' : TAPE);
       c.fillRect(-4, -hd, 8, hd * 2);
@@ -967,52 +1665,6 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
   ctx.restore();
 
   if (e.defeated) return;
-
-  // overhead status
-  const top = topY - 16 - (e.helmetHp > 0 ? 8 : 0);
-  if (e.ai === 'windup' || e.ai === 'hurl') {
-    ctx.fillStyle = '#ffd23f';
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 3;
-    const s = 1 + windup * 0.5;
-    ctx.beginPath();
-    ctx.moveTo(x - 3 * s, top - 14 * s);
-    ctx.lineTo(x + 3 * s, top - 14 * s);
-    ctx.lineTo(x + 1.5 * s, top - 4 * s);
-    ctx.lineTo(x - 1.5 * s, top - 4 * s);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x, top, 2.2 * s, 0, TAU);
-    ctx.fill();
-    ctx.stroke();
-  } else if (e.stun > 0.15 || e.confuse > 0) {
-    for (let i = 0; i < 3; i++) {
-      const a = time * 6 + (i * TAU) / 3;
-      ctx.fillStyle = i === 0 ? '#ffffff' : '#ffd23f';
-      ctx.beginPath();
-      ctx.arc(x + Math.cos(a) * 11, top + Math.sin(a) * 4, 2.6, 0, TAU);
-      ctx.fill();
-    }
-  } else if (e.ai === 'idle' || e.ai === 'investigate') {
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 3;
-    ctx.font = '800 16px sans-serif';
-    ctx.textAlign = 'center';
-    const mark = e.lured ? '♪' : '?';
-    ctx.strokeText(mark, x, top);
-    ctx.fillText(mark, x, top);
-  }
-
-  // what is left of it, as a strip of parcel tape running out
-  if (e.hp < type.hp) {
-    const w = hw * 1.8;
-    const ratio = Math.max(0, e.hp / type.hp);
-    ctx.fillStyle = INK;
-    ctx.fillRect(x - w / 2 - 1.5, y + hd + 9, w + 3, 6);
-    ctx.fillStyle = ratio > 0.4 ? TAPE : '#ff5a4e';
-    ctx.fillRect(x - w / 2, y + hd + 10.5, w * ratio, 3);
-  }
+  drawOverhead(ctx, e, x, time, topY);
+  drawHpBar(ctx, e, x, y, hw, hd);
 }

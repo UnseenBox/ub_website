@@ -998,7 +998,7 @@ export class Game {
       this.audio.voice('defeat', e.enemy.type.voice);
       if (e.enemy.type.boss) {
         this.hud.banner(e.enemy.type.bossTitle ?? 'LANDLORD EVICTED', 'the flat is yours. for now.', 2.6);
-        this.discoveries.unlock(e.enemy.type.bossDiscovery ?? 'boss_evicted');
+        this.discoveries.unlock(e.enemy.type.bossDiscovery ?? 'mom_says_no');
       }
       // the box bursts: packing peanuts everywhere, plus a starburst in the
       // direction of the killing blow so the knockout tops the hit that caused it

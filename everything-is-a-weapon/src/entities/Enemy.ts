@@ -7,7 +7,7 @@ import { extendChain, startChain } from '../gameplay/Chain';
 import type { EnemyType } from './EnemyTypes';
 import type { PhysicsObject } from './PhysicsObject';
 
-type AiState = 'entering' | 'idle' | 'investigate' | 'chase' | 'windup' | 'lunge' | 'recover' | 'hurl' | 'slam';
+type AiState = 'entering' | 'idle' | 'investigate' | 'chase' | 'windup' | 'lunge' | 'recover' | 'hurl' | 'slam' | 'lash';
 
 const WINDUP_TIME = 0.42;
 const LUNGE_TIME = 0.18;
@@ -63,6 +63,15 @@ export class Enemy {
   suckTimer = 1.5;
   sucking = false;
   private suckSoundT = 0;
+  /** Tentacle-lash attack state (the Sofa Kraken). */
+  lashCooldown = 3;
+  /** Sidestep timer (MOM). */
+  dodgeCooldown = 1;
+  /** Tidying timer (MOM). */
+  rearrangeTimer = 8;
+  /** Frost-aura timer (Fridgezilla). */
+  frostTimer = 2;
+  private trampleSoundT = 0;
   burn = 0;
   private burnTick = 0;
   slip = 0;
@@ -127,6 +136,11 @@ export class Enemy {
     return this.ai === 'hurl' ? 1 - this.aiTimer / windup : 0;
   }
 
+  get lashProgress(): number {
+    const windup = this.type.lashes?.windup ?? 0.6;
+    return this.ai === 'lash' ? 1 - this.aiTimer / windup : 0;
+  }
+
   update(game: Game, dt: number): void {
     const b = this.body;
     this.hitFlash = Math.max(0, this.hitFlash - dt * 5);
@@ -178,7 +192,11 @@ export class Enemy {
 
     this.hurlCooldown -= dt;
     this.slamCooldown -= dt;
+    this.lashCooldown -= dt;
     if (this.type.sucks) this.updateSuck(game, dt);
+    if (this.type.dodges) this.updateDodge(game, dt);
+    if (this.type.rearranges) this.updateRearrange(game, dt);
+    if (this.type.frost) this.updateFrost(game, dt);
 
     const player = game.player;
     const dx = player.body.x - b.x;
@@ -284,6 +302,11 @@ export class Enemy {
           this.startSlam(game);
           break;
         }
+        // Tentacles have longer arms than legs.
+        if (this.type.lashes && this.lashCooldown <= 0 && dist < this.type.lashes.range && this.confuse <= 0) {
+          this.startLash(game);
+          break;
+        }
         if (dist < this.type.radius + player.body.boundR + (this.type.lungeRange ?? 14) && this.confuse <= 0) {
           this.setState('windup', this.type.windup ?? WINDUP_TIME);
         }
@@ -307,6 +330,19 @@ export class Enemy {
         b.vx = this.lungeX * (this.type.lungeSpeed ?? LUNGE_SPEED);
         b.vy = this.lungeY * (this.type.lungeSpeed ?? LUNGE_SPEED);
         if (this.type.lungeSpeed && Math.random() < dt * 40) game.particles.burst('dust', b.x - this.lungeX * 14, b.y + 6, 1, 60);
+        if (this.type.tramples) {
+          // The Mower eats the room at speed: splinters, shake and engine snarl.
+          if (Math.random() < dt * 30) {
+            game.particles.burst('splinter', b.x + this.lungeX * 20, b.y, 3, 260);
+            game.particles.burst('dust', b.x, b.y + 6, 4, 160);
+          }
+          if (Math.random() < dt * 6) game.camera.addShake(0.14);
+          this.trampleSoundT -= dt;
+          if (this.trampleSoundT <= 0) {
+            this.trampleSoundT = 0.5;
+            game.audio.play('slide', 0.4);
+          }
+        }
         if (!this.lungeLanded && dist < this.type.radius + player.body.boundR + 7) {
           this.lungeLanded = true;
           const guard = player.held;
@@ -367,6 +403,12 @@ export class Enemy {
         this.squash = Math.max(this.squash, 0.6);
         if (this.aiTimer <= 0) this.releaseSlam(game);
         break;
+
+      case 'lash':
+        this.steer(0, 0, 0, dt);
+        this.turnTowards(Math.atan2(dy, dx), dt);
+        if (this.aiTimer <= 0) this.releaseLash(game);
+        break;
     }
   }
 
@@ -410,6 +452,15 @@ export class Enemy {
       if (d < bestD) {
         bestD = d;
         best = object;
+      }
+    }
+    if (!best && spec.spawn) {
+      // Conjured ammunition: MOM always has another shoe, the Fridgezilla
+      // another frozen fish. (The object cap still applies, via spawnObject.)
+      best = game.spawnObject(spec.spawn, b.x + Math.cos(this.facing) * 30, b.y + Math.sin(this.facing) * 30 - 10);
+      if (best) {
+        best.body.vz = 160;
+        best.body.z = Math.max(best.body.z, 10);
       }
     }
     if (!best) {
@@ -470,27 +521,173 @@ export class Enemy {
     this.setState('recover', 0.6);
     if (!spec) return;
     this.doShockwave(game, spec.radius, spec.damage);
-    // The Sofa King sheds its cushions as shrapnel: three pillows at the player.
-    if (this.type.id === 'sofa') {
+    if (spec.spawnZone) {
       const b = this.body;
-      const target = game.player.body;
-      for (let i = -1; i <= 1; i++) {
-        const pillow = game.spawnObject('pillow', b.x, b.y - 10);
-        if (!pillow) break;
-        const dx = target.x - b.x + i * 60;
-        const dy = target.y - b.y - 40;
-        const d = Math.hypot(dx, dy) || 1;
-        pillow.body.vx = (dx / d) * 520;
-        pillow.body.vy = (dy / d) * 520;
-        pillow.body.vz = 260;
-        pillow.body.z = 14;
-        pillow.body.w = game.rng.range(-9, 9);
-        pillow.tags.add('hurled');
-        pillow.chain = startChain(game.time, pillow.uid, pillow.label);
-        pillow.chainAt = game.time;
-      }
-      game.audio.play('throw', 0.7);
+      game.zones.spawn(game, spec.spawnZone.kind, b.x, b.y, spec.spawnZone.radius, { ttl: spec.spawnZone.ttl });
+      game.particles.burst('water', b.x, b.y, 14, 220);
+      game.audio.play('splash', 0.9);
     }
+  }
+
+  /** Cushion tentacles rear up: readable, sidesteppable, regrettable. */
+  private startLash(game: Game): void {
+    const spec = this.type.lashes;
+    if (!spec) return;
+    this.setState('lash', spec.windup);
+    game.audio.play('whistle', 0.8);
+    game.audio.voice('attack', this.type.voice);
+  }
+
+  private releaseLash(game: Game): void {
+    const spec = this.type.lashes;
+    this.lashCooldown = (spec?.cooldown ?? 5) * game.rng.range(0.9, 1.15);
+    this.setState('recover', 0.6);
+    if (!spec) return;
+    const b = this.body;
+    const fa = this.facing;
+    const halfArc = spec.arc / 2;
+    const inCone = (x: number, y: number): boolean => {
+      const dx = x - b.x;
+      const dy = y - b.y;
+      const d = Math.hypot(dx, dy);
+      if (d > spec.range || d < 1) return false;
+      return Math.abs(angleDiff(fa, Math.atan2(dy, dx))) <= halfArc;
+    };
+    const player = game.player;
+    if (player.alive && inCone(player.body.x, player.body.y)) {
+      const dx = player.body.x - b.x;
+      const dy = player.body.y - b.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (player.hurt(game, 1, this.label)) {
+        // Slapped, then dragged a step towards the hug.
+        player.body.vx -= (dx / d) * 220;
+        player.body.vy -= (dy / d) * 220;
+        game.discoveries.unlock('tentacled');
+      }
+    }
+    game.world.queryCircle(b.x, b.y, spec.range, (body) => {
+      const owner = body.owner;
+      if (!owner || owner === this || owner.kind !== 'object' || body.type !== 'dynamic') return;
+      if (!inCone(body.x, body.y)) return;
+      if (owner.restingOn) owner.leaveSurface();
+      const dx = b.x - body.x;
+      const dy = b.y - body.y;
+      const d = Math.hypot(dx, dy) || 1;
+      body.applyImpulse((dx / d) * body.mass * 300, (dy / d) * body.mass * 300);
+      body.vz = Math.max(body.vz, 160);
+      body.z = Math.max(body.z, 3);
+      body.wake();
+    });
+    game.particles.burst('dust', b.x + Math.cos(fa) * spec.range * 0.6, b.y + Math.sin(fa) * spec.range * 0.6, 12, 220);
+    game.fx.burst('SLAP!', b.x + Math.cos(fa) * 40, b.y - 52, 1.1, '#ff7b54', true);
+    game.audio.play('swipe', 1);
+    game.camera.addShake(0.3);
+  }
+
+  /**
+   * MOM sees it coming. Fast throws aimed at her get sidestepped with contempt;
+   * slow floaters that reach her hands get confiscated.
+   */
+  private updateDodge(game: Game, dt: number): void {
+    const spec = this.type.dodges;
+    if (!spec || this.defeated) return;
+    this.dodgeCooldown -= dt;
+    const b = this.body;
+    // Confiscation first: anything thrown that drifts into her hands is hers now.
+    for (const object of game.objects) {
+      if (!object.alive || object.held) continue;
+      if (!object.tags.has('thrown') && !object.tags.has('hurled')) continue;
+      const d = Math.hypot(object.body.x - b.x, object.body.y - b.y);
+      if (d < this.type.radius + 18) {
+        object.destroy(game);
+        this.hp = Math.min(this.type.hp, this.hp + 5);
+        this.squash = Math.max(this.squash, 0.5);
+        game.audio.play('plop', 1);
+        game.fx.burst('MINE.', b.x, b.y - 56, 1, '#ffd23f', true);
+        game.discoveries.unlock('mine_now');
+      }
+    }
+    if (this.dodgeCooldown > 0 || this.stun > 0 || this.shockTimer > 0) return;
+    if (this.ai === 'entering' || this.ai === 'windup' || this.ai === 'lunge' ||
+        this.ai === 'hurl' || this.ai === 'slam' || this.ai === 'lash') return;
+    for (const object of game.objects) {
+      if (!object.alive || object.held) continue;
+      if (!object.tags.has('thrown') && !object.tags.has('hurled')) continue;
+      const ob = object.body;
+      const sp = ob.speed();
+      if (sp < 400) continue;
+      const dx = b.x - ob.x;
+      const dy = b.y - ob.y;
+      const d = Math.hypot(dx, dy);
+      if (d > spec.radius || d < 1) continue;
+      if ((ob.vx * dx + ob.vy * dy) / (sp * d) < 0.75) continue;
+      // Sidestep, perpendicular to the incoming throw.
+      const side = game.rng.sign();
+      b.vx = (-dy / d) * side * 560;
+      b.vy = (dx / d) * side * 560;
+      b.wake();
+      this.dodgeCooldown = spec.cooldown;
+      game.audio.play('swipe', 0.7);
+      game.fx.burst('MISS!', b.x, b.y - 56, 0.9, '#4ad6e8', true);
+      game.particles.burst('dust', b.x, b.y + 4, 5, 120);
+      game.discoveries.unlock('not_today');
+      return;
+    }
+  }
+
+  /**
+   * MOM tidies mid-fight: loose furniture is relocated across the room, with
+   * feeling. Held things are never touched — she is fair, not cruel.
+   */
+  private updateRearrange(game: Game, dt: number): void {
+    const spec = this.type.rearranges;
+    if (!spec || this.defeated) return;
+    this.rearrangeTimer -= dt;
+    if (this.rearrangeTimer > 0) return;
+    this.rearrangeTimer = spec.cooldown;
+    const def = game.room.def;
+    const candidates = game.objects.filter((o) =>
+      o.alive && !o.held && !o.restingOn && o.body.type === 'dynamic' && o.body.mass <= 60,
+    );
+    let moved = 0;
+    while (moved < spec.count && candidates.length > 0) {
+      const i = Math.floor(game.rng.next() * candidates.length);
+      const object = candidates.splice(i, 1)[0]!;
+      const ob = object.body;
+      const nx = game.rng.range(60, def.width - 60);
+      const ny = game.rng.range(60, def.height - 60);
+      game.fx.ring(ob.x, ob.y, 6, 40, 0.3, 'rgba(255,255,255,0.8)', 3);
+      game.fx.ring(nx, ny, 6, 40, 0.3, 'rgba(255,255,255,0.8)', 3);
+      ob.teleport(nx, ny, ob.angle);
+      ob.vx = game.rng.range(-60, 60);
+      ob.vy = game.rng.range(-60, 60);
+      ob.vz = 140;
+      ob.z = Math.max(ob.z, 6);
+      ob.wake();
+      moved++;
+    }
+    if (moved > 0) {
+      game.audio.play('poof', 0.9);
+      game.fx.burst('CLEAN YOUR ROOM!', this.body.x, this.body.y - 60, 1.2, '#ffd23f', true);
+      game.discoveries.unlock('clean_your_room');
+    }
+  }
+
+  /** Fridgezilla's halo: the floor keeps freezing wherever it has been. */
+  private updateFrost(game: Game, dt: number): void {
+    const spec = this.type.frost;
+    if (!spec || this.defeated) return;
+    this.frostTimer -= dt;
+    if (this.frostTimer > 0) return;
+    this.frostTimer = spec.interval;
+    const b = this.body;
+    game.zones.spawn(
+      game, 'slick',
+      b.x + game.rng.range(-30, 30), b.y + game.rng.range(-20, 20),
+      spec.radius, { ttl: spec.ttl },
+    );
+    game.particles.burst('spark', b.x, b.y - 10, 8, 140, { color: '#cfe8ff' });
+    game.audio.play('hiss', 0.5);
   }
 
   /**
@@ -531,7 +728,7 @@ export class Enemy {
     game.noise(b.x, b.y, 1.4);
   }
 
-  /** The Hoover breathes in cycles: a few seconds of suction, then a breather. */
+  /** Vacuum appetites breathe in cycles: a few seconds of suction, then a breather. */
   private updateSuck(game: Game, dt: number): void {
     const spec = this.type.sucks;
     if (!spec || this.defeated) {
@@ -555,7 +752,10 @@ export class Enemy {
     }
     if (Math.random() < dt * 30) {
       const a = game.rng.range(0, Math.PI * 2);
-      game.particles.burst('dust', b.x + Math.cos(a) * spec.radius * 0.7, b.y + Math.sin(a) * spec.radius * 0.55, 1, 60);
+      game.particles.burst(
+        this.type.id === 'flusher' ? 'water' : 'dust',
+        b.x + Math.cos(a) * spec.radius * 0.7, b.y + Math.sin(a) * spec.radius * 0.55, 1, 60,
+      );
     }
     for (const object of game.objects) {
       if (!object.alive || object.held) continue;
@@ -590,8 +790,8 @@ export class Enemy {
   }
 
   /**
-   * The Hoover eats whatever reaches its mouth. Explosives and lit things
-   * disagree with it violently — that is the whole strategy.
+   * Big mouths eat whatever reaches them. Explosives and lit things
+   * disagree with them violently — that is the whole strategy.
    */
   private eatObject(game: Game, object: PhysicsObject): void {
     if (!object.alive || object.held) return;
@@ -706,7 +906,7 @@ export class Enemy {
     b.vx = dx * slide;
     b.vy = dy * slide;
     this.squash = 1;
-    if (this.ai === 'windup' || this.ai === 'lunge' || this.ai === 'hurl' || this.ai === 'slam') {
+    if (this.ai === 'windup' || this.ai === 'lunge' || this.ai === 'hurl' || this.ai === 'slam' || this.ai === 'lash') {
       this.hurled = null;
       this.hurlT = -1;
       this.setState('recover', 0.4);
@@ -783,7 +983,7 @@ export class Enemy {
     b.vx += dirX * kick;
     b.vy += dirY * kick;
     this.squash = 1;
-    if (this.ai === 'windup' || this.ai === 'lunge' || this.ai === 'hurl' || this.ai === 'slam') {
+    if (this.ai === 'windup' || this.ai === 'lunge' || this.ai === 'hurl' || this.ai === 'slam' || this.ai === 'lash') {
       this.hurled = null;
       this.hurlT = -1;
       this.setState('recover', 0.4);
