@@ -55,6 +55,10 @@ export class UI implements GameUi {
     this.hud.stamp(text);
   }
 
+  unlock(kicker: string, title: string, sub: string): void {
+    this.hud.unlock(kicker, title, sub);
+  }
+
   frame(dt: number): void {
     if (this.game.state !== 'menu') this.hud.frame(dt);
   }
@@ -96,6 +100,7 @@ export class UI implements GameUi {
             if (!revived && game.state === 'failed') this.showSummary({ ...summary, canContinue: false, adMissed: true });
           }),
         home: () => game.toMenu(),
+        buy: (id) => game.buyAbility(id),
         stamped: () => game.audio.play('stamp', 1),
       }),
     );
@@ -134,6 +139,7 @@ export class UI implements GameUi {
         settings: () => this.show(buildSettings(game, () => this.showPause())),
         home: () => game.toMenu(),
         buyAbility: (id) => game.buyAbility(id),
+        lesson: (id) => game.playLesson(id),
       }),
     );
   }

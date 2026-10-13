@@ -95,8 +95,21 @@ export class AbilitySystem {
   private blast(): void {
     const game = this.game;
     const player = game.player;
+    let x = player.cursorX;
+    let y = player.cursorY;
+    if (game.input.touch) {
+      // No cursor on a phone: the button goes off under the nearest mover in reach.
+      let bestD = 460;
+      for (const enemy of game.enemies) {
+        const d = Math.hypot(enemy.body.x - player.body.x, enemy.body.y - player.body.y);
+        if (enemy.defeated || d >= bestD) continue;
+        bestD = d;
+        x = enemy.body.x;
+        y = enemy.body.y;
+      }
+    }
     game.explode(
-      player.cursorX, player.cursorY, BLAST_RADIUS, BLAST_DAMAGE, 1.15,
+      x, y, BLAST_RADIUS, BLAST_DAMAGE, 1.15,
       startChain(game.time, player.uid, 'BIG RED BUTTON'), player, 'fire',
     );
     game.discoveries.unlock('big_red_button');

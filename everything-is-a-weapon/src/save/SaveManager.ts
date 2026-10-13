@@ -36,6 +36,8 @@ export interface SaveData {
   /** Per-room bests by room id (new in version 2). */
   roomBests: Record<string, RoomBest>;
   hero: HeroId;
+  /** Room 1's lesson plan: '' not started, a lesson id part-way through, 'done' after. */
+  tutorial: string;
   settings: Settings;
 }
 
@@ -52,6 +54,7 @@ function defaults(): SaveData {
     roomsCleared: 0,
     roomBests: {},
     hero: 'tenant',
+    tutorial: '',
     settings: { volume: 0.7, muted: false, music: true, reducedShake: false, highContrast: false },
   };
 }
@@ -115,6 +118,8 @@ function sanitize(raw: unknown): SaveData {
     roomsCleared: Math.max(0, Math.floor(finite(data.roomsCleared, 0))),
     roomBests: roomBests(data.roomBests),
     hero: isHeroId(data.hero) ? data.hero : base.hero,
+    // Saves from before the lesson plan: anyone past room 1 has nothing left to be taught.
+    tutorial: typeof data.tutorial === 'string' ? data.tutorial : finite(data.unlockedRoom, 0) > 0 ? 'done' : '',
     settings: {
       volume: Math.min(1, Math.max(0, finite(settings.volume, base.settings.volume))),
       muted: settings.muted === true,

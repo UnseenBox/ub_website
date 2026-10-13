@@ -156,7 +156,7 @@ export class Renderer {
 
     this.drawParticles();
     if (game.state === 'playing') this.drawAim(time);
-    this.drawHint(time);
+    this.drawGuide(time);
     this.drawBursts();
     this.drawPopups();
     if (this.debug.hitboxes || this.debug.grid) this.drawDebug();
@@ -403,7 +403,7 @@ export class Renderer {
           drawObjectHalo(ctx, entity, x, y, z, angle, '#ffffff', 4);
         } else if (entity.held) {
           drawObjectHalo(ctx, entity, x, y, z, angle, player.charge >= 1 ? PALETTE.coral : PALETTE.yellow, 1);
-        } else if (game.state === 'playing' && entity === game.tutorial.focus && entity.alive) {
+        } else if (game.state === 'playing' && game.tutorial.lit(entity) && entity.alive) {
           // First-60-seconds nudge: the tutorial target pulses gently using the same
           // halo art as hover, so it reads as "grabbable" without a new UI element.
           const pulse = 2.5 + Math.sin(time * 5) * 1.2;
@@ -631,52 +631,71 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
-  /** Tutorial nudge: a sticky note with a hand-drawn arrow. */
-  private drawHint(time: number): void {
-    const hint = this.game.tutorial.hint;
-    if (!hint || this.game.state !== 'playing') return;
+  /**
+   * Tutorial floor marks: footsteps to follow, a throw to copy, or a spot to point at.
+   * The controls themselves are shown by the HUD coach, not drawn here.
+   */
+  private drawGuide(time: number): void {
+    const game = this.game;
+    const g = game.tutorial.guide;
+    if (g.line === 'none' || game.state !== 'playing') return;
     const ctx = this.ctx;
-    const y = hint.y - Math.abs(Math.sin(time * 4)) * 5;
-    ctx.font = `700 13px ${HAND_FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const w = ctx.measureText(hint.text).width + 22;
-    ctx.save();
-    ctx.translate(hint.x, y);
-    ctx.rotate(-0.04 + Math.sin(time * 2) * 0.015);
-    ctx.fillStyle = 'rgba(34, 27, 54, 0.3)';
-    ctx.fillRect(-w / 2 + 3, -13 + 4, w, 28);
-    ctx.fillStyle = '#ffe36e';
-    ctx.beginPath();
-    ctx.moveTo(-w / 2, -14);
-    ctx.lineTo(w / 2, -14);
-    ctx.lineTo(w / 2, 8);
-    ctx.lineTo(w / 2 - 7, 15);
-    ctx.lineTo(-w / 2, 15);
-    ctx.closePath();
-    ctx.fill();
-    // curled corner
-    ctx.fillStyle = '#e2c33f';
-    ctx.beginPath();
-    ctx.moveTo(w / 2, 8);
-    ctx.lineTo(w / 2 - 7, 8);
-    ctx.lineTo(w / 2 - 7, 15);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = INK;
-    ctx.fillText(hint.text, 0, 0);
-    ctx.restore();
-    // doodled arrow
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2.2;
+    const px = this.bx(game.player.body);
+    const py = this.by(game.player.body);
+    const dx = g.tx - px;
+    const dy = g.ty - py;
+    const d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d;
+    const uy = dy / d;
     ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(hint.x - 3, y + 19);
-    ctx.quadraticCurveTo(hint.x + 5, y + 25, hint.x, y + 32);
-    ctx.moveTo(hint.x - 5, y + 27);
-    ctx.lineTo(hint.x, y + 33);
-    ctx.lineTo(hint.x + 5.5, y + 28);
-    ctx.stroke();
+
+    if (g.line === 'trail') {
+      // chevrons marching towards the thing
+      ctx.strokeStyle = PALETTE.yellow;
+      ctx.lineWidth = 3;
+      const march = (time * 46) % 24;
+      for (let s = 30 + march; s < d - 26; s += 24) {
+        const x = px + ux * s;
+        const y = py + uy * s;
+        ctx.globalAlpha = 0.85 * Math.min(1, (s - 30) / 20, (d - 26 - s) / 20);
+        ctx.beginPath();
+        ctx.moveTo(x - ux * 5 - uy * 6, y - uy * 5 + ux * 6);
+        ctx.lineTo(x + ux * 3, y + uy * 3);
+        ctx.lineTo(x - ux * 5 + uy * 6, y - uy * 5 - ux * 6);
+        ctx.stroke();
+      }
+    } else {
+      if (g.line === 'arc') {
+        // a dotted lob from the hero's hands to the target
+        const lift = Math.min(70, d * 0.24);
+        const dots = Math.max(4, Math.floor(d / 20));
+        const run = (time * 1.4) % 1;
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < dots; i++) {
+          const u = (i + run) / dots;
+          ctx.globalAlpha = 0.9 * Math.sin(Math.PI * u) + 0.1;
+          ctx.beginPath();
+          ctx.arc(px + dx * u, py + dy * u - 16 - Math.sin(Math.PI * u) * lift, 3.4, 0, TAU);
+          ctx.fill();
+        }
+      }
+      // the mark: a ring that keeps closing on the spot
+      const pulse = (time * 1.6) % 1;
+      ctx.strokeStyle = PALETTE.coral;
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([9, 7]);
+      ctx.lineDashOffset = -time * 30;
+      ctx.beginPath();
+      ctx.ellipse(g.tx, g.ty, 30, 22, 0, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1 - pulse;
+      ctx.beginPath();
+      ctx.ellipse(g.tx, g.ty, 30 + (1 - pulse) * 26, 22 + (1 - pulse) * 19, 0, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     ctx.lineCap = 'butt';
   }
 
