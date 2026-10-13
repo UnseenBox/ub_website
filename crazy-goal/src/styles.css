@@ -1331,7 +1331,7 @@ body {
   background-position: center, center;
   background-repeat: no-repeat;
   align-content: end;
-  padding-bottom: calc(max(70px, 13vh) + env(safe-area-inset-bottom));
+  padding-bottom: calc(max(120px, 20vh) + env(safe-area-inset-bottom));
 }
 
 @media (max-aspect-ratio: 1/1) {
