@@ -2897,7 +2897,7 @@ button.mk-card:hover {
   clip-path: var(--tape-shape);
   transform: rotate(-4deg);
 }
-/* genuinely blank cream frame: artwork goes here later */
+/* cream frame holding the hero portrait */
 .hero-blank {
   grid-row: 1 / -1;
   height: 100%;
@@ -2906,6 +2906,13 @@ button.mk-card:hover {
   background: #fbf6e9;
   border: 2px solid var(--ink);
   border-radius: 6px;
+  overflow: hidden;
+}
+.hero-portrait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .mk-card .mm-card-name {
   align-self: end;

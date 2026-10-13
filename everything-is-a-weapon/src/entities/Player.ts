@@ -60,6 +60,8 @@ export class Player {
   slowTimer = 0;
   slowFactor = 1;
   hurtFlash = 0;
+  /** Squash-and-stretch pop, same convention as enemies and objects: 0..1, decays. */
+  squash = 0;
   walkPhase = 0;
   throwAnim = 0;
   /** True once the current throw has reached full charge. */
@@ -103,6 +105,7 @@ export class Player {
     this.slip -= dt;
     this.slowTimer -= dt;
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
+    this.squash = Math.max(0, this.squash - dt * 5);
     this.throwAnim = Math.max(0, this.throwAnim - dt * 5);
 
     if (!this.alive) {
@@ -143,6 +146,7 @@ export class Player {
       this.dashTime = DASH_TIME;
       this.dashCooldown = this.rage > 0 ? DASH_COOLDOWN * 0.5 : DASH_COOLDOWN;
       this.invulnerable = Math.max(this.invulnerable, 0.3);
+      this.squash = 1;
       game.particles.burst('dust', b.x, b.y, 8, 90, { dirX: -this.dashX, dirY: -this.dashY, spread: 0.8 });
       game.fx.ring(b.x, b.y, 8, 40, 0.25, 'rgba(255,255,255,0.6)', 2);
       game.audio.play('dash', 0.5);
@@ -283,6 +287,7 @@ export class Player {
     object.body.ignoreTimer = 9999;
     this.held = object;
     this.charging = false;
+    this.squash = Math.max(this.squash, 0.4);
     game.audio.play('pickup', 0.6, 1.2 - Math.min(0.6, object.body.mass / 60));
     game.audio.impact(object.material.sound, 0.14, object.body.mass);
     game.fx.ring(object.body.x, object.body.y, object.body.boundR + 12, object.body.boundR, 0.18, 'rgba(255,255,255,0.8)', 2);
@@ -355,6 +360,7 @@ export class Player {
     const ob = object.body;
     this.release();
     this.throwAnim = 1;
+    this.squash = Math.max(this.squash, 0.5 + charge * 0.5);
 
     if (object.def.throwable) {
       const speed = this.throwSpeed(object, charge);
@@ -395,6 +401,7 @@ export class Player {
     this.hp -= amount;
     this.invulnerable = 1.1;
     this.hurtFlash = 1;
+    this.squash = 1;
     game.camera.addShake(0.45);
     game.audio.play('hurt', 1);
     game.audio.voice('ow', 300);

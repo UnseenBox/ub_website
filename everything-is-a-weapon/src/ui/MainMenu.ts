@@ -4,6 +4,8 @@ import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import { CHALLENGES } from '../gameplay/ChallengeSystem';
 import { HANDCRAFTED_ROOMS } from '../gameplay/RoomDefinitions';
 import { bossSpecFor, depthsBossSlots } from '../gameplay/RoomManager';
+import { Player } from '../entities/Player';
+import { drawPlayer } from '../rendering/PlayerArt';
 import { button, el, formatScore } from './dom';
 
 export interface MenuActions {
@@ -22,6 +24,33 @@ interface KeyEntry {
   readonly name: string;
   readonly boss: boolean;
   readonly locked: boolean;
+}
+
+/**
+ * The card portrait: the hero drawn by the very same code that draws them in the room,
+ * on a throwaway Player posed facing the reader, so a new look never needs a second asset.
+ */
+function heroPortrait(hero: HeroId): HTMLCanvasElement {
+  const canvas = el('canvas', 'hero-portrait');
+  const w = 112;
+  const h = 140;
+  canvas.width = w * 2;
+  canvas.height = h * 2;
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', hero);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const pose = new Player(0, 0);
+  pose.aimX = 0.26;
+  pose.aimY = 0.96;
+  pose.walkPhase = 1.1;
+  ctx.scale(2, 2);
+  ctx.save();
+  ctx.translate(w / 2, h - 26);
+  ctx.scale(2.1, 2.1);
+  drawPlayer(ctx, pose, 0, 0, 0, hero);
+  ctx.restore();
+  return canvas;
 }
 
 /** Challenge text for a room, if it has one. */
@@ -185,7 +214,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   wallSec.append(rack, info);
   screen.append(wallSec);
 
-  // ── characters: same four cards, frames left blank for future artwork ──
+  // ── characters: the four heroes, each drawn into its card frame ──
   const chars = el('section', 'mk-chars');
   chars.setAttribute('aria-label', 'Character selection');
   chars.append(el('div', 'tape-label', 'CHARACTER'));
@@ -197,10 +226,9 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     card.setAttribute('aria-pressed', String(picked));
     card.setAttribute('aria-label', `Play as ${hero.name}`);
     if (picked) card.append(el('span', 'mm-crown'));
-    const blank = el('div', 'hero-blank');
-    blank.setAttribute('role', 'img');
-    blank.setAttribute('aria-label', `${hero.name} artwork coming soon`);
-    card.append(blank, el('span', 'mm-card-name', hero.name), el('span', 'mm-card-note', hero.note));
+    const frame = el('div', 'hero-blank');
+    frame.append(heroPortrait(hero.id));
+    card.append(frame, el('span', 'mm-card-name', hero.name), el('span', 'mm-card-note', hero.note));
     card.addEventListener('click', () => actions.hero(hero.id));
     cards.append(card);
   }
