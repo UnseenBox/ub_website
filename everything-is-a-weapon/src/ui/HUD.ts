@@ -1,4 +1,4 @@
-import { moveKeysLabel, onKeyLabelsChange } from '../input/KeyLabels';
+import { moveKeysLabel } from '../input/KeyLabels';
 import type { Game } from '../core/Game';
 import { ENEMY_TYPES, type EnemyTypeId } from '../entities/EnemyTypes';
 import type { GuideIcon } from '../gameplay/Tutorial';
@@ -21,7 +21,6 @@ interface Mug {
 export class HUD {
   private readonly root: HTMLElement;
   private readonly roomNum: HTMLElement;
-  private readonly roomName: HTMLElement;
   private readonly plasters: HTMLElement[] = [];
   private readonly lineup: HTMLElement;
   private readonly sticky: HTMLElement;
@@ -42,7 +41,7 @@ export class HUD {
   private unlockTimer = 0;
 
   private mugs: Mug[] = [];
-  private last = { room: '', name: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', coach: '', touch: false };
+  private last = { room: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', coach: '', touch: false };
   private shownScore = 0;
   private bannerTimer = 0;
   private bannerSeed = 1;
@@ -58,7 +57,6 @@ export class HUD {
     const left = el('div', 'hud-left');
     const tag = el('div', 'room-tag');
     tag.append(el('span', 'room-tag-hole'), el('span', 'room-tag-label', 'ROOM'), (this.roomNum = el('span', 'room-tag-num', '1')));
-    this.roomName = el('div', 'room-name', '');
     const plasterRow = el('div', 'plasters');
     plasterRow.setAttribute('aria-label', 'Health');
     for (let i = 0; i < game.player.maxHp; i++) {
@@ -67,7 +65,7 @@ export class HUD {
       this.plasters.push(plaster);
       plasterRow.append(plaster);
     }
-    left.append(tag, this.roomName, plasterRow);
+    left.append(tag, plasterRow);
 
     // ── centre: the line-up + bonus note ──
     const center = el('div', 'hud-center');
@@ -104,18 +102,6 @@ export class HUD {
     toastHead.append(el('span', '', 'NEW EVIDENCE'), this.toastCount);
     this.toast.append(el('span', 'pin'), toastHead, this.toastTitle);
 
-    const hint = el('div', 'hud-hint');
-    const moveKey = el('kbd', '', moveKeysLabel());
-    onKeyLabelsChange(() => (moveKey.textContent = moveKeysLabel()));
-    const moveItem = el('span', 'hint-item');
-    moveItem.append(moveKey, el('span', '', 'move'));
-    hint.append(moveItem);
-    for (const [key, action] of [['CLICK', 'grab'], ['HOLD + LET GO', 'throw'], ['RIGHT CLICK', 'drop'], ['SPACE', 'dodge'], ['R', 'restart'], ['P', 'pause']]) {
-      const item = el('span', 'hint-item');
-      item.append(el('kbd', '', key), el('span', '', action));
-      hint.append(item);
-    }
-
     // The coach shows the controls for whatever the tutorial is teaching; skip is always on offer.
     this.coach = el('div', 'coach');
     this.unlockBox = el('div', 'hud-unlock');
@@ -124,7 +110,7 @@ export class HUD {
     skip.addEventListener('click', () => game.tutorial.skip());
 
     this.root.append(
-      top, this.bannerBox, this.stampBox, this.toast, hint, this.coach, skip, this.unlockBox,
+      top, this.bannerBox, this.stampBox, this.toast, this.coach, skip, this.unlockBox,
       el('div', 'cinema-bar top'), el('div', 'cinema-bar bottom'),
     );
     parent.append(this.root);
@@ -139,7 +125,7 @@ export class HUD {
 
   /** One mugshot per intruder expected in this room, in the order they will arrive. */
   private buildLineup(): void {
-    this.lineup.replaceChildren(el('span', 'lineup-label', 'WANTED'));
+    this.lineup.replaceChildren();
     // Whoever is still outside: the room's list and its boss, minus anyone a replayed lesson left out.
     const specs = [...this.game.room.pending];
     this.mugs = specs.map((spec) => {
@@ -306,11 +292,6 @@ export class HUD {
       last.room = roomText;
       this.roomNum.textContent = roomText;
     }
-    if (room.def.name !== last.name) {
-      last.name = room.def.name;
-      this.roomName.textContent = room.daily ? `daily · ${room.def.name.toLowerCase()}` : room.def.name.toLowerCase();
-    }
-
     const carrying = game.player.held !== null;
     if (carrying !== last.carrying) {
       last.carrying = carrying;
@@ -374,11 +355,12 @@ export class HUD {
     const powersKey = `${game.save.data.scrap}|${owned.map((a) => `${a.id}:${Math.ceil(game.abilities.remaining(a.id))}`).join(',')}`;
     if (powersKey !== last.powers) {
       last.powers = powersKey;
-      this.scrapSlip.textContent = game.save.data.scrap > 0 || owned.length > 0 ? `SCRAP ${game.save.data.scrap}` : '';
+      this.scrapSlip.textContent = game.save.data.scrap > 0 ? String(game.save.data.scrap) : '';
       this.powers.replaceChildren(
         ...owned.map((a) => {
           const left = Math.ceil(game.abilities.remaining(a.id));
-          const chip = el('span', left > 0 ? 'power-chip cool' : 'power-chip', left > 0 ? `${a.key} ${a.name} ${left}` : `${a.key} ${a.name}`);
+          const chip = el('span', left > 0 ? 'power-chip cool' : 'power-chip', left > 0 ? String(left) : a.key);
+          chip.title = a.name;
           return chip;
         }),
       );

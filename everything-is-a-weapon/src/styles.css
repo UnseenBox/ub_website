@@ -298,14 +298,6 @@ body {
   line-height: 1;
 }
 
-.room-name {
-  margin-left: 6px;
-  font: 700 13px var(--hand);
-  color: var(--paper);
-  text-shadow: 0 2px 0 var(--ink);
-  transform: rotate(-2deg);
-}
-
 /* health is a row of sticking plasters */
 .plasters {
   display: flex;
@@ -359,12 +351,6 @@ body {
   color: var(--ink);
   clip-path: var(--torn-strip-b);
   transform: rotate(0.6deg);
-}
-
-.lineup-label {
-  font: 700 12px var(--type);
-  letter-spacing: 0.2em;
-  margin-right: 4px;
 }
 
 .mug {
@@ -753,36 +739,6 @@ body {
 }
 
 /* controls reminder on a strip of masking tape */
-.hud-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  display: flex;
-  gap: 11px;
-  padding: 4px 22px 3px;
-  background: var(--tape);
-  color: var(--ink);
-  clip-path: var(--tape-shape);
-  transform: translateX(-50%) rotate(-0.5deg);
-  font: 700 12px var(--hand);
-  white-space: nowrap;
-  opacity: 0.88;
-}
-
-.hint-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.hud-hint kbd {
-  padding: 0 5px;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  background: var(--paper);
-  font: 700 11px var(--type);
-}
-
 /* letterbox bars for the final blow */
 .cinema-bar {
   position: absolute;
@@ -800,21 +756,12 @@ body.cinema .cinema-bar {
   height: 11vh;
 }
 
-.hud-top,
-.hud-hint {
+.hud-top {
   transition: opacity 0.2s;
 }
 
-body.cinema .hud-top,
-body.cinema .hud-hint {
+body.cinema .hud-top {
   opacity: 0;
-}
-
-/* First minute: the world hint teaches the controls, so the control strip
-   stays out of the way until the first solid hit lands. */
-body.tutorial .hud-hint {
-  opacity: 0;
-  pointer-events: none;
 }
 
 /* ───────────── screens ───────────── */
@@ -1078,30 +1025,56 @@ body.tutorial .hud-hint {
 /* bought abilities in the HUD, with their cooldowns */
 .powers {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  gap: 5px;
+  margin-top: 6px;
 }
 
+/* the key you press, nothing more; the seconds take its place while it cools */
 .power-chip {
-  padding: 2px 8px 1px;
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 4px;
   background: var(--grain), #fffdf6;
   color: var(--ink);
-  font: 700 11px var(--type);
-  letter-spacing: 0.08em;
-  transform: rotate(1.5deg);
-  box-shadow: 2px 2px 0 var(--shadow);
+  font: 700 13px var(--type);
+  box-shadow: 0 3px 0 var(--ink), 2px 4px 0 var(--shadow);
+  transform: rotate(-1.5deg);
+}
+
+.power-chip:nth-child(even) {
+  transform: rotate(2deg);
 }
 
 .power-chip.cool {
-  opacity: 0.55;
+  background: var(--grain), #d8d1bf;
+  color: rgba(34, 27, 54, 0.6);
+  box-shadow: 0 1px 0 var(--ink);
+  font-size: 11px;
 }
 
 .scrap-slip {
-  font: 700 11px var(--type);
-  letter-spacing: 0.12em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  font: 700 12px var(--type);
   color: var(--paper);
   text-shadow: 0 2px 0 var(--ink);
+}
+
+.scrap-slip:empty {
+  display: none;
+}
+
+.scrap-slip::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 0 1.5px var(--ink);
 }
 
 /* the ability shop on the pause screen */
@@ -1871,10 +1844,6 @@ body.carrying .touch-btn.drop {
   display: block;
 }
 
-body.touch .hud-hint {
-  display: none;
-}
-
 body.touch #game {
   cursor: default;
 }
@@ -1936,9 +1905,6 @@ body.touch #game {
     padding: 8px 10px 0;
     gap: 6px;
   }
-  .lineup-label,
-  .room-name,
-  .hud-hint,
   .menu-note {
     display: none;
   }
@@ -1992,9 +1958,6 @@ body.touch #game {
   .hud-top {
     padding: 6px 12px 0;
   }
-  .room-name {
-    display: none;
-  }
   .room-tag {
     padding: 3px 12px 1px 26px;
   }
@@ -2009,9 +1972,6 @@ body.touch #game {
   .lineup {
     padding: 4px 12px 3px 10px;
     gap: 5px;
-  }
-  .lineup-label {
-    font-size: 11px;
   }
   .mug {
     transform: scale(0.85);
