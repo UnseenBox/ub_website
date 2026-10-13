@@ -479,12 +479,15 @@ body {
   padding-right: 46px;
 }
 
-/* the score is a till receipt for the damage */
+/* the score is a till receipt for the damage, with the combo sticker on its corner */
+.bill {
+  position: relative;
+}
+
 .receipt {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  position: relative;
   min-width: 92px;
   padding: 4px 14px 12px;
   background: var(--grain), #fffdf6;
