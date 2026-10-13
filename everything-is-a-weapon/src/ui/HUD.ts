@@ -56,7 +56,8 @@ export class HUD {
     // ── left: room tag + plasters ──
     const left = el('div', 'hud-left');
     const tag = el('div', 'room-tag');
-    tag.append(el('span', 'room-tag-hole'), el('span', 'room-tag-label', 'ROOM'), (this.roomNum = el('span', 'room-tag-num', '1')));
+    tag.setAttribute('aria-label', 'Room');
+    tag.append(el('span', 'room-tag-hole'), (this.roomNum = el('span', 'room-tag-num', '1')));
     const plasterRow = el('div', 'plasters');
     plasterRow.setAttribute('aria-label', 'Health');
     for (let i = 0; i < game.player.maxHp; i++) {
@@ -77,19 +78,23 @@ export class HUD {
 
     // ── right: receipt + combo sticker + pause ──
     const right = el('div', 'hud-right');
-    const receipt = el('div', 'receipt');
-    receipt.append(el('span', 'receipt-label', 'DAMAGE'), (this.score = el('span', 'receipt-total', '0')));
-    this.powers = el('div', 'powers');
-    this.scrapSlip = el('span', 'scrap-slip', '');
     this.combo = el('div', 'combo-sticker');
     this.comboValue = el('span', 'combo-value');
     this.combo.append(el('span', 'combo-ring'), this.comboValue);
+    // The bill wears its own combo sticker, so this corner stays one thing to look at.
+    const receipt = el('div', 'receipt');
+    receipt.setAttribute('aria-label', 'Damage');
+    receipt.append((this.score = el('span', 'receipt-total', '0')), this.combo);
+    this.powers = el('div', 'powers');
+    this.scrapSlip = el('span', 'scrap-slip', '');
+    const tools = el('div', 'tools');
+    tools.append(this.scrapSlip, this.powers);
     const pause = el('button', 'hud-pause');
     pause.type = 'button';
     pause.setAttribute('aria-label', 'Pause');
     pause.append(el('span'), el('span'));
     pause.addEventListener('click', onPause);
-    right.append(receipt, this.powers, this.scrapSlip, this.combo, pause);
+    right.append(receipt, tools, pause);
 
     top.append(left, center, right);
 
@@ -98,14 +103,12 @@ export class HUD {
     this.toast = el('div', 'hud-toast');
     this.toastTitle = el('div', 'toast-title');
     this.toastCount = el('span', 'toast-count');
-    const toastHead = el('div', 'toast-head');
-    toastHead.append(el('span', '', 'NEW EVIDENCE'), this.toastCount);
-    this.toast.append(el('span', 'pin'), toastHead, this.toastTitle);
+    this.toast.append(el('span', 'pin'), this.toastCount, this.toastTitle);
 
     // The coach shows the controls for whatever the tutorial is teaching; skip is always on offer.
     this.coach = el('div', 'coach');
     this.unlockBox = el('div', 'hud-unlock');
-    const skip = el('button', 'coach-skip', 'SKIP LESSONS');
+    const skip = el('button', 'coach-skip', 'SKIP');
     skip.type = 'button';
     skip.addEventListener('click', () => game.tutorial.skip());
 
