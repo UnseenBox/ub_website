@@ -34,9 +34,10 @@ function challengeText(roomChallenge: string | undefined): string | null {
 }
 
 /**
- * The front page: logo and tagline up top, a wall of hanging room keys as the
- * main event, four character cards with blank frames awaiting artwork, and one
- * big red PLAY button. Nothing else competes for attention.
+ * The front page: logo and tagline up top, the chosen room's front door, four
+ * character cards with blank frames awaiting artwork, and one big red PLAY
+ * button. Pressing the door swaps the page for a wall of hanging room keys
+ * (brass for rooms you have reached, iron for the rest); BACK returns.
  */
 export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const save = game.save.data;
@@ -62,9 +63,24 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   head.append(logo, tagline);
   screen.append(head);
 
-  // ── the wall of keys ──
+  // ── the door: wears the chosen room's number, opens the key wall ──
+  const doorway = el('section', 'mk-doorway');
+  doorway.setAttribute('aria-label', 'Room selection');
+  const door = el('button', 'mk-door');
+  door.type = 'button';
+  const plate = el('span', 'door-plate');
+  const leaf = el('span', 'door-leaf');
+  leaf.append(plate, el('span', 'door-panel'), el('span', 'door-panel'), el('span', 'door-knob'));
+  door.append(leaf);
+  const doorNote = el('div', 'door-note');
+  const doorRoom = el('strong', 'door-note-room');
+  doorNote.append(el('span', '', 'now playing'), doorRoom, el('span', 'door-note-hint', 'knock on the door to pick another room'));
+  doorway.append(door, doorNote);
+  screen.append(doorway);
+
+  // ── the wall of keys: hidden until the door is pressed ──
   const wallSec = el('section', 'mk-wall');
-  wallSec.setAttribute('aria-label', 'Room selection');
+  wallSec.setAttribute('aria-label', 'Room keys');
   wallSec.append(el('div', 'tape-label', tester ? 'ROOM KEYS · TESTER' : 'ROOM KEYS'));
   const rack = el('div', 'key-rack');
   rack.setAttribute('role', 'listbox');
@@ -95,7 +111,17 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     }
     if (entry.boss) info.append(el('span', 'key-info-boss', 'BOSS'));
     playSub.textContent = roomLabel(entry.index);
+    plate.textContent = entry.label;
+    doorRoom.textContent = `${roomLabel(entry.index)}: ${entry.name}`;
+    door.setAttribute('aria-label', `${roomLabel(entry.index)}, ${entry.name}. Open the key wall to pick another room.`);
   };
+
+  const openWall = (open: boolean): void => {
+    screen.classList.toggle('wall-open', open);
+    // Focus also scrolls the key (or the door) into view on cramped screens.
+    (open ? rack.querySelector<HTMLElement>('button.key.selected') : door)?.focus();
+  };
+  door.addEventListener('click', () => openWall(true));
 
   const select = (entry: KeyEntry, node: HTMLElement, scroll = true): void => {
     selected = entry.index;
@@ -187,7 +213,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   dailyBtn.append(el('span', 'mk-daily-sub', `fresh every day · ${today}`));
   const secondary = el('div', 'mk-secondary');
   secondary.append(button('⚙ SETTINGS', 'mk-small', actions.settings), button('🎮 CONTROLS', 'mk-small', actions.controls));
-  actionsRow.append(playBtn, dailyBtn, secondary);
+  actionsRow.append(playBtn, dailyBtn, secondary, button('◀ BACK', 'mk-small mk-back', () => openWall(false)));
   screen.append(actionsRow);
 
   // Fallback if nothing was pre-selected: land on the first open key.

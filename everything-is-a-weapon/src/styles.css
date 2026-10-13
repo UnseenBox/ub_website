@@ -2440,8 +2440,9 @@ body.touch #game {
 /* ───────────── key-wall menu ─────────────
    One vertical rhythm. Everything is sized in vh/vmin (not fixed px) so the
    menu keeps its proportions on a 16:9 desktop, a laptop, a tablet and a
-   phone in either orientation. Only the key rack scrolls; the frame never
-   overflows or leaves dead space. */
+   phone in either orientation. The front page shows a door; pressing it adds
+   .wall-open, which swaps the door and characters for the wall of keys.
+   Only the key rack scrolls; the frame never overflows or leaves dead space. */
 
 .screen.menu-keys {
   width: min(100%, 1120px);
@@ -2473,7 +2474,136 @@ body.touch #game {
   font: 700 clamp(13px, 2.2vmin, 21px) var(--hand);
 }
 
-/* the wall of keys: a varnished board, keys hanging off a rail */
+/* two views, one screen: the front page (door) or the key wall */
+.menu-keys:not(.wall-open) .mk-wall,
+.menu-keys:not(.wall-open) .mk-back,
+.menu-keys.wall-open .mk-doorway,
+.menu-keys.wall-open .mk-chars,
+.menu-keys.wall-open .mk-daily,
+.menu-keys.wall-open .mk-secondary {
+  display: none;
+}
+/* the board shrink-wraps its keys, so it is always full, and sits mid-screen */
+.screen.menu-keys.wall-open {
+  justify-content: center;
+}
+.menu-keys.wall-open .mk-wall {
+  flex: 0 1 auto;
+}
+.menu-keys.wall-open .mk-actions {
+  flex-wrap: nowrap;
+  align-self: stretch;
+}
+.menu-keys.wall-open .btn.mk-play {
+  flex: 2.4 1 0;
+}
+
+/* the door: the chosen room's front door, with a sticky note beside it */
+.mk-doorway {
+  flex: 1 1 auto;
+  /* never crushed to nothing: on cramped screens the frame scrolls instead */
+  min-height: clamp(104px, 24vh, 200px);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(14px, 3vw, 40px);
+  padding: 4px 0 2px;
+}
+/* the frame, and the dark room you glimpse when the leaf swings */
+.mk-door {
+  flex: none;
+  aspect-ratio: 5 / 8;
+  min-height: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  background: #17122a;
+  border: clamp(5px, 1vmin, 9px) solid var(--paper-2);
+  border-bottom-width: 0;
+  border-radius: 8px 8px 0 0;
+  outline: 4px solid var(--ink);
+  box-shadow: 6px 6px 0 2px var(--shadow);
+  perspective: 700px;
+}
+.door-leaf {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7%;
+  width: 100%;
+  height: 100%;
+  padding: 9% 11% 8%;
+  background: var(--grain), linear-gradient(100deg, #3d61cf, var(--blue) 55%, #263f96);
+  border: 3px solid var(--ink);
+  border-radius: 3px 3px 0 0;
+  transform-origin: 0 50%;
+  transition: transform 0.2s ease-out;
+}
+.mk-door:hover .door-leaf,
+.mk-door:focus-visible .door-leaf {
+  transform: rotateY(-24deg);
+}
+.mk-door:focus-visible {
+  outline-color: var(--yellow);
+}
+.door-plate {
+  flex: none;
+  min-width: 46%;
+  padding: 0 8% 2px;
+  background: linear-gradient(170deg, #e8c87a, #c9a24f);
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 2px 3px 0 rgba(10, 8, 24, 0.5);
+  font: 400 clamp(22px, 6.4vmin, 56px)/1.15 var(--shout);
+  color: var(--ink);
+  text-align: center;
+}
+.door-panel {
+  flex: 1;
+  width: 100%;
+  border: 3px solid var(--ink);
+  border-radius: 4px;
+  background: rgba(10, 8, 24, 0.2);
+  box-shadow: inset 3px 4px 0 rgba(10, 8, 24, 0.28);
+}
+.door-panel + .door-panel {
+  flex: 1.5;
+}
+.door-knob {
+  position: absolute;
+  right: 5%;
+  top: 52%;
+  width: 13%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f6e2a4, #c9a24f 60%, #8f6f33);
+  border: 3px solid var(--ink);
+  box-shadow: 2px 3px 0 rgba(10, 8, 24, 0.5);
+}
+.door-note {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: clamp(124px, 22vmin, 190px);
+  padding: 12px 12px 14px;
+  background: var(--grain), linear-gradient(#ffe97f, #ffd94a);
+  color: var(--ink);
+  font: 700 clamp(11px, 1.9vmin, 15px)/1.25 var(--hand);
+  box-shadow: 3px 4px 0 var(--shadow);
+  transform: rotate(4deg);
+}
+.door-note-room {
+  font: 400 clamp(17px, 3.2vmin, 28px)/1.05 var(--shout);
+  color: var(--red);
+  overflow-wrap: anywhere;
+}
+.door-note-hint {
+  opacity: 0.8;
+}
+
+/* the wall of keys: a varnished board, keys hanging off their pegs */
 .mk-wall {
   position: relative;
   flex: 1 1 auto;
@@ -2484,6 +2614,8 @@ body.touch #game {
   border-radius: 12px;
   box-shadow: 5px 6px 0 var(--shadow);
   padding: clamp(16px, 2.4vh, 30px) clamp(10px, 1.6vw, 18px) clamp(8px, 1.2vh, 14px);
+  /* keys are sized in cqw: a fixed number per row at any board width */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -2501,31 +2633,31 @@ body.touch #game {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
-  /* keys float centred in whatever height the wall gets */
-  align-items: center;
-  align-content: center;
-  gap: clamp(4px, 0.9vmin, 12px);
+  /* keys fill the wall row after row */
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: clamp(12px, 2.6vh, 28px) 0.8cqw;
   width: 100%;
   /* the only scrolling part of the menu */
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: clamp(14px, 2.4vh, 30px) 2px 6px;
-  scroll-snap-type: x proximity;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: clamp(14px, 2.4vh, 30px) 8px 6px;
   scrollbar-width: thin;
   scrollbar-color: #6b4526 transparent;
 }
 
 /* one number scales the whole key: bow, shaft, teeth and tag stay in
-   proportion to each other at every viewport size */
+   proportion to each other at every viewport size. Eight keys to a row. */
 .key-rack {
-  --kw: clamp(52px, 7.4vmin, 92px);
+  --kw: 10.6cqw;
 }
 
 .key {
   position: relative;
   flex: none;
   width: var(--kw);
-  scroll-snap-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2898,14 +3030,16 @@ button.mk-card:hover {
 @media (min-width: 860px) and (max-height: 620px) {
   .screen.menu-keys {
     width: min(100%, 1080px);
+  }
+  .screen.menu-keys:not(.wall-open) {
     display: grid;
     grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
-    grid-template-areas: 'wall chars' 'wall actions';
+    grid-template-areas: 'head head' 'wall chars' 'wall actions';
     align-items: stretch;
     gap: clamp(8px, 1.6vh, 16px);
   }
-  .mk-head { grid-column: 1 / -1; }
-  .mk-wall { grid-area: wall; }
+  .mk-head { grid-area: head; }
+  .mk-doorway { grid-area: wall; }
   .mk-chars { grid-area: chars; align-self: start; }
   .mk-actions {
     grid-area: actions;
@@ -2915,7 +3049,6 @@ button.mk-card:hover {
   .btn.mk-play { flex: 1 1 100%; }
   .btn.mk-daily { flex: 1 1 58%; }
   .mk-secondary { flex: 1 1 40%; }
-  .key-rack { --kw: clamp(46px, 6.4vh, 78px); }
   .hero-blank { height: clamp(44px, 9vh, 76px); }
 }
 
@@ -2929,7 +3062,8 @@ button.mk-card:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .hero-blank { height: clamp(52px, 11vh, 96px); }
-  .key-rack { --kw: clamp(50px, 8.4vmin, 84px); }
+  /* four keys to a row */
+  .key-rack { --kw: 20cqw; }
   .mk-actions { flex-wrap: wrap; }
   .btn.mk-play { flex: 1 1 100%; }
   .btn.mk-daily { flex: 1 1 100%; }
@@ -2942,7 +3076,8 @@ button.mk-card:hover {
     height: auto;
     max-height: none;
   }
-  .key-rack { --kw: clamp(42px, 8.5vh, 64px); }
+  .key-rack { --kw: 10.6cqw; }
+  .mk-doorway { height: 150px; }
   .hero-blank { height: 46px; }
   .btn.mk-play { font-size: clamp(20px, 6vh, 28px); }
   .mm-letter { font-size: clamp(28px, 9vmin, 40px); }
@@ -2953,4 +3088,5 @@ button.mk-card:hover {
   button.key:hover { animation: none; }
   .mm-crown { animation: none; }
   .key { transition: none; }
+  .door-leaf { transition: none; }
 }
