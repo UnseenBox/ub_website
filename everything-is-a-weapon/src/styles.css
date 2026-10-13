@@ -269,7 +269,7 @@ body {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 5px 16px 2px 30px;
+  padding: 4px 15px 3px 28px;
   background: var(--grain), var(--kraft);
   color: var(--ink);
   clip-path: polygon(15px 0, 100% 0, 100% 100%, 15px 100%, 0 50%);
@@ -286,11 +286,6 @@ body {
   border-radius: 50%;
   background: var(--backdrop);
   box-shadow: 0 0 0 2px rgba(34, 27, 54, 0.35);
-}
-
-.room-tag-label {
-  font: 700 11px var(--type);
-  letter-spacing: 0.16em;
 }
 
 .room-tag-num {
@@ -345,8 +340,8 @@ body {
 .lineup {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 16px 5px 14px;
+  gap: 5px;
+  padding: 5px 12px 4px 10px;
   background: var(--grain), var(--news);
   color: var(--ink);
   clip-path: var(--torn-strip-b);
@@ -489,21 +484,13 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  min-width: 118px;
-  padding: 5px 12px 13px;
+  position: relative;
+  min-width: 92px;
+  padding: 4px 14px 12px;
   background: var(--grain), #fffdf6;
   color: var(--ink);
   clip-path: var(--zigzag);
   transform: rotate(1.6deg);
-}
-
-.receipt-label {
-  width: 100%;
-  font: 700 11px var(--type);
-  letter-spacing: 0.24em;
-  border-bottom: 1.5px dashed rgba(34, 27, 54, 0.5);
-  padding-bottom: 2px;
-  margin-bottom: 2px;
 }
 
 .receipt-total {
@@ -519,10 +506,10 @@ body {
 /* combo: a starburst price sticker with a ring that runs down */
 .combo-sticker {
   position: absolute;
-  right: 150px;
-  top: 14px;
-  width: 62px;
-  height: 62px;
+  right: calc(100% - 10px);
+  top: -4px;
+  width: 54px;
+  height: 54px;
   display: grid;
   place-items: center;
   background: var(--red);
@@ -713,9 +700,8 @@ body {
   transform: translateX(0) rotate(-3deg);
 }
 
-.toast-head {
-  display: flex;
-  justify-content: space-between;
+.toast-count {
+  display: block;
   font: 700 11px var(--type);
   letter-spacing: 0.16em;
   color: var(--red);
@@ -1023,10 +1009,16 @@ body.cinema .hud-top {
 }
 
 /* bought abilities in the HUD, with their cooldowns */
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+
 .powers {
   display: flex;
   gap: 5px;
-  margin-top: 6px;
 }
 
 /* the key you press, nothing more; the seconds take its place while it cools */
@@ -1058,10 +1050,12 @@ body.cinema .hud-top {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 5px;
+  padding: 3px 7px 2px 5px;
+  background: var(--grain), #fffdf6;
+  color: var(--ink);
   font: 700 12px var(--type);
-  color: var(--paper);
-  text-shadow: 0 2px 0 var(--ink);
+  box-shadow: 0 3px 0 var(--ink), 2px 4px 0 var(--shadow);
+  transform: rotate(-1deg);
 }
 
 .scrap-slip:empty {
@@ -1923,9 +1917,9 @@ body.touch #game {
     font-size: 11px;
   }
   .combo-sticker {
-    right: 112px;
-    width: 50px;
-    height: 50px;
+    right: calc(100% - 8px);
+    width: 46px;
+    height: 46px;
   }
   .combo-value {
     font-size: 17px;
@@ -1988,10 +1982,10 @@ body.touch #game {
     font-size: 20px;
   }
   .combo-sticker {
-    right: 122px;
-    top: 8px;
-    width: 50px;
-    height: 50px;
+    right: calc(100% - 8px);
+    top: -4px;
+    width: 44px;
+    height: 44px;
   }
   .combo-value {
     font-size: 17px;
