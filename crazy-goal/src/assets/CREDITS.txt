@@ -1,0 +1,16 @@
+sfx.wav is built by scripts/build-sfx.py from these recordings.
+
+Sound packs by Kenney (www.kenney.nl):
+
+  Impact Sounds 1.0
+  Interface Sounds 1.0
+  RPG Audio 1.0
+
+Recordings from BigSoundBank.com (Joseph Sardin and contributors):
+
+  Shouts and Applauses of Teens #1 and #2 (Denis Chardonnet)
+  Applause about 25-50 People #1
+  Plastic Whistle #1
+
+All are released under Creative Commons Zero (CC0): free to use in any project,
+commercial included, with no credit required. Credit is given here anyway.

@@ -1,0 +1,1672 @@
+:root {
+  --bg: #e6dccb;
+  --white: #fbf7ee;
+  --blue: #1f5fa8;
+  --blue-dark: #174a85;
+  --terra: #cf5c36;
+  --sun: #ffc83a;
+  --sun-dark: #e0a41c;
+  --navy: #1b2540;
+  --shadow: rgba(44, 52, 112, 0.3);
+  --display: 'Unbounded', 'Arial Black', 'Segoe UI Black', Impact, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--display);
+  color: var(--navy);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+#game.is-aiming {
+  cursor: grabbing;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+
+#overlay.is-open {
+  display: block;
+}
+
+/* A sheet of whitewash over the street: the game stays visible, sun-bleached, behind it. */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: hidden auto;
+  background: rgba(251, 247, 238, 0.86);
+  animation: screen-in 0.22s ease-out both;
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+.pause,
+.levels {
+  background: rgba(27, 37, 64, 0.55);
+}
+
+.menu {
+  align-content: center;
+  justify-items: center;
+  gap: clamp(14px, 3.2vmin, 34px);
+  text-align: center;
+}
+
+.wordmark {
+  margin: 0;
+  font-weight: 900;
+  font-size: clamp(50px, 15vmin, 170px);
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  transform: rotate(-4deg);
+  animation: mark-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+/* Sign-painter lettering: flat colour and a hard offset shadow. */
+.word {
+  display: block;
+}
+
+.crazy {
+  color: var(--blue);
+  text-shadow:
+    0.035em 0.035em 0 var(--sun),
+    0.07em 0.07em 0 var(--sun);
+}
+
+.goal {
+  color: var(--terra);
+  margin-left: 0.5em;
+  text-shadow:
+    0.035em 0.035em 0 var(--navy),
+    0.07em 0.07em 0 var(--navy);
+}
+
+.ball-o {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin: 0 0.02em;
+  vertical-align: -0.06em;
+  filter: drop-shadow(0.06em 0.06em 0 var(--navy));
+  animation: ball-roll 7s linear infinite;
+}
+
+.ball-o svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tagline {
+  margin: 0;
+  font-size: clamp(11px, 2.1vmin, 19px);
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  color: var(--navy);
+}
+
+.hint {
+  margin: 0;
+  font-size: clamp(9px, 1.5vmin, 12px);
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  color: rgba(27, 37, 64, 0.6);
+}
+
+.actions {
+  display: grid;
+  gap: 14px;
+  justify-items: stretch;
+}
+
+/* Buttons are enamel plaques: a slab of colour with a white line set just inside the edge. */
+.btn {
+  position: relative;
+  font: inherit;
+  font-weight: 900;
+  font-size: clamp(13px, 2.1vmin, 17px);
+  letter-spacing: 0.16em;
+  padding: 1em 2.2em 0.9em;
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 5px 6px 0 var(--shadow);
+  transition:
+    transform 0.08s ease-out,
+    box-shadow 0.08s ease-out;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 2px solid rgba(251, 247, 238, 0.85);
+  border-radius: 9px;
+  pointer-events: none;
+}
+
+.btn:hover {
+  transform: translate(-1px, -2px);
+  box-shadow: 6px 8px 0 var(--shadow);
+}
+
+.btn:active {
+  transform: translate(3px, 4px);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+
+.btn-primary {
+  font-size: clamp(18px, 3.6vmin, 30px);
+  color: var(--white);
+  background: var(--blue);
+}
+
+.btn-ghost {
+  color: var(--navy);
+  background: var(--white);
+}
+
+.btn-ghost::after {
+  border-color: rgba(31, 95, 168, 0.5);
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 4px;
+}
+
+.panel,
+.sheet {
+  display: grid;
+  gap: 14px;
+  justify-items: stretch;
+  padding: 32px 32px 28px;
+  background: var(--white);
+  border: 4px solid var(--blue);
+  border-radius: 24px;
+  box-shadow: 9px 11px 0 rgba(27, 37, 64, 0.35);
+}
+
+.panel {
+  min-width: min(330px, 86vw);
+  transform: rotate(-1deg);
+}
+
+.panel .btn-primary {
+  font-size: clamp(17px, 3vmin, 22px);
+  margin-bottom: 8px;
+}
+
+.panel-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.34em;
+  color: var(--blue);
+  text-align: center;
+}
+
+.sheet {
+  width: min(720px, 94vw);
+  margin: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+/* A level is a tile: number in the corner, name, three stars. */
+.tile {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 12px 14px 12px;
+  font: inherit;
+  color: var(--white);
+  background: var(--blue);
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 4px 5px 0 var(--shadow);
+  transition: transform 0.08s ease-out;
+}
+
+.tile:hover:not(:disabled) {
+  transform: translate(-1px, -2px);
+}
+
+.tile.is-current {
+  outline: 4px solid var(--sun);
+  outline-offset: 2px;
+}
+
+.tile:disabled {
+  color: rgba(27, 37, 64, 0.45);
+  background: #d9d1c2;
+  box-shadow: none;
+  cursor: default;
+}
+
+.tile-number {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--sun);
+}
+
+.tile:disabled .tile-number {
+  color: rgba(27, 37, 64, 0.35);
+}
+
+.tile-name {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  min-height: 2.6em;
+}
+
+.tile-stars {
+  display: flex;
+  gap: 4px;
+}
+
+.tile-stars span {
+  width: 16px;
+  height: 16px;
+}
+
+.tile-stars svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: rgba(251, 247, 238, 0.28);
+}
+
+.tile-stars .on svg {
+  fill: var(--sun);
+}
+
+.tile:disabled .tile-stars svg {
+  fill: rgba(27, 37, 64, 0.14);
+}
+
+/* The two buttons that follow the result card. */
+.result {
+  position: absolute;
+  left: 50%;
+  bottom: calc(5vh + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 14px;
+  transform: translateX(-50%);
+  animation: result-in 0.25s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.result[hidden] {
+  display: none;
+}
+
+.result .btn {
+  white-space: nowrap;
+  font-size: clamp(13px, 2.4vmin, 18px);
+}
+
+.pause-button {
+  position: absolute;
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--blue);
+  box-shadow: 3px 4px 0 var(--shadow);
+  cursor: pointer;
+}
+
+.pause-button[hidden] {
+  display: none;
+}
+
+.pause-bar {
+  width: 5px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--white);
+}
+
+/* Duel lobby. */
+.duel-sheet {
+  width: min(520px, 94vw);
+}
+
+/* Grid items refuse to shrink below their content unless told they may. */
+.duel-sheet > *,
+.duel-row > * {
+  min-width: 0;
+}
+
+.duel-label {
+  margin: 6px 0 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.5;
+  color: rgba(27, 37, 64, 0.65);
+}
+
+.duel-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.duel-code {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: clamp(22px, 6vmin, 36px);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: var(--white);
+  background: var(--blue);
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Pick a way to play: three big tiles, no reading required. */
+.mode-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.mode-tile {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 6px 10px;
+  font: inherit;
+  color: var(--navy);
+  background: #efe8da;
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition:
+    transform 0.1s ease-out,
+    background 0.1s ease-out;
+}
+
+.mode-tile:hover {
+  transform: translateY(-2px);
+}
+
+.mode-tile.is-on {
+  color: var(--white);
+  background: var(--blue);
+  box-shadow: 0 0 0 3px var(--sun);
+}
+
+.mode-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.mode-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mode-name {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.mode-sub {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+/* One tap to go again: the last few opponents. */
+.rival-row[hidden] {
+  display: none;
+}
+
+.rival-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rival-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--white);
+  background: var(--terra);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 2px 3px 0 var(--shadow);
+}
+
+.rival-chip:active {
+  transform: translate(1px, 2px);
+  box-shadow: none;
+}
+
+.rival-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sun);
+}
+
+.rival-name {
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.85em 1em;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--navy);
+  background: #fff;
+  border: 3px solid rgba(31, 95, 168, 0.4);
+  border-radius: 12px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.duel-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.duel-go {
+  font-size: clamp(13px, 2.4vmin, 16px);
+}
+
+/* On a phone the id field needs the whole row; the button drops underneath. */
+@media (max-width: 520px) {
+  .duel-row {
+    flex-wrap: wrap;
+  }
+
+  .duel-go {
+    flex: 1 1 100%;
+  }
+}
+
+.duel-note {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--terra);
+}
+
+.duel-list {
+  display: grid;
+  gap: 8px;
+  max-height: 34vh;
+  overflow-y: auto;
+}
+
+.duel-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  font: inherit;
+  text-align: left;
+  color: var(--navy);
+  background: #efe8da;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.duel-item.is-turn {
+  color: var(--white);
+  background: var(--blue);
+}
+
+/* What the row is waiting on, as a badge — not a sentence. */
+.row-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--white);
+  background: var(--navy);
+  flex: none;
+}
+
+.row-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.row-icon.is-play {
+  background: #2f9a63;
+  animation: row-pulse 1.2s ease-in-out infinite;
+}
+
+.row-icon.is-eye {
+  background: var(--blue);
+}
+
+.row-icon.is-wait {
+  background: var(--terra);
+}
+
+.row-icon.is-win {
+  background: var(--sun-dark);
+}
+
+.row-icon.is-lose,
+.row-icon.is-draw {
+  background: rgba(27, 37, 64, 0.4);
+}
+
+.is-turn .row-icon {
+  background: rgba(251, 247, 238, 0.28);
+}
+
+@keyframes row-pulse {
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.row-meta {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.duel-item-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mode-mini {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.mode-mini svg {
+  width: 15px;
+  height: 15px;
+}
+
+.mode-mini.is-quick {
+  color: var(--navy);
+  background: var(--sun);
+}
+
+.mode-mini.is-pure {
+  color: var(--blue);
+  background: var(--white);
+}
+
+/* How a duel works, in three pictures. */
+.help-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.help-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #efe8da;
+  border-radius: 12px;
+}
+
+.help-step-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: var(--white);
+  background: var(--blue);
+}
+
+.help-step-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.help-step-words {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-icon.is-play {
+    animation: none;
+  }
+}
+
+.duel-item-score {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.duel-item-status {
+  font-size: 9.5px;
+  opacity: 0.8;
+}
+
+.is-turn .duel-item-status {
+  color: var(--sun);
+  opacity: 1;
+}
+
+.duel-panel-title {
+  font-size: clamp(18px, 4vmin, 26px);
+  letter-spacing: 0.08em;
+}
+
+.duel-panel-text {
+  max-width: 340px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  text-align: center;
+  color: rgba(27, 37, 64, 0.8);
+}
+
+.duel-action[hidden] {
+  display: none;
+}
+
+.duel-action {
+  position: absolute;
+  left: 50%;
+  bottom: calc(5vh + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: clamp(15px, 3vmin, 22px);
+}
+
+.duel-action:hover {
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.duel-action:active {
+  transform: translateX(-50%) translateY(3px);
+}
+
+.duel-action:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+/* The lobby's last row: two quiet buttons side by side. */
+.duel-row > .btn-ghost {
+  flex: 1;
+  padding-left: 0.6em;
+  padding-right: 0.6em;
+  font-size: clamp(11px, 2vmin, 14px);
+}
+
+.duel-copy {
+  font-size: clamp(12px, 2.2vmin, 15px);
+  padding-left: 1.2em;
+  padding-right: 1.2em;
+}
+
+/* The hand of cards. In a tall window it lies along the bottom; in a wide one it stands in
+   the column under the street plaque, where the game tells it to (see DuelUi.placeCards). */
+.duel-bar {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  container-type: inline-size;
+}
+
+.duel-bar[hidden] {
+  display: none;
+}
+
+.duel-bar.is-row {
+  left: 50%;
+  bottom: calc(6px + env(safe-area-inset-bottom));
+  width: min(96vw, 480px);
+  transform: translateX(-50%);
+}
+
+.duel-bar-top {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.duel-tip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-height: 2.9em;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: clamp(8px, 4.1cqw, 12px);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1.3;
+  color: var(--navy);
+  background: rgba(251, 247, 238, 0.95);
+  border-radius: 10px;
+  box-shadow: 2px 3px 0 var(--shadow);
+}
+
+.duel-bar.is-row .duel-tip {
+  font-size: clamp(8px, 2.3cqw, 10.5px);
+}
+
+.duel-bar-pause {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--blue);
+  box-shadow: 2px 3px 0 var(--shadow);
+  cursor: pointer;
+}
+
+.duel-bar-pause .pause-bar {
+  width: 4px;
+  height: 13px;
+}
+
+.duel-bar.is-row .duel-bar-pause {
+  display: flex;
+}
+
+/* The row of cards covers the corner the pause button lives in, and brings its own. */
+.duel-hand-row .pause-button {
+  display: none;
+}
+
+.duel-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.duel-bar.is-column .duel-groups {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.duel-group {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.duel-group-label {
+  margin: 0;
+  padding: 2px 7px;
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: clamp(7px, 3.3cqw, 10px);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--white);
+  background: var(--navy);
+  border-radius: 6px;
+}
+
+.duel-bar.is-row .duel-group-label {
+  font-size: clamp(6.5px, 1.7cqw, 8.5px);
+}
+
+.duel-group.is-trick .duel-group-label {
+  background: var(--terra);
+}
+
+.duel-group-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.duel-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  aspect-ratio: 1 / 0.92;
+  padding: 3px 1px;
+  font: inherit;
+  color: var(--card);
+  background: var(--white);
+  border: 3px solid var(--white);
+  border-radius: 12px;
+  box-shadow: 2px 3px 0 var(--shadow);
+  cursor: pointer;
+  transition:
+    transform 0.1s ease-out,
+    background 0.1s ease-out;
+}
+
+.duel-card-icon {
+  display: block;
+  width: 46%;
+}
+
+.duel-card-icon svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  fill: currentColor;
+}
+
+.duel-card-name {
+  font-size: clamp(6.5px, 3.2cqw, 10.5px);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--navy);
+}
+
+.duel-bar.is-row .duel-card-name {
+  font-size: clamp(6.5px, 1.75cqw, 9px);
+}
+
+.duel-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.duel-card.is-selected {
+  color: var(--white);
+  background: var(--card);
+  border-color: var(--sun);
+  transform: translateY(-5px);
+  animation: card-up 0.9s ease-in-out infinite alternate;
+}
+
+.duel-card.is-selected .duel-card-name {
+  color: var(--white);
+}
+
+.duel-card:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* A played card is crossed through, so "gone" never depends on it merely looking pale. */
+.duel-card.is-used::after {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 50%;
+  height: 3px;
+  background: var(--navy);
+  border-radius: 2px;
+  transform: rotate(-24deg);
+}
+
+@keyframes card-up {
+  to {
+    transform: translateY(-8px);
+  }
+}
+
+/* How a duel works. */
+.duel-rules {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 1.6em;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--navy);
+}
+
+.duel-help-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+  max-height: 44vh;
+  overflow-y: auto;
+}
+
+.duel-help-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: #efe8da;
+  border-radius: 12px;
+}
+
+.duel-help-card .duel-card-icon {
+  flex: none;
+  width: 34px;
+  padding: 6px;
+  color: var(--white);
+  background: var(--card);
+  border-radius: 9px;
+}
+
+.duel-help-words {
+  display: grid;
+  gap: 2px;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(27, 37, 64, 0.85);
+}
+
+.duel-help-words strong {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--navy);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duel-card.is-selected {
+    animation: none;
+  }
+}
+
+/* The title card: sunlight, and a plaque of a different colour for each place to go. */
+.menu {
+  background:
+    radial-gradient(circle at 50% 118%, rgba(207, 92, 54, 0.5) 0 34%, transparent 35%),
+    radial-gradient(circle at 50% 118%, rgba(255, 200, 58, 0.85) 0 52%, transparent 53%),
+    rgba(143, 208, 238, 0.9);
+}
+
+.btn-play {
+  padding-left: 3.2em;
+  padding-right: 3.2em;
+  background: var(--terra);
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.menu-tile {
+  padding: 1.1em 0.8em 1em;
+  font-size: clamp(10px, 1.8vmin, 14px);
+  letter-spacing: 0.12em;
+  color: var(--white);
+}
+
+.menu-tile.is-terra {
+  background: var(--terra);
+}
+
+.menu-tile.is-blue {
+  background: var(--blue);
+}
+
+.menu-tile.is-green {
+  background: #2f9a63;
+}
+
+.menu-tile.is-navy {
+  background: var(--navy);
+}
+
+.star-count {
+  margin: 0;
+  padding: 0.5em 1.2em;
+  font-size: clamp(10px, 1.7vmin, 13px);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: var(--navy);
+  background: var(--white);
+  border-radius: 999px;
+  box-shadow: 3px 4px 0 var(--shadow);
+}
+
+/* Settings. */
+.setting {
+  display: grid;
+  gap: 8px;
+  width: min(300px, 76vw);
+}
+
+.setting-name {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: var(--navy);
+}
+
+.setting-range {
+  width: 100%;
+  height: 28px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.lang-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.lang-button {
+  padding: 0.8em 0.4em 0.7em;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+.lang-button.is-on {
+  color: var(--white);
+  background: var(--blue);
+}
+
+/* The balls. */
+.skin-ball {
+  width: 54px;
+  height: 54px;
+  border: 3px solid var(--navy);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, var(--patch) 0 22%, transparent 23%),
+    radial-gradient(circle at 8% 30%, var(--patch) 0 16%, transparent 17%),
+    radial-gradient(circle at 92% 30%, var(--patch) 0 16%, transparent 17%),
+    radial-gradient(circle at 26% 96%, var(--patch) 0 16%, transparent 17%),
+    radial-gradient(circle at 74% 96%, var(--patch) 0 16%, transparent 17%),
+    var(--base);
+}
+
+.skin {
+  justify-items: center;
+}
+
+.skin-need {
+  min-height: 1.2em;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+/* Arabic letters join, so they cannot be spaced apart, and the display face has none of them. */
+[dir='rtl'] * {
+  letter-spacing: 0 !important;
+  font-family: 'Segoe UI', Tahoma, 'Noto Kufi Arabic', 'Geeza Pro', system-ui, sans-serif;
+}
+
+[dir='rtl'] .wordmark,
+[dir='rtl'] .wordmark * {
+  font-family: var(--display);
+}
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes mark-in {
+  from {
+    opacity: 0;
+    transform: rotate(-9deg) scale(1.5);
+  }
+}
+
+@keyframes result-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+}
+
+@keyframes ball-roll {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen,
+  .wordmark,
+  .ball-o,
+  .result {
+    animation: none;
+  }
+}
+
+/* ---- Crazy Kora expansion: chapters, progress, tips, help ---- */
+
+.sheet-wide {
+  width: min(780px, 96vw);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.level-progress {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.progress-label,
+.progress-count {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--blue);
+}
+
+.progress-bar {
+  height: 12px;
+  background: #e3dacb;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 2px 2px 0 rgba(27, 37, 64, 0.12);
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--sun-dark), var(--sun));
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+.level-body {
+  display: grid;
+  gap: 6px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.chapter-title {
+  margin: 10px 2px 2px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: var(--terra);
+}
+
+.chapter-title:first-child {
+  margin-top: 0;
+}
+
+.tile.is-perfect {
+  outline: 3px solid var(--terra);
+  outline-offset: 2px;
+}
+
+.tile-best {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--sun);
+  font-variant-numeric: tabular-nums;
+}
+
+.tile:disabled .tile-best {
+  color: rgba(27, 37, 64, 0.35);
+}
+
+/* The title card with its key art: wide print on wide screens, tall print on phones.
+   The art already carries the logo, so the DOM wordmark steps aside (visually only). */
+.menu-bg {
+  background-color: #1f5fa8;
+  background-image:
+    linear-gradient(rgba(20, 28, 54, 0.02) 0 52%, rgba(20, 28, 54, 0.6)),
+    url('./assets/menu-bg-wide.jpg');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat;
+  align-content: end;
+  padding-bottom: calc(max(70px, 13vh) + env(safe-area-inset-bottom));
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .menu-bg {
+    background-image:
+      linear-gradient(rgba(20, 28, 54, 0.02) 0 52%, rgba(20, 28, 54, 0.6)),
+      url('./assets/menu-bg-tall.jpg');
+  }
+}
+
+.menu-bg .wordmark,
+.menu-bg .tagline {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.menu-bg .star-count {
+  background: rgba(251, 247, 238, 0.94);
+}
+
+.skin-progress {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--blue);
+  text-align: center;
+}
+
+.reset-button {
+  font-size: clamp(10px, 1.8vmin, 12px);
+  color: var(--terra);
+}
+
+/* A rewarded ad for coins: a video glyph up front, impossible to mistake. */
+.reward-button::before {
+  content: '▶ ';
+}
+
+.reward-button[hidden] {
+  display: none;
+}
+
+/* Tiles pop in with a stagger when the alley list opens. */
+.levels .tile {
+  animation: tile-in 0.3s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.levels .tile:nth-child(3n + 2) {
+  animation-delay: 0.04s;
+}
+
+.levels .tile:nth-child(3n) {
+  animation-delay: 0.08s;
+}
+
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+@media (max-width: 560px) {
+  .sheet-wide {
+    padding: 22px 16px 20px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+  }
+
+  .menu-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .result {
+    gap: 10px;
+    bottom: calc(9vh + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .levels .tile,
+  .progress-fill {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ---- Solo ability sidebar (right side) ---- */
+.ability-bar {
+  position: fixed;
+  right: calc(12px + env(safe-area-inset-right));
+  top: 50%;
+  transform: translateY(-50%) translateX(40px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 19;
+  padding: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-out, transform 0.25s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.ability-bar[hidden] {
+  display: none;
+}
+
+.ability-bar:not([hidden]) {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.coin-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--navy);
+  color: var(--sun);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  box-shadow:
+    0 0 0 1px rgba(31, 95, 168, 0.3),
+    0 4px 12px rgba(27, 37, 64, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.coin-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 200, 58, 0.15), transparent);
+  pointer-events: none;
+}
+
+.coin-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: inset -1px -1px 3px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.coin-n {
+  font-variant-numeric: tabular-nums;
+  min-width: 2.2ch;
+  text-align: right;
+}
+
+.ability-card {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  border: none;
+  border-radius: 16px;
+  background: var(--white);
+  box-shadow:
+    0 0 0 1px rgba(31, 95, 168, 0.15),
+    0 4px 16px rgba(27, 37, 64, 0.18),
+    0 0 0 0 var(--card);
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+  transition:
+    transform 0.12s cubic-bezier(0.2, 1.4, 0.4, 1),
+    box-shadow 0.12s ease,
+    background 0.15s ease;
+  color: var(--navy);
+}
+
+.ability-card::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 19px;
+  background: var(--card);
+  opacity: 0;
+  filter: blur(8px);
+  transition: opacity 0.2s ease;
+  z-index: -1;
+}
+
+.ability-card:hover:not(:disabled) {
+  transform: translateX(-6px) scale(1.05);
+  box-shadow:
+    0 0 0 1px rgba(31, 95, 168, 0.15),
+    0 8px 24px rgba(27, 37, 64, 0.25);
+}
+
+.ability-card:hover:not(:disabled)::before {
+  opacity: 0.35;
+}
+
+.ability-card:active:not(:disabled) {
+  transform: translateX(-2px) scale(0.98);
+}
+
+.ability-card:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 3px;
+}
+
+.ability-card:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ability-card.is-armed {
+  background: linear-gradient(135deg, var(--card), var(--navy));
+  color: var(--white);
+  box-shadow:
+    0 0 0 1px rgba(31, 95, 168, 0.15),
+    0 6px 20px rgba(27, 37, 64, 0.3),
+    0 0 18px var(--card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: armed-pulse 2s ease-in-out infinite;
+}
+
+@keyframes armed-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(31, 95, 168, 0.15), 0 6px 20px rgba(27, 37, 64, 0.3), 0 0 18px var(--card), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+  50% { box-shadow: 0 0 0 1px rgba(31, 95, 168, 0.15), 0 6px 20px rgba(27, 37, 64, 0.3), 0 0 28px var(--card), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+}
+
+.ability-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+  transition: transform 0.15s ease;
+}
+
+.ability-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ability-card:hover:not(:disabled) .ability-icon {
+  transform: scale(1.15) rotate(-3deg);
+}
+
+.ability-card.is-armed .ability-icon {
+  animation: icon-buzz 1.5s ease-in-out infinite;
+}
+
+@keyframes icon-buzz {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+.ability-name {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.ability-cost {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: inherit;
+  opacity: 0.9;
+}
+
+.ability-card.is-armed .ability-cost {
+  color: var(--sun);
+  opacity: 1;
+}
+
+@media (max-width: 560px) {
+  .ability-bar {
+    right: calc(8px + env(safe-area-inset-right));
+    gap: 8px;
+    padding: 6px;
+  }
+
+  .ability-card {
+    width: 60px;
+    height: 60px;
+    padding: 5px;
+  }
+
+  .ability-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .coin-pill {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ability-bar,
+  .ability-card,
+  .ability-card::before {
+    transition: none;
+    animation: none;
+  }
+
+  .ability-bar:not([hidden]) {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
