@@ -410,18 +410,27 @@ export class Renderer {
           drawObjectHalo(ctx, entity, x, y, z, angle, PALETTE.yellow, pulse);
         }
         if (!entity.held) {
-          // speed streak behind anything really moving
+          // speed streak behind anything really moving: a smear that fades out to
+          // its tail, so a hard throw reads as motion instead of a white wedge
           const speed = b.speed();
           if (speed > 430) {
             const ux = b.vx / speed;
             const uy = b.vy / speed;
             const len = Math.min(110, speed * 0.085);
             const half = b.boundR * 0.72;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+            const sy = y - z;
+            const fade = ctx.createLinearGradient(x, sy, x - ux * len, sy - uy * len);
+            const heat = Math.min(0.42, 0.22 + speed / 5200);
+            fade.addColorStop(0, `rgba(255, 255, 255, ${heat})`);
+            fade.addColorStop(0.45, `rgba(255, 255, 255, ${heat * 0.45})`);
+            fade.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = fade;
             ctx.beginPath();
-            ctx.moveTo(x - uy * half, y - z + ux * half);
-            ctx.lineTo(x + uy * half, y - z - ux * half);
-            ctx.lineTo(x - ux * len, y - z - uy * len);
+            ctx.moveTo(x - uy * half, sy + ux * half);
+            ctx.lineTo(x + uy * half, sy - ux * half);
+            // curve the flanks in to a point: a comet tail, not a triangle
+            ctx.quadraticCurveTo(x - ux * len * 0.45 + uy * half * 0.3, sy - uy * len * 0.45 - ux * half * 0.3, x - ux * len, sy - uy * len);
+            ctx.quadraticCurveTo(x - ux * len * 0.45 - uy * half * 0.3, sy - uy * len * 0.45 + ux * half * 0.3, x - uy * half, sy + ux * half);
             ctx.closePath();
             ctx.fill();
           }
