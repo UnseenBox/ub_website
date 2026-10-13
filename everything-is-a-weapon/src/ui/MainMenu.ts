@@ -4,14 +4,11 @@ import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import { CHALLENGES } from '../gameplay/ChallengeSystem';
 import { HANDCRAFTED_ROOMS } from '../gameplay/RoomDefinitions';
 import { bossSpecFor, depthsBossSlots } from '../gameplay/RoomManager';
-import { controlRows } from './PauseMenu';
 import { button, el, formatScore } from './dom';
 
 export interface MenuActions {
   play(roomIndex: number): void;
-  daily(): void;
   settings(): void;
-  controls(): void;
   hero(id: HeroId): void;
 }
 
@@ -34,10 +31,10 @@ function challengeText(roomChallenge: string | undefined): string | null {
 }
 
 /**
- * The front page: logo and tagline up top, the chosen room's front door, four
- * character cards with blank frames awaiting artwork, and one big red PLAY
- * button. Pressing the door swaps the page for a wall of hanging room keys
- * (brass for rooms you have reached, iron for the rest); BACK returns.
+ * The front page: logo up top with a settings cog in the corner, the chosen
+ * room's front door over one big red PLAY button, and the four characters in
+ * a column down the side. Pressing the door swaps the page for a wall of
+ * hanging room keys (brass for rooms you have reached, iron for the rest).
  */
 export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const save = game.save.data;
@@ -60,7 +57,13 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   for (const [char, cls] of letters) logo.append(el('span', `mm-letter ${cls}`, char));
   const tagline = el('div', 'mm-tagline');
   tagline.append(el('span', 'mm-tagline-text', 'everything is a weapon'));
-  head.append(logo, tagline);
+  const gear = el('button', 'mk-gear');
+  gear.type = 'button';
+  gear.setAttribute('aria-label', 'Settings');
+  gear.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6 1.7.7 2.2-1.5 2.4 2.4-1.5 2.2.7 1.7 2.6.5v3.4l-2.6.5-.7 1.7 1.5 2.2-2.4 2.4-2.2-1.5-1.7.7-.5 2.6h-3.4l-.5-2.6-1.7-.7-2.2 1.5-2.4-2.4 1.5-2.2-.7-1.7L2 13.7v-3.4l2.6-.5.7-1.7-1.5-2.2 2.4-2.4 2.2 1.5 1.7-.7zM12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>';
+  gear.addEventListener('click', actions.settings);
+  head.append(logo, tagline, gear);
   screen.append(head);
 
   // ── the door: wears the chosen room's number, opens the key wall ──
@@ -185,7 +188,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   // ── characters: same four cards, frames left blank for future artwork ──
   const chars = el('section', 'mk-chars');
   chars.setAttribute('aria-label', 'Character selection');
-  chars.append(el('div', 'tape-label', 'CHOOSE YOUR CHARACTER'));
+  chars.append(el('div', 'tape-label', 'CHARACTER'));
   const cards = el('div', 'mk-cards');
   for (const hero of HEROES) {
     const picked = hero.id === game.hero;
@@ -204,16 +207,11 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   chars.append(cards);
   screen.append(chars);
 
-  // ── actions: one huge red PLAY, everything else secondary ──
+  // ── actions: one huge red PLAY (plus BACK on the key wall) ──
   const actionsRow = el('div', 'mk-actions');
   const playBtn = button('▶ PLAY', 'primary mk-play', () => actions.play(selected));
   playBtn.append(playSub);
-  const dailyBtn = button('🏆 DAILY CHALLENGE', 'mk-daily', actions.daily);
-  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  dailyBtn.append(el('span', 'mk-daily-sub', `fresh every day · ${today}`));
-  const secondary = el('div', 'mk-secondary');
-  secondary.append(button('⚙ SETTINGS', 'mk-small', actions.settings), button('🎮 CONTROLS', 'mk-small', actions.controls));
-  actionsRow.append(playBtn, dailyBtn, secondary, button('◀ BACK', 'mk-small mk-back', () => openWall(false)));
+  actionsRow.append(playBtn, button('◀ BACK', 'mk-small mk-back', () => openWall(false)));
   screen.append(actionsRow);
 
   // Fallback if nothing was pre-selected: land on the first open key.
@@ -231,18 +229,3 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   return screen;
 }
 
-/** Controls: the same fight manual as the pause screen, on its own sheet. */
-export function buildControls(game: Game, onBack: () => void): HTMLElement {
-  const screen = el('div', 'screen settings');
-  const sheet = el('div', 'sheet rules-sheet');
-  const head = el('div', 'sheet-head');
-  head.append(el('span', 'sheet-title', 'CONTROLS'), el('span', 'sheet-no', 'how to fight'));
-  sheet.append(head);
-  for (const [key, action] of controlRows(game.input.touch)) {
-    const row = el('div', 'control-row');
-    row.append(el('span', 'key', key), el('span', '', action));
-    sheet.append(row);
-  }
-  screen.append(sheet, button('BACK', 'primary', onBack));
-  return screen;
-}
