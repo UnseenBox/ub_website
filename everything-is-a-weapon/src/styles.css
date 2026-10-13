@@ -2478,10 +2478,49 @@ body.touch #game {
 .menu-keys:not(.wall-open) .mk-wall,
 .menu-keys:not(.wall-open) .mk-back,
 .menu-keys.wall-open .mk-doorway,
-.menu-keys.wall-open .mk-chars,
-.menu-keys.wall-open .mk-daily,
-.menu-keys.wall-open .mk-secondary {
+.menu-keys.wall-open .mk-chars {
   display: none;
+}
+/* front page: door over PLAY on the left, characters in a column on the right */
+.screen.menu-keys:not(.wall-open) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(132px, 30%, 300px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'head head' 'door chars' 'play chars';
+}
+.mk-head { grid-area: head; position: relative; }
+.mk-doorway { grid-area: door; }
+.mk-chars { grid-area: chars; }
+.mk-actions { grid-area: play; }
+
+/* settings: a plain cog in the corner */
+.mk-gear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: clamp(40px, 6.4vmin, 52px);
+  height: clamp(40px, 6.4vmin, 52px);
+  padding: 8px;
+  background: var(--grain), var(--paper);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 3px 4px 0 var(--shadow);
+  cursor: pointer;
+  transition: transform 0.2s ease-out;
+}
+.mk-gear svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mk-gear:hover,
+.mk-gear:focus-visible {
+  transform: rotate(60deg);
+}
+.mk-gear:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
 }
 /* the board shrink-wraps its keys, so it is always full, and sits mid-screen */
 .screen.menu-keys.wall-open {
@@ -2854,17 +2893,23 @@ button.key:focus-visible {
   white-space: nowrap;
 }
 .mk-cards {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(6px, 1.2vw, 14px);
+  grid-auto-rows: minmax(0, 1fr);
+  gap: clamp(6px, 1.4vh, 12px);
   width: 100%;
 }
 .mk-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  /* portrait frame on the left, name and pet stacked beside it */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr 1fr;
   align-items: center;
-  gap: clamp(3px, 0.6vh, 6px);
+  gap: 2px clamp(6px, 1vw, 10px);
+  min-height: 0;
+  text-align: left;
   background: var(--grain), #fffdf6;
   border: 3px solid var(--ink);
   border-radius: 8px;
@@ -2900,22 +2945,22 @@ button.mk-card:hover {
 }
 /* genuinely blank cream frame: artwork goes here later */
 .hero-blank {
-  width: 100%;
-  height: clamp(56px, 13vh, 112px);
+  grid-row: 1 / -1;
+  height: 100%;
+  min-height: 40px;
+  aspect-ratio: 4 / 5;
   background: #fbf6e9;
   border: 2px solid var(--ink);
   border-radius: 6px;
 }
-.mm-card-name {
-  font: 700 clamp(11px, 1.8vmin, 14px) var(--type);
-  color: var(--ink);
+.mk-card .mm-card-name {
+  align-self: end;
+  font: 700 clamp(11px, 2vmin, 15px) var(--type);
 }
-.mm-card-note {
-  font: 700 clamp(9px, 1.5vmin, 10.5px) var(--hand);
-  color: var(--ink);
-  opacity: 0.75;
-  text-align: center;
-  line-height: 1.15;
+.mk-card .mm-card-note {
+  align-self: start;
+  font: 700 clamp(9px, 1.6vmin, 11.5px) var(--hand);
+  text-align: left;
 }
 
 /* actions: one huge red PLAY, daily cream, settings + controls small and dark */
@@ -2954,27 +2999,6 @@ button.mk-card:hover {
 }
 .btn.mk-play:hover {
   transform: rotate(-1deg) scale(1.02);
-}
-.btn.mk-daily {
-  flex: 1.2;
-  min-width: 0;
-  background: var(--grain), var(--paper);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(13px, 2.4vmin, 20px);
-}
-.mk-daily-sub {
-  display: block;
-  font: 700 clamp(9px, 1.5vmin, 11px) var(--hand);
-  opacity: 0.75;
-}
-.mk-secondary {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  gap: clamp(6px, 1vw, 10px);
 }
 .btn.mk-small {
   flex: 1;
@@ -3026,59 +3050,44 @@ button.mk-card:hover {
 
 /* ── responsive: the key wall is the hero at every size ── */
 
-/* short-and-wide (laptops, landscape phones): side-by-side, wall gets the height */
-@media (min-width: 860px) and (max-height: 620px) {
-  .screen.menu-keys {
-    width: min(100%, 1080px);
-  }
-  .screen.menu-keys:not(.wall-open) {
-    display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
-    grid-template-areas: 'head head' 'wall chars' 'wall actions';
-    align-items: stretch;
-    gap: clamp(8px, 1.6vh, 16px);
-  }
-  .mk-head { grid-area: head; }
-  .mk-doorway { grid-area: wall; }
-  .mk-chars { grid-area: chars; align-self: start; }
-  .mk-actions {
-    grid-area: actions;
-    align-self: end;
-    flex-wrap: wrap;
-  }
-  .btn.mk-play { flex: 1 1 100%; }
-  .btn.mk-daily { flex: 1 1 58%; }
-  .mk-secondary { flex: 1 1 40%; }
-  .hero-blank { height: clamp(44px, 9vh, 76px); }
-}
-
-/* narrow (portrait phones and small tablets): stack everything */
+/* narrow (portrait phones and small tablets): the note drops under the door */
 @media (max-width: 859px) {
   .screen.menu-keys {
     width: min(100%, 620px);
     gap: clamp(8px, 1.6vh, 16px);
   }
-  .mk-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .hero-blank { height: clamp(52px, 11vh, 96px); }
   /* four keys to a row */
   .key-rack { --kw: 20cqw; }
-  .mk-actions { flex-wrap: wrap; }
-  .btn.mk-play { flex: 1 1 100%; }
-  .btn.mk-daily { flex: 1 1 100%; }
-  .mk-secondary { flex: 1 1 100%; }
+}
+
+/* portrait phones: door sized by the column, note under it, cards stacked */
+@media (max-width: 520px) {
+  .mk-doorway {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+  .mk-door { width: min(100%, 30vh); }
+  .door-note { width: 100%; transform: rotate(-2deg); }
+  .mk-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    justify-items: center;
+  }
+  .hero-blank { grid-row: auto; }
+  .mk-card .mm-card-note { text-align: center; }
 }
 
 /* very short (tiny landscape windows): let the frame scroll rather than clip */
 @media (max-height: 460px) {
-  .screen.menu-keys {
+  .screen.menu-keys.wall-open {
     height: auto;
     max-height: none;
   }
   .key-rack { --kw: 10.6cqw; }
-  .mk-doorway { height: 150px; }
-  .hero-blank { height: 46px; }
+  .mk-doorway { min-height: 0; }
+  .hero-blank { min-height: 0; }
   .btn.mk-play { font-size: clamp(20px, 6vh, 28px); }
   .mm-letter { font-size: clamp(28px, 9vmin, 40px); }
 }

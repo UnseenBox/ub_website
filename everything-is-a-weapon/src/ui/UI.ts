@@ -1,6 +1,6 @@
 import type { Game, GameState, GameUi, RoomSummary } from '../core/Game';
 import { HUD } from './HUD';
-import { buildControls, buildMainMenu } from './MainMenu';
+import { buildMainMenu } from './MainMenu';
 import { buildPauseMenu, buildSettings } from './PauseMenu';
 import { buildResults } from './ResultsScreen';
 
@@ -119,13 +119,7 @@ export class UI implements GameUi {
           goFullscreenOnPhones(game);
           game.playFrom(index);
         },
-        daily: () => {
-          this.hud.reset();
-          goFullscreenOnPhones(game);
-          game.playDaily();
-        },
         settings: () => this.show(buildSettings(game, () => this.showMenu())),
-        controls: () => this.show(buildControls(game, () => this.showMenu())),
         hero: (id) => game.setHero(id),
       }),
     );
