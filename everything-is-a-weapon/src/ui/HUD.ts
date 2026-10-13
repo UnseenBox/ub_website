@@ -81,10 +81,12 @@ export class HUD {
     this.combo = el('div', 'combo-sticker');
     this.comboValue = el('span', 'combo-value');
     this.combo.append(el('span', 'combo-ring'), this.comboValue);
-    // The bill wears its own combo sticker, so this corner stays one thing to look at.
     const receipt = el('div', 'receipt');
     receipt.setAttribute('aria-label', 'Damage');
-    receipt.append((this.score = el('span', 'receipt-total', '0')), this.combo);
+    receipt.append((this.score = el('span', 'receipt-total', '0')));
+    // The sticker rides on the bill, but outside it: the receipt's zigzag clip would cut it.
+    const bill = el('div', 'bill');
+    bill.append(receipt, this.combo);
     this.powers = el('div', 'powers');
     this.scrapSlip = el('span', 'scrap-slip', '');
     const tools = el('div', 'tools');
@@ -94,7 +96,7 @@ export class HUD {
     pause.setAttribute('aria-label', 'Pause');
     pause.append(el('span'), el('span'));
     pause.addEventListener('click', onPause);
-    right.append(receipt, tools, pause);
+    right.append(bill, tools, pause);
 
     top.append(left, center, right);
 
