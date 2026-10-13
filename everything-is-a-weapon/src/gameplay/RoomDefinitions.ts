@@ -8,36 +8,42 @@ import type { RoomDefinition } from './Room';
  * gap between walls, furniture and doors is wide enough to walk through.
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
-  // 1 — bedroom: throwing. You start mid-room with a chair an arm's length away,
-  // a bouncy ball / book / shoe all within one step, and the first mover already
-  // hammering on the door. A second mover arrives ~9s in so the first minute is
-  // "grab, BONK, experiment" with no waiting and no overwhelm.
+  // 1 — bedroom: the lesson plan (gameplay/Tutorial.ts). The frying pan is a short walk
+  // away, the door is in the top wall with a socket beside it, and the eight movers
+  // wait outside until their lesson: 1 to throw at, 2 for the button, 1 for the pet,
+  // 1 for the wet socket, 3 for the brawl. Replayed untaught, they arrive on the clock.
   {
     id: 'room-1', name: 'THE BEDROOM', theme: 'bedroom', width: 860, height: 500, seed: 101, tutorial: true,
-    playerStart: { x: 520, y: 262 },
-    entrance: { side: 'right', pos: 250 },
-    exit: { side: 'top', pos: 480 },
-    rug: { x: 520, y: 280, w: 320, h: 200, color: '#c96f5a' },
+    playerStart: { x: 470, y: 300 },
+    entrance: { side: 'top', pos: 640 },
+    exit: { side: 'left', pos: 300 },
+    rug: { x: 450, y: 310, w: 320, h: 200, color: '#c96f5a' },
     objects: [
       { type: 'bed', x: 100, y: 92 },
       { type: 'pillow', x: 82, y: 50, angle: 0.2, on: 0 },
       { type: 'pillow', x: 120, y: 54, angle: -0.3, on: 0 },
-      // The opening arsenal: heavy (chair), bouncy (ball), fast (book), funny (shoe),
-      // all inside grab range of the spawn point and on the mover's walk-in line.
-      { type: 'chair', x: 435, y: 258 },
-      { type: 'ball', x: 585, y: 322, angle: 0.4 },
-      { type: 'book', x: 468, y: 348, angle: -0.3 },
-      { type: 'shoe', x: 598, y: 198, angle: 0.5 },
-      // Chaos ingredients slightly further out: a bottle that spills, a teddy to
-      // throw at a face, and the alarm clock as the "movers come to look" demo.
-      { type: 'bottle', x: 380, y: 180 },
-      { type: 'teddy', x: 660, y: 330 },
-      { type: 'alarmclock', x: 350, y: 120 },
+      // The first weapon: far enough that getting it means walking.
+      { type: 'pan', x: 250, y: 330, angle: 0.4 },
+      { type: 'chair', x: 330, y: 190 },
+      { type: 'ball', x: 600, y: 400, angle: 0.4 },
+      { type: 'book', x: 420, y: 440, angle: -0.3 },
+      { type: 'shoe', x: 690, y: 290, angle: 0.5 },
+      { type: 'bottle', x: 170, y: 430 },
+      { type: 'teddy', x: 740, y: 400 },
+      { type: 'alarmclock', x: 300, y: 110 },
+      // Not in any lesson: there to be knocked over by a throw that missed.
+      { type: 'lamp', x: 790, y: 160 },
     ],
-    zones: [],
+    zones: [{ kind: 'electric', x: 588, y: 12, r: 18, outlet: true }],
     enemies: [
       { type: 'basic', delay: 0.2 },
+      { type: 'basic', delay: 8 },
       { type: 'basic', delay: 9 },
+      { type: 'basic', delay: 16 },
+      { type: 'basic', delay: 22 },
+      { type: 'basic', delay: 28 },
+      { type: 'basic', delay: 31 },
+      { type: 'basic', delay: 34 },
     ],
   },
 
@@ -46,6 +52,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // the gaps, so one good throw can catch two of them.
   {
     id: 'room-2', name: 'CUBICLE FARM', theme: 'office', width: 960, height: 540, seed: 202, challenge: 'no_chair',
+    teaser: 'shove a desk and everything on it goes too', spotlight: ['table', 'officechair'],
     playerStart: { x: 130, y: 420 },
     entrance: { side: 'right', pos: 270 },
     exit: { side: 'top', pos: 480 },
@@ -88,6 +95,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // in and starts eating the room. Feed it something explosive.
   {
     id: 'room-3', name: 'FLOODED LAUNDRY', theme: 'bathroom', width: 1000, height: 560, seed: 303, challenge: 'environment_only',
+    teaser: 'water, a socket, and something that eats the room', spotlight: ['bottle', 'bucket'],
     playerStart: { x: 170, y: 300 },
     entrance: { side: 'right', pos: 290 },
     exit: { side: 'top', pos: 520 },
@@ -130,6 +138,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // does not care which side you are on.
   {
     id: 'room-4', name: 'EMBER LOUNGE', theme: 'living', width: 1000, height: 560, seed: 404, challenge: 'one_throw_two',
+    teaser: 'the fire is not on your side', spotlight: ['extinguisher', 'spraycan'],
     playerStart: { x: 150, y: 400 },
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'left', pos: 130 },
@@ -176,6 +185,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // stand still next to the flour.
   {
     id: 'room-5', name: 'GREASE TRAP', theme: 'kitchen', width: 1000, height: 560, seed: 515, challenge: 'no_direct_hits',
+    teaser: 'slippery floor, and they throw things back', spotlight: ['oilbottle', 'banana'],
     playerStart: { x: 150, y: 320 },
     entrance: { side: 'right', pos: 320 },
     exit: { side: 'left', pos: 470 },
@@ -226,6 +236,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // at the back of the shop with a Nested Box and an Express for company. Burn it.
   {
     id: 'room-6', name: 'SHOWROOM', theme: 'living', width: 1040, height: 580, seed: 505, challenge: 'chain_4',
+    teaser: 'the furniture in here bites', spotlight: ['magnet', 'fan'],
     playerStart: { x: 150, y: 300 },
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'top', pos: 380 },
@@ -277,6 +288,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // to throw things at its front. Don't. Burn it, shock it, or go around.
   {
     id: 'room-7', name: 'THE COMPACTOR', theme: 'garage', width: 1040, height: 580, seed: 707, challenge: 'untouched',
+    teaser: 'mind the wall, it moves', spotlight: ['battery', 'firework'],
     playerStart: { x: 150, y: 300 },
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'left', pos: 480 },
@@ -325,6 +337,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // Everything you have learned, all at once, on expensive carpet.
   {
     id: 'room-8', name: 'PENTHOUSE', theme: 'living', width: 1040, height: 580, seed: 606, challenge: 'kill_with_book',
+    teaser: 'everything you know, all at once', spotlight: ['boombox', 'boomerang'],
     playerStart: { x: 150, y: 290 },
     entrance: { side: 'right', pos: 290 },
     exit: { side: 'left', pos: 460 },

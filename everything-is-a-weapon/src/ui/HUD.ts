@@ -1,6 +1,7 @@
 import { moveKeysLabel, onKeyLabelsChange } from '../input/KeyLabels';
 import type { Game } from '../core/Game';
 import { ENEMY_TYPES, type EnemyTypeId } from '../entities/EnemyTypes';
+import type { GuideIcon } from '../gameplay/Tutorial';
 import { DISCOVERY_BY_ID } from '../gameplay/Discoveries';
 import { COMBO_WINDOW } from '../gameplay/ScoreSystem';
 import { el, formatScore, ransom } from './dom';
@@ -35,9 +36,13 @@ export class HUD {
   private readonly toast: HTMLElement;
   private readonly toastTitle: HTMLElement;
   private readonly toastCount: HTMLElement;
+  private readonly coach: HTMLElement;
+  private readonly unlockBox: HTMLElement;
+  private readonly point = { x: 0, y: 0 };
+  private unlockTimer = 0;
 
   private mugs: Mug[] = [];
-  private last = { room: '', name: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '' };
+  private last = { room: '', name: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', coach: '', touch: false };
   private shownScore = 0;
   private bannerTimer = 0;
   private bannerSeed = 1;
@@ -111,7 +116,17 @@ export class HUD {
       hint.append(item);
     }
 
-    this.root.append(top, this.bannerBox, this.stampBox, this.toast, hint, el('div', 'cinema-bar top'), el('div', 'cinema-bar bottom'));
+    // The coach shows the controls for whatever the tutorial is teaching; skip is always on offer.
+    this.coach = el('div', 'coach');
+    this.unlockBox = el('div', 'hud-unlock');
+    const skip = el('button', 'coach-skip', 'SKIP LESSONS');
+    skip.type = 'button';
+    skip.addEventListener('click', () => game.tutorial.skip());
+
+    this.root.append(
+      top, this.bannerBox, this.stampBox, this.toast, hint, this.coach, skip, this.unlockBox,
+      el('div', 'cinema-bar top'), el('div', 'cinema-bar bottom'),
+    );
     parent.append(this.root);
 
     game.bus.on('ROOM_START', () => this.buildLineup());
@@ -125,8 +140,8 @@ export class HUD {
   /** One mugshot per intruder expected in this room, in the order they will arrive. */
   private buildLineup(): void {
     this.lineup.replaceChildren(el('span', 'lineup-label', 'WANTED'));
-    const specs = [...this.game.room.def.enemies];
-    if (this.game.room.hasBoss) specs.push({ type: this.game.room.bossType ?? 'chairman', delay: 0 });
+    // Whoever is still outside: the room's list and its boss, minus anyone a replayed lesson left out.
+    const specs = [...this.game.room.pending];
     this.mugs = specs.map((spec) => {
       const type = ENEMY_TYPES[spec.type];
       const node = el('span', `mug mug-${spec.type} waiting`);
@@ -182,6 +197,58 @@ export class HUD {
     this.toastQueue.push(title);
   }
 
+  /** The level-up card: a sticky note slapped on the screen for a few seconds. */
+  unlock(kicker: string, title: string, sub: string): void {
+    const box = this.unlockBox;
+    box.replaceChildren(el('span', 'unlock-kicker', kicker), ransom(title, this.bannerSeed++, 'unlock-title'), el('span', 'unlock-sub', sub));
+    box.classList.remove('show');
+    void box.offsetWidth;
+    box.classList.add('show');
+    this.unlockTimer = 3.4;
+  }
+
+  /** Controls as pictures: keycaps and a mouse, or thumbs where the thumbs go. */
+  private coachArt(icon: GuideIcon, touch: boolean): HTMLElement[] {
+    const wrap = (className: string, ...children: HTMLElement[]): HTMLElement => {
+      const node = el('div', className);
+      node.append(...children);
+      return node;
+    };
+    if (touch) {
+      // The real POWER button pulses instead (body.coach-power).
+      if (icon === 'power') return [];
+      if (icon === 'move') return [wrap('coach-pad', el('i', 'coach-thumb'))];
+      return [wrap(icon === 'throw' ? 'coach-tap hold' : 'coach-tap', el('i', 'coach-thumb'))];
+    }
+    if (icon === 'move') return [wrap('coach-keys', ...[...moveKeysLabel()].map((c) => el('kbd', '', c)))];
+    const mouse = (mode: string): HTMLElement => wrap(`coach-mouse ${mode}`, el('i'));
+    if (icon === 'power') return [wrap('coach-row', mouse('aim'), el('kbd', '', '1'))];
+    if (icon === 'throw') return [mouse('hold'), wrap('coach-bar', el('i'))];
+    return [mouse('click')];
+  }
+
+  private updateCoach(touch: boolean): void {
+    const game = this.game;
+    const g = game.tutorial.guide;
+    const icon = game.state === 'playing' ? g.icon : null;
+    const key = icon ? `${icon}|${touch}|${g.caption}|${moveKeysLabel()}` : '';
+    if (key !== this.last.coach) {
+      this.last.coach = key;
+      document.body.classList.toggle('coach-power', icon === 'power');
+      this.coach.className = icon ? `coach show ${icon} ${touch ? 'thumb' : 'desk'}` : 'coach';
+      this.coach.style.transform = '';
+      const body = el('div', 'coach-body');
+      if (icon) body.append(...this.coachArt(icon, touch));
+      if (g.caption) body.append(el('span', 'coach-cap', g.caption));
+      this.coach.replaceChildren(body);
+    }
+    // A mouse player gets the icon next to the thing; a thumb gets it where the thumb goes (CSS).
+    if (icon && !touch) {
+      game.camera.worldToScreen(g.x, g.y, this.point);
+      this.coach.style.transform = `translate(${Math.round(this.point.x)}px, ${Math.round(Math.max(96, this.point.y))}px)`;
+    }
+  }
+
   reset(): void {
     this.bannerBox.classList.remove('show');
     this.stampBox.classList.remove('show');
@@ -206,6 +273,17 @@ export class HUD {
       this.stampTimer -= dt;
       if (this.stampTimer <= 0) this.stampBox.classList.remove('show');
     }
+    if (this.unlockTimer > 0) {
+      this.unlockTimer -= dt;
+      if (this.unlockTimer <= 0) this.unlockBox.classList.remove('show');
+    }
+    // Whichever device was touched last decides which controls are on screen.
+    const touch = game.input.touch;
+    if (touch !== last.touch) {
+      last.touch = touch;
+      document.body.classList.toggle('touch', touch);
+    }
+    this.updateCoach(touch);
     if (this.toastTimer > 0) {
       this.toastTimer -= dt;
       if (this.toastTimer <= 0) this.toast.classList.remove('show');

@@ -79,6 +79,10 @@ export interface RoomDefinition {
   readonly rug?: RugSpec;
   readonly challenge?: string;
   readonly tutorial?: boolean;
+  /** One line on what is new here: shown on the way in, and on the door from the room before. */
+  readonly teaser?: string;
+  /** Object ids that glow on a first visit: this room's new toys. */
+  readonly spotlight?: readonly string[];
   /** Seed for gameplay randomness in this room, so it can be replayed exactly. */
   readonly seed: number;
 }

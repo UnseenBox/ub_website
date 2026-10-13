@@ -8,7 +8,7 @@ import type { PhysicsObject } from '../entities/PhysicsObject';
 import { Player } from '../entities/Player';
 import { ChallengeSystem } from '../gameplay/ChallengeSystem';
 import { extendChain, freshChain } from '../gameplay/Chain';
-import { ABILITIES, AbilitySystem, type AbilityId } from '../gameplay/Abilities';
+import { ABILITIES, AbilitySystem, type AbilityDefinition, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
 import { ImpactSystem } from '../gameplay/ImpactSystem';
 import { NavField } from '../gameplay/Navigation';
@@ -17,7 +17,7 @@ import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
 import { bossSpecFor, RoomManager, type RoomRuntime, type WallRuntime } from '../gameplay/RoomManager';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
-import { Tutorial } from '../gameplay/Tutorial';
+import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import { ZoneManager } from '../hazards/Zone';
 import { InputManager } from '../input/InputManager';
@@ -66,6 +66,12 @@ export interface RoomSummary {
   challengeBonus: number;
   /** Scrap bonus for clearing a room for the first time (0 when replaying). */
   firstClearBonus: number;
+  /** Best score on this room before this run (0 the first time). */
+  roomBest: number;
+  /** What is behind the next door (null after a fail or the daily). */
+  next: { number: number; name: string; teaser: string; mover: EnemyTypeId; isNew: boolean } | null;
+  /** An ability the scrap purse can pay for right now. */
+  offer: AbilityDefinition | null;
   canContinue: boolean;
   /** The player asked for the rewarded ad and none could be shown. */
   adMissed?: boolean;
@@ -75,6 +81,8 @@ export interface RoomSummary {
 export interface GameUi {
   banner(title: string, sub?: string, seconds?: number): void;
   discovery(title: string): void;
+  /** The level-up card: something new is yours for good. */
+  unlock(kicker: string, title: string, sub: string): void;
   stateChanged(state: GameState): void;
   showSummary(summary: RoomSummary): void;
   /** Slams a rubber stamp across the screen ("CLEARED"). */
@@ -105,7 +113,7 @@ const CLEAR_DELAY = 1.6;
 const FAIL_DELAY = 1.4;
 const MAX_OBJECTS = 90;
 
-const NULL_UI: GameUi = { banner() {}, discovery() {}, stateChanged() {}, showSummary() {}, stamp() {}, frame() {} };
+const NULL_UI: GameUi = { banner() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, stamp() {}, frame() {} };
 
 export class Game {
   readonly bus = new EventBus();
@@ -161,6 +169,8 @@ export class Game {
   private revived = false;
   private consecutiveFailures = 0;
   private afterCutscene: (() => void) | null = null;
+  /** Lesson the next entry into room 1 starts from (a replay, or a restart mid-lesson). */
+  private lessonFrom: Lesson | null = null;
   private inGameplay = false;
   /** True from the moment an ad is asked for until that request is settled. */
   private waitingForAd = false;
@@ -321,7 +331,7 @@ export class Game {
     this.score.resetRoom(this.scoreAtRoomStart);
     this.challenges.setForRoom(def.challenge);
     this.abilities.resetRoom();
-    this.tutorial.begin(def.tutorial === true);
+    this.tutorial.begin(null);
     this.replay.begin(def.id, def.seed);
   }
 
@@ -344,6 +354,12 @@ export class Game {
     this.enterRoom(this.rooms.definition(index), index, false);
   }
 
+  /** Replays one of room 1's lessons (and everything after it) from the pause menu. */
+  playLesson(lesson: Lesson): void {
+    this.lessonFrom = lesson;
+    this.playFrom(0);
+  }
+
   playDaily(): void {
     this.scoreAtRoomStart = 0;
     this.consecutiveFailures = 0;
@@ -363,15 +379,25 @@ export class Game {
       this.room.hasBoss = true;
       this.room.bossType = boss.type;
     }
+    // Room 1 teaches until it has been sat through once; a replay names its lesson.
+    const saved = this.save.data.tutorial;
+    const lesson = this.lessonFrom ?? (saved === 'done' ? null : LESSONS.find((l) => l === saved) ?? 'move');
+    this.lessonFrom = null;
+    const firstVisit = !daily && this.save.data.unlockedRoom <= index;
+    if (def.tutorial && !daily) this.tutorial.begin(lesson);
+    else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight);
     this.portal.setContext({ room: daily ? 'daily' : index + 1, hero: this.hero });
     this.setState('playing');
     this.funnelT0 = performance.now();
     this.funnelInput = this.funnelGrab = this.funnelThrow = this.funnelHit = false;
     this.bus.emit({ type: 'ROOM_START', room: index });
+    // A new room says what is new about it, once.
+    if (firstVisit && def.teaser && !def.tutorial) this.hud.banner(def.name, def.teaser, 2.6);
     this.analytics.track('room_start', { room: index + 1, daily, generated: index >= this.rooms.handcraftedCount });
   }
 
   restartRoom(): void {
+    this.lessonFrom = this.tutorial.resume;
     this.enterRoom(this.room.def, this.room.index, this.room.daily);
   }
 
@@ -451,7 +477,18 @@ export class Game {
     save.bestChain = Math.max(save.bestChain, this.score.stats.bestChain);
     save.scrap += this.score.stats.scrap;
     let firstClearBonus = 0;
+    const roomBest = save.roomBests[this.room.def.id]?.score ?? 0;
+    let next: RoomSummary['next'] = null;
     if (cleared && !this.room.daily) {
+      const index = this.room.index + 1;
+      const def = this.rooms.definition(index);
+      next = {
+        number: index + 1,
+        name: def.name,
+        teaser: def.teaser ?? 'nobody has tidied in here',
+        mover: def.boss ?? bossSpecFor(index, false, def)?.type ?? def.enemies[def.enemies.length - 1]?.type ?? 'basic',
+        isNew: save.unlockedRoom < index,
+      };
       save.roomsCleared++;
       // First clear pays out scrap for the ability shop: bosses pay double.
       if (save.unlockedRoom <= this.room.index) {
@@ -486,6 +523,11 @@ export class Game {
       challengePassed: challengeBonus > 0,
       challengeBonus,
       firstClearBonus,
+      roomBest,
+      next,
+      offer: cleared
+        ? ABILITIES.filter((a) => !save.abilities.includes(a.id) && save.scrap >= a.cost).sort((a, b) => a.cost - b.cost)[0] ?? null
+        : null,
       canContinue: !cleared && !this.revived && this.ads.isAvailable('rewarded'),
     };
   }

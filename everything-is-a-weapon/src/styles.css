@@ -3099,3 +3099,393 @@ button.mk-card:hover {
   .key { transition: none; }
   .door-leaf { transition: none; }
 }
+
+/* ───────────── the coach: controls shown as pictures, not described ───────────── */
+
+.coach {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.coach.show {
+  display: block;
+}
+
+/* desktop: hangs above the world point the HUD moves .coach to */
+.coach-body {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  animation: coach-in 0.25s ease-out both;
+}
+
+@keyframes coach-in {
+  from { opacity: 0; transform: translateX(-50%) scale(0.6); }
+}
+
+/* phones: where the thumb actually goes. Left 42% of the screen moves, the rest grabs and throws. */
+.coach.thumb {
+  top: 76%;
+  left: 20%;
+}
+
+.coach.thumb.grab,
+.coach.thumb.throw {
+  left: 68%;
+  top: 70%;
+}
+
+.coach kbd {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border: 2.5px solid var(--ink);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 700 16px var(--type);
+  box-shadow: 0 4px 0 var(--ink);
+  animation: coach-press 2s infinite;
+}
+
+.coach-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  gap: 7px 5px;
+}
+
+.coach-keys kbd:nth-child(1) { grid-column: 2; }
+.coach-keys kbd:nth-child(2) { grid-column: 1; animation-delay: 0.5s; }
+.coach-keys kbd:nth-child(3) { animation-delay: 1s; }
+.coach-keys kbd:nth-child(4) { animation-delay: 1.5s; }
+
+@keyframes coach-press {
+  0%, 20%, 100% { transform: none; box-shadow: 0 4px 0 var(--ink); background: var(--paper); }
+  6%, 14% { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); background: var(--yellow); }
+}
+
+.coach-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.coach-mouse {
+  position: relative;
+  width: 30px;
+  height: 44px;
+  overflow: hidden;
+  border: 2.5px solid var(--ink);
+  border-radius: 14px 14px 15px 15px;
+  background: var(--paper);
+  box-shadow: 0 4px 0 var(--ink);
+}
+
+/* the two buttons: a cross of ink over the top half */
+.coach-mouse::before,
+.coach-mouse::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  background: var(--ink);
+}
+
+.coach-mouse::before { left: 0; right: 0; top: 17px; height: 2.5px; }
+.coach-mouse::after { left: 50%; top: 0; width: 2.5px; height: 17px; margin-left: -1.25px; }
+
+.coach-mouse i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50%;
+  height: 17px;
+  background: var(--red);
+  opacity: 0;
+}
+
+.coach-mouse.click i { animation: coach-click 1s infinite; }
+.coach-mouse.hold i { animation: coach-hold 1.8s infinite; }
+.coach-mouse.aim { animation: coach-aim 1.4s ease-in-out infinite; }
+
+@keyframes coach-click {
+  0%, 45%, 100% { opacity: 0; }
+  10%, 35% { opacity: 1; }
+}
+
+@keyframes coach-hold {
+  0%, 6%, 72%, 100% { opacity: 0; }
+  10%, 66% { opacity: 1; }
+}
+
+@keyframes coach-aim {
+  0%, 100% { transform: translate(-5px, 2px) rotate(-8deg); }
+  50% { transform: translate(5px, -2px) rotate(8deg); }
+}
+
+/* the throw charging up while the button is held, then let go */
+.coach-bar {
+  width: 54px;
+  height: 9px;
+  border: 2.5px solid var(--ink);
+  border-radius: 5px;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.coach-bar i {
+  display: block;
+  height: 100%;
+  background: var(--red);
+  animation: coach-fill 1.8s infinite;
+}
+
+@keyframes coach-fill {
+  0%, 8% { width: 0; opacity: 1; }
+  62%, 68% { width: 100%; opacity: 1; }
+  72%, 100% { width: 100%; opacity: 0; }
+}
+
+.coach-thumb {
+  display: block;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 0 3px 0 var(--ink);
+}
+
+.coach-pad {
+  display: grid;
+  place-items: center;
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  border: 3px dashed rgba(251, 246, 233, 0.85);
+  background: rgba(34, 27, 54, 0.35);
+}
+
+.coach-pad .coach-thumb { animation: coach-stick 2.4s ease-in-out infinite; }
+
+@keyframes coach-stick {
+  0%, 50%, 100% { transform: none; }
+  25% { transform: translate(30px, -10px); }
+  75% { transform: translate(-28px, 14px); }
+}
+
+.coach-tap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+}
+
+.coach-tap::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  border: 4px solid var(--yellow);
+  animation: coach-ripple 1s ease-out infinite;
+}
+
+.coach-tap .coach-thumb {
+  background: var(--yellow);
+  animation: coach-tapping 1s infinite;
+}
+
+.coach-tap.hold::before { animation: coach-charge 1.8s linear infinite; }
+.coach-tap.hold .coach-thumb { animation: coach-holding 1.8s infinite; }
+
+@keyframes coach-ripple {
+  0%, 20% { transform: scale(0.5); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+@keyframes coach-tapping {
+  0%, 40%, 100% { transform: scale(1.15); opacity: 0.75; }
+  18%, 28% { transform: scale(0.85); opacity: 1; }
+}
+
+/* thumb down, ring fills, thumb up: hold and let go */
+@keyframes coach-charge {
+  0%, 8% { transform: scale(0.5); opacity: 0; border-color: var(--yellow); }
+  12% { opacity: 1; }
+  62% { transform: scale(1.1); opacity: 1; border-color: var(--red); }
+  70%, 100% { transform: scale(1.5); opacity: 0; border-color: var(--red); }
+}
+
+@keyframes coach-holding {
+  0%, 6%, 72%, 100% { transform: scale(1.15); opacity: 0.75; }
+  10%, 64% { transform: scale(0.85); opacity: 1; }
+}
+
+.coach-cap {
+  padding: 2px 10px 1px;
+  background: var(--grain), var(--sticky);
+  color: var(--ink);
+  font: 700 13px var(--hand);
+  white-space: nowrap;
+  box-shadow: 2px 3px 0 var(--shadow);
+  transform: rotate(-2deg);
+}
+
+/* the power lesson points at the real thing: the POWER button, or its chip */
+body.coach-power .touch-btn.power,
+body.coach-power .power-chip:first-child {
+  animation: coach-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes coach-pulse {
+  0%, 100% { box-shadow: 0 4px 0 var(--ink), 0 0 0 0 rgba(229, 56, 59, 0.9); }
+  50% { box-shadow: 0 4px 0 var(--ink), 0 0 0 12px rgba(229, 56, 59, 0); }
+}
+
+.coach-skip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  display: none;
+  padding: 5px 16px 4px;
+  transform: translateX(-50%) rotate(-0.5deg);
+  pointer-events: auto;
+  border: 0;
+  background: var(--tape);
+  clip-path: var(--tape-shape);
+  color: var(--ink);
+  font: 700 12px var(--hand);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.coach-skip:hover { opacity: 1; }
+
+body.tutorial.playing .coach-skip {
+  display: block;
+}
+
+body.cinema .coach,
+body.cinema .coach-skip {
+  opacity: 0;
+}
+
+/* the level-up card: a sticky note slapped on the screen */
+.hud-unlock {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 92vw;
+  padding: 14px 26px 16px;
+  background: var(--grain), var(--sticky);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 4px 6px 0 var(--shadow);
+  transform: translate(-50%, -50%) rotate(-2deg);
+}
+
+.hud-unlock.show {
+  display: flex;
+  animation: unlock-in 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes unlock-in {
+  from { opacity: 0; transform: translate(-50%, -50%) rotate(-14deg) scale(0.3); }
+}
+
+.unlock-kicker,
+.next-door-key {
+  padding: 2px 10px 1px;
+  background: var(--red);
+  color: #fff;
+  font: 700 12px var(--type);
+  letter-spacing: 0.18em;
+}
+
+.unlock-title { font-size: clamp(24px, 4.4vw, 46px); }
+.unlock-sub { font: 700 14px var(--hand); }
+
+/* results sheet: the next room's key, name and whoever is waiting in it */
+.next-door {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 18px;
+  padding: 8px 12px;
+  background: var(--grain), var(--sticky);
+  box-shadow: 2px 3px 0 var(--shadow);
+  transform: rotate(-1deg);
+}
+
+.next-door.new {
+  animation: next-door-in 0.5s 0.7s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes next-door-in {
+  from { opacity: 0; transform: rotate(-9deg) scale(0.5); }
+}
+
+.next-door .mug { flex: none; }
+
+.next-door-words {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.next-door-key { font-size: 11px; }
+.next-door-name { font: italic 400 20px var(--shout); letter-spacing: 0.04em; text-transform: uppercase; }
+.next-door-teaser { font: 700 13px/1.25 var(--hand); }
+
+.offer-line { align-items: center; }
+.offer-line .bonus-text { flex: 1; }
+
+.lesson-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lesson-row .ability-buy {
+  padding: 4px 8px 3px;
+  font-size: 11px;
+  background: var(--paper);
+}
+
+@media (max-height: 520px) {
+  .coach kbd { min-width: 26px; height: 26px; font-size: 13px; }
+  .coach-keys { grid-template-columns: repeat(3, 26px); }
+  .coach-pad { width: 92px; height: 92px; }
+  .coach-tap { width: 80px; height: 80px; }
+  .hud-unlock { padding: 6px 16px 8px; gap: 3px; top: 26%; }
+  .unlock-title { font-size: 24px; }
+  .unlock-sub { font-size: 12px; }
+  /* short screens: tucked in beside the stamp instead of above it */
+  .next-door { margin: 4px 0 0; padding: 3px 10px; max-width: calc(100% - 170px); }
+  .next-door-name { font-size: 15px; }
+  .next-door-teaser { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach kbd, .coach-mouse, .coach-mouse i, .coach-bar i, .coach-thumb, .coach-tap::before { animation-duration: 4s; }
+  .hud-unlock.show, .next-door.new, .coach-body { animation: none; }
+}

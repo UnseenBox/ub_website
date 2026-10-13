@@ -1,5 +1,6 @@
 import { moveKeysLabel } from '../input/KeyLabels';
 import { ABILITIES, type AbilityId } from '../gameplay/Abilities';
+import { LESSONS, type Lesson } from '../gameplay/Tutorial';
 import type { Game } from '../core/Game';
 import type { Settings } from '../save/SaveManager';
 import { button, el } from './dom';
@@ -11,6 +12,8 @@ export interface PauseActions {
   home(): void;
   /** Returns '' when the ability was bought, otherwise the reason it failed. */
   buyAbility(id: AbilityId): string;
+  /** Back to room 1, starting at that lesson. */
+  lesson(id: Lesson): void;
 }
 
 const controls = (): ReadonlyArray<readonly [string, string]> => [
@@ -87,6 +90,16 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
     }
     shop.append(row);
   }
+
+  // Any of room 1's lessons again, for whoever skipped them or forgot.
+  const lessons = el('div', 'lesson-row');
+  for (const id of LESSONS) {
+    const again = el('button', 'ability-buy', id === 'free' ? 'BRAWL' : id.toUpperCase());
+    again.type = 'button';
+    again.addEventListener('click', () => actions.lesson(id));
+    lessons.append(again);
+  }
+  shop.append(el('div', 'note-title', 'room 1 lessons again:'), lessons);
 
   const note = el('div', 'controls-note');
   note.append(el('div', 'note-title', 'how to fight:'));
