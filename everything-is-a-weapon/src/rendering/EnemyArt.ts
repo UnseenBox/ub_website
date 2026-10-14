@@ -99,13 +99,15 @@ const BULBS = ['#ff5a4e', '#ffd23f', '#6fe0c2', '#4ad6e8', '#ff9ec4'];
 
 type Tone = (color: string) => string;
 
-function legs(ctx: Ctx, x: number, y: number, phase: number, spread: number, size: number): void {
+const SHOES: Partial<Record<EnemyTypeId, string>> = {
+  basic: '#f2ece0', helmet: '#f2ece0', electric: '#ffd23f', shield: '#2a2540', fragile: '#dfeaf2',
+  nested: '#e8d9b8', mini: '#f2ece0', kaboom: '#ffd23f', fast: '#e5383b', heavy: '#5c3b1e',
+  gnat: '#17132a', hurler: '#2f4fb5', bulwark: STEEL_DARK, trolley: '#f2ece0',
+};
+
+/** Stubby sneakers: inked sole, coloured upper, a bright toe cap. */
+function legs(ctx: Ctx, x: number, y: number, phase: number, spread: number, size: number, shoe = '#f2ece0'): void {
   const swing = Math.sin(phase) * 4;
-  ctx.fillStyle = INK;
-  ctx.beginPath();
-  ctx.ellipse(x - spread, y + swing, size, size * 0.7, 0, 0, TAU);
-  ctx.ellipse(x + spread, y - swing, size, size * 0.7, 0, 0, TAU);
-  ctx.fill();
   ctx.strokeStyle = INK;
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -114,6 +116,22 @@ function legs(ctx: Ctx, x: number, y: number, phase: number, spread: number, siz
   ctx.moveTo(x + spread, y - swing);
   ctx.lineTo(x + spread * 0.8, y - 6);
   ctx.stroke();
+  for (const [sx, sy] of [[x - spread, y + swing], [x + spread, y - swing]] as const) {
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 0.8, size + 1.5, size * 0.7 + 1.5, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = shoe;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy - 0.4, size, size * 0.62, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(26, 14, 52, 0.22)';
+    ctx.fillRect(sx - size * 0.9, sy + size * 0.18, size * 1.8, size * 0.28);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.beginPath();
+    ctx.ellipse(sx - size * 0.3, sy - size * 0.35, size * 0.38, size * 0.16, 0, 0, TAU);
+    ctx.fill();
+  }
 }
 
 function mitt(ctx: Ctx, fromX: number, fromY: number, x: number, y: number, color: string): void {
@@ -2135,6 +2153,29 @@ function xray(ctx: Ctx, x: number, top: number, bottom: number, width: number): 
   ctx.lineCap = 'butt';
 }
 
+/** Wear on a cardboard face: a lit left edge, a shaded right edge, a bottom fold, a few scuffs. */
+function boxSurface(ctx: Ctx, e: Enemy, x: number, faceTop: number, faceBottom: number, hw: number): void {
+  const faceH = faceBottom - faceTop;
+  ctx.fillStyle = 'rgba(255, 244, 210, 0.22)';
+  ctx.fillRect(x - hw + 1.5, faceTop + 1.5, 2.2, faceH - 3);
+  ctx.fillStyle = 'rgba(26, 14, 52, 0.2)';
+  ctx.fillRect(x + hw - 3.7, faceTop + 1.5, 2.2, faceH - 3);
+  ctx.fillStyle = 'rgba(26, 14, 52, 0.22)';
+  ctx.fillRect(x - hw + 1, faceBottom - 6, hw * 2 - 2, 1.4);
+  ctx.strokeStyle = 'rgba(255, 244, 210, 0.3)';
+  ctx.lineWidth = 1.3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) {
+    const sx = x - hw + 4 + hash(e.seed + i * 7) * (hw * 2 - 12);
+    const sy = faceTop + 4 + hash(e.seed + i * 13) * (faceH - 14);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + 3.5, sy + 2.2);
+  }
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+}
+
 /** What marks out the later arrivals: stickers, fuses, wheels, boxes inside boxes. */
 function newcomerProps(
   ctx: Ctx, e: Enemy, x: number, y: number, faceTop: number, faceBottom: number, topY: number,
@@ -2142,6 +2183,88 @@ function newcomerProps(
 ): void {
   const id = e.type.id;
   const faceH = faceBottom - faceTop;
+  if (id === 'basic' || id === 'mini') {
+    // packing peanuts spilling out of the lid, bouncing as it walks
+    const bob = Math.abs(Math.sin(e.walkPhase)) * 2;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    for (const [ox, oy, r] of [[-5, 0, 3.4], [1, -3, 3.8], [6, 1, 3.2]] as const) {
+      const sway = Math.sin(time * 5 + ox) * 0.6;
+      ctx.fillStyle = tone('#fbf6e9');
+      ctx.beginPath();
+      ctx.ellipse(x + ox + sway, topY + oy - 2 - bob * (ox > 0 ? 0.6 : 1), r, r * 0.62, ox * 0.12, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + ox + sway - r * 0.5, topY + oy - 2 - bob * (ox > 0 ? 0.6 : 1));
+      ctx.quadraticCurveTo(x + ox + sway, topY + oy - 4 - bob, x + ox + sway + r * 0.5, topY + oy - 2 - bob * (ox > 0 ? 0.6 : 1));
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+  } else if (id === 'shield') {
+    // the official cap: band, peak and a brass badge
+    const capY = topY - 2;
+    ctx.fillStyle = tone('#23305f');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.6;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - hw + 2, capY + 2);
+    ctx.quadraticCurveTo(x - hw + 3, capY - 11, x, capY - 12);
+    ctx.quadraticCurveTo(x + hw - 3, capY - 11, x + hw - 2, capY + 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone('#101a3d');
+    ctx.fillRect(x - hw + 2.5, capY - 2, hw * 2 - 5, 4.4);
+    ctx.fillStyle = tone('#23305f');
+    ctx.beginPath();
+    ctx.ellipse(x + Math.cos(e.facing) * 4, capY + 4.2, hw - 1, 3.4, 0, 0, Math.PI);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone('#ffd23f');
+    ctx.beginPath();
+    ctx.arc(x, capY - 5.6, 3, 0, TAU);
+    ctx.fill();
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+  if (id === 'fragile') {
+    // a ribbon and a bow, and the cracks that show where it has already been dropped
+    ctx.fillStyle = tone('#e5383b');
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.fillRect(x - 2.6, topY - hd + 1, 5.2, hd * 2);
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x, topY - 1);
+      ctx.quadraticCurveTo(x + side * 11, topY - 12 + Math.sin(time * 4) * 0.8, x + side * 9, topY + 1);
+      ctx.quadraticCurveTo(x + side * 4, topY + 2, x, topY - 1);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(x, topY - 1, 2.6, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    const worn = 1 - e.hp / e.type.hp;
+    if (worn > 0.05 && !away) {
+      ctx.strokeStyle = 'rgba(26, 14, 52, 0.75)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x + hw - 3, faceTop + 3);
+      ctx.lineTo(x + hw - 7, faceTop + 9);
+      ctx.lineTo(x + hw - 5, faceTop + 13);
+      ctx.lineTo(x + hw - 10, faceTop + 18);
+      if (worn > 0.4) {
+        ctx.moveTo(x + hw - 7, faceTop + 9);
+        ctx.lineTo(x + hw - 13, faceTop + 8);
+      }
+      ctx.stroke();
+    }
+  }
   if (id === 'fragile') {
     // a red band right round it, and the wine glass symbol
     ctx.fillStyle = tone('#e5383b');
@@ -2178,7 +2301,35 @@ function newcomerProps(
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText('x3', x - hw + 3.5, faceBottom - 3.2);
+    // the next box down, peeking out of the lid to see what the noise was
+    const peek = 4 + Math.sin(time * 3 + e.seed) * 1.2;
+    ctx.fillStyle = tone(KRAFT_LIGHT);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.rect(x - 7, topY - 8 - peek, 14, 10 + peek);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone(TAPE);
+    ctx.fillRect(x - 1.8, topY - 6 - peek, 3.6, 8 + peek);
+    if (!away) eyes(ctx, x + Math.cos(e.facing) * 1.5, topY - 1 - peek * 0.4, 3, Math.cos(e.facing), Math.sin(e.facing), 1.9, e.defeated);
   } else if (id === 'kaboom') {
+    // soot from the last time it went off, and a thread of smoke
+    ctx.fillStyle = 'rgba(26, 14, 52, 0.32)';
+    ctx.beginPath();
+    ctx.ellipse(x - hw + 5, faceTop + 6, 8, 4.5, -0.4, 0, TAU);
+    ctx.ellipse(x - hw + 12, faceTop + 3, 4, 2.4, 0.2, 0, TAU);
+    ctx.fill();
+    if (!e.defeated) {
+      for (let i = 0; i < 3; i++) {
+        const age = (time * 0.9 + i / 3) % 1;
+        ctx.fillStyle = `rgba(120, 112, 130, ${0.55 * (1 - age)})`;
+        ctx.beginPath();
+        ctx.arc(x - 6 + Math.sin(age * 6 + i) * 3, topY - 4 - age * 22, 2 + age * 3.6, 0, TAU);
+        ctx.fill();
+      }
+    }
     // hazard diamond on the front
     if (!away) {
       const dx = x + hw - 7;
@@ -2291,7 +2442,8 @@ function newcomerProps(
   }
 }
 
-export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number): void {
+/** Draws the body only (no telegraphs, no HP strip); returns where those two belong. */
+function drawEnemyBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number): { overheadY: number; barHw: number } {
   const type = e.type;
   const id = type.id;
   const build = BUILDS[id];
@@ -2351,9 +2503,7 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
     ctx.translate(-x, -y);
     drawBossBody(ctx, e, x, y, time, { hw, hd, tone, fx, fy, windup, hop, topY, lift });
     ctx.restore();
-    if (!e.defeated) drawOverhead(ctx, e, x, time, y + (topY - y) * BOSS_DRAW_SCALE);
-    drawHpBar(ctx, e, x, y, hw * BOSS_DRAW_SCALE, hd);
-    return;
+    return { overheadY: y + (topY - y) * BOSS_DRAW_SCALE, barHw: hw * BOSS_DRAW_SCALE };
   }
 
   if (id === 'trolley' && !e.defeated) {
@@ -2376,7 +2526,7 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
   }
 
   if (!e.defeated) {
-    legs(ctx, x, y + hd + 1, e.walkPhase, hw * 0.5, id === 'heavy' ? 6.5 : id === 'fast' || id === 'gnat' ? 4 : 5);
+    legs(ctx, x, y + hd + 1, e.walkPhase, hw * 0.5, id === 'heavy' ? 6.5 : id === 'fast' || id === 'gnat' ? 4 : 5, tone(SHOES[id] ?? '#f2ece0'));
   }
 
   // The shield-bearers carry their protection in front, drawn behind the body
@@ -2459,21 +2609,42 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
       c.fillRect(-4, -hd, 8, hd * 2);
     });
     // side flaps stand up like ears, and perk when the mover is about to lunge
-    const perk = Math.sin(e.walkPhase * 2) * 2 + windup * 7 + flash * 4 + (e.defeated ? 8 : 0);
+    const droop = id === 'shield' || id === 'fragile' ? -5 : 0;
+    const perk = Math.sin(e.walkPhase * 2) * 2 + windup * 7 + flash * 4 + (e.defeated ? 8 : 0) + droop;
     ctx.fillStyle = tone(KRAFT_LIGHT);
     ctx.strokeStyle = INK;
     ctx.lineWidth = 2.4;
     ctx.lineJoin = 'round';
-    for (const side of [-1, 1]) {
+    for (const side of id === 'electric' ? [] : [-1, 1]) {
       const ex = x + hw * side;
+      // each box bends its flaps a little differently
+      const lift = perk + (side < 0 ? 1 : -1) * (hash(e.seed + 3) - 0.5) * 5;
       ctx.beginPath();
       ctx.moveTo(ex, topY - hd + 1);
       ctx.lineTo(ex, topY + hd - 1);
-      ctx.lineTo(ex + side * 8, topY + hd - 6 - perk);
-      ctx.lineTo(ex + side * 8, topY - hd - 3 - perk);
+      ctx.lineTo(ex + side * 8, topY + hd - 6 - lift);
+      ctx.lineTo(ex + side * 8, topY - hd - 3 - lift);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+      // the underside in shade, and the corrugated cut edge catching the light
+      ctx.fillStyle = 'rgba(60, 36, 12, 0.3)';
+      ctx.beginPath();
+      ctx.moveTo(ex, topY - hd + 1);
+      ctx.lineTo(ex, topY + hd - 1);
+      ctx.lineTo(ex + side * 3.2, topY + hd - 3.4 - lift * 0.6);
+      ctx.lineTo(ex + side * 3.2, topY - hd - 1.5 - lift * 0.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 244, 210, 0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(ex + side * 7, topY + hd - 6.5 - lift);
+      ctx.lineTo(ex + side * 7, topY - hd - 2.5 - lift);
+      ctx.stroke();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2.4;
+      ctx.fillStyle = tone(KRAFT_LIGHT);
     }
   } else if (id === 'heavy') {
     onTop(ctx, x, y, 0, h + hop, (c) => {
@@ -2567,6 +2738,41 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
       ctx.lineTo(x + hw - 1, faceTop + faceH * fraction);
     }
     ctx.stroke();
+    // wood grain, nail heads and a rope handle knotted through each side
+    ctx.strokeStyle = 'rgba(40, 22, 8, 0.32)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (const [gx, gy, gl] of [[-14, 5, 9], [-4, 14, 7], [6, 8, 10], [13, 18, 6], [-12, 22, 8]] as const) {
+      ctx.moveTo(x + gx, faceTop + gy);
+      ctx.quadraticCurveTo(x + gx + gl / 2, faceTop + gy - 1.6, x + gx + gl, faceTop + gy);
+    }
+    ctx.stroke();
+    ctx.fillStyle = tone('#d8d2c4');
+    for (const nx of [-hw + 5, -hw * 0.34, hw * 0.34, hw - 5]) {
+      for (const ny of [faceTop + 4, faceBottom - 4]) {
+        ctx.beginPath();
+        ctx.arc(x + nx, ny, 1.3, 0, TAU);
+        ctx.fill();
+      }
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3.4;
+    ctx.lineCap = 'round';
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x + side * hw, faceTop + faceH * 0.55);
+      ctx.quadraticCurveTo(x + side * (hw + 9), faceTop + faceH * 0.62, x + side * hw, faceTop + faceH * 0.78);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = tone('#d9bf86');
+    ctx.lineWidth = 1.6;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x + side * hw, faceTop + faceH * 0.55);
+      ctx.quadraticCurveTo(x + side * (hw + 9), faceTop + faceH * 0.62, x + side * hw, faceTop + faceH * 0.78);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
     // steel corner brackets
     ctx.fillStyle = tone(STEEL);
     for (const side of [-1, 1]) {
@@ -2597,7 +2803,16 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
   } else {
     // parcel tape running down the front
     ctx.fillStyle = tone(id === 'electric' ? '#ffd23f' : TAPE);
-    ctx.fillRect(x - 4, faceTop + 1, 8, faceH - 1);
+    ctx.fillRect(x - 4, faceTop + 1, 8, faceH - 6);
+    ctx.beginPath();
+    ctx.moveTo(x - 4, faceTop + faceH - 5);
+    for (let i = 0; i < 4; i++) ctx.lineTo(x - 4 + i * 2.7 + 1.3, faceBottom - (i % 2 === 0 ? 0.5 : 3.6));
+    ctx.lineTo(x + 4, faceTop + faceH - 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillRect(x - 2.6, faceTop + 2, 1.3, faceH - 9);
+    boxSurface(ctx, e, x, faceTop, faceBottom, hw);
     if (away) {
       // from behind: a shipping label and a barcode
       ctx.fillStyle = tone('#fbf6e9');
@@ -2624,6 +2839,17 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
         ctx.closePath();
         ctx.fill();
       }
+      // brows slam down into a scowl as it winds up
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, slotY - 7.4);
+      ctx.lineTo(cx - 3, slotY - 4.4 - windup * 1.6);
+      ctx.moveTo(cx + 10, slotY - 7.4);
+      ctx.lineTo(cx + 3, slotY - 4.4 - windup * 1.6);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
       tearMouth(ctx, cx, faceTop + faceH * 0.68, 5, windup);
     }
     if (id === 'shield' && !away) {
@@ -2654,6 +2880,36 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
 
   // ── props ──
   if (id === 'electric' && !shockFrame) {
+    // no flaps: wires sprout from the lid like frayed hair, spitting sparks
+    ctx.lineCap = 'round';
+    const WIRES = ['#e5383b', '#235a3c', '#2f4fb5', '#ffd23f'];
+    for (let i = 0; i < 4; i++) {
+      const wx = x - hw + 5 + i * ((hw * 2 - 10) / 3);
+      const sway = Math.sin(time * 4 + i * 1.9 + e.seed) * 3;
+      const tipX = wx + (i - 1.5) * 5 + sway;
+      const tipY = topY - 17 - (i % 2) * 5;
+      ctx.beginPath();
+      ctx.moveTo(wx, topY);
+      ctx.bezierCurveTo(wx - 7, topY - 9, tipX + 8, topY - 8, tipX, tipY);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 4.6;
+      ctx.stroke();
+      ctx.strokeStyle = tone(WIRES[i]!);
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      if (!e.defeated && hash(Math.floor(time * 14) + i * 5 + e.seed) > 0.55) {
+        ctx.strokeStyle = '#fff6a8';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let k = 0; k < 3; k++) {
+          const a = hash(Math.floor(time * 14) + k + i) * TAU;
+          ctx.moveTo(tipX, tipY);
+          ctx.lineTo(tipX + Math.cos(a) * 5, tipY + Math.sin(a) * 5);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.lineCap = 'butt';
     // a string of fairy lights wound round the box, blinking out of order
     ctx.strokeStyle = '#235a3c';
     ctx.lineWidth = 2;
@@ -2848,8 +3104,132 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
 
   if ((id === 'shield' || id === 'bulwark') && !e.defeated && fy >= -0.1) board();
   ctx.restore();
+  return { overheadY: topY, barHw: hw };
+}
+
+let scratch: HTMLCanvasElement | null = null;
+let rimLayer: HTMLCanvasElement | null = null;
+
+/**
+ * Every mover and boss is painted on a scratch canvas first, so one lighting pass can sit
+ * on top of whatever silhouette was drawn: warm light from the upper left, cool shade low
+ * on the right, a darker foot. Then it is blitted back with a soft floor shadow underneath.
+ */
+export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number): void {
+  const id = e.type.id;
+  const boss = (CUSTOM_BOSS_IDS as ReadonlyArray<string>).includes(id);
+  const { hw, hd, h } = BUILDS[id];
+  const k = boss ? BOSS_DRAW_SCALE : 1;
+  const m = ctx.getTransform();
+  const s = Math.min(4, Math.hypot(m.a, m.b)) || 1;
+  const halfW = boss ? 200 : 64;
+  const up = boss ? 300 : 110;
+  const down = boss ? 70 : 34;
+  const w = halfW * 2;
+  const total = up + down;
+  const pw = Math.ceil(w * s);
+  const ph = Math.ceil(total * s);
+  scratch ??= document.createElement('canvas');
+  const sc = scratch.getContext('2d');
+  if (!sc || pw > 4096 || ph > 4096) {
+    const done = drawEnemyBody(ctx, e, x, y, time);
+    if (!e.defeated) drawOverhead(ctx, e, x, time, done.overheadY);
+    drawHpBar(ctx, e, x, y, done.barHw, hd);
+    return;
+  }
+  if (scratch.width < pw || scratch.height < ph) {
+    scratch.width = Math.max(scratch.width, pw);
+    scratch.height = Math.max(scratch.height, ph);
+  }
+  const left = x - halfW;
+  const top = y - up;
+
+  // floor shadow first, so it sits under the body and the body's own alpha (defeat fade) shows it
+  const fade = e.defeated ? Math.min(1, e.removeIn / 0.35) : 1;
+  ctx.fillStyle = `rgba(34, 27, 54, ${0.26 * fade})`;
+  ctx.beginPath();
+  ctx.ellipse(x + 2, y + hd * k + 1, hw * k * 1.05 + 4, hd * k * 0.8 + 3, 0, 0, TAU);
+  ctx.fill();
+  if (boss && !e.defeated) {
+    // the boss tints the floor it stands on, and glows hot once it has been hurt enough to rage
+    const rage = e.rageMult > 1 ? 0.55 + Math.sin(time * 7) * 0.2 : 0;
+    ctx.save();
+    ctx.translate(x, y + hd * k);
+    ctx.scale(1, 0.42);
+    const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, hw * k * 1.9);
+    glow.addColorStop(0, rage > 0 ? `rgba(255, 96, 52, ${0.5 * rage})` : BUILDS[id].top);
+    glow.addColorStop(1, 'rgba(255, 96, 52, 0)');
+    ctx.globalAlpha = rage > 0 ? 1 : 0.22;
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, hw * k * 1.9, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  sc.setTransform(1, 0, 0, 1, 0, 0);
+  sc.globalAlpha = 1;
+  sc.globalCompositeOperation = 'source-over';
+  sc.clearRect(0, 0, pw, ph);
+  sc.setTransform(s, 0, 0, s, -left * s, -top * s);
+  const done = drawEnemyBody(sc, e, x, y, time);
+
+  sc.setTransform(1, 0, 0, 1, 0, 0);
+  sc.globalCompositeOperation = 'source-atop';
+  const bx0 = (x - hw * k - 10 - left) * s;
+  const bx1 = (x + hw * k + 10 - left) * s;
+  const by0 = (y - h * k - 14 - top) * s;
+  const by1 = (y + hd * k + 6 - top) * s;
+  const light = sc.createLinearGradient(bx0, by0, bx1, by1);
+  light.addColorStop(0, 'rgba(255, 246, 214, 0.24)');
+  light.addColorStop(0.42, 'rgba(255, 246, 214, 0)');
+  light.addColorStop(0.62, 'rgba(26, 14, 52, 0)');
+  light.addColorStop(1, 'rgba(26, 14, 52, 0.3)');
+  sc.fillStyle = light;
+  sc.fillRect(0, 0, pw, ph);
+  const foot = sc.createLinearGradient(0, by1 - (by1 - by0) * 0.3, 0, by1);
+  foot.addColorStop(0, 'rgba(26, 14, 52, 0)');
+  foot.addColorStop(1, 'rgba(26, 14, 52, 0.2)');
+  sc.fillStyle = foot;
+  sc.fillRect(0, 0, pw, ph);
+  if (boss) {
+    // lacquer: a soft diagonal sheen across the upper body
+    const sheen = sc.createLinearGradient(bx0, by0, bx0 + (bx1 - bx0) * 0.6, by0 + (by1 - by0) * 0.5);
+    sheen.addColorStop(0.1, 'rgba(255, 255, 255, 0)');
+    sheen.addColorStop(0.4, 'rgba(255, 255, 255, 0.13)');
+    sheen.addColorStop(0.62, 'rgba(255, 255, 255, 0)');
+    sc.fillStyle = sheen;
+    sc.fillRect(0, 0, pw, ph);
+  }
+  sc.globalCompositeOperation = 'source-over';
+
+  ctx.drawImage(scratch, 0, 0, pw, ph, left, top, pw / s, ph / s);
+
+  if (boss) {
+    // rim light: the edge strip the sprite loses when slid down and right, tinted warm
+    rimLayer ??= document.createElement('canvas');
+    const rc = rimLayer.getContext('2d');
+    if (rc) {
+      if (rimLayer.width < pw || rimLayer.height < ph) {
+        rimLayer.width = Math.max(rimLayer.width, pw);
+        rimLayer.height = Math.max(rimLayer.height, ph);
+      }
+      rc.globalCompositeOperation = 'source-over';
+      rc.clearRect(0, 0, pw, ph);
+      rc.drawImage(scratch, 0, 0, pw, ph, 0, 0, pw, ph);
+      rc.globalCompositeOperation = 'source-in';
+      rc.fillStyle = '#fff1c8';
+      rc.fillRect(0, 0, pw, ph);
+      rc.globalCompositeOperation = 'destination-out';
+      const nudge = Math.max(2, 1.8 * s);
+      rc.drawImage(scratch, 0, 0, pw, ph, nudge, nudge, pw, ph);
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(rimLayer, 0, 0, pw, ph, left, top, pw / s, ph / s);
+      ctx.globalAlpha = 1;
+    }
+  }
 
   if (e.defeated) return;
-  drawOverhead(ctx, e, x, time, topY);
-  drawHpBar(ctx, e, x, y, hw, hd);
+  drawOverhead(ctx, e, x, time, done.overheadY);
+  drawHpBar(ctx, e, x, y, done.barHw, hd);
 }
