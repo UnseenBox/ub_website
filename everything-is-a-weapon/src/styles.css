@@ -1266,10 +1266,22 @@ body.cinema .hud-top {
   transform: rotate(1deg);
 }
 
-.scrap-row {
-  margin: 2px 0 4px;
-  font: 700 14px var(--type);
-  letter-spacing: 0.1em;
+/* powers header: title on the left, scrap purse on the right, one line */
+.shop-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shop-head .note-title {
+  margin: 0;
+}
+
+.scrap-count {
+  font: 700 13px var(--type);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .ability-row {
@@ -1285,10 +1297,9 @@ body.cinema .hud-top {
   white-space: nowrap;
 }
 
-.ability-blurb {
-  flex: 1;
-  font: 700 12px/1.2 var(--hand);
-  opacity: 0.75;
+.ability-row .ability-buy,
+.ability-row .ability-owned {
+  margin-left: auto;
 }
 
 .ability-buy {
@@ -1782,13 +1793,16 @@ body.cinema .hud-top {
   transform: rotate(-1deg);
 }
 
-/* pause: a door hanger and a note */
+/* pause: a door hanger, the powers and a note */
 .screen.pause {
   flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 30px;
-  width: min(100%, 720px);
+  width: min(100%, 1020px);
+  /* safe centering: centered while it fits, top-aligned and scrollable past that */
+  margin: auto;
+  min-height: 0;
 }
 
 .hanger {
@@ -1818,17 +1832,13 @@ body.cinema .hud-top {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   color: #fff;
 }
 
 .hanger-big {
   font: italic 400 44px/0.95 var(--shout);
   letter-spacing: 0.03em;
-}
-
-.hanger-small {
-  font: 700 16px var(--hand);
 }
 
 .hanger .menu-buttons {
@@ -1861,6 +1871,41 @@ body.cinema .hud-top {
 .key {
   color: var(--blue);
   white-space: nowrap;
+}
+
+/* folded extras: the tutorial replay and the full control list, one tap to open */
+.fold-box {
+  margin-top: 8px;
+  border-top: 2px dashed rgba(34, 27, 54, 0.25);
+  padding-top: 6px;
+}
+
+.fold-head {
+  cursor: pointer;
+  font: 700 12px var(--type);
+  letter-spacing: 0.14em;
+  opacity: 0.75;
+  list-style: none;
+}
+
+.fold-head::-webkit-details-marker {
+  display: none;
+}
+
+.fold-head::after {
+  content: ' +';
+}
+
+details[open] > .fold-head::after {
+  content: ' −';
+}
+
+.fold-head:hover {
+  opacity: 1;
+}
+
+.fold-box .lesson-row {
+  margin-top: 8px;
 }
 
 /* settings: a typed sheet, ticked in pen */
@@ -2111,6 +2156,26 @@ body.touch #game {
   }
   .screen.pause {
     flex-direction: column;
+    justify-content: flex-start;
+    gap: 14px;
+    width: min(100%, 380px);
+    max-height: 100%;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+  .hanger {
+    width: min(100%, 340px);
+    padding: 56px 22px 20px;
+  }
+  .hanger-big {
+    font-size: 34px;
+  }
+  .ability-shop {
+    width: 100%;
+  }
+  .controls-note {
+    width: 100%;
+    transform: rotate(-1.5deg);
   }
   .menu-mid {
     flex-direction: column;
@@ -2123,9 +2188,6 @@ body.touch #game {
   }
   .menu-mid .room-wall {
     max-height: 200px;
-  }
-  .controls-note {
-    display: none;
   }
   .hud-toast {
     bottom: 16px;
@@ -2370,9 +2432,6 @@ body.touch #game {
   .hanger-big {
     font-size: 24px;
   }
-  .hanger-small {
-    font-size: 12px;
-  }
   .controls-note {
     padding: 10px 14px 12px;
     font-size: 11.5px;
@@ -2380,6 +2439,33 @@ body.touch #game {
   }
   .note-title {
     font-size: 14px;
+  }
+
+  /* short landscape: the pause panels sit side by side and scroll inside
+     themselves, so everything stays reachable in ~340px of height */
+  .screen.pause {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 14px;
+    width: min(100%, 860px);
+  }
+  .screen.pause .hanger,
+  .screen.pause .ability-shop,
+  .screen.pause .controls-note {
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+  .screen.pause .hanger {
+    flex: none;
+    width: 230px;
+  }
+  .screen.pause .ability-shop,
+  .screen.pause .controls-note {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .rules-sheet .rule {
