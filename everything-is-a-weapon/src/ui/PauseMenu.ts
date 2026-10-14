@@ -46,34 +46,39 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
 
   const hanger = el('div', 'hanger');
   const sign = el('div', 'hanger-sign');
-  sign.append(el('span', 'hanger-small', 'please'), el('span', 'hanger-big', 'DO NOT'), el('span', 'hanger-big', 'DISTURB'), el('span', 'hanger-small', '(paused)'));
+  sign.append(el('span', 'hanger-big', 'PAUSED'));
   const buttons = el('div', 'menu-buttons');
   buttons.append(
     button('RESUME', 'primary', actions.resume),
-    button('RESTART ROOM', '', actions.restart),
+    button('RESTART', '', actions.restart),
     button('SETTINGS', '', actions.settings),
     button('HOME', '', actions.home),
   );
   hanger.append(el('span', 'hanger-hole'), sign, buttons);
 
-  // The ability shop: scrap buys permanent powers, usable with 1/2/3 (or POWER on touch).
+  // Scrap buys permanent powers: key, name and price on one line. What each
+  // power does lives in the tooltip, so the list stays scannable.
   const shop = el('div', 'ability-shop');
-  const scrapRow = el('div', 'scrap-row', `SCRAP: ${game.save.data.scrap}`);
-  shop.append(el('div', 'note-title', 'abilities for scrap:'), scrapRow);
+  const shopHead = el('div', 'shop-head');
+  shopHead.append(el('div', 'note-title', 'POWERS'));
+  const scrapCount = el('span', 'scrap-count', `${game.save.data.scrap} SCRAP`);
+  shopHead.append(scrapCount);
+  shop.append(shopHead);
   for (const def of ABILITIES) {
     const row = el('div', 'ability-row');
+    row.title = def.blurb;
     row.append(el('span', 'key', touch ? 'POWER' : def.key), el('span', 'ability-name', def.name));
-    row.append(el('span', 'ability-blurb', def.blurb));
     if (game.abilities.owned(def.id)) {
       row.append(el('span', 'ability-owned', 'OWNED'));
     } else {
       const buy = el('button', 'ability-buy');
       buy.type = 'button';
-      buy.textContent = `BUY · ${def.cost}`;
+      buy.textContent = `${def.cost} SCRAP`;
+      buy.setAttribute('aria-label', `Unlock ${def.name} for ${def.cost} scrap: ${def.blurb}`);
       buy.addEventListener('click', () => {
         const failed = actions.buyAbility(def.id);
         if (!failed) {
-          scrapRow.textContent = `SCRAP: ${game.save.data.scrap}`;
+          scrapCount.textContent = `${game.save.data.scrap} SCRAP`;
           buy.replaceWith(el('span', 'ability-owned', 'OWNED'));
         } else {
           const label = buy.textContent;
@@ -91,28 +96,41 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
     shop.append(row);
   }
 
-  // Any of room 1's lessons again, for whoever skipped them or forgot.
+  // Room 1's lessons again, folded away until wanted.
+  const replay = el('details', 'fold-box');
+  replay.append(el('summary', 'fold-head', 'REPLAY TUTORIAL'));
   const lessons = el('div', 'lesson-row');
   for (const id of LESSONS) {
     const again = el('button', 'ability-buy', id === 'free' ? 'BRAWL' : id.toUpperCase());
     again.type = 'button';
+    again.setAttribute('aria-label', `Replay the ${id} tutorial in room 1`);
     again.addEventListener('click', () => actions.lesson(id));
     lessons.append(again);
   }
-  shop.append(el('div', 'note-title', 'room 1 lessons again:'), lessons);
+  replay.append(lessons);
+  shop.append(replay);
 
+  // The essentials up front, the rest one tap away. Owned powers already show
+  // in the shop above, so the note does not list them twice.
   const note = el('div', 'controls-note');
-  note.append(el('div', 'note-title', 'how to fight:'));
+  note.append(el('div', 'note-title', 'CONTROLS'));
   const rows: ReadonlyArray<readonly [string, string]> = touch ? TOUCH_CONTROLS : controls();
-  for (const [key, action] of rows) {
+  const shown = rows.slice(0, touch ? 3 : 4);
+  for (const [key, action] of shown) {
     const row = el('div', 'control-row');
     row.append(el('span', 'key', key), el('span', '', action));
     note.append(row);
   }
-  for (const def of game.abilities.ownedList()) {
-    const row = el('div', 'control-row');
-    row.append(el('span', 'key', touch ? 'power' : def.key), el('span', '', `ability: ${def.name.toLowerCase()}`));
-    note.append(row);
+  const rest = rows.slice(touch ? 3 : 4);
+  if (rest.length > 0) {
+    const more = el('details', 'fold-box');
+    more.append(el('summary', 'fold-head', 'MORE'));
+    for (const [key, action] of rest) {
+      const row = el('div', 'control-row');
+      row.append(el('span', 'key', key), el('span', '', action));
+      more.append(row);
+    }
+    note.append(more);
   }
   screen.append(hanger, shop, note);
   return screen;
