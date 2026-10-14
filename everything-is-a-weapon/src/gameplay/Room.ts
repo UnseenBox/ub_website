@@ -44,6 +44,14 @@ export interface RugSpec {
   readonly color: string;
 }
 
+/** How a generated room is won. Omitted: kill everything that walks in. */
+export interface RoomObjective {
+  /** Survive the clock: whoever is left standing flees when it runs out. */
+  readonly kind: 'survive';
+  /** Seconds to stay breathing. */
+  readonly seconds: number;
+}
+
 /** A partition wall inside the room: a static collider drawn like the outer walls. */
 export interface WallSpec {
   readonly x: number;
@@ -85,6 +93,8 @@ export interface RoomDefinition {
   readonly spotlight?: readonly string[];
   /** Seed for gameplay randomness in this room, so it can be replayed exactly. */
   readonly seed: number;
+  /** Non-extermination win condition (generated depths only). */
+  readonly objective?: RoomObjective;
 }
 
 export function doorPosition(room: RoomDefinition, door: DoorSpec, inset: number): { x: number; y: number; dirX: number; dirY: number } {

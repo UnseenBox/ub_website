@@ -42,6 +42,8 @@ export interface RoomRuntime {
   hasBoss: boolean;
   /** Which boss walks in, when hasBoss is set. */
   bossType: RoomEnemySpec['type'] | null;
+  /** Survival rooms: seconds to outlast (null: kill everything). */
+  survive: number | null;
 }
 
 /**
@@ -169,6 +171,7 @@ export class RoomManager {
       entranceRattle: 0,
       hasBoss: false,
       bossType: null,
+      survive: def.objective?.kind === 'survive' ? def.objective.seconds : null,
     };
   }
 
@@ -222,6 +225,11 @@ export class RoomManager {
       const door = doorPosition(room.def, room.def.entrance, 24);
       const lateral = game.rng.range(-14, 14);
       const enemy = game.spawnEnemy(spec.type, door.x + door.dirY * lateral, door.y + door.dirX * lateral, door.dirX, door.dirY);
+      // Depths crew gets tougher with depth (bosses stay exactly as designed).
+      if (room.index >= game.rooms.handcraftedCount && !ENEMY_TYPES[spec.type].boss) {
+        const depth = Math.max(1, room.index - 7);
+        enemy.hp = Math.round(enemy.hp * Math.min(1.6, 1 + 0.07 * depth));
+      }
       room.entranceOpen = 1;
       room.knocked = false;
       game.audio.play('door', 0.8);

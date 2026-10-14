@@ -251,7 +251,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   pips.setAttribute('aria-label', 'Rooms overview. Open the key wall to choose.');
   const done = resumeRoom >= total;
   pips.append(
-    el('span', 'mk-goal', done ? '★ lease yours · depths open' : `★ ${Math.min(resumeRoom + 1, total)}/${total} · evict the landlord`),
+    el('span', 'mk-goal', done ? `★ lease yours · deepest ${Math.max(save.deepest, total)}` : `★ ${Math.min(resumeRoom + 1, total)}/${total} · evict the landlord`),
   );
   const openPips = (): void => openWall(true);
   HANDCRAFTED_ROOMS.forEach((def, i) => {

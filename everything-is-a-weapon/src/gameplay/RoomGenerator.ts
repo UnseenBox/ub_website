@@ -98,9 +98,13 @@ function radiusOf(type: string): number {
  * space around the player and the door, and a crew whose size scales with depth — so it is
  * always winnable.
  */
+export function depthFor(index: number): number {
+  return Math.max(1, index - 7);
+}
+
 export function generateRoom(index: number, seed: number, challengeOverride?: string): RoomDefinition {
   const rng = new Rng(seed);
-  const depth = Math.max(1, index - 7);
+  const depth = depthFor(index);
   const theme = rng.pick(THEMES);
   const kit = KITS[theme];
   const width = 40 * rng.int(24, 27);
@@ -325,14 +329,14 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
       break;
   }
 
-  // ── guaranteed ammunition, then clutter ──
+  // ── guaranteed ammunition, then clutter (deeper rooms are lived-in warzones) ──
   for (const type of ['chair', 'shoe', 'book']) place(type);
-  const fillerCount = rng.int(8, 11);
+  const fillerCount = rng.int(8, 11) + Math.min(6, depth);
   for (let i = 0; i < fillerCount; i++) place(weighted(rng, kit.filler));
 
-  // ── hazards already in the room ──
+  // ── hazards already in the room (thicker the deeper you go) ──
   for (let i = 0; i < 2; i++) {
-    if (!rng.chance(kit.puddleChance)) continue;
+    if (!rng.chance(Math.min(0.95, kit.puddleChance + depth * 0.03))) continue;
     zones.push({ kind: 'water', x: rng.range(width * 0.35, width * 0.8), y: rng.range(120, height - 110), r: rng.range(50, 80) });
   }
   if (theme === 'garage' && rng.chance(0.6)) {
@@ -340,16 +344,26 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   }
   if (rng.chance(0.5)) zones.push({ kind: 'electric', x: rng.range(200, width - 200), y: 12, r: 18, outlet: true });
 
-  // ── the crew ──
+  // ── the crew: tougher mixes the deeper you go ──
   const enemies: RoomEnemySpec[] = [];
   let budget = 4.5 + depth * 1.1;
+  // A third of depths rooms are survival: outlast the clock, killing is optional.
+  const hasBoss = (index + 1) % 3 === 0;
+  const survive = !hasBoss && rng.chance(0.35) ? Math.min(90, 45 + depth * 5) : null;
   let delay = 1.8;
   while (budget >= 1 && enemies.length < 6) {
     const affordable = ENEMY_COST.filter(([, cost]) => cost <= budget);
     const [type, cost] = rng.pick(affordable);
     budget -= cost;
-    enemies.push({ type, delay });
+    // Survival rooms trickle in across the whole clock.
+    enemies.push({ type, delay: survive ? 1.8 + rng.next() * Math.max(4, survive - 8) : delay });
     delay += rng.range(2.6, 3.8);
+  }
+  // From depth 3 the crew always brings at least one heavyweight.
+  const costOf = (t: EnemyTypeId): number => ENEMY_COST.find(([id]) => id === t)?.[1] ?? 1;
+  if (depth >= 3 && !enemies.some((e) => costOf(e.type) >= 2) && enemies.length > 0) {
+    const heavy = rng.pick(['helmet', 'kaboom', 'hurler'] as const);
+    enemies[enemies.length - 1] = { type: heavy, delay: enemies[enemies.length - 1]!.delay };
   }
 
   return {
@@ -371,6 +385,7 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
         ? { x: width / 2, y: height / 2 + 30, w: rng.range(260, 380), h: rng.range(160, 220), color: rng.pick(kit.rugs) }
         : undefined,
     challenge: challengeOverride ?? rng.pick(GENERIC_CHALLENGES),
+    objective: survive ? { kind: 'survive', seconds: Math.round(survive) } : undefined,
   };
 }
 

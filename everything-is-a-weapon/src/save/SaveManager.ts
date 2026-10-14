@@ -2,7 +2,7 @@ import { ABILITY_IDS } from '../gameplay/Abilities';
 import { isHeroId, type HeroId } from '../core/Hero';
 import type { PortalStorage } from '../platform/Portal';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 const STORAGE_KEY = 'everything-is-a-weapon/save';
 
 /** Best run on one room, for the level-select wall and replay bragging rights. */
@@ -47,6 +47,8 @@ export interface SaveData {
   /** Daily-challenge return hook (new in version 3). */
   lastDaily: string;
   dailyStreak: number;
+  /** Deepest room cleared, 1-based (new in version 4). */
+  deepest: number;
   hero: HeroId;
   /** Room 1's lesson plan: '' not started, a lesson id part-way through, 'done' after. */
   tutorial: string;
@@ -73,6 +75,7 @@ function defaults(): SaveData {
     bossesBeaten: 0,
     lastDaily: '',
     dailyStreak: 0,
+    deepest: 0,
     hero: 'tenant',
     tutorial: '',
     settings: { volume: 0.7, muted: false, music: true, reducedShake: false, highContrast: false },
@@ -116,6 +119,11 @@ function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     raw.lastDaily = '';
     raw.dailyStreak = 0;
     version = 3;
+  }
+  if (version < 4) {
+    // Version 4 tracks the deepest room cleared for the post-game.
+    raw.deepest = 0;
+    version = 4;
   }
   return raw;
 }
@@ -167,6 +175,7 @@ function sanitize(raw: unknown): SaveData {
     bossesBeaten: Math.max(0, Math.floor(finite(data.bossesBeaten, 0))),
     lastDaily: typeof data.lastDaily === 'string' ? data.lastDaily : '',
     dailyStreak: Math.max(0, Math.floor(finite(data.dailyStreak, 0))),
+    deepest: Math.max(0, Math.floor(finite(data.deepest, 0))),
     hero: isHeroId(data.hero) ? data.hero : base.hero,
     // Saves from before the lesson plan: anyone past room 1 has nothing left to be taught.
     tutorial: typeof data.tutorial === 'string' ? data.tutorial : finite(data.unlockedRoom, 0) > 0 ? 'done' : '',

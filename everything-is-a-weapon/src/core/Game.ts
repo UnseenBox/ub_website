@@ -402,10 +402,17 @@ export class Game {
     this.funnelT0 = performance.now();
     this.funnelInput = this.funnelGrab = this.funnelThrow = this.funnelHit = false;
     this.bus.emit({ type: 'ROOM_START', room: index });
-    // Campaign briefing: every room says which act it belongs to and what the
-    // mini-goal is, once per first visit. Replays just show the room name.
+    // Campaign briefing: every room says what it is and what the mini-goal is,
+    // once per first visit. New acts announce themselves; survival rooms name
+    // the clock. Replays just show the room name.
     const briefing = briefingFor(def.id, index);
-    if (firstVisit && !def.tutorial) this.hud.banner(`${index + 1} · ${def.name}`, briefing.objective, 3);
+    const act = actFor(index);
+    if (firstVisit && !def.tutorial && (index === 3 || index === 6)) {
+      this.hud.banner(act.name, act.tagline, 3.2);
+    } else if (firstVisit && !def.tutorial) {
+      const goal = def.objective?.kind === 'survive' ? `survive ${def.objective.seconds}s` : briefing.objective;
+      this.hud.banner(`${index + 1} · ${def.name}`, goal, 3);
+    }
     this.analytics.track('room_start', { room: index + 1, daily, generated: index >= this.rooms.handcraftedCount });
   }
 
@@ -522,6 +529,7 @@ export class Game {
         save.scrap += firstClearBonus;
       }
       save.unlockedRoom = Math.max(save.unlockedRoom, this.room.index + 1);
+      save.deepest = Math.max(save.deepest, this.room.index + 1);
       // Per-room bests for the level-select wall and replay bragging rights.
       const id = this.room.def.id;
       const prev = save.roomBests[id];
@@ -719,6 +727,20 @@ export class Game {
       room.cleared = true;
       room.clearTimer = 0;
       this.hud.stamp('CLEARED');
+    }
+    // Survival rooms: outlast the clock and whoever is left flees.
+    if (!room.cleared && room.survive !== null && room.elapsed >= room.survive) {
+      room.pending.length = 0;
+      for (const enemy of this.enemies) {
+        if (enemy.defeated) continue;
+        enemy.defeated = true;
+        enemy.alive = false;
+        this.particles.burst('dust', enemy.body.x, enemy.body.y, 8, 120);
+      }
+      this.audio.play('poof', 0.6);
+      room.cleared = true;
+      room.clearTimer = 0;
+      this.hud.stamp('SURVIVED');
     }
     if (room.cleared) {
       room.clearTimer += dt;
