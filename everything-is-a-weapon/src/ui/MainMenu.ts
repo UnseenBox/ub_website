@@ -2,7 +2,7 @@ import type { Game } from '../core/Game';
 import { HEROES, type HeroId } from '../core/Hero';
 import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import { CHALLENGES } from '../gameplay/ChallengeSystem';
-import { BRIEFINGS, CONTRACTS, actFor, campaignProgress, starText, totalStars } from '../gameplay/Campaign';
+import { BRIEFINGS, actFor, starText } from '../gameplay/Campaign';
 import { HANDCRAFTED_ROOMS } from '../gameplay/RoomDefinitions';
 import { bossSpecFor, depthsBossSlots } from '../gameplay/RoomManager';
 import { Player } from '../entities/Player';
@@ -101,37 +101,6 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   gear.addEventListener('click', actions.settings);
   head.append(logo, tagline, gear);
   screen.append(head);
-
-  // ── campaign strip: which act you are in, stars, contracts, daily streak ──
-  const campaign = el('section', 'mk-campaign');
-  campaign.setAttribute('aria-label', 'Campaign progress');
-  const stars = totalStars(save.roomStars);
-  const contractsDone = save.contractsDone.length;
-  const act = actFor(Math.min(resumeRoom, total - 1));
-  const nextContract = CONTRACTS.find((c) => !save.contractsDone.includes(c.id));
-  const nextProgress = nextContract
-    ? nextContract.progress({
-        totalKills: save.totalKills,
-        totalChains: save.totalChains,
-        totalHazardKills: save.totalHazardKills,
-        bossesBeaten: save.bossesBeaten,
-        roomsCleared: save.roomsCleared,
-        discoveries: save.discoveries.length,
-      })
-    : 0;
-  campaign.append(
-    el('span', 'mk-act', `${act.name} · ${campaignProgress(total, save.roomStars)}% · ★${stars}/${total * 3}`),
-    el(
-      'span',
-      'mk-contracts',
-      nextContract
-        ? `✚ ${nextContract.name} ${Math.min(nextProgress, nextContract.target)}/${nextContract.target} · +${nextContract.reward}`
-        : `✓ ${contractsDone}/${CONTRACTS.length} ✚`,
-    ),
-  );
-  if (save.dailyStreak > 0) campaign.append(el('span', 'mk-daily', `🔥 daily ×${save.dailyStreak}`));
-  else campaign.append(el('span', 'mk-daily', '★ daily = +scrap'));
-  screen.append(campaign);
 
   // ── the door: wears the chosen room's number, opens the key wall ──
   const doorway = el('section', 'mk-doorway');
