@@ -6,7 +6,7 @@ export type AbilityId = 'blast' | 'overdrive' | 'freeze';
 
 export interface AbilityDefinition {
   readonly id: AbilityId;
-  /** Shouted on the key chip and the shop row. */
+  /** Shouted on the shop row (the HUD chip is an icon). */
   readonly name: string;
   /** Keyboard key that fires it (touch uses the single POWER button instead). */
   readonly key: string;

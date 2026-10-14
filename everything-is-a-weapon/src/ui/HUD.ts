@@ -44,7 +44,9 @@ export class HUD {
   private unlockTimer = 0;
 
   private mugs: Mug[] = [];
-  private last = { room: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', coach: '', touch: false };
+  private readonly powerChips = new Map<string, HTMLElement>();
+  private readonly powerCool = new Map<string, number>();
+  private last = { room: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', scrap: -1, coach: '', touch: false };
   private shownScore = 0;
   private bannerTimer = 0;
   private bannerSeed = 1;
@@ -396,20 +398,52 @@ export class HUD {
       }
     }
 
-    // Bought abilities with their cooldowns, plus the scrap purse.
+    // Bought abilities as icon orbs with a radial cooldown sweep, plus the scrap purse.
     const owned = game.abilities.ownedList();
-    const powersKey = `${game.save.data.scrap}|${owned.map((a) => `${a.id}:${Math.ceil(game.abilities.remaining(a.id))}`).join(',')}`;
-    if (powersKey !== last.powers) {
-      last.powers = powersKey;
-      this.scrapSlip.textContent = game.save.data.scrap > 0 ? String(game.save.data.scrap) : '';
+    const ownedKey = owned.map((a) => a.id).join(',');
+    if (ownedKey !== last.powers) {
+      last.powers = ownedKey;
+      this.powerChips.clear();
+      this.powerCool.clear();
       this.powers.replaceChildren(
         ...owned.map((a) => {
-          const left = Math.ceil(game.abilities.remaining(a.id));
-          const chip = el('span', left > 0 ? 'power-chip cool' : 'power-chip', left > 0 ? String(left) : a.key);
+          const chip = el('span', `power-chip power-${a.id}`);
+          chip.setAttribute('role', 'img');
+          chip.setAttribute('aria-label', `${a.name}, ready`);
           chip.title = a.name;
+          chip.append(el('span', 'power-icon'), el('span', 'power-sweep'));
+          const left = game.abilities.remaining(a.id);
+          const t = a.cooldown > 0 ? Math.max(0, Math.min(1, left / a.cooldown)) : 0;
+          chip.style.setProperty('--cool', t.toFixed(3));
+          chip.classList.toggle('cool', t > 0);
+          this.powerChips.set(a.id, chip);
+          this.powerCool.set(a.id, t);
           return chip;
         }),
       );
+    }
+    for (const a of owned) {
+      const chip = this.powerChips.get(a.id);
+      if (!chip) continue;
+      const left = game.abilities.remaining(a.id);
+      const t = a.cooldown > 0 ? Math.max(0, Math.min(1, left / a.cooldown)) : 0;
+      const was = this.powerCool.get(a.id) ?? 0;
+      chip.style.setProperty('--cool', t.toFixed(3));
+      chip.classList.toggle('cool', t > 0);
+      chip.setAttribute('aria-label', t > 0 ? `${a.name}, recharging` : `${a.name}, ready`);
+      if (was > 0 && t <= 0) {
+        // Just finished cooling: one pop, then back to the idle glow.
+        chip.classList.remove('ready');
+        void chip.offsetWidth;
+        chip.classList.add('ready');
+        window.setTimeout(() => chip.classList.remove('ready'), 550);
+      }
+      this.powerCool.set(a.id, t);
+    }
+    const scrap = game.save.data.scrap;
+    if (scrap !== last.scrap) {
+      last.scrap = scrap;
+      this.scrapSlip.textContent = scrap > 0 ? String(scrap) : '';
     }
   }
 }

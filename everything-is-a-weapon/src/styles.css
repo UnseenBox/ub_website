@@ -1117,29 +1117,118 @@ body.cinema .hud-top {
   gap: 5px;
 }
 
-/* the key you press, nothing more; the seconds take its place while it cools */
+/* bought abilities as icon orbs: no text, the cooldown is a radial sweep */
 .power-chip {
-  display: grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  border-radius: 4px;
-  background: var(--grain), #fffdf6;
-  color: var(--ink);
-  font: 700 13px var(--type);
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--grain), #2b2444;
   box-shadow: 0 3px 0 var(--ink), 2px 4px 0 var(--shadow);
-  transform: rotate(-1.5deg);
+  transform: rotate(-2deg);
+  overflow: hidden;
 }
 
 .power-chip:nth-child(even) {
   transform: rotate(2deg);
 }
 
-.power-chip.cool {
-  background: var(--grain), #d8d1bf;
-  color: rgba(34, 27, 54, 0.6);
-  box-shadow: 0 1px 0 var(--ink);
-  font-size: 11px;
+.power-icon {
+  position: absolute;
+  inset: 5px;
+}
+
+/* blast: a big red button */
+.power-blast .power-icon {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffb3a6 0%, #ff6b5c 25%, #e5383b 60%, #8f1620 100%);
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.45), 0 0 10px rgba(229, 56, 59, 0.9);
+}
+
+/* overdrive: a lightning bolt */
+.power-overdrive .power-icon {
+  background: linear-gradient(180deg, #ffe36e, #f59e0b 60%, #c26a00);
+  clip-path: polygon(55% 0, 15% 55%, 42% 55%, 35% 100%, 85% 42%, 55% 42%);
+  filter: drop-shadow(0 0 5px rgba(255, 210, 63, 0.9));
+}
+
+/* freeze: an ice cube */
+.power-freeze .power-icon {
+  border-radius: 5px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, #bfe9ff 30%, #4ad6e8 70%, #1e7fa8 100%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5), 0 0 10px rgba(74, 214, 232, 0.8);
+  transform: rotate(-8deg);
+}
+
+.power-freeze .power-icon::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 5px;
+  height: 70%;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  transform: rotate(14deg);
+}
+
+/* the dark that wipes away as the cooldown runs down */
+.power-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from -90deg, rgba(16, 12, 30, 0.8) calc(var(--cool, 0) * 360deg), transparent 0);
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+
+.power-chip.cool .power-sweep {
+  opacity: 1;
+}
+
+.power-chip.cool .power-icon {
+  filter: grayscale(0.9) brightness(0.8);
+  box-shadow: none;
+}
+
+/* ready orbs breathe with their own glow */
+.power-chip:not(.cool) {
+  animation: power-glow 2.2s ease-in-out infinite;
+}
+
+.power-blast:not(.cool) {
+  animation-name: power-glow-red;
+}
+
+.power-overdrive:not(.cool) {
+  animation-name: power-glow-yellow;
+}
+
+.power-freeze:not(.cool) {
+  animation-name: power-glow-cyan;
+}
+
+@keyframes power-glow-red {
+  50% { box-shadow: 0 3px 0 var(--ink), 2px 4px 0 var(--shadow), 0 0 14px rgba(229, 56, 59, 0.9); }
+}
+
+@keyframes power-glow-yellow {
+  50% { box-shadow: 0 3px 0 var(--ink), 2px 4px 0 var(--shadow), 0 0 14px rgba(255, 210, 63, 0.9); }
+}
+
+@keyframes power-glow-cyan {
+  50% { box-shadow: 0 3px 0 var(--ink), 2px 4px 0 var(--shadow), 0 0 14px rgba(74, 214, 232, 0.9); }
+}
+
+/* the pop the moment a cooldown finishes */
+.power-chip.ready {
+  animation: power-pop 0.5s;
+}
+
+@keyframes power-pop {
+  30% { transform: rotate(-2deg) scale(1.35); }
 }
 
 .scrap-slip {
@@ -2079,6 +2168,10 @@ body.touch #game {
     width: 132px;
     height: 15px;
   }
+  .power-chip {
+    width: 28px;
+    height: 28px;
+  }
   .lineup {
     padding: 4px 12px 3px 10px;
     gap: 5px;
@@ -2381,6 +2474,8 @@ body.touch #game {
   .healthbar[data-state='low'],
   .healthbar.hit,
   .healthbar.heal,
+  .power-chip:not(.cool),
+  .power-chip.ready,
   .mug.out,
   .btn.primary.play,
   .rotate-phone {
