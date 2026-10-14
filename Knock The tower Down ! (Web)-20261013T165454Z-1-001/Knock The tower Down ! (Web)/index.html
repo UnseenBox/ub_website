@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <title>Knock the Tower Down — ASCII demolition</title>
+</head>
+<body>
+  <div id="app">
+    <div id="stage-wrap">
+      <canvas id="game"></canvas>
+
+      <!-- HUD -->
+      <div id="hud" class="hidden">
+        <div class="hud-left">
+          <button id="btn-menu" class="icon-btn" title="Levels (Esc)" aria-label="Levels">[=]</button>
+          <button id="btn-restart" class="icon-btn" title="Restart (R)" aria-label="Restart">[R]</button>
+          <button id="btn-pause" class="icon-btn" title="Pause (P)" aria-label="Pause">[|]</button>
+        </div>
+        <div class="hud-center">
+          <div id="hud-level">Level 1</div>
+          <div id="shot-rack"></div>
+        </div>
+        <div class="hud-right">
+          <div id="hud-score">0</div>
+          <div class="zoom-cluster">
+            <button id="btn-zoom-out" class="icon-btn small" title="Zoom out (-)" aria-label="Zoom out">[-]</button>
+            <button id="btn-zoom-fit" class="icon-btn small" title="Fit view (F)" aria-label="Fit view">[o]</button>
+            <button id="btn-zoom-in" class="icon-btn small" title="Zoom in (+)" aria-label="Zoom in">[+]</button>
+          </div>
+          <button id="btn-sound" class="icon-btn" title="Sound (M)" aria-label="Sound">[S]</button>
+        </div>
+      </div>
+
+      <div id="hint-bar" class="hidden"></div>
+
+      <!-- Title screen -->
+      <div id="screen-title" class="screen">
+        <div class="logo-wrap">
+          <pre class="logo-ascii">        .                       .
+    |   |||   |           |   |||   |
+    |   | |   |           |   | |   |
+   ###  ###  ###         ###  ###  ###
+    |   | |   |     .     |   | |   |
+    |   |||   |           |   |||   |
+   ###   |   ###         ###   |   ###
+::::::::::::::::::...::::::::::::::::::</pre>
+          <h1>KNOCK THE<br /><em>TOWER DOWN!</em></h1>
+          <p class="tagline">ascii demolition unit // bring it all down</p>
+        </div>
+        <div class="card menu-card">
+          <button id="btn-play" class="big-btn">&gt; CAMPAIGN</button>
+          <button id="btn-endless" class="big-btn">&gt; ENDLESS</button>
+          <button id="btn-how" class="ghost-btn">HOW TO PLAY</button>
+          <div id="howto" class="hidden">
+            <p>&gt; <b>Drag back</b> from the sling &amp; <b>release</b> to launch.</p>
+            <p>&gt; <b>Mouse wheel</b> zooms toward the cursor. <b>Right-drag</b> pans. <b>[F]</b> refits the view.</p>
+            <p>&gt; Zoom in to read a structure; zoom out to watch it come down.</p>
+            <p>&gt; Knock every <b>@ core</b> offline to clear the site.</p>
+            <p>&gt; Read the <b>pattern</b>: packed <b>#</b> is stone, open <b>|+</b> is timber, sparse <b>:.</b> is glass.</p>
+            <p>&gt; Glass carries almost nothing. Find what the mass is standing on.</p>
+            <p>&gt; <b>Flick it fast</b> for +45% power — harder to place. Watch the bar.</p>
+          </div>
+          <div class="row-btns">
+            <button id="btn-sound-title" class="ghost-btn small">SND: ON</button>
+            <button id="btn-reset-save" class="ghost-btn small danger">RESET DATA</button>
+          </div>
+        </div>
+        <div class="footer-note">6 sites + 2 monuments + endless // custom physics // no engines</div>
+      </div>
+
+      <!-- Level select -->
+      <div id="screen-levels" class="screen hidden">
+        <h2 class="screen-title">SELECT TARGET</h2>
+        <div id="level-grid"></div>
+        <button id="btn-back-title" class="ghost-btn">&lt; BACK</button>
+      </div>
+
+      <!-- Pause -->
+      <div id="screen-pause" class="screen modal hidden">
+        <div class="card">
+          <h2>PAUSED</h2>
+          <button id="btn-resume" class="big-btn">RESUME</button>
+          <div class="btn-col">
+            <button id="btn-restart2" class="ghost-btn">RESTART LEVEL</button>
+            <button id="btn-quit" class="ghost-btn">LEVEL SELECT</button>
+            <button id="btn-sound2" class="ghost-btn">SND: ON</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div id="screen-result" class="screen modal hidden">
+        <div class="card result-card">
+          <h2 id="result-title">TOWER TOPPLED</h2>
+          <div id="result-stars">***</div>
+          <div id="result-score">Score 0</div>
+          <div id="result-detail"></div>
+          <div class="btn-col">
+            <button id="btn-next" class="big-btn">NEXT &gt;</button>
+            <div class="row-btns">
+              <button id="btn-retry" class="ghost-btn">[R] RETRY</button>
+              <button id="btn-levels2" class="ghost-btn">LEVELS</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="toast" class="hidden"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

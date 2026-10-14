@@ -1,0 +1,19 @@
+{
+  "name": "knock-the-tower-down",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "validate": "node tools/validate-levels.mjs",
+    "verify:solvable": "node tools/verify-solvable.mjs",
+    "verify:endless": "node tools/verify-endless.mjs",
+    "verify": "node tools/validate-levels.mjs && node tools/verify-endless.mjs && node tools/verify-solvable.mjs"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "vite-plugin-singlefile": "^2.3.3"
+  }
+}

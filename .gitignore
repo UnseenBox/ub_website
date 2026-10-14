@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -42,5 +43,8 @@ next-env.d.ts
 
 # local content store
 /.data
+
+# giant local game-dev projects (multi-GB, contains >100MB files GitHub rejects)
+Projects/
 
 !.env.example
