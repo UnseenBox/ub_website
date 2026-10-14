@@ -100,6 +100,7 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     card.append(el('div', 'victory-contract', `✚ ${contract.name.toLowerCase()} +${contract.reward}`));
   }
   if (summary.dailyBonus > 0) card.append(el('div', 'victory-contract', `🔥 +${summary.dailyBonus}`));
+  if (summary.finale) card.append(el('div', 'victory-contract', '★ lease reclaimed ★'));
 
   const score = el('div', 'victory-score', '0');
   card.append(score);

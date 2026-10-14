@@ -33,16 +33,16 @@ export const ACTS: readonly Act[] = [
     name: 'ACT III · THE LANDLORD',
     tagline: 'he wants the keys back',
     from: 6,
-    to: 7,
-    blurb: 'The compactor, then the penthouse. End it where the rent gets collected.',
+    to: 8,
+    blurb: 'The compactor, the penthouse, then the lease itself. End it where the rent gets collected.',
   },
   {
     id: 'depths',
     name: 'THE DEPTHS',
     tagline: 'the building goes down forever',
-    from: 8,
+    from: 9,
     to: null,
-    blurb: 'Cleared the tour? The basement keeps going. New rooms, old bosses, daily work.',
+    blurb: 'Lease reclaimed. The basement keeps going for sport: new rooms, old bosses, daily work.',
   },
 ];
 
@@ -113,6 +113,12 @@ export const BRIEFINGS: Readonly<Record<string, Briefing>> = {
     objective: 'all at once · book',
     landlord: '“BRING ME THE KEYS. — THE LANDLORD”',
     par: 210,
+  },
+  'room-9': {
+    story: 'Mom retreated upstairs — and the building itself stood up. The lease is nailed to that office door.',
+    objective: 'evict the house itself',
+    landlord: '“FINAL NOTICE. — THE LANDLORD”',
+    par: 220,
   },
 };
 

@@ -214,30 +214,115 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
     }
   }
 
-  // ── partitions: a stub or two so generated rooms stop being empty boxes ──
-  const walls: WallSpec[] = [];
-  if (rng.chance(0.55)) {
-    const count = rng.int(1, 2);
-    for (let i = 0; i < count; i++) {
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const vertical = rng.chance(0.5);
-        const hw = vertical ? 10 : rng.range(60, 110);
-        const hh = vertical ? rng.range(70, 120) : 10;
-        const x = rng.range(width * 0.35, width * 0.72);
-        const y = rng.range(height * 0.3, height * 0.7);
-        let ok = true;
-        for (const p of placed) {
-          if (Math.abs(p.x - x) < hw + p.r + 40 && Math.abs(p.y - y) < hh + p.r + 40) {
-            ok = false;
-            break;
-          }
-        }
-        if (!ok) continue;
-        walls.push({ x, y, hw, hh });
-        placed.push({ x, y, r: Math.max(hw, hh) });
-        break;
-      }
+  /** Fixed-spot set-piece per room kind: the room reads as a place, not a box. */
+  const tryPlace = (type: string, x: number, y: number, angle = 0): number => {
+    const r = radiusOf(type);
+    if (x < 50 + r || x > width - 50 - r || y < 50 + r || y > height - 50 - r) return -1;
+    for (const p of placed) {
+      if (Math.hypot(p.x - x, p.y - y) < p.r + r + 14) return -1;
     }
+    placed.push({ x, y, r });
+    objects.push({ type, x, y, angle });
+    return objects.length - 1;
+  };
+  switch (theme) {
+    case 'office': {
+      // cubicle pair facing each other across an aisle
+      const t1 = tryPlace('table', width * 0.42, height * 0.32);
+      if (t1 >= 0) onTop(t1, 'computer', -14, 0);
+      const t2 = tryPlace('table', width * 0.42, height * 0.68);
+      if (t2 >= 0) onTop(t2, 'book', 16, 0);
+      tryPlace('officechair', width * 0.3, height * 0.5, 1.2);
+      break;
+    }
+    case 'kitchen': {
+      // middle island, already laid for lunch
+      const t = tryPlace('table', width * 0.5, height * 0.55);
+      if (t >= 0) {
+        onTop(t, 'plate', -20, 0);
+        onTop(t, 'pan', 22, 0);
+      }
+      break;
+    }
+    case 'garage': {
+      // tyre pile with the toolbox on top of the job
+      tryPlace('tire', width * 0.55, height * 0.4);
+      tryPlace('tire', width * 0.55 + 34, height * 0.4 + 20);
+      tryPlace('toolbox', width * 0.55, height * 0.58);
+      break;
+    }
+    case 'living': {
+      // sofa fort facing the door
+      const s = tryPlace('sofa', width * 0.55, height * 0.4);
+      if (s >= 0) {
+        onTop(s, 'pillow', -30, 6);
+        onTop(s, 'pillow', 34, 8);
+      }
+      tryPlace('chair', width * 0.55 - 110, height * 0.42, 0.4);
+      tryPlace('chair', width * 0.55 + 110, height * 0.42, -0.4);
+      break;
+    }
+    case 'bathroom': {
+      tryPlace('bucket', width * 0.5, height * 0.6);
+      tryPlace('duck', width * 0.42, height * 0.5, 0.8);
+      break;
+    }
+    case 'bedroom': {
+      const t = tryPlace('table', width * 0.55, height * 0.6);
+      if (t >= 0) onTop(t, 'alarmclock', 0, 0);
+      tryPlace('chair', width * 0.55, height * 0.42);
+      break;
+    }
+  }
+
+  // ── floor plan: six archetypes so the depths stop being empty rectangles ──
+  const walls: WallSpec[] = [];
+  const wallAt = (x: number, y: number, hw: number, hh: number): boolean => {
+    if (x - hw < 70 || x + hw > width - 70 || y - hh < 70 || y + hh > height - 70) return false;
+    for (const p of placed) {
+      const dx = Math.max(0, Math.abs(p.x - x) - hw);
+      const dy = Math.max(0, Math.abs(p.y - y) - hh);
+      if (Math.hypot(dx, dy) < p.r + 46) return false;
+    }
+    walls.push({ x, y, hw, hh });
+    placed.push({ x, y, r: Math.min(90, Math.max(hw, hh)) });
+    return true;
+  };
+  const cx = width / 2;
+  const cy = height / 2;
+  switch (rng.pick(['cross', 'pillars', 'lanes', 'pockets', 'ring', 'split'] as const)) {
+    case 'cross':
+      // four stubs stopping short of the middle: a four-way intersection
+      wallAt(cx - width * 0.16, cy, width * 0.09, 10);
+      wallAt(cx + width * 0.16, cy, width * 0.09, 10);
+      wallAt(cx, cy - height * 0.18, 10, height * 0.1);
+      wallAt(cx, cy + height * 0.18, 10, height * 0.1);
+      break;
+    case 'pillars':
+      // four pillars, lanes between them
+      for (const [fx, fy] of [[0.4, 0.35], [0.6, 0.35], [0.4, 0.65], [0.6, 0.65]] as const) {
+        wallAt(width * fx, height * fy, 24, 24);
+      }
+      break;
+    case 'lanes':
+      // staggered shelves force an S-path through the room
+      wallAt(width * 0.52, height * 0.32, width * 0.2, 10);
+      wallAt(width * 0.46, height * 0.68, width * 0.2, 10);
+      break;
+    case 'pockets':
+      // corner nooks to hide in (or be cornered in)
+      wallAt(width - 150, 150, 70, 56);
+      wallAt(150, height - 150, 70, 56);
+      break;
+    case 'ring':
+      // collapsed rubble island: everything goes around
+      wallAt(cx, cy, 86, 64);
+      break;
+    case 'split':
+      // a cracked divide with three crossings: pick yours
+      wallAt(width * 0.6, height * 0.26, 10, height * 0.12);
+      wallAt(width * 0.6, height * 0.76, 10, height * 0.11);
+      break;
   }
 
   // ── guaranteed ammunition, then clutter ──

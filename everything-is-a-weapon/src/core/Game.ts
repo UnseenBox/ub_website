@@ -82,6 +82,8 @@ export interface RoomSummary {
   actName: string;
   objective: string;
   story: string;
+  /** True when the final handcrafted room was just cleared. */
+  finale: boolean;
   /** The player asked for the rewarded ad and none could be shown. */
   adMissed?: boolean;
 }
@@ -595,6 +597,7 @@ export class Game {
       actName: actFor(this.room.index).name,
       objective: briefing.objective,
       story: briefing.story,
+      finale: cleared && !this.room.daily && this.room.index === this.rooms.handcraftedCount - 1,
     };
   }
 

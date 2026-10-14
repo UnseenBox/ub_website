@@ -249,6 +249,10 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   // ── at-a-glance pips on the front page: all rooms, locked or not ──
   const pips = el('div', 'mk-pips');
   pips.setAttribute('aria-label', 'Rooms overview. Open the key wall to choose.');
+  const done = resumeRoom >= total;
+  pips.append(
+    el('span', 'mk-goal', done ? '★ lease yours · depths open' : `★ ${Math.min(resumeRoom + 1, total)}/${total} · evict the landlord`),
+  );
   const openPips = (): void => openWall(true);
   HANDCRAFTED_ROOMS.forEach((def, i) => {
     const locked = i > openThrough;

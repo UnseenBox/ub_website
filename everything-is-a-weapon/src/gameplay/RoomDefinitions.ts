@@ -384,4 +384,68 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     ],
     boss: 'mom',
   },
+
+  // 9 — THE LEASE: the finale. Your own barricade splits the office: sofa,
+  // shelves and fridge piled across the middle, movers pouring in from the
+  // right and splitting around both ends. Behind you the last lamp is still
+  // lit. Ahead, the building itself stands up. Evict it and the flat is yours.
+  {
+    id: 'room-9', name: 'THE LEASE', theme: 'office', width: 1080, height: 600, seed: 909, challenge: 'untouched',
+    teaser: 'evict the house itself', spotlight: ['book', 'extinguisher'],
+    playerStart: { x: 150, y: 300 },
+    entrance: { side: 'right', pos: 300 },
+    exit: { side: 'left', pos: 300 },
+    rug: { x: 300, y: 320, w: 340, h: 220, color: '#c9a24f' },
+    walls: [
+      // collapsed stairwell, top right: the L that breaks the rectangle
+      { x: 950, y: 90, hw: 90, hh: 70 },
+      // fallen cabinet, bottom left: cover near the lamp, never on the door
+      { x: 130, y: 520, hw: 70, hh: 55 },
+      // right-side fins: chambers to hide in, gaps to slip through
+      { x: 830, y: 140, hw: 10, hh: 80 },
+      { x: 830, y: 470, hw: 10, hh: 80 },
+    ],
+    objects: [
+      // the barricade: everything you own, piled across the middle
+      { type: 'sofa', x: 560, y: 150 },
+      { type: 'pillow', x: 532, y: 156, angle: 0.3, on: 0 },
+      { type: 'pillow', x: 588, y: 158, angle: -0.2, on: 0 },
+      { type: 'table', x: 560, y: 280 },
+      { type: 'book', x: 538, y: 286, angle: 0.4, on: 3 },
+      { type: 'candle', x: 584, y: 278, on: 3 },
+      { type: 'bookshelf', x: 560, y: 390 },
+      { type: 'fridge', x: 560, y: 480 },
+      // your side of the pile
+      { type: 'pan', x: 220, y: 200, angle: 0.3 },
+      { type: 'book', x: 180, y: 380, angle: -0.4 },
+      { type: 'book', x: 260, y: 420, angle: 0.7 },
+      { type: 'shoe', x: 320, y: 250, angle: 1.1 },
+      { type: 'extinguisher', x: 110, y: 220 },
+      { type: 'lamp', x: 200, y: 120 },
+      { type: 'chair', x: 330, y: 420 },
+      { type: 'ball', x: 120, y: 420 },
+      { type: 'boombox', x: 380, y: 180, angle: -0.2 },
+      // their side of the pile
+      { type: 'bottle', x: 700, y: 220 },
+      { type: 'bottle', x: 940, y: 380 },
+      { type: 'spraycan', x: 760, y: 480 },
+      { type: 'battery', x: 920, y: 520 },
+      { type: 'bucket', x: 680, y: 420 },
+      { type: 'teeth', x: 880, y: 260 },
+      { type: 'trashcan', x: 980, y: 200 },
+      { type: 'chair', x: 760, y: 120, angle: 0.5 },
+      { type: 'teddy', x: 250, y: 510 },
+    ],
+    zones: [
+      { kind: 'water', x: 750, y: 300, r: 70 },
+      { kind: 'electric', x: 760, y: 12, r: 18, outlet: true },
+      { kind: 'oil', x: 880, y: 470, r: 52 },
+    ],
+    enemies: [
+      { type: 'bulwark', delay: 2 },
+      { type: 'hurler', delay: 6.5 },
+      { type: 'kaboom', delay: 10 },
+    ],
+    boss: 'house',
+  },
 ];

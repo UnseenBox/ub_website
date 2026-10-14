@@ -3537,9 +3537,18 @@ button.key:focus-visible {
 .mk-pips {
   grid-area: pips;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
   padding: 2px 0 4px;
+}
+/* the one big goal, in one short line above the pips */
+.mk-goal {
+  flex-basis: 100%;
+  text-align: center;
+  font: 700 clamp(12px, 2vmin, 15px) var(--hand);
+  color: #ffd23f;
+  letter-spacing: 0.06em;
 }
 .pip {
   width: clamp(30px, 5vmin, 40px);
