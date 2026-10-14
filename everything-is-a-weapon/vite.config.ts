@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 
 /** CrazyGames asks for its SDK to be loaded in the page head, before the game's own code. */
 function crazyGamesSdk(): Plugin {
@@ -8,6 +8,49 @@ function crazyGamesSdk(): Plugin {
     name: 'crazygames-sdk',
     transformIndexHtml: () => [
       { tag: 'script', attrs: { src: 'https://sdk.crazygames.com/crazygames-sdk-v3.js' }, injectTo: 'head-prepend' },
+    ],
+  };
+}
+
+/**
+ * GameMonetize.com's SDK is configured through `window.SDK_OPTIONS`, which has to exist
+ * before their loader script runs. The gameId comes from the GAMEMONETIZE_GAME_ID
+ * environment variable.
+ *
+ * The config goes first in the head, but the loader itself is injected at the end of the
+ * body, deliberately NOT in the head: their SDK fires an automatic preroll ad on startup
+ * (window.sdk.showBanner() on every non-localhost page whose URL has no "account" in it),
+ * and its ad code does `document.body.appendChild(...)`. This build inlines ~0.5 MB of
+ * game code in the head, so a head-loaded sdk.js can execute before the parser reaches
+ * <body>: the appendChild then throws, the SDK reports "The SDK failed", and no ad ever
+ * plays again. A body-end loader can only run once <body> exists, so the preroll works.
+ */
+function gameMonetizeSdk(env: Record<string, string>): Plugin {
+  const gameId = env.GAMEMONETIZE_GAME_ID ?? '';
+  return {
+    name: 'gamemonetize-sdk',
+    transformIndexHtml: () => [
+      {
+        tag: 'script',
+        children: `
+window.SDK_OPTIONS = {
+  gameId: ${JSON.stringify(gameId)},
+  onEvent: function (a) {
+    (window.__GM_EVENTS__ = window.__GM_EVENTS__ || []).push(a && a.name);
+    if (typeof window.__GM_ON_EVENT__ === "function") window.__GM_ON_EVENT__(a);
+  }
+};`,
+        injectTo: 'head-prepend',
+      },
+      {
+        tag: 'script',
+        children: `
+(function (a, b, c) {
+  var d = a.getElementsByTagName(b)[0];
+  a.getElementById(c) || (a = a.createElement(b), a.id = c, a.src = "https://api.gamemonetize.com/sdk.js", d.parentNode.insertBefore(a, d))
+})(document, "script", "gamemonetize-sdk");`,
+        injectTo: 'body',
+      },
     ],
   };
 }
@@ -87,15 +130,28 @@ function coverSaver(): Plugin {
 /**
  * `vite build` is the plain web build (studio website, Vercel) and goes to dist/.
  * `vite build --mode crazygames` is the CrazyGames build and goes to dist-crazygames/.
+ * `vite build --mode gamemonetize` is the GameMonetize.com build and goes to dist-gamemonetize/.
  */
-export default defineConfig(({ mode }) => ({
-  // Relative paths only: portals serve the game from a folder they choose.
-  base: './',
-  // Recorded sounds ship as files next to the page — except in the single-file
-  // CrazyGames build, which must stay one file and keeps the synthesiser.
-  define: { __SAMPLES__: JSON.stringify(mode !== 'crazygames') },
-  publicDir: mode === 'crazygames' ? false : undefined,
-  plugins: mode === 'crazygames' ? [crazyGamesSdk(), singleFile(), coverSaver()] : [coverSaver()],
-  build: { target: 'es2020', sourcemap: false, outDir: mode === 'crazygames' ? 'dist-crazygames' : 'dist' },
-  server: { port: 5173, strictPort: false },
-}));
+export default defineConfig(({ mode }) => {
+  const portal = mode === 'crazygames' || mode === 'gamemonetize' ? mode : null;
+  return {
+    // Relative paths only: portals serve the game from a folder they choose.
+    base: './',
+    // Recorded sounds ship as files next to the page — except in the single-file
+    // portal builds, which must stay one file and keep the synthesiser.
+    define: { __SAMPLES__: JSON.stringify(portal === null) },
+    publicDir: portal === null ? undefined : false,
+    plugins:
+      portal === 'crazygames'
+        ? [crazyGamesSdk(), singleFile(), coverSaver()]
+        : portal === 'gamemonetize'
+          ? [gameMonetizeSdk(loadEnv(mode, process.cwd(), '')), singleFile(), coverSaver()]
+          : [coverSaver()],
+    build: {
+      target: 'es2020',
+      sourcemap: false,
+      outDir: portal === 'crazygames' ? 'dist-crazygames' : portal === 'gamemonetize' ? 'dist-gamemonetize' : 'dist',
+    },
+    server: { port: 5173, strictPort: false },
+  };
+});
