@@ -139,16 +139,39 @@ function slipper(ctx: Ctx, x: number, y: number, dirX: number, dirY: number, flo
     ctx.stroke();
   }
   ctx.lineCap = 'butt';
-  ctx.fillStyle = tone(SLIPPER);
+  // sole peeking out underneath
+  ctx.fillStyle = tone(SLIPPER_SHADE);
+  ctx.beginPath();
+  ctx.ellipse(x, y + 3.4, 5.6, 2.2, 0, 0, Math.PI);
+  ctx.fill();
+  const slipGrad = ctx.createLinearGradient(x - 6, y - 5, x + 6, y + 5);
+  slipGrad.addColorStop(0, tone(SLIPPER));
+  slipGrad.addColorStop(0.55, tone(SLIPPER));
+  slipGrad.addColorStop(1, tone(SLIPPER_SHADE));
+  ctx.fillStyle = slipGrad;
   ctx.strokeStyle = INK;
   ctx.lineWidth = 2.6;
   ctx.beginPath();
   ctx.ellipse(x, y, 6.6, 4.8, 0, 0, TAU);
   ctx.fill();
   ctx.stroke();
+  // stitching round the toe
+  ctx.strokeStyle = tone(FLUFF);
+  ctx.lineWidth = 1.1;
+  ctx.setLineDash([1.6, 1.8]);
+  ctx.beginPath();
+  ctx.ellipse(x, y - 0.4, 4.6, 3, 0, Math.PI * 1.1, Math.PI * 1.9);
+  ctx.stroke();
+  ctx.setLineDash([]);
   ctx.fillStyle = tone(SLIPPER_SHADE);
   ctx.beginPath();
   ctx.ellipse(x - dirX * 2.2, y - dirY * 1.4 + 1, 3.4, 2.2, 0, 0, TAU);
+  ctx.fill();
+  // bunny face with pink inner ears
+  ctx.fillStyle = tone('#ffb3c8');
+  ctx.beginPath();
+  ctx.ellipse(x + dirX * 3 + px * 1.5 + flop * 0.4, y + dirY * 2.2 + py * 1.1 - 2.2, 0.8, 1.2, 0, 0, TAU);
+  ctx.ellipse(x + dirX * 3 - px * 1.5 + flop * 0.4, y + dirY * 2.2 - py * 1.1 - 2.2, 0.8, 1.2, 0, 0, TAU);
   ctx.fill();
   // bunny face
   ctx.fillStyle = INK;
@@ -195,11 +218,38 @@ function arm(ctx: Ctx, sx: number, sy: number, hx: number, hy: number, tone: Ton
   ctx.arc(cx, cy, 4.6, 0, TAU);
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = tone(SKIN);
+  ctx.strokeStyle = tone(FLUFF_SHADE);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4.6, Math.PI * 0.2, Math.PI * 0.7);
+  ctx.stroke();
+  // hand: shaded low, a thumb wedge, one finger line
+  const handGrad = ctx.createLinearGradient(hx - 4, hy - 4, hx + 4, hy + 4);
+  handGrad.addColorStop(0, tone(SKIN));
+  handGrad.addColorStop(1, tone(SKIN_SHADE));
+  ctx.fillStyle = handGrad;
+  ctx.strokeStyle = INK;
   ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.arc(hx, hy, 4.2, 0, TAU);
   ctx.fill();
+  ctx.stroke();
+  const ta = Math.atan2(my - hy, mx - hx);
+  ctx.fillStyle = tone(SKIN);
+  ctx.beginPath();
+  ctx.moveTo(hx + Math.cos(ta + 2.4) * 3.4, hy + Math.sin(ta + 2.4) * 3.4);
+  ctx.lineTo(hx + Math.cos(ta + 2.4) * 6.4, hy + Math.sin(ta + 2.4) * 6.4);
+  ctx.lineTo(hx + Math.cos(ta + 1.5) * 5.6, hy + Math.sin(ta + 1.5) * 5.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.strokeStyle = tone(SKIN_SHADE);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(hx - 2.2, hy + 1.4);
+  ctx.quadraticCurveTo(hx, hy + 2.4, hx + 2.2, hy + 1.4);
   ctx.stroke();
 }
 
@@ -207,12 +257,23 @@ function sleepMask(ctx: Ctx, x: number, y: number, tilt: number, tone: Tone): vo
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(tilt);
-  ctx.fillStyle = tone(MASK);
+  const satin = ctx.createLinearGradient(-9, -4, 9, 4);
+  satin.addColorStop(0, tone(MASK));
+  satin.addColorStop(0.55, tone(MASK));
+  satin.addColorStop(1, tone(MASK_SHADE));
+  ctx.fillStyle = satin;
   ctx.strokeStyle = INK;
   ctx.lineWidth = 2.2;
   ctx.beginPath();
   roundRectPath(ctx, -9, -4.2, 18, 8.4, 4.2);
   ctx.fill();
+  ctx.stroke();
+  // sheen along the top edge
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-6.5, -2.6);
+  ctx.lineTo(6.5, -2.6);
   ctx.stroke();
   ctx.fillStyle = tone(MASK_SHADE);
   ctx.beginPath();
@@ -339,11 +400,24 @@ function longHair(ctx: Ctx, hx: number, hy: number, ax: number, ay: number, trai
   ctx.arc(bx, by, 6.8, 0, TAU);
   ctx.fill();
   ctx.stroke();
+  // tie band and sheen on the bun
+  ctx.strokeStyle = tone(MASK);
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(bx, by + 1.5, 5.6, Math.PI * 0.15, Math.PI * 0.85);
+  ctx.stroke();
   ctx.strokeStyle = tone(HAIR_LIGHT);
   ctx.lineWidth = 1.8;
   ctx.beginPath();
   ctx.arc(bx - 0.5, by + 0.5, 3.6, Math.PI * 1.05, Math.PI * 1.75);
   ctx.stroke();
+  ctx.strokeStyle = tone(HAIR);
+  ctx.globalAlpha = 0.6;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(bx + 1, by - 1, 4.8, Math.PI * 1.2, Math.PI * 1.6);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void {
@@ -416,20 +490,42 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
   const armsBehind = ay < -0.3;
   if (armsBehind) drawArms();
 
-  // ── gown ──
+  // ── gown: lit volume with soft folds, clipped to the silhouette ──
   ctx.lineJoin = 'round';
+  ctx.save();
   gownPath(ctx, x, y, top, lean, flare);
-  ctx.fillStyle = tone(GOWN);
-  ctx.fill();
-  // shadow side
-  ctx.fillStyle = tone(GOWN_SHADE);
+  ctx.clip();
+  const gownGrad = ctx.createLinearGradient(x - 14, top - 6, x + 14, y + 4);
+  gownGrad.addColorStop(0, tone(GOWN_LIGHT));
+  gownGrad.addColorStop(0.42, tone(GOWN));
+  gownGrad.addColorStop(1, tone(mix(GOWN, GOWN_SHADE, 0.6)));
+  ctx.fillStyle = gownGrad;
+  ctx.fillRect(x - 20 - flare, top - 8, 40 + flare * 2, y - top + 14);
+  // fold shadows falling from the belt
+  ctx.strokeStyle = tone(GOWN_SHADE);
+  ctx.globalAlpha = 0.28;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(x + 10.5 + lean, top + 0.5);
-  ctx.quadraticCurveTo(x + 14.5 + lean * 0.5, y - 17, x + 15.5 + flare, y - 5);
-  ctx.quadraticCurveTo(x + 9.5, y + 4, x + 4.5, y - 0.5);
-  ctx.quadraticCurveTo(x + 9 + lean * 0.4, y - 12, x + 5.5 + lean, top + 1);
-  ctx.closePath();
+  for (const fx of [-8.5, -2.5, 4, 9.5]) {
+    ctx.moveTo(x + fx + lean * 0.4, top + 2);
+    ctx.quadraticCurveTo(x + fx + lean * 0.5, y - 8, x + fx * 1.15 + lean * 0.4, y - 3);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  // warm light pooling on the chest, cool shade settling at the hem
+  ctx.fillStyle = tone(GOWN_LIGHT);
+  ctx.globalAlpha = 0.35;
+  ctx.beginPath();
+  ctx.ellipse(x - 4 + lean * 0.5, top + 7 + bob * 0.5, 8, 5, -0.2, 0, TAU);
   ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = tone(GOWN_SHADE);
+  ctx.globalAlpha = 0.32;
+  ctx.fillRect(x - 20 - flare, y - 4, 40 + flare * 2, 4);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  ctx.lineCap = 'butt';
   // fluffy hem trim
   ctx.strokeStyle = tone(FLUFF);
   ctx.lineWidth = 2.6;
@@ -553,6 +649,12 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
     ctx.arc(seamX, beltY + 1.2, 3.3, 0, TAU);
     ctx.fill();
     ctx.stroke();
+    // brass buckle ring round the knot
+    ctx.strokeStyle = tone('#ffd23f');
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(seamX, beltY + 1.2, 4.6, 0, TAU);
+    ctx.stroke();
   }
   ctx.lineCap = 'butt';
 
@@ -591,6 +693,26 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
   const hy = y - 36.5 + bob * 1.3 + ay * 1.2;
   const trail = clamp(-b.vx * 0.012, -3, 3);
 
+  if (DINO) {
+    // hood crest behind everything on the head: tall bright spikes, clear of the bed hair
+    ctx.fillStyle = tone(GOWN_LIGHT);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = 'round';
+    for (let k = -2; k <= 2; k++) {
+      const a = -Math.PI / 2 + k * 0.36 - ax * 0.3;
+      const base = HEAD_R + 2;
+      const len = HEAD_R + 20 + (k % 2 === 0 ? 2 : 0) + moving * 2;
+      ctx.beginPath();
+      ctx.moveTo(hx + Math.cos(a - 0.11) * base, hy + Math.sin(a - 0.11) * base);
+      ctx.lineTo(hx + Math.cos(a) * len, hy + Math.sin(a) * len);
+      ctx.lineTo(hx + Math.cos(a + 0.11) * base, hy + Math.sin(a + 0.11) * base);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
   if (BUN) {
     longHair(ctx, hx, hy, ax, ay, trail, Math.sin(time * 7 + p.walkPhase) * 1.2 * (0.4 + moving), tone);
   } else {
@@ -628,26 +750,25 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
     ctx.lineWidth = 2.6;
     ctx.stroke();
     ctx.lineCap = 'butt';
-  }
-
-  if (DINO) {
-    // hood crest: tall bright spikes ringing the hood, outside the bed hair
-    ctx.fillStyle = tone(GOWN_LIGHT);
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2.2;
-    ctx.lineJoin = 'round';
-    for (let k = -2; k <= 2; k++) {
-      const a = -Math.PI / 2 + k * 0.42 - ax * 0.3;
-      const base = HEAD_R - 2;
-      const len = HEAD_R + 15 + (k % 2 === 0 ? 2 : 0) + moving * 2;
-      ctx.beginPath();
-      ctx.moveTo(hx + Math.cos(a - 0.13) * base, hy + Math.sin(a - 0.13) * base);
-      ctx.lineTo(hx + Math.cos(a) * len, hy + Math.sin(a) * len);
-      ctx.lineTo(hx + Math.cos(a + 0.13) * base, hy + Math.sin(a + 0.13) * base);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+    // root shadow where the hair meets the forehead, plus loose strands
+    ctx.strokeStyle = tone(HAIR);
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(hcx, hcy, HEAD_R - 0.5, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = tone(HAIR_LIGHT);
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const a = Math.PI * 1.25 + i * 0.28 + Math.sin(time * 3 + i * 2 + p.walkPhase * 0.5) * 0.05;
+      ctx.moveTo(hcx + Math.cos(a) * (HEAD_R - 3), hcy + Math.sin(a) * (HEAD_R - 3));
+      ctx.lineTo(hcx + Math.cos(a) * (HEAD_R + 5 + SPIKES[i * 2]!), hcy + Math.sin(a) * (HEAD_R + 5 + SPIKES[i * 2]!));
     }
+    ctx.stroke();
+    ctx.lineCap = 'butt';
   }
 
   ctx.fillStyle = tone(facingAway ? HAIR : SKIN);
@@ -692,6 +813,27 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
     ctx.beginPath();
     ctx.arc(hx, hy, HEAD_R - 2.6, 0.18 * Math.PI, 0.82 * Math.PI);
     ctx.stroke();
+    // nose: a small wedge with its own shade side
+    const nx = hx + ax * 1.5;
+    const ny = hy + 3.4 + ay;
+    ctx.fillStyle = tone(SKIN);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.7;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(nx - 2.2, ny - 1.6);
+    ctx.lineTo(nx + 2.4, ny - 0.6);
+    ctx.lineTo(nx - 0.4, ny + 2.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = tone(SKIN_SHADE);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(nx + 2.4, ny - 0.6);
+    ctx.lineTo(nx - 0.4, ny + 2.2);
+    ctx.stroke();
+    ctx.lineJoin = 'round';
 
     // jagged fringe
     const fx = ax * 2;
@@ -730,39 +872,68 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
         ctx.lineTo(cx + 2.6, ey);
         ctx.stroke();
       } else {
+        // white, shaded low; a heavy upper lid; iris, pupil, catchlight
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = INK;
-        ctx.lineWidth = 1.3;
+        ctx.lineWidth = 1.4;
         ctx.beginPath();
-        ctx.ellipse(cx, ey, 3.1, 3.8, 0, 0, TAU);
+        ctx.ellipse(cx, ey, 3.3, 4, 0, 0, TAU);
         ctx.fill();
         ctx.stroke();
+        ctx.fillStyle = 'rgba(160, 190, 220, 0.55)';
+        ctx.beginPath();
+        ctx.ellipse(cx, ey + 2.2, 2.6, 1.6, 0, 0, Math.PI);
+        ctx.fill();
+        const iris = raging ? '#c0272b' : '#5a3b26';
+        ctx.fillStyle = iris;
+        ctx.beginPath();
+        ctx.arc(cx + ax * 1.3 + (raging ? Math.sin(time * 47 + side) * 0.9 : 0), ey + ay * 1.2 + (alert ? -0.4 : 0.6), raging ? 1.5 : 2, 0, TAU);
+        ctx.fill();
         ctx.fillStyle = INK;
         ctx.beginPath();
-        // pinprick pupils that will not hold still when the pepper kicks in
-        ctx.arc(cx + ax * 1.3 + (raging ? Math.sin(time * 47 + side) * 0.9 : 0), ey + ay * 1.4 + (alert ? 0 : 0.8), raging ? 0.95 : 1.8, 0, TAU);
+        ctx.arc(cx + ax * 1.3 + (raging ? Math.sin(time * 47 + side) * 0.9 : 0), ey + ay * 1.2 + (alert ? -0.4 : 0.6), raging ? 0.95 : 1.1, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx + ax * 1.3 - 0.6, ey + ay * 1.2 - 1, 0.55, 0, TAU);
         ctx.fill();
         if (!alert) {
-          // still half asleep: heavy lids until there is something to throw
-          ctx.fillStyle = tone(SKIN);
+          // still half asleep: a heavy shaded lid with its own lash line
+          const lidGrad = ctx.createLinearGradient(0, ey - 4.6, 0, ey + 0.6);
+          lidGrad.addColorStop(0, tone(SKIN_SHADE));
+          lidGrad.addColorStop(1, tone(SKIN));
+          ctx.fillStyle = lidGrad;
           ctx.beginPath();
-          ctx.ellipse(cx, ey, 3.3, 4, 0, Math.PI, TAU);
+          ctx.ellipse(cx, ey - 1.7, 3.5, 3, 0, Math.PI, TAU);
           ctx.fill();
           ctx.strokeStyle = INK;
-          ctx.lineWidth = 1.6;
+          ctx.lineWidth = 1.8;
           ctx.beginPath();
-          ctx.moveTo(cx - 3.3, ey);
-          ctx.lineTo(cx + 3.3, ey);
+          ctx.moveTo(cx - 3.5, ey - 1.2);
+          ctx.quadraticCurveTo(cx, ey + 0.2, cx + 3.5, ey - 1.2);
           ctx.stroke();
         } else {
           ctx.strokeStyle = INK;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2.1;
           ctx.beginPath();
-          ctx.moveTo(cx - 3.6 * side, ey - 4.2);
-          ctx.lineTo(cx + 2.6 * side, ey - 6.4);
+          ctx.ellipse(cx, ey - 0.4, 3.4, 3.9, 0, Math.PI * 1.08, Math.PI * 1.92);
           ctx.stroke();
         }
       }
+      ctx.lineCap = 'butt';
+      // brows: soft when calm, slashed down when there is something to throw
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = alert ? 2.1 : 1.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      if (alert) {
+        ctx.moveTo(cx - 3.6 * side, ey - 4.2);
+        ctx.lineTo(cx + 2.6 * side, ey - 6.6);
+      } else {
+        ctx.moveTo(cx - 3 * side, ey - 5);
+        ctx.quadraticCurveTo(cx, ey - 6.2, cx + 3 * side, ey - 5);
+      }
+      ctx.stroke();
       ctx.lineCap = 'butt';
       if (LASHES && !hurt && !blink) {
         // eyelashes
@@ -775,10 +946,6 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
         ctx.lineTo(cx + 5.4 * side, ey - 1.9);
         ctx.stroke();
       }
-      ctx.fillStyle = 'rgba(255, 110, 110, 0.32)';
-      ctx.beginPath();
-      ctx.ellipse(cx + 2.6 * side, ey + 4.6, 2.5, 1.5, 0, 0, TAU);
-      ctx.fill();
     }
 
     if (GLASSES) {

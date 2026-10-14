@@ -3,45 +3,43 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Victory preview</title>
-<link rel="stylesheet" href="/src/styles.css" />
+<title>Victory preview (live)</title>
 <style>
-  html, body { height: 100%; }
-  body { display: grid; place-items: center; background: rgba(20,16,36,.92); padding: 24px; }
-  /* taped static buttons just for the preview */
-  .btn-label { position: relative; z-index: 1; }
+  html, body { margin: 0; min-height: 100%; background: #141024; }
 </style>
 </head>
 <body>
-<div class="screen results cleared victory" style="max-width:100%">
-  <div class="victory-card">
-    <div class="victory-seal">★</div>
-    <div class="victory-stamp show">CLEARED</div>
-    <div class="victory-kicker">ROOM 3 · CLEARED</div>
-    <div class="victory-room">kitchen</div>
-    <div class="victory-score-wrap"><div class="victory-score">12,450</div></div>
-    <div class="victory-chips">
-      <span class="vchip" title="Best chain"><span class="vchip-icon">⚡</span><span class="vchip-value">×6</span></span>
-      <span class="vchip" title="Objects used"><span class="vchip-icon">📦</span><span class="vchip-value">5</span></span>
-      <span class="vchip" title="New discoveries"><span class="vchip-icon">✨</span><span class="vchip-value">2</span></span>
-    </div>
-    <div class="victory-pills">
-      <span class="vpill vpill-best">👑 NEW BEST</span>
-      <span class="vpill vpill-bonus">★ +500</span>
-      <span class="vpill vpill-scrap">+2 SCRAP</span>
-      <span class="vpill vpill-record">BEST 12,450</span>
-    </div>
-    <div class="victory-next new">
-      <span class="mug mug-fast" style="--mug:#e5383b"><span class="mug-face"></span></span>
-      <span class="victory-next-label">ROOM 4</span>
-      <span class="victory-next-name">bathroom</span>
-    </div>
-  </div>
-  <div class="menu-buttons row">
-    <button class="btn primary" type="button"><span class="btn-label">NEXT ROOM</span></button>
-    <button class="btn" type="button"><span class="btn-label">REPLAY</span></button>
-    <button class="btn" type="button"><span class="btn-label">HOME</span></button>
-  </div>
-</div>
+<div id="screens" class="active"></div>
+<script type="module">
+  import '/src/styles.css';
+  import { buildResults } from '/src/ui/ResultsScreen.ts';
+
+  // Sample data mirroring a real room-10 clear.
+  const summary = {
+    cleared: true,
+    roomNumber: 10,
+    roomName: 'Copy Room',
+    daily: false,
+    score: 17610,
+    highScore: 0,
+    isHighScore: false,
+    bestChain: 3,
+    objectsUsed: 8,
+    newDiscoveries: 1,
+    challengeText: 'Kill everyone using one object',
+    challengePassed: false,
+    challengeBonus: 0,
+    firstClearBonus: 40,
+    roomBest: 15020,
+    next: { number: 11, name: 'Storage Unit', teaser: 'Nobody has tidied in here', mover: 'basic', isNew: true },
+    offer: { id: 'overdrive', name: 'SUGAR RUSH', key: '2', blurb: 'eight seconds of blind rage', cost: 120, cooldown: 30 },
+    canContinue: false,
+  };
+  const actions = {
+    next() {}, retry() {}, continueWithReward() {}, home() {},
+    buy() { return ''; }, stamped() {},
+  };
+  document.getElementById('screens')?.append(buildResults(summary, actions));
+</script>
 </body>
 </html>

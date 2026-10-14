@@ -1542,7 +1542,7 @@ body.cinema .hud-top {
   animation: combo-bump 0.4s 0.7s cubic-bezier(0.2, 1.8, 0.4, 1) both;
 }
 
-/* victory card: the compact centered win screen — seal, one big number, icon chips */
+/* victory card: a trophy card — starburst seal, ribbon, key tag, ticket stubs */
 .screen.results.victory {
   gap: 16px;
 }
@@ -1552,20 +1552,21 @@ body.cinema .hud-top {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   width: min(100%, 360px);
-  padding: 22px 22px 18px;
+  padding: 26px 22px 20px;
   background: var(--grain), var(--paper);
   color: var(--ink);
   text-align: center;
-  box-shadow: 5px 6px 0 var(--shadow);
+  clip-path: var(--torn-card);
+  filter: drop-shadow(5px 6px 0 var(--shadow));
   transform: rotate(-1deg);
 }
 
 .victory-card::before {
   content: '';
   position: absolute;
-  top: -11px;
+  top: 6px;
   left: 50%;
   width: 96px;
   height: 24px;
@@ -1576,148 +1577,290 @@ body.cinema .hud-top {
   opacity: 0.95;
 }
 
-.victory-seal {
+.victory-seal-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.victory-best {
+  position: absolute;
+  top: -8px;
+  right: 6px;
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: var(--green);
+  width: 52px;
+  height: 52px;
+  background: var(--yellow);
+  clip-path: var(--burst);
+  filter: drop-shadow(0 2px 0 var(--ink));
+  transform: rotate(12deg);
+  animation: victory-wiggle 0.5s 0.8s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+
+.victory-best .vicon {
+  width: 26px;
+  height: 26px;
+}
+
+@keyframes victory-wiggle {
+  from { opacity: 0; transform: rotate(40deg) scale(0.3); }
+  60% { transform: rotate(-8deg) scale(1.15); }
+}
+
+/* the CLEARED ribbon: a red band with folded tails tucked behind it */
+.victory-ribbon {
+  position: relative;
+  z-index: 1;
+  margin-top: 10px;
+  padding: 7px 26px 6px;
+  background: var(--grain), var(--red);
   color: #fff;
-  font-size: 34px;
-  line-height: 1;
-  border: 4px double rgba(255, 255, 255, 0.85);
-  box-shadow: 0 3px 0 var(--ink), 2px 5px 0 var(--shadow);
-  animation: victory-pop 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) both;
-}
-
-@keyframes victory-pop {
-  from { opacity: 0; transform: scale(0.4) rotate(-18deg); }
-}
-
-.victory-stamp {
-  font: italic 400 40px/1 var(--shout);
-  letter-spacing: 0.05em;
-  color: var(--green);
-  transform: rotate(-6deg);
+  font: italic 400 30px/1 var(--shout);
+  letter-spacing: 0.08em;
+  transform: rotate(-4deg);
   opacity: 0;
   -webkit-mask: var(--wear);
   mask: var(--wear);
 }
 
-.victory-stamp.show {
-  opacity: 0.92;
+.victory-ribbon::before,
+.victory-ribbon::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  z-index: -1;
+  width: 26px;
+  height: calc(100% - 4px);
+  background: #8f1f22;
+}
+
+.victory-ribbon::before {
+  left: -16px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 38% 50%);
+}
+
+.victory-ribbon::after {
+  right: -16px;
+  clip-path: polygon(0 0, 100% 0, 62% 50%, 100% 100%, 0 100%);
+}
+
+.victory-ribbon.show {
+  opacity: 1;
   animation: mark-slam 0.36s cubic-bezier(0.5, 0, 0.3, 1) both;
 }
 
-.victory-kicker {
-  padding: 2px 12px 1px;
+.victory-where {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.victory-ring {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 4px solid #9aa2b3;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.victory-keytag {
+  position: relative;
+  flex: none;
+  min-width: 40px;
+  padding: 5px 10px 6px;
+  background: #fbf6e9;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 var(--shadow);
+  font: 700 17px var(--type);
+  transform: rotate(3deg);
+}
+
+.victory-keytag::before {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin: 0 auto 2px;
+  border-radius: 50%;
   background: var(--ink);
-  color: var(--yellow);
-  font: 700 11px var(--type);
-  letter-spacing: 0.2em;
+  opacity: 0.55;
+}
+
+.victory-keytag.sm {
+  min-width: 34px;
+  padding: 3px 8px 4px;
+  font-size: 14px;
+}
+
+.victory-keytag.fresh {
+  background: var(--red);
+  color: #fff;
 }
 
 .victory-room {
-  font: 700 15px var(--hand);
+  font: 700 16px var(--hand);
   opacity: 0.8;
-  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.victory-score-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 2px 0 4px;
-}
-
 .victory-score {
-  font: 700 52px/1 var(--font);
+  font: 800 clamp(44px, 13vw, 58px)/1 var(--font);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
-.victory-chips {
+/* zigzag tear between the score and the stubs */
+.victory-perforation {
+  width: 82%;
+  height: 11px;
+  background: var(--grain), var(--red);
+  clip-path: var(--zigzag);
+  opacity: 0.85;
+  transform: rotate(0.6deg);
+}
+
+.victory-tickets {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   gap: 8px;
 }
 
-.vchip {
+/* raffle stubs: a wax-seal medallion popped out of the edge, torn divider, number */
+.vticket {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px 4px;
-  background: var(--paper-2);
+  gap: 0;
+  padding: 6px 14px 6px 8px;
+  background: var(--grain), var(--paper-2);
   border: 2px solid var(--ink);
-  border-radius: 999px;
+  border-radius: 14px;
+  box-shadow: 2px 3px 0 var(--shadow);
+  font: 700 17px var(--type);
+}
+
+.victory-tickets .vticket:nth-child(odd) { transform: rotate(-1.6deg); }
+.victory-tickets .vticket:nth-child(even) { transform: rotate(1.3deg); }
+
+.vticket-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  margin-right: 9px;
+  border-radius: 50%;
+  border: 2.5px solid var(--ink);
+  background: var(--paper);
   box-shadow: 2px 2px 0 var(--shadow);
-  font: 700 15px var(--type);
 }
 
-.vchip-icon { font-size: 15px; }
+.vticket.hot .vticket-icon { background: var(--yellow); }
+.vticket.gold .vticket-icon { background: var(--green); }
+.vticket.scrap .vticket-icon { background: var(--kraft); }
 
-.victory-pills {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 4px;
+/* hand-drawn ticket icons: ink outlines, flat fills */
+.vicon {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.vpill {
-  padding: 3px 10px 2px;
-  font: 700 11px var(--type);
-  letter-spacing: 0.1em;
-  border-radius: 999px;
-  transform: rotate(-1deg);
-}
+.vicon .nofill { fill: none; }
+.vicon-bolt { fill: var(--ink); stroke: none; }
+.vicon-crown { fill: var(--red); }
+.vicon-star { fill: var(--yellow); }
+.vicon-crate, .vicon-loupe, .vicon-cog { fill: var(--paper); }
+.vicon-cog .hub { fill: var(--ink); stroke: none; }
 
-.vpill-best { background: var(--yellow); border: 2px solid var(--ink); }
-.vpill-bonus { background: var(--green); color: #fff; }
-.vpill-scrap { background: var(--sticky); border: 2px dashed var(--ink); }
-.vpill-record { background: transparent; border: 2px solid var(--ink); opacity: 0.75; }
+.vticket-value {
+  padding: 3px 2px 3px 10px;
+  border-left: 2px dashed rgba(34, 27, 54, 0.45);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 .victory-offer {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 6px;
-  padding: 6px 10px;
-  background: var(--sticky);
-  box-shadow: 2px 3px 0 var(--shadow);
+  margin-top: 2px;
+  padding: 7px 12px;
+  background: var(--grain), var(--sticky);
+  clip-path: var(--torn-strip-c);
+  filter: drop-shadow(2px 3px 0 var(--shadow));
   transform: rotate(0.6deg);
   max-width: 100%;
 }
 
-.victory-offer-icon { font-size: 16px; }
+.victory-offer .vticket-icon {
+  width: auto;
+  height: auto;
+  margin: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+}
 
 .victory-offer-name {
   font: italic 400 17px var(--shout);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  max-width: 120px;
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.scrap-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 0 1.5px var(--ink);
+}
+
+/* ink-filled on the yellow offer strip so it stays visible */
+.victory-offer .scrap-dot {
+  background: var(--ink);
+  box-shadow: none;
+}
+
+.victory-offer .ability-buy {
+  padding: 5px 10px 4px;
+  font-size: 12px;
+}
+
+/* the next door: mugshot, arrow, key tag, name on a torn newsprint strip */
 .victory-next {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 6px;
-  padding: 6px 14px;
+  margin-top: 2px;
+  padding: 7px 16px;
   background: var(--grain), var(--news);
-  box-shadow: 2px 3px 0 var(--shadow);
+  clip-path: var(--torn-strip-b);
+  filter: drop-shadow(2px 3px 0 var(--shadow));
   transform: rotate(-0.6deg);
   max-width: 100%;
 }
@@ -1726,20 +1869,16 @@ body.cinema .hud-top {
   animation: next-door-in 0.5s 0.7s cubic-bezier(0.2, 1.6, 0.4, 1) both;
 }
 
-.victory-next-label {
-  padding: 2px 8px 1px;
-  background: var(--red);
-  color: #fff;
-  font: 700 11px var(--type);
-  letter-spacing: 0.12em;
-  white-space: nowrap;
+.victory-arrow {
+  font: 400 22px var(--shout);
+  color: var(--red);
 }
 
 .victory-next-name {
   font: italic 400 18px var(--shout);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  max-width: 150px;
+  max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2617,17 +2756,19 @@ body.touch #game {
   }
   .victory-card {
     width: min(100%, 340px);
-    padding: 18px 16px 14px;
-    gap: 4px;
+    padding: 22px 16px 18px;
+    gap: 6px;
   }
-  .victory-seal {
-    width: 56px;
-    height: 56px;
-    font-size: 26px;
+  .victory-best {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
   }
-  .victory-stamp { font-size: 30px; }
+  .victory-ribbon { font-size: 24px; }
   .victory-score { font-size: 40px; }
-  .vchip { font-size: 13px; padding: 4px 10px 3px; }
+  .vticket { font-size: 15px; padding: 5px 12px 5px 7px; }
+  .vticket-icon { width: 34px; height: 34px; margin-left: -17px; }
+  .vicon { width: 19px; height: 19px; }
 
   .screen.pause {
     gap: 22px;
@@ -2741,6 +2882,7 @@ body.touch #game {
 .high-contrast .victory-card,
 .high-contrast .victory-next,
 .high-contrast .victory-offer,
+.high-contrast .vticket,
 .high-contrast .hanger,
 .high-contrast .controls-note,
 .high-contrast .evidence,
@@ -2774,8 +2916,8 @@ body.touch #game {
   .hud-banner.show .cut,
   .hud-stamp.show,
   .stamp-mark.show,
-  .victory-stamp.show,
-  .victory-seal,
+  .victory-ribbon.show,
+  .victory-best,
   .victory-next.new,
   .health-fill::after,
   .health-shine,
