@@ -19,7 +19,7 @@ interface KeyEntry {
   readonly key: string;
   /** Room index to play when this key is used. */
   readonly index: number;
-  /** What hangs on the tag: a room number, or ∞ for the endless depths. */
+  /** What hangs on the tag: the room number. */
   readonly label: string;
   /** Room name, boss name, or 'the depths'. */
   readonly name: string;
@@ -192,7 +192,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
       node.setAttribute('role', 'option');
       node.setAttribute('aria-selected', 'false');
       node.setAttribute('data-index', String(entry.index));
-      const hint = entry.label === '∞' ? `the depths: clear room ${total} to unlock` : `clear room ${Number(entry.label) - 1} to unlock`;
+      const hint = entry.key === 'endless-locked' ? `the depths: clear room ${total} to unlock` : `clear room ${Number(entry.label) - 1} to unlock`;
       node.setAttribute('aria-label', `Room ${entry.label}: ${hint}`);
       node.append(el('span', 'key-hook'), el('span', 'key-body'), el('span', 'key-tag', `🔒${entry.label}`));
       rack.append(node);
@@ -239,9 +239,9 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     }
   } else if (resumeRoom >= total) {
     const spec = bossSpecFor(resumeRoom, false, game.rooms.definition(resumeRoom));
-    addKey({ key: 'endless', index: resumeRoom, label: '∞', name: 'the depths', boss: !!spec, locked: false });
+    addKey({ key: 'endless', index: resumeRoom, label: String(resumeRoom + 1), name: 'the depths', boss: !!spec, locked: false });
   } else {
-    addKey({ key: 'endless-locked', index: total, label: '∞', name: 'the depths', boss: true, locked: true });
+    addKey({ key: 'endless-locked', index: total, label: String(total + 1), name: 'the depths', boss: true, locked: true });
   }
   wallSec.append(rack, info);
   screen.append(wallSec);
@@ -261,9 +261,9 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     pip.addEventListener('click', openPips);
     pips.append(pip);
   });
-  const dpip = el('button', `pip depths${resumeRoom >= total ? '' : ' locked'}`);
+  const dpip = el('button', 'pip depths');
   dpip.type = 'button';
-  dpip.textContent = resumeRoom >= total ? '∞' : '🔒';
+  dpip.textContent = resumeRoom >= total ? String(resumeRoom + 1) : '🔒';
   dpip.title = resumeRoom >= total ? 'the depths: endless' : 'the depths: clear room 8 to unlock';
   dpip.setAttribute('aria-label', dpip.title);
   dpip.addEventListener('click', openPips);
