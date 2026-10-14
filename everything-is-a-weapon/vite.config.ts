@@ -151,6 +151,10 @@ export default defineConfig(({ mode }) => {
       target: 'es2020',
       sourcemap: false,
       outDir: portal === 'crazygames' ? 'dist-crazygames' : portal === 'gamemonetize' ? 'dist-gamemonetize' : 'dist',
+      // Portal builds must stay one self-contained file (see singleFile()): images
+      // referenced from CSS, e.g. the main-menu key art, are inlined as data URLs.
+      // The web build keeps them as separate files for caching.
+      assetsInlineLimit: portal === null ? 4096 : 4_000_000,
     },
     server: { port: 5173, strictPort: false },
   };
