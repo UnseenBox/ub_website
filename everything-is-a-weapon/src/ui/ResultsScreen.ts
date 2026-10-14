@@ -87,6 +87,20 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   tag.title = summary.daily ? 'Daily challenge' : `Room ${summary.roomNumber}`;
   where.append(el('span', 'victory-ring'), tag, el('span', 'victory-room', summary.roomName.toLowerCase()));
   card.append(where);
+  // Campaign: act + stars + mini-goal result.
+  card.append(el('div', 'victory-act', summary.actName.toLowerCase()));
+  if (!summary.daily) {
+    const stars = el('div', 'victory-stars');
+    stars.title = `Clear ★ · bonus ${summary.challengePassed ? '★' : '☆'} · style ${summary.stars >= (summary.challengePassed ? 3 : 2) ? '★' : '☆'}`;
+    stars.setAttribute('aria-label', `Stars: ${summary.stars} of 3`);
+    stars.textContent = `${'★'.repeat(summary.stars)}${'☆'.repeat(Math.max(0, 3 - summary.stars))}${summary.isNewBestStars ? ' · new!' : ''}`;
+    card.append(stars);
+  }
+  if (summary.objective) card.append(el('div', 'victory-objective', `◎ ${summary.objective.toLowerCase()}`));
+  for (const contract of summary.contractsNew) {
+    card.append(el('div', 'victory-contract', `✚ contract ${contract.name.toLowerCase()} · +${contract.reward} scrap`));
+  }
+  if (summary.dailyBonus > 0) card.append(el('div', 'victory-contract', `🔥 daily streak · +${summary.dailyBonus} scrap`));
 
   const score = el('div', 'victory-score', '0');
   card.append(score);

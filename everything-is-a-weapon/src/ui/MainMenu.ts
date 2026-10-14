@@ -2,6 +2,7 @@ import type { Game } from '../core/Game';
 import { HEROES, type HeroId } from '../core/Hero';
 import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import { CHALLENGES } from '../gameplay/ChallengeSystem';
+import { BRIEFINGS, CONTRACTS, actFor, campaignProgress, starText, totalStars } from '../gameplay/Campaign';
 import { HANDCRAFTED_ROOMS } from '../gameplay/RoomDefinitions';
 import { bossSpecFor, depthsBossSlots } from '../gameplay/RoomManager';
 import { Player } from '../entities/Player';
@@ -95,6 +96,37 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   head.append(logo, tagline, gear);
   screen.append(head);
 
+  // ── campaign strip: which act you are in, stars, contracts, daily streak ──
+  const campaign = el('section', 'mk-campaign');
+  campaign.setAttribute('aria-label', 'Campaign progress');
+  const stars = totalStars(save.roomStars);
+  const contractsDone = save.contractsDone.length;
+  const act = actFor(Math.min(resumeRoom, total - 1));
+  const nextContract = CONTRACTS.find((c) => !save.contractsDone.includes(c.id));
+  const nextProgress = nextContract
+    ? nextContract.progress({
+        totalKills: save.totalKills,
+        totalChains: save.totalChains,
+        totalHazardKills: save.totalHazardKills,
+        bossesBeaten: save.bossesBeaten,
+        roomsCleared: save.roomsCleared,
+        discoveries: save.discoveries.length,
+      })
+    : 0;
+  campaign.append(
+    el('span', 'mk-act', `${act.name} · ${campaignProgress(total, save.roomStars)}% · ★${stars}/${total * 3}`),
+    el(
+      'span',
+      'mk-contracts',
+      nextContract
+        ? `✚ ${nextContract.name}: ${Math.min(nextProgress, nextContract.target)}/${nextContract.target} (+${nextContract.reward} scrap)`
+        : `✓ all ${contractsDone} contracts done`,
+    ),
+  );
+  if (save.dailyStreak > 0) campaign.append(el('span', 'mk-daily', `🔥 daily ×${save.dailyStreak}`));
+  else campaign.append(el('span', 'mk-daily', '★ daily challenge pays bonus scrap'));
+  screen.append(campaign);
+
   // ── the door: wears the chosen room's number, opens the key wall ──
   const doorway = el('section', 'mk-doorway');
   doorway.setAttribute('aria-label', 'Room selection');
@@ -131,15 +163,26 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const describe = (entry: KeyEntry): void => {
     info.replaceChildren();
     info.append(el('span', 'key-info-room', `${roomLabel(entry.index)} — ${entry.name}`));
+    info.append(el('span', 'key-info-act', actFor(entry.index).name.toLowerCase()));
     if (entry.index < total) {
       const def = HANDCRAFTED_ROOMS[entry.index]!;
       const best = save.roomBests[def.id];
+      const starCount = save.roomStars[def.id] ?? 0;
+      if (starCount > 0) info.append(el('span', 'key-info-stars', starText(starCount)));
       if (best) info.append(el('span', 'key-info-best', `★ ${formatScore(best.score)}`));
+      const briefing = BRIEFINGS[def.id];
+      if (briefing) {
+        info.append(el('span', 'key-info-story', briefing.story));
+        info.append(el('span', 'key-info-objective', `◎ ${briefing.objective}`));
+        info.append(el('span', 'key-info-landlord', briefing.landlord));
+      }
       const challenge = challengeText(def.challenge);
       if (challenge) {
         const done = save.completedChallenges.includes(def.challenge!);
         info.append(el('span', 'key-info-challenge', `${done ? '✓ ' : '✚ '}${challenge}`));
       }
+    } else {
+      info.append(el('span', 'key-info-story', 'The basement keeps going. New rooms, old bosses, daily work.'));
     }
     if (entry.boss) info.append(el('span', 'key-info-boss', 'BOSS'));
     playSub.textContent = roomLabel(entry.index);
@@ -189,6 +232,10 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     node.setAttribute('aria-label', `Room ${entry.label}: ${entry.name}${entry.boss ? ', boss' : ''}`);
     node.append(el('span', 'key-hook'), el('span', 'key-body'), el('span', 'key-tag', entry.label));
     if (entry.boss) node.append(el('span', 'key-boss', 'BOSS'));
+    if (entry.index < HANDCRAFTED_ROOMS.length) {
+      const stars = game.save.data.roomStars[HANDCRAFTED_ROOMS[entry.index]!.id] ?? 0;
+      if (stars > 0) node.append(el('span', 'key-stars', starText(stars)));
+    }
     node.addEventListener('click', () => select(entry, node));
     rack.append(node);
     keyNodes.set(entry.key, node);

@@ -7,6 +7,7 @@ import { ENEMY_TYPES, type EnemyTypeId } from '../entities/EnemyTypes';
 import type { PhysicsObject } from '../entities/PhysicsObject';
 import { Player } from '../entities/Player';
 import { ChallengeSystem } from '../gameplay/ChallengeSystem';
+import { actFor, briefingFor, CONTRACTS, starsFor, todayKey, yesterdayKey } from '../gameplay/Campaign';
 import { extendChain, freshChain } from '../gameplay/Chain';
 import { ABILITIES, AbilitySystem, type AbilityDefinition, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
@@ -73,6 +74,14 @@ export interface RoomSummary {
   /** An ability the scrap purse can pay for right now. */
   offer: AbilityDefinition | null;
   canContinue: boolean;
+  /** Campaign layer: stars, contracts, story. */
+  stars: number;
+  isNewBestStars: boolean;
+  contractsNew: Array<{ id: string; name: string; reward: number }>;
+  dailyBonus: number;
+  actName: string;
+  objective: string;
+  story: string;
   /** The player asked for the rewarded ad and none could be shown. */
   adMissed?: boolean;
 }
@@ -391,8 +400,11 @@ export class Game {
     this.funnelT0 = performance.now();
     this.funnelInput = this.funnelGrab = this.funnelThrow = this.funnelHit = false;
     this.bus.emit({ type: 'ROOM_START', room: index });
-    // A new room says what is new about it, once.
-    if (firstVisit && def.teaser && !def.tutorial) this.hud.banner(def.name, def.teaser, 2.6);
+    // Campaign briefing: every room says which act it belongs to and what the
+    // mini-goal is, once per first visit. Replays just show the room name.
+    const briefing = briefingFor(def.id, index);
+    if (firstVisit && !def.tutorial) this.hud.banner(`${actFor(index).name} · ${def.name}`, briefing.objective, 3.2);
+    else if (firstVisit && def.teaser && !def.tutorial) this.hud.banner(def.name, def.teaser, 2.6);
     this.analytics.track('room_start', { room: index + 1, daily, generated: index >= this.rooms.handcraftedCount });
   }
 
@@ -477,19 +489,32 @@ export class Game {
     save.bestChain = Math.max(save.bestChain, this.score.stats.bestChain);
     save.scrap += this.score.stats.scrap;
     let firstClearBonus = 0;
+    let dailyBonus = 0;
     const roomBest = save.roomBests[this.room.def.id]?.score ?? 0;
+    // Campaign: stars for this room (clear + challenge + style).
+    const { stars } = starsFor(this.score.stats, challengeBonus > 0);
+    const prevStars = this.room.daily ? 3 : (save.roomStars[this.room.def.id] ?? 0);
+    const isNewBestStars = cleared && !this.room.daily && stars > prevStars;
     let next: RoomSummary['next'] = null;
     if (cleared && !this.room.daily) {
       const index = this.room.index + 1;
       const def = this.rooms.definition(index);
+      const nextBriefing = briefingFor(def.id, index);
       next = {
         number: index + 1,
         name: def.name,
-        teaser: def.teaser ?? 'nobody has tidied in here',
+        teaser: nextBriefing.story,
         mover: def.boss ?? bossSpecFor(index, false, def)?.type ?? def.enemies[def.enemies.length - 1]?.type ?? 'basic',
         isNew: save.unlockedRoom < index,
       };
       save.roomsCleared++;
+      // Lifetime contract counters: only cleared rooms count, so retries can't farm.
+      save.totalKills += this.score.stats.kills;
+      save.totalChains += this.score.stats.chainEvents;
+      save.totalHazardKills += this.score.stats.hazardKills;
+      if (this.room.hasBoss) save.bossesBeaten++;
+      if (isNewBestStars) save.roomStars[this.room.def.id] = stars;
+      else if (save.roomStars[this.room.def.id] === undefined && stars > 0) save.roomStars[this.room.def.id] = stars;
       // First clear pays out scrap for the ability shop: bosses pay double.
       if (save.unlockedRoom <= this.room.index) {
         firstClearBonus = this.room.hasBoss ? 100 : 40;
@@ -506,8 +531,43 @@ export class Game {
         };
       }
     }
+    if (cleared && this.room.daily) {
+      // Daily streak: consecutive calendar days pay escalating scrap.
+      const today = todayKey();
+      if (save.lastDaily !== today) {
+        save.dailyStreak = save.lastDaily === yesterdayKey() ? save.dailyStreak + 1 : 1;
+        save.lastDaily = today;
+      }
+      dailyBonus = Math.min(50, 10 + save.dailyStreak * 10);
+      save.scrap += dailyBonus;
+      save.roomsCleared++;
+      save.totalKills += this.score.stats.kills;
+      save.totalChains += this.score.stats.chainEvents;
+      save.totalHazardKills += this.score.stats.hazardKills;
+    }
+    // Contracts: newly met goals pay out once, right here.
+    const contractsNew: RoomSummary['contractsNew'] = [];
+    if (cleared) {
+      const totals = {
+        totalKills: save.totalKills,
+        totalChains: save.totalChains,
+        totalHazardKills: save.totalHazardKills,
+        bossesBeaten: save.bossesBeaten,
+        roomsCleared: save.roomsCleared,
+        discoveries: save.discoveries.length,
+      };
+      for (const contract of CONTRACTS) {
+        if (save.contractsDone.includes(contract.id)) continue;
+        if (contract.progress(totals) >= contract.target) {
+          save.contractsDone.push(contract.id);
+          save.scrap += contract.reward;
+          contractsNew.push({ id: contract.id, name: contract.name, reward: contract.reward });
+        }
+      }
+    }
     this.save.write();
     const challenge = this.challenges.current;
+    const briefing = briefingFor(this.room.def.id, this.room.index);
     return {
       cleared,
       roomNumber: this.room.index + 1,
@@ -529,6 +589,13 @@ export class Game {
         ? ABILITIES.filter((a) => !save.abilities.includes(a.id) && save.scrap >= a.cost).sort((a, b) => a.cost - b.cost)[0] ?? null
         : null,
       canContinue: !cleared && !this.revived && this.ads.isAvailable('rewarded'),
+      stars: cleared ? stars : 0,
+      isNewBestStars,
+      contractsNew,
+      dailyBonus,
+      actName: actFor(this.room.index).name,
+      objective: briefing.objective,
+      story: briefing.story,
     };
   }
 
@@ -554,6 +621,10 @@ export class Game {
     const summary = this.summarize(true, bonus);
     this.reportProgress();
     if (lastRoom && firstTime) this.portal.celebrate();
+    if (summary.contractsNew.length > 0) {
+      const first = summary.contractsNew[0]!;
+      this.hud.unlock('CONTRACT COMPLETE', first.name, `+${first.reward} scrap · ${summary.contractsNew.length} done`);
+    }
     this.setState('cleared');
     this.hud.showSummary(summary);
   }

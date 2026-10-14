@@ -3077,12 +3077,14 @@ body.touch #game {
 
 /* the main menu sits on its key art: the purple burst with the flat's junk
    flying. Scoped to the menu only, so pause / settings / results keep the
-   plain dim backdrop. The gradient keeps the logo, door and cards readable. */
+   plain dim backdrop. The gradient keeps the logo, door and cards readable.
+   The art is a small crushed WebP (not the original 1.6MB PNG) so the
+   first screen paints fast on phones. */
 #screens.active:has(.screen.menu-keys) {
   background-color: #2a1259;
   background-image:
     linear-gradient(rgba(20, 16, 36, 0.42), rgba(20, 16, 36, 0.62)),
-    url('./assets/menu-bg.png');
+    url('./assets/menu-bg.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -3114,12 +3116,30 @@ body.touch #game {
 .menu-keys.wall-open .mk-chars {
   display: none;
 }
-/* front page: door over PLAY on the left, characters in a column on the right */
+/* front page, mobile-first: head, campaign strip, door, characters, PLAY stack top to bottom */
 .screen.menu-keys:not(.wall-open) {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(132px, 30%, 300px);
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-areas: 'head head' 'door chars' 'play chars';
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-areas: 'head' 'campaign' 'door' 'chars' 'play';
+}
+/* desktop: door + full-width PLAY on the left, a 2×2 character board on the right */
+@media (min-width: 860px) {
+  .screen.menu-keys:not(.wall-open) {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: 'head head' 'campaign campaign' 'door chars' 'play play';
+  }
+  /* a bigger door on desktop: it owns the left column */
+  .mk-door { height: min(100%, clamp(120px, 30vh, 220px)); }
+  .door-note { width: clamp(150px, 20vmin, 210px); }
+}
+
+/* campaign strip: placed under the logo; the campaign layer below owns its look */
+.mk-campaign {
+  grid-area: campaign;
+  justify-self: center;
+  max-width: 100%;
 }
 .mk-head { grid-area: head; position: relative; }
 .mk-doorway { grid-area: door; }
@@ -3493,7 +3513,9 @@ button.key:focus-visible {
   letter-spacing: 0.02em;
 }
 .key-info-best,
-.key-info-challenge {
+.key-info-challenge,
+.key-info-act,
+.key-info-stars {
   font: 700 clamp(12px, 2vmin, 16px) var(--hand);
   opacity: 0.9;
 }
@@ -3531,29 +3553,48 @@ button.key:focus-visible {
 .mk-cards {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-auto-rows: minmax(0, 1fr);
-  gap: clamp(6px, 1.4vh, 12px);
+  display: flex;
+  gap: clamp(8px, 1.6vh, 12px);
   width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 2px 10px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+@media (min-width: 860px) {
+  .mk-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    overflow: visible;
+    padding: 0;
+  }
 }
 .mk-card {
   position: relative;
-  /* portrait frame on the left, name and pet stacked beside it */
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: 1fr 1fr;
+  flex: 0 0 auto;
+  width: clamp(140px, 38vw, 172px);
+  scroll-snap-align: start;
+  /* portrait on top, name and pet note centered beneath it */
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 2px clamp(6px, 1vw, 10px);
+  justify-content: center;
+  gap: 4px;
   min-height: 0;
-  text-align: left;
+  text-align: center;
   background: var(--grain), #fffdf6;
   border: 3px solid var(--ink);
   border-radius: 8px;
-  padding: clamp(5px, 0.9vh, 9px) 5px clamp(6px, 1vh, 10px);
+  padding: clamp(8px, 1.4vh, 12px) 6px;
   font: inherit;
   cursor: pointer;
   box-shadow: 3px 4px 0 var(--shadow);
   transition: transform 0.12s ease-out;
+}
+@media (min-width: 860px) {
+  .mk-card { width: auto; }
 }
 .mk-card:nth-child(2n) {
   transform: rotate(1.6deg);
@@ -3581,9 +3622,7 @@ button.mk-card:hover {
 }
 /* cream frame holding the hero portrait */
 .hero-blank {
-  grid-row: 1 / -1;
-  height: 100%;
-  min-height: 40px;
+  height: clamp(76px, 13vh, 116px);
   aspect-ratio: 4 / 5;
   background: #fbf6e9;
   border: 2px solid var(--ink);
@@ -3597,13 +3636,11 @@ button.mk-card:hover {
   object-fit: contain;
 }
 .mk-card .mm-card-name {
-  align-self: end;
   font: 700 clamp(11px, 2vmin, 15px) var(--type);
 }
 .mk-card .mm-card-note {
-  align-self: start;
-  font: 700 clamp(9px, 1.6vmin, 11.5px) var(--hand);
-  text-align: left;
+  font: 700 clamp(9px, 1.7vmin, 12px)/1.3 var(--hand);
+  text-align: center;
 }
 
 /* actions: one huge red PLAY, daily cream, settings + controls small and dark */
@@ -3703,23 +3740,10 @@ button.mk-card:hover {
   .key-rack { --kw: 20cqw; }
 }
 
-/* portrait phones: door sized by the column, note under it, cards stacked */
+/* small phones: tighter rail cards, PLAY stays full-width */
 @media (max-width: 520px) {
-  .mk-doorway {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-  }
-  .mk-door { width: min(100%, 19vh); height: auto; }
-  .door-note { width: 100%; transform: rotate(-2deg); }
-  .mk-card {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto auto;
-    justify-items: center;
-  }
-  .hero-blank { grid-row: auto; }
-  .mk-card .mm-card-note { text-align: center; }
+  .mk-card { width: clamp(132px, 40vw, 160px); }
+  .door-note { transform: rotate(-2deg); }
 }
 
 /* very short (tiny landscape windows): let the frame scroll rather than clip */
@@ -4131,4 +4155,60 @@ body.cinema .coach-skip {
 @media (prefers-reduced-motion: reduce) {
   .coach kbd, .coach-mouse, .coach-mouse i, .coach-bar i, .coach-thumb, .coach-tap::before { animation-duration: 4s; }
   .hud-unlock.show, .next-door.new, .coach-body { animation: none; }
+}
+
+/* ── campaign layer: acts, briefings, stars, contracts ── */
+.mk-campaign {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 14px;
+  padding: 6px 12px 8px;
+  font: 700 clamp(11px, 1.8vmin, 14px) var(--hand);
+  color: #fbf6e9;
+  text-align: center;
+}
+.mk-act { letter-spacing: 0.04em; }
+.mk-contracts {
+  background: var(--grain), var(--sticky);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  padding: 1px 9px 2px;
+  transform: rotate(-1deg);
+}
+.mk-daily { opacity: 0.9; }
+.key-info-act {
+  font: 700 clamp(10px, 1.7vmin, 13px) var(--type);
+  letter-spacing: 0.12em;
+  opacity: 0.75;
+  flex-basis: 100%;
+}
+.key-info-stars { color: #ffd23f; font-size: 1.1em; letter-spacing: 0.1em; }
+.key-info-story, .key-info-objective, .key-info-landlord {
+  flex-basis: 100%;
+  font: 700 clamp(12px, 2vmin, 15px)/1.3 var(--hand);
+  max-width: 560px;
+}
+.key-info-objective { color: #ffd23f; }
+.key-info-landlord { opacity: 0.7; font-style: italic; }
+.key-stars { color: #ffd23f; font-size: 12px; letter-spacing: 0.08em; line-height: 1; }
+.victory-act {
+  font: 700 11px var(--type);
+  letter-spacing: 0.14em;
+  opacity: 0.7;
+}
+.victory-stars { color: #ffd23f; font-size: 26px; letter-spacing: 0.12em; line-height: 1; }
+.victory-objective, .victory-contract {
+  font: 700 14px/1.3 var(--hand);
+  max-width: 340px;
+}
+.victory-contract {
+  background: var(--grain), var(--sticky);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  padding: 2px 10px 3px;
+  transform: rotate(-1deg);
 }

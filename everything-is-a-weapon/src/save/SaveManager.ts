@@ -2,7 +2,7 @@ import { ABILITY_IDS } from '../gameplay/Abilities';
 import { isHeroId, type HeroId } from '../core/Hero';
 import type { PortalStorage } from '../platform/Portal';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 const STORAGE_KEY = 'everything-is-a-weapon/save';
 
 /** Best run on one room, for the level-select wall and replay bragging rights. */
@@ -35,6 +35,18 @@ export interface SaveData {
   roomsCleared: number;
   /** Per-room bests by room id (new in version 2). */
   roomBests: Record<string, RoomBest>;
+  /** Campaign stars per room id, 0–3 (new in version 3). */
+  roomStars: Record<string, number>;
+  /** Completed contract ids (new in version 3). */
+  contractsDone: string[];
+  /** Lifetime campaign counters (new in version 3): only rooms cleared count. */
+  totalKills: number;
+  totalChains: number;
+  totalHazardKills: number;
+  bossesBeaten: number;
+  /** Daily-challenge return hook (new in version 3). */
+  lastDaily: string;
+  dailyStreak: number;
   hero: HeroId;
   /** Room 1's lesson plan: '' not started, a lesson id part-way through, 'done' after. */
   tutorial: string;
@@ -53,6 +65,14 @@ function defaults(): SaveData {
     completedChallenges: [],
     roomsCleared: 0,
     roomBests: {},
+    roomStars: {},
+    contractsDone: [],
+    totalKills: 0,
+    totalChains: 0,
+    totalHazardKills: 0,
+    bossesBeaten: 0,
+    lastDaily: '',
+    dailyStreak: 0,
     hero: 'tenant',
     tutorial: '',
     settings: { volume: 0.7, muted: false, music: true, reducedShake: false, highContrast: false },
@@ -85,6 +105,18 @@ function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     raw.roomBests = {};
     version = 2;
   }
+  if (version < 3) {
+    // Version 3 adds the campaign layer (stars, contracts, lifetime counters, daily streak).
+    raw.roomStars = {};
+    raw.contractsDone = [];
+    raw.totalKills = 0;
+    raw.totalChains = 0;
+    raw.totalHazardKills = 0;
+    raw.bossesBeaten = 0;
+    raw.lastDaily = '';
+    raw.dailyStreak = 0;
+    version = 3;
+  }
   return raw;
 }
 
@@ -97,6 +129,16 @@ function roomBests(value: unknown): Record<string, RoomBest> {
       score: Math.max(0, Math.floor(finite(entry.score, 0))),
       chain: Math.max(0, Math.floor(finite(entry.chain, 0))),
     };
+  }
+  return out;
+}
+
+function starMap(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!isRecord(value)) return out;
+  for (const [id, n] of Object.entries(value)) {
+    if (typeof n !== 'number' || !Number.isFinite(n)) continue;
+    out[id] = Math.max(0, Math.min(3, Math.floor(n)));
   }
   return out;
 }
@@ -117,6 +159,14 @@ function sanitize(raw: unknown): SaveData {
     completedChallenges: [...new Set(stringArray(data.completedChallenges))],
     roomsCleared: Math.max(0, Math.floor(finite(data.roomsCleared, 0))),
     roomBests: roomBests(data.roomBests),
+    roomStars: starMap(data.roomStars),
+    contractsDone: [...new Set(stringArray(data.contractsDone))],
+    totalKills: Math.max(0, Math.floor(finite(data.totalKills, 0))),
+    totalChains: Math.max(0, Math.floor(finite(data.totalChains, 0))),
+    totalHazardKills: Math.max(0, Math.floor(finite(data.totalHazardKills, 0))),
+    bossesBeaten: Math.max(0, Math.floor(finite(data.bossesBeaten, 0))),
+    lastDaily: typeof data.lastDaily === 'string' ? data.lastDaily : '',
+    dailyStreak: Math.max(0, Math.floor(finite(data.dailyStreak, 0))),
     hero: isHeroId(data.hero) ? data.hero : base.hero,
     // Saves from before the lesson plan: anyone past room 1 has nothing left to be taught.
     tutorial: typeof data.tutorial === 'string' ? data.tutorial : finite(data.unlockedRoom, 0) > 0 ? 'done' : '',
