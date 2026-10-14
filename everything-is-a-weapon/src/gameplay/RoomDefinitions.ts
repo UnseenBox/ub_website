@@ -18,6 +18,13 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'top', pos: 640 },
     exit: { side: 'left', pos: 300 },
     rug: { x: 450, y: 310, w: 320, h: 200, color: '#c96f5a' },
+    walls: [
+      // bed nook: two stubs around the bed, open to the room
+      { x: 200, y: 90, hw: 10, hh: 55 },
+      { x: 120, y: 185, hw: 70, hh: 10 },
+      // dresser against the right wall
+      { x: 700, y: 120, hw: 60, hh: 10 },
+    ],
     objects: [
       { type: 'bed', x: 100, y: 92 },
       { type: 'pillow', x: 82, y: 50, angle: 0.2, on: 0 },
@@ -58,9 +65,10 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     exit: { side: 'top', pos: 480 },
     rug: { x: 480, y: 420, w: 380, h: 150, color: '#5a8fa8' },
     walls: [
-      // two hanging partitions make three cubicles; wide aisles all round
-      { x: 400, y: 125, hw: 10, hh: 115 },
-      { x: 640, y: 125, hw: 10, hh: 115 },
+      // cubicle grid: two aisles of desks, walled on three sides
+      { x: 370, y: 150, hw: 10, hh: 90 },
+      { x: 630, y: 150, hw: 10, hh: 90 },
+      { x: 500, y: 330, hw: 140, hh: 10 },
       // a low divider shielding the player's corner
       { x: 150, y: 300, hw: 110, hh: 10 },
     ],
@@ -104,6 +112,9 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       // the laundry partition: cross through either gap, never around
       { x: 520, y: 125, hw: 12, hh: 115 },
       { x: 520, y: 455, hw: 12, hh: 95 },
+      // dry islands in the wet: stand on them, throw from them
+      { x: 320, y: 300, hw: 55, hh: 45 },
+      { x: 740, y: 300, hw: 55, hh: 45 },
     ],
     objects: [
       { type: 'bathtub', x: 280, y: 29 },
@@ -144,17 +155,19 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     exit: { side: 'left', pos: 130 },
     rug: { x: 500, y: 380, w: 360, h: 190, color: '#8a6fb0' },
     walls: [
-      // two seating nooks flanking the hearth
-      { x: 250, y: 200, hw: 90, hh: 10 },
-      { x: 750, y: 200, hw: 90, hh: 10 },
+      // hearth alcove: the fire sits in its own nook, open at the bottom
+      { x: 340, y: 150, hw: 10, hh: 100 },
+      { x: 660, y: 150, hw: 10, hh: 100 },
+      // a sideboard to circle around
+      { x: 120, y: 360, hw: 60, hh: 10 },
     ],
     objects: [
       { type: 'sofa', x: 500, y: 420 },
       { type: 'pillow', x: 465, y: 426, angle: 0.3, on: 0 },
       { type: 'pillow', x: 540, y: 428, angle: -0.2, on: 0 },
-      { type: 'table', x: 250, y: 320 },
-      { type: 'book', x: 230, y: 326, angle: 0.5, on: 3 },
-      { type: 'candle', x: 272, y: 318, on: 3 },
+      { type: 'table', x: 240, y: 320 },
+      { type: 'book', x: 220, y: 326, angle: 0.5, on: 3 },
+      { type: 'candle', x: 262, y: 318, on: 3 },
       { type: 'chair', x: 380, y: 420 },
       { type: 'chair', x: 620, y: 420 },
       { type: 'bookshelf', x: 240, y: 20 },
@@ -190,9 +203,10 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'right', pos: 320 },
     exit: { side: 'left', pos: 470 },
     walls: [
-      // kitchen islands with a wide middle lane
-      { x: 350, y: 300, hw: 80, hh: 12 },
-      { x: 650, y: 300, hw: 80, hh: 12 },
+      // staggered kitchen islands: an S-path between the slicks
+      { x: 300, y: 220, hw: 80, hh: 12 },
+      { x: 500, y: 360, hw: 80, hh: 12 },
+      { x: 700, y: 220, hw: 80, hh: 12 },
     ],
     objects: [
       { type: 'counter', x: 250, y: 25 },
@@ -210,7 +224,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'chair', x: 410, y: 470 },
       { type: 'chair', x: 590, y: 470 },
       { type: 'banana', x: 500, y: 300, angle: 0.7 },
-      { type: 'oilbottle', x: 770, y: 200 },
+      { type: 'oilbottle', x: 790, y: 180 },
       { type: 'flour', x: 190, y: 450 },
       { type: 'trashcan', x: 870, y: 480 },
       { type: 'extinguisher', x: 110, y: 200 },
@@ -242,9 +256,10 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     exit: { side: 'top', pos: 380 },
     rug: { x: 520, y: 300, w: 420, h: 240, color: '#8a6fb0' },
     walls: [
-      // display plinths splitting the showroom into aisles
-      { x: 400, y: 150, hw: 90, hh: 12 },
-      { x: 660, y: 430, hw: 90, hh: 12 },
+      // display aisles: three long plinths, browse between them
+      { x: 330, y: 190, hw: 100, hh: 12 },
+      { x: 710, y: 190, hw: 100, hh: 12 },
+      { x: 520, y: 420, hw: 120, hh: 12 },
     ],
     objects: [
       { type: 'sofa', x: 520, y: 120 },
@@ -267,7 +282,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'alarmclock', x: 760, y: 470 },
       { type: 'watercooler', x: 200, y: 120 },
       { type: 'officechair', x: 520, y: 480 },
-      { type: 'magnet', x: 320, y: 180 },
+      { type: 'magnet', x: 180, y: 260 },
       { type: 'teeth', x: 600, y: 520 },
       { type: 'oilbottle', x: 830, y: 330 },
     ],
@@ -295,6 +310,9 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     walls: [
       // the compactor: slides east-west forever, never sealing the room
       { x: 700, y: 290, hw: 14, hh: 170, slide: { axis: 'x', range: 60, period: 9 } },
+      // fallen stock crates: static cover outside the compactor's path
+      { x: 870, y: 190, hw: 60, hh: 40 },
+      { x: 300, y: 420, hw: 60, hh: 40 },
     ],
     objects: [
       { type: 'bookshelf', x: 320, y: 60 },
@@ -302,7 +320,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'tire', x: 480, y: 150 },
       { type: 'tire', x: 522, y: 192 },
       { type: 'skateboard', x: 420, y: 380, angle: 0.2 },
-      { type: 'jerrycan', x: 900, y: 140 },
+      { type: 'jerrycan', x: 950, y: 250 },
       { type: 'paintcan', x: 480, y: 480 },
       { type: 'paintcan', x: 200, y: 480 },
       { type: 'wrench', x: 380, y: 200, angle: 0.8 },
@@ -311,7 +329,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'lamp', x: 470, y: 250 },
       { type: 'plank', x: 250, y: 200, angle: 1.2 },
       { type: 'ball', x: 560, y: 520 },
-      { type: 'shoe', x: 330, y: 420, angle: 0.6 },
+      { type: 'shoe', x: 250, y: 470, angle: 0.6 },
       { type: 'chair', x: 150, y: 420 },
       { type: 'rake', x: 900, y: 300 },
       { type: 'battery', x: 850, y: 450 },
@@ -343,6 +361,11 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     exit: { side: 'left', pos: 460 },
     rug: { x: 520, y: 300, w: 420, h: 240, color: '#6fa37a' },
     walls: [
+      // grand hall columns: four pillars around the carpet runway
+      { x: 420, y: 180, hw: 22, hh: 22 },
+      { x: 620, y: 180, hw: 22, hh: 22 },
+      { x: 420, y: 420, hw: 22, hh: 22 },
+      { x: 620, y: 420, hw: 22, hh: 22 },
       // foyer fins by the door: drama on entry, never in the way
       { x: 880, y: 120, hw: 10, hh: 80 },
       { x: 880, y: 460, hw: 10, hh: 80 },
@@ -365,14 +388,14 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'lamp', x: 330, y: 480 },
       { type: 'computer', x: 880, y: 300, angle: 0.3 },
       { type: 'trashcan', x: 140, y: 130 },
-      { type: 'fan', x: 900, y: 200, angle: 2.4 },
+      { type: 'fan', x: 930, y: 230, angle: 2.4 },
       { type: 'spraycan', x: 700, y: 480 },
-      { type: 'banana', x: 640, y: 180 },
-      { type: 'shoe', x: 440, y: 150, angle: 1.4 },
+      { type: 'banana', x: 700, y: 140 },
+      { type: 'shoe', x: 440, y: 130, angle: 1.4 },
       { type: 'boombox', x: 300, y: 420, angle: 0.1 },
       { type: 'teeth', x: 660, y: 430 },
       { type: 'boomerang', x: 200, y: 250, angle: 0.7 },
-      { type: 'bucket', x: 900, y: 420 },
+      { type: 'bucket', x: 930, y: 440 },
       { type: 'candle', x: 560, y: 288, on: 0 },
       { type: 'extinguisher', x: 120, y: 480 },
     ],
