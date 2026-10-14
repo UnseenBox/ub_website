@@ -162,7 +162,7 @@ export class Tutorial {
           if (this.inReach(target)) this.enter('grab');
         } else {
           this.pointAt(target);
-          if (this.stepTime > 8 && g.icon) g.caption = touch ? 'TAP' : 'CLICK IT';
+          if (this.stepTime > 8 && g.icon) g.caption = 'TAP';
         }
         break;
       }
@@ -184,7 +184,7 @@ export class Tutorial {
         if (this.misses >= 2) {
           // Two misses: it stands still while you line it up, and the words come out.
           enemy.stun = Math.max(enemy.stun, 0.3);
-          g.caption = touch ? 'HOLD, THEN LET GO' : 'HOLD, AIM, LET GO';
+          g.caption = 'HOLD → LET GO';
         }
         break;
       }
@@ -206,7 +206,7 @@ export class Tutorial {
         g.line = 'ring';
         g.tx = cx / n;
         g.ty = cy / n;
-        if (this.stepTime > 10) g.caption = touch ? 'TAP POWER' : 'POINT AT THEM, PRESS 1';
+        if (this.stepTime > 10) g.caption = touch ? 'TAP POWER' : 'AIM + 1';
         break;
       }
 
@@ -232,7 +232,7 @@ export class Tutorial {
           game.particles.burst('steam', treat.body.x, treat.body.y - 10, 1, 46, { dirX: 0, dirY: -1, spread: 0.5 });
           game.particles.burst('star', treat.body.x, treat.body.y - 6, 1, 70);
         }
-        if (this.stepTime > 10) g.caption = `${pet.treatLabel} FOR YOUR PET`;
+        if (this.stepTime > 10) g.caption = pet.treatLabel;
         break;
       }
 
@@ -267,7 +267,7 @@ export class Tutorial {
         } else {
           this.focus = bottle;
         }
-        if (this.misses >= 2 || this.stepTime > 14) g.caption = 'WATER ON THE SOCKET';
+        if (this.misses >= 2 || this.stepTime > 14) g.caption = 'WATER → SOCKET';
         break;
       }
 
@@ -307,7 +307,7 @@ export class Tutorial {
         if (!game.objects.some((o) => o.alive && o.def.id === 'bottle')) this.dropNear('bottle');
         // ...and nobody comes in until it has.
         this.release(3.5, 5);
-        game.hud.banner('EVERYTHING CAN BE A WEAPON.', '', 2.4);
+        game.hud.banner('ANYTHING = WEAPON', '', 2);
         this.finish();
         break;
       }
@@ -354,7 +354,7 @@ export class Tutorial {
     document.body.classList.add('powers');
     if (!announce) return;
     const pb = game.player.body;
-    game.hud.unlock('NEW POWER', 'BIG RED BUTTON', 'a detonation wherever you point');
+    game.hud.unlock('NEW POWER', 'BIG RED BUTTON', 'boom where you point');
     game.audio.play('discovery', 1);
     game.fx.flash('#ffd23f', 0.35);
     game.fx.ring(pb.x, pb.y, 10, 140, 0.5, 'rgba(255,210,63,0.95)', 6);

@@ -3116,19 +3116,19 @@ body.touch #game {
 .menu-keys.wall-open .mk-chars {
   display: none;
 }
-/* front page, mobile-first: head, campaign strip, door, characters, PLAY stack top to bottom */
+/* front page, mobile-first: head, campaign strip, door, rooms overview, characters, PLAY stack top to bottom */
 .screen.menu-keys:not(.wall-open) {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-  grid-template-areas: 'head' 'campaign' 'door' 'chars' 'play';
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+  grid-template-areas: 'head' 'campaign' 'door' 'pips' 'chars' 'play';
 }
 /* desktop: door + full-width PLAY on the left, a 2×2 character board on the right */
 @media (min-width: 860px) {
   .screen.menu-keys:not(.wall-open) {
     grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    grid-template-areas: 'head head' 'campaign campaign' 'door chars' 'play play';
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: 'head head' 'campaign campaign' 'door chars' 'pips pips' 'play play';
   }
   /* a bigger door on desktop: it owns the left column */
   .mk-door { height: min(100%, clamp(120px, 30vh, 220px)); }
@@ -3526,6 +3526,48 @@ button.key:focus-visible {
   border: 2px solid #ffd23f;
   border-radius: 5px;
   padding: 1px 7px;
+}
+
+/* act dividers across the key wall: full-width rows between key rows */
+.key-act {
+  flex-basis: 100%;
+  text-align: center;
+  font: 700 clamp(10px, 1.7vmin, 13px) var(--type);
+  letter-spacing: 0.12em;
+  color: #ffd23f;
+  opacity: 0.85;
+  padding-top: 4px;
+}
+
+/* front-page pips: every room at a glance, locked or not */
+.mk-pips {
+  grid-area: pips;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 2px 0 4px;
+}
+.pip {
+  width: clamp(30px, 5vmin, 40px);
+  height: clamp(30px, 5vmin, 40px);
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: var(--grain), var(--paper);
+  color: var(--ink);
+  font: 400 clamp(14px, 2.6vmin, 20px)/1 var(--shout);
+  cursor: pointer;
+  box-shadow: 2px 3px 0 var(--shadow);
+}
+.pip.locked {
+  background: #3a305e;
+  color: #fbf6e9;
+  font-size: clamp(12px, 2.2vmin, 16px);
+}
+.pip.perfect {
+  background: var(--grain), var(--sticky);
+}
+.pip.depths {
+  border-style: dashed;
 }
 
 /* characters: four paper cards, frames blank until artwork arrives */

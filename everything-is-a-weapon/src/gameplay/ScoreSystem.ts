@@ -205,7 +205,7 @@ export class ScoreSystem {
       if (kills >= 2) {
         points += 400 * (kills - 1);
         game.discoveries.unlock('two_birds');
-        game.hud.banner(kills === 2 ? 'ONE THROW. TWO INTRUDERS.' : `ONE THROW. ${kills} INTRUDERS.`, 'MULTI-KILL');
+        game.hud.banner(kills === 2 ? 'ONE THROW. TWO INTRUDERS.' : `ONE THROW. ${kills} INTRUDERS.`, '');
         this.bumpCombo();
       }
     }

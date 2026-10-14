@@ -126,7 +126,7 @@ export class AbilitySystem {
     game.fx.ring(pb.x, pb.y, 10, 130, 0.5, 'rgba(255,90,78,0.95)', 5);
     game.particles.burst('ember', pb.x, pb.y - 30, 20, 340);
     game.camera.addShake(0.5);
-    game.hud.banner('SUGAR RUSH', 'eight seconds of blind rage', 1.8);
+    game.hud.banner('SUGAR RUSH', 'rage: 8s', 1.8);
   }
 
   /** Every mover in the room stops cold for four seconds. */
@@ -144,7 +144,7 @@ export class AbilitySystem {
     snoozeChime(game.audio);
     game.fx.flash('#bfe9ff', 0.3);
     game.fx.burst('DEEP FREEZE!', pb.x, pb.y - 62, 1.2, '#bfe9ff', true);
-    game.hud.banner('DEEP FREEZE', frozen > 0 ? 'every mover in the room stops cold' : 'nobody here to freeze', 1.8);
+    game.hud.banner('DEEP FREEZE', frozen > 0 ? 'all movers frozen' : '', 1.8);
     if (frozen > 0) game.discoveries.unlock('deep_freeze');
   }
 }

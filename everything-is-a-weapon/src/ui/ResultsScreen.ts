@@ -96,11 +96,11 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     stars.textContent = `${'★'.repeat(summary.stars)}${'☆'.repeat(Math.max(0, 3 - summary.stars))}${summary.isNewBestStars ? ' · new!' : ''}`;
     card.append(stars);
   }
-  if (summary.objective) card.append(el('div', 'victory-objective', `◎ ${summary.objective.toLowerCase()}`));
+  if (summary.objective && summary.daily) card.append(el('div', 'victory-objective', `◎ ${summary.objective.toLowerCase()}`));
   for (const contract of summary.contractsNew) {
-    card.append(el('div', 'victory-contract', `✚ contract ${contract.name.toLowerCase()} · +${contract.reward} scrap`));
+    card.append(el('div', 'victory-contract', `✚ ${contract.name.toLowerCase()} +${contract.reward}`));
   }
-  if (summary.dailyBonus > 0) card.append(el('div', 'victory-contract', `🔥 daily streak · +${summary.dailyBonus} scrap`));
+  if (summary.dailyBonus > 0) card.append(el('div', 'victory-contract', `🔥 +${summary.dailyBonus}`));
 
   const score = el('div', 'victory-score', '0');
   card.append(score);
@@ -196,7 +196,7 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   fields.append(
     score.row,
     field('LONGEST CHAIN', summary.bestChain > 0 ? `x${summary.bestChain}` : '—').row,
-    field('OBJECTS MISUSED', String(summary.objectsUsed)).row,
+    field('OBJECTS USED', String(summary.objectsUsed)).row,
     field('NEW EVIDENCE', String(summary.newDiscoveries)).row,
   );
   // Something to beat on a replay.

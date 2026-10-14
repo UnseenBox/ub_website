@@ -403,7 +403,7 @@ export class Game {
     // Campaign briefing: every room says which act it belongs to and what the
     // mini-goal is, once per first visit. Replays just show the room name.
     const briefing = briefingFor(def.id, index);
-    if (firstVisit && !def.tutorial) this.hud.banner(`${actFor(index).name} · ${def.name}`, briefing.objective, 3.2);
+    if (firstVisit && !def.tutorial) this.hud.banner(`${index + 1} · ${def.name}`, briefing.objective, 3);
     else if (firstVisit && def.teaser && !def.tutorial) this.hud.banner(def.name, def.teaser, 2.6);
     this.analytics.track('room_start', { room: index + 1, daily, generated: index >= this.rooms.handcraftedCount });
   }
@@ -440,7 +440,7 @@ export class Game {
     this.player.revive();
     this.room.failTimer = 0;
     this.setState('playing');
-    this.hud.banner('SECOND CHANCE', 'back on your feet', 2);
+    this.hud.banner('SECOND CHANCE', '', 2);
     this.fx.burst('UP!', this.player.body.x, this.player.body.y - 60, 1.1, '#9be564', true);
     return true;
   }
@@ -623,7 +623,7 @@ export class Game {
     if (lastRoom && firstTime) this.portal.celebrate();
     if (summary.contractsNew.length > 0) {
       const first = summary.contractsNew[0]!;
-      this.hud.unlock('CONTRACT COMPLETE', first.name, `+${first.reward} scrap · ${summary.contractsNew.length} done`);
+      this.hud.unlock('CONTRACT COMPLETE', first.name, `+${first.reward}`);
     }
     this.setState('cleared');
     this.hud.showSummary(summary);
@@ -1110,7 +1110,8 @@ export class Game {
       const b = e.enemy.body;
       this.audio.voice('defeat', e.enemy.type.voice);
       if (e.enemy.type.boss) {
-        this.hud.banner(e.enemy.type.bossTitle ?? 'LANDLORD EVICTED', 'the flat is yours. for now.', 2.6);
+        this.audio.bossRoar(e.enemy.type.id, e.enemy.type.voice, true);
+        this.hud.banner(e.enemy.type.bossTitle ?? 'LANDLORD EVICTED', '', 2.2);
         this.discoveries.unlock(e.enemy.type.bossDiscovery ?? 'mom_says_no');
       }
       // the box bursts: packing peanuts everywhere, plus a starburst in the

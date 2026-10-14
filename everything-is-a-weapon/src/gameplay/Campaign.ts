@@ -68,49 +68,49 @@ export interface Briefing {
 export const BRIEFINGS: Readonly<Record<string, Briefing>> = {
   'room-1': {
     story: 'Morning. A boot kicks your bedroom door — MOVERS & CO. has come to box up your life.',
-    objective: 'Learn the ropes: grab, throw, and send all 8 movers back out the door.',
+    objective: 'grab, throw, knock them out',
     landlord: '“Vacate by noon. — M.”',
     par: 150,
   },
   'room-2': {
     story: 'They set up desks in your office overnight and started charging you rent to sit down.',
-    objective: 'Shove a desk and everything on it goes too. Bonus: no chairs thrown.',
+    objective: 'shove a desk, skip chairs',
     landlord: '“Hot-desking now £40/hr. — M.”',
     par: 120,
   },
   'room-3': {
     story: 'The laundry is flooded and something down there is eating socks, coins, and movers.',
-    objective: 'Water + socket = live puddle. Feed the HOOVER something explosive.',
+    objective: 'water + socket; feed hoover',
     landlord: '“Damp is tenant’s fault. — M.”',
     par: 150,
   },
   'room-4': {
     story: 'The lounge fireplace was lit “for viewings”. The gnats arrived with marshmallows.',
-    objective: 'Fire is not on your side. One throw, two movers — let the room help.',
+    objective: 'one throw, two movers',
     landlord: '“Viewings all week. Keep out. — M.”',
     par: 150,
   },
   'room-5': {
     story: 'The kitchen crew throws your own pans back at you. The floor is mostly oil now.',
-    objective: 'Keep moving. Interrupt the Chucker, never stand next to the flour.',
+    objective: 'keep moving, mind flour',
     landlord: '“Fridge contents confiscated. — M.”',
     par: 160,
   },
   'room-6': {
     story: 'The showroom furniture woke up. The sofa has opinions and eight legs.',
-    objective: 'Chain 4 steps in one reaction — burn the display stock to do it.',
+    objective: 'chain 4 steps, burn stock',
     landlord: '“Showroom models not for sitting. — M.”',
     par: 170,
   },
   'room-7': {
     story: 'Down in the warehouse the wall itself moves. The Bulwark dares you to hit its front.',
-    objective: 'Don’t. Burn it, shock it, or go around. Mind the compactor.',
+    objective: "don't hit its front",
     landlord: '“Storage fees tripled. — M.”',
     par: 180,
   },
   'room-8': {
     story: 'The penthouse. The Landlord himself, phased and furious, with the whole crew.',
-    objective: 'Everything you learned, all at once. Finish it with a book.',
+    objective: 'all at once · book',
     landlord: '“BRING ME THE KEYS. — THE LANDLORD”',
     par: 210,
   },
@@ -128,7 +128,7 @@ export function briefingFor(roomId: string, index: number): Briefing {
   if (handcrafted) return handcrafted;
   return {
     story: DEPTH_STORIES[index % DEPTH_STORIES.length]!,
-    objective: 'Clear the room. The bonus note is your mini-goal — chase the stars.',
+    objective: 'clear · chase ★',
     landlord: '“Rent due. — M.”',
     par: 150,
   };

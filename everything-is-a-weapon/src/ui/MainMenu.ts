@@ -119,12 +119,12 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
       'span',
       'mk-contracts',
       nextContract
-        ? `✚ ${nextContract.name}: ${Math.min(nextProgress, nextContract.target)}/${nextContract.target} (+${nextContract.reward} scrap)`
-        : `✓ all ${contractsDone} contracts done`,
+        ? `✚ ${nextContract.name} ${Math.min(nextProgress, nextContract.target)}/${nextContract.target} · +${nextContract.reward}`
+        : `✓ ${contractsDone}/${CONTRACTS.length} ✚`,
     ),
   );
   if (save.dailyStreak > 0) campaign.append(el('span', 'mk-daily', `🔥 daily ×${save.dailyStreak}`));
-  else campaign.append(el('span', 'mk-daily', '★ daily challenge pays bonus scrap'));
+  else campaign.append(el('span', 'mk-daily', '★ daily = +scrap'));
   screen.append(campaign);
 
   // ── the door: wears the chosen room's number, opens the key wall ──
@@ -138,7 +138,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   door.append(leaf);
   const doorNote = el('div', 'door-note');
   const doorRoom = el('strong', 'door-note-room');
-  doorNote.append(el('span', '', 'now playing'), doorRoom, el('span', 'door-note-hint', 'knock on the door to pick another room'));
+  doorNote.append(el('span', '', 'now playing'), doorRoom, el('span', 'door-note-hint', 'tap door = rooms'));
   doorway.append(door, doorNote);
   screen.append(doorway);
 
@@ -172,9 +172,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
       if (best) info.append(el('span', 'key-info-best', `★ ${formatScore(best.score)}`));
       const briefing = BRIEFINGS[def.id];
       if (briefing) {
-        info.append(el('span', 'key-info-story', briefing.story));
         info.append(el('span', 'key-info-objective', `◎ ${briefing.objective}`));
-        info.append(el('span', 'key-info-landlord', briefing.landlord));
       }
       const challenge = challengeText(def.challenge);
       if (challenge) {
@@ -182,7 +180,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
         info.append(el('span', 'key-info-challenge', `${done ? '✓ ' : '✚ '}${challenge}`));
       }
     } else {
-      info.append(el('span', 'key-info-story', 'The basement keeps going. New rooms, old bosses, daily work.'));
+      info.append(el('span', 'key-info-story', 'endless rooms · daily work'));
     }
     if (entry.boss) info.append(el('span', 'key-info-boss', 'BOSS'));
     playSub.textContent = roomLabel(entry.index);
@@ -218,7 +216,8 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
       node.setAttribute('role', 'option');
       node.setAttribute('aria-selected', 'false');
       node.setAttribute('data-index', String(entry.index));
-      node.setAttribute('aria-label', `Room ${entry.label}: clear room ${Number(entry.label) - 1} to unlock`);
+      const hint = entry.label === '∞' ? `the depths: clear room ${total} to unlock` : `clear room ${Number(entry.label) - 1} to unlock`;
+      node.setAttribute('aria-label', `Room ${entry.label}: ${hint}`);
       node.append(el('span', 'key-hook'), el('span', 'key-body'), el('span', 'key-tag', `🔒${entry.label}`));
       rack.append(node);
       keyNodes.set(entry.key, node);
@@ -247,9 +246,17 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     }
   };
 
+  // Every room on one wall, grouped by act — locked keys stay visible as locked.
+  let lastAct = '';
   HANDCRAFTED_ROOMS.forEach((def, i) => {
+    const actId = actFor(i).id;
+    if (actId !== lastAct) {
+      lastAct = actId;
+      rack.append(el('div', 'key-act', actFor(i).name.toLowerCase()));
+    }
     addKey({ key: `room-${i}`, index: i, label: String(i + 1), name: def.name.toLowerCase(), boss: !!def.boss, locked: i > openThrough });
   });
+  rack.append(el('div', 'key-act', actFor(total).name.toLowerCase()));
   if (tester) {
     for (const { type, index } of depthsBossSlots()) {
       addKey({ key: `depth-${index}`, index, label: String(index + 1), name: ENEMY_TYPES[type].name.toLowerCase(), boss: true, locked: false });
@@ -257,9 +264,35 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   } else if (resumeRoom >= total) {
     const spec = bossSpecFor(resumeRoom, false, game.rooms.definition(resumeRoom));
     addKey({ key: 'endless', index: resumeRoom, label: '∞', name: 'the depths', boss: !!spec, locked: false });
+  } else {
+    addKey({ key: 'endless-locked', index: total, label: '∞', name: 'the depths', boss: true, locked: true });
   }
   wallSec.append(rack, info);
   screen.append(wallSec);
+
+  // ── at-a-glance pips on the front page: all rooms, locked or not ──
+  const pips = el('div', 'mk-pips');
+  pips.setAttribute('aria-label', 'Rooms overview. Open the key wall to choose.');
+  const openPips = (): void => openWall(true);
+  HANDCRAFTED_ROOMS.forEach((def, i) => {
+    const locked = i > openThrough;
+    const starCount = save.roomStars[def.id] ?? 0;
+    const pip = el('button', `pip${locked ? ' locked' : ''}${starCount >= 3 ? ' perfect' : ''}`);
+    pip.type = 'button';
+    pip.textContent = locked ? '🔒' : String(i + 1);
+    pip.title = locked ? `room ${i + 1}: locked` : `room ${i + 1}: ${def.name.toLowerCase()}${starCount > 0 ? ` · ${starText(starCount)}` : ''}`;
+    pip.setAttribute('aria-label', pip.title);
+    pip.addEventListener('click', openPips);
+    pips.append(pip);
+  });
+  const dpip = el('button', `pip depths${resumeRoom >= total ? '' : ' locked'}`);
+  dpip.type = 'button';
+  dpip.textContent = resumeRoom >= total ? '∞' : '🔒';
+  dpip.title = resumeRoom >= total ? 'the depths: endless' : 'the depths: clear room 8 to unlock';
+  dpip.setAttribute('aria-label', dpip.title);
+  dpip.addEventListener('click', openPips);
+  pips.append(dpip);
+  screen.append(pips);
 
   // ── characters: the four heroes, each drawn into its card frame ──
   const chars = el('section', 'mk-chars');

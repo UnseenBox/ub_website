@@ -369,7 +369,8 @@ export class HUD {
       last.challenge = challengeKey;
       this.sticky.classList.toggle('hidden', !challenge);
       this.sticky.classList.toggle('failed', status === 'failed');
-      this.stickyText.textContent = challenge ? challenge.text.toLowerCase() : '';
+      this.stickyText.textContent = challenge ? challenge.short.toLowerCase() : '';
+      this.sticky.title = challenge ? challenge.text.toLowerCase() : '';
     }
 
     // The total rolls up like a till instead of jumping.

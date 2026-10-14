@@ -64,7 +64,7 @@ export function consumePickup(game: Game, object: PhysicsObject): boolean {
       game.camera.addShake(0.7);
       game.camera.punchZoom(0.05);
       game.hitStop(0.12);
-      game.hud.banner('SEEING RED', 'one minute of blind rage', 2.2);
+      game.hud.banner('SEEING RED', 'rage: 60s', 2);
       game.discoveries.unlock('hot_head');
       break;
 
@@ -114,7 +114,7 @@ export function consumePickup(game: Game, object: PhysicsObject): boolean {
       snoozeChime(game.audio);
       game.fx.flash('#c9b6ff', 0.3);
       game.fx.burst('SNOOZE!', pb.x, pb.y - 62, 1.2, '#c9b6ff', true);
-      game.hud.banner('FIVE MORE MINUTES', frozen > 0 ? 'every mover in the room nods off' : 'nobody here to send to sleep', 2);
+      game.hud.banner('FIVE MORE MINUTES', frozen > 0 ? 'all movers snooze' : '', 2);
       if (frozen > 0) game.discoveries.unlock('snoozed');
       break;
     }

@@ -20,19 +20,19 @@ const controls = (): ReadonlyArray<readonly [string, string]> => [
   [`${moveKeysLabel()} / arrows`, 'move'],
   ['mouse', 'aim'],
   ['click', 'grab'],
-  ['hold + let go', 'charge and throw'],
+  ['hold + let go', 'throw'],
   ['right click', 'drop'],
   ['space', 'dodge'],
-  ['R', 'restart the room'],
+  ['R', 'restart'],
   ['P / Esc', 'pause'],
 ];
 
 const TOUCH_CONTROLS: ReadonlyArray<readonly [string, string]> = [
   ['left thumb', 'move'],
-  ['tap right side', 'grab what is highlighted'],
-  ['hold right side', 'charge, let go to throw'],
-  ['drag right thumb', 'aim by hand'],
-  ['dodge / drop', 'buttons, bottom right'],
+  ['tap right', 'grab'],
+  ['hold right', 'throw'],
+  ['drag right', 'aim'],
+  ['dodge / drop', 'buttons'],
 ];
 
 /** The fight manual, shared by the pause screen and the main-menu controls sheet. */

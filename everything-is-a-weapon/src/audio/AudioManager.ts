@@ -1,4 +1,5 @@
 import type { SoundKind } from '../objects/Materials';
+import type { EnemyTypeId } from '../entities/EnemyTypes';
 import { Music } from './Music';
 import { SAMPLE_FILES, SampleBank, samplesEnabled, type SampleName, type SampleOptions } from './Samples';
 import { Synth, VOWEL, type Partial } from './Synth';
@@ -436,6 +437,132 @@ export class AudioManager {
     if (!s) return;
     for (let i = 0; i < Math.min(length + 1, 8); i++) s.modal(SCALE[i]!, MARIMBA, 0.2, i * 0.075);
     s.modal(SCALE[Math.min(length + 1, 8)]! * 2, BELL, 0.1, Math.min(length + 1, 8) * 0.075);
+  }
+
+  /**
+   * Each boss announces itself (and its defeat, with `down`) with its own cry:
+   * two layers from its base pitch plus one signature gesture. All procedural,
+   * so every build — including single-file portals — roars the same way.
+   */
+  bossRoar(id: EnemyTypeId, pitch: number, down = false): void {
+    const s = this.begin(`boss:${id}`, 0.8);
+    if (!s) return;
+    const b = Math.max(30, pitch * (down ? 0.55 : 1) * (0.96 + Math.random() * 0.08));
+    const t = down ? 0.7 : 1;
+    // Shared bed: a sliding growl plus weight underneath, scaled by pitch.
+    if (b <= 95) {
+      s.tone({ type: 'sawtooth', from: b * 2.2, to: b * 0.6, dur: 0.8 * t, gain: 0.3 });
+      s.noise({ filter: 'lowpass', from: 500, to: 90, dur: 0.8 * t, gain: 0.4 });
+      s.tone({ from: b * 0.5, to: 28, dur: 0.5 * t, gain: 0.4, delay: 0.1 });
+    } else if (b <= 200) {
+      s.tone({ type: 'square', from: b * 1.5, to: b * 0.8, dur: 0.55 * t, gain: 0.16, vibrato: { rate: 11, depth: b * 0.2 } });
+      s.noise({ filter: 'bandpass', from: b * 6, to: b * 2, dur: 0.5 * t, gain: 0.3, q: 1.5 });
+      s.tone({ from: b * 0.5, to: 30, dur: 0.4 * t, gain: 0.35, delay: 0.08 });
+    } else {
+      s.voice({ pitch: [b * 1.1, b * 1.7, b * 1.2], dur: 0.5 * t, from: VOWEL.i, to: VOWEL.e, gain: 0.26, vibrato: { rate: 13, depth: b * 0.1 } });
+      s.tone({ from: b * 4, to: b * 5, dur: 0.3 * t, gain: 0.06 });
+      s.tone({ from: b * 0.4, to: 32, dur: 0.35 * t, gain: 0.3, delay: 0.06 });
+    }
+    // One signature gesture per boss.
+    switch (id) {
+      case 'chairman':
+        for (let i = 0; i < 3; i++) {
+          s.modal(220, METAL, 0.3, i * 0.22);
+          s.tone({ from: 130, to: 50, dur: 0.12, gain: 0.4, delay: i * 0.22 });
+        }
+        break;
+      case 'flusher':
+        s.noise({ filter: 'bandpass', from: 900, to: 200, dur: 0.7 * t, gain: 0.35, q: 1.2, delay: 0.1 });
+        for (let i = 0; i < 3; i++) s.tone({ from: 120 + i * 60, to: 220 + i * 60, dur: 0.12, gain: 0.2, delay: 0.15 + i * 0.14 });
+        break;
+      case 'kraken':
+        s.tone({ from: 70, to: 55, dur: 0.9 * t, gain: 0.35, vibrato: { rate: 6, depth: 18 }, delay: 0.05 });
+        s.tone({ from: 300, to: 500, dur: 0.08, gain: 0.15, delay: 0.3 });
+        s.tone({ from: 500, to: 260, dur: 0.1, gain: 0.15, delay: 0.45 });
+        break;
+      case 'fridgezilla':
+        s.tone({ type: 'sawtooth', from: 55, to: 52, dur: 0.8 * t, gain: 0.2, delay: 0.05 });
+        for (let i = 0; i < 4; i++) s.modal(2800 + Math.random() * 2000, [[1, 0.04, 1]], 0.12, 0.2 + i * 0.13);
+        break;
+      case 'piano':
+        s.modal(220, BELL, 0.25, 0.1, 2);
+        s.modal(233, BELL, 0.25, 0.12, 2);
+        s.modal(247, BELL, 0.25, 0.14, 2);
+        break;
+      case 'mower':
+        for (let i = 0; i < 5; i++) {
+          s.tone({ type: 'square', from: 72, to: 45, dur: 0.09, gain: 0.3, delay: 0.1 + i * 0.13 });
+          s.noise({ filter: 'lowpass', from: 700, dur: 0.06, gain: 0.2, delay: 0.1 + i * 0.13 });
+        }
+        break;
+      case 'mom':
+        for (let i = 0; i < 3; i++) {
+          s.voice({ pitch: [b * (1 - i * 0.08), b * (0.85 - i * 0.08)], dur: 0.14, from: VOWEL.a, to: VOWEL.a, gain: 0.32, delay: 0.1 + i * 0.17 });
+        }
+        break;
+      case 'vacuumasaurus':
+        s.noise({ filter: 'lowpass', from: 2000, to: 120, dur: 0.9 * t, gain: 0.4, attack: 0.1, delay: 0.05 });
+        s.tone({ type: 'square', from: 65, to: 58, dur: 0.8 * t, gain: 0.14, vibrato: { rate: 25, depth: 12 }, delay: 0.05 });
+        break;
+      case 'hydra':
+        s.voice({ pitch: [b, b * 1.3], dur: 0.4 * t, from: VOWEL.ah, to: VOWEL.e, gain: 0.22, delay: 0.05 });
+        s.voice({ pitch: [b * 1.25, b * 1.5], dur: 0.4 * t, from: VOWEL.ah, to: VOWEL.e, gain: 0.2, delay: 0.15 });
+        s.voice({ pitch: [b * 0.8, b], dur: 0.4 * t, from: VOWEL.o, to: VOWEL.e, gain: 0.2, delay: 0.25 });
+        break;
+      case 'fan':
+        s.noise({ filter: 'bandpass', from: 400, to: 2400, dur: 0.8 * t, gain: 0.32, q: 2, attack: 0.15, delay: 0.05 });
+        s.tone({ from: b, to: b * 2.5, dur: 0.8 * t, gain: 0.1, delay: 0.05 });
+        break;
+      case 'popcorn':
+        for (let i = 0; i < 6; i++) {
+          const when = 0.1 + Math.random() * 0.6;
+          s.noise({ filter: 'highpass', from: 2500, dur: 0.03, gain: 0.3, delay: when });
+          s.tone({ from: 500 + Math.random() * 900, to: 900 + Math.random() * 900, dur: 0.04, gain: 0.12, delay: when });
+        }
+        break;
+      case 'cables':
+        s.tone({ type: 'sawtooth', from: 120, to: 110, dur: 0.4 * t, gain: 0.2, vibrato: { rate: 55, depth: 40 } });
+        for (let i = 0; i < 8; i++) s.noise({ filter: 'highpass', from: 4200, dur: 0.01, gain: 0.22, delay: Math.random() * 0.4 });
+        break;
+      case 'cooker':
+        s.noise({ filter: 'highpass', from: 2000, to: 5000, dur: 0.5 * t, gain: 0.25, attack: 0.2, delay: 0.05 });
+        s.tone({ from: 200, to: 340, dur: 0.5 * t, gain: 0.12, vibrato: { rate: 18, depth: 30 }, delay: 0.05 });
+        s.noise({ filter: 'bandpass', from: 1200, dur: 0.06, gain: 0.4, q: 1, delay: 0.55 * t });
+        break;
+      case 'train':
+        s.tone({ from: 600, to: 920, dur: 0.9 * t, gain: 0.16, attack: 0.08, vibrato: { rate: 6, depth: 12 } });
+        for (let i = 0; i < 3; i++) s.noise({ filter: 'lowpass', from: 500, dur: 0.08, gain: 0.3, delay: i * 0.16 });
+        break;
+      case 'junk':
+        for (let i = 0; i < 5; i++) {
+          const when = 0.1 + i * 0.12 + Math.random() * 0.04;
+          if (i % 2 === 0) s.modal(160 + Math.random() * 200, WOOD, 0.22, when);
+          else s.modal(500 + Math.random() * 900, METAL, 0.1, when, 0.5);
+        }
+        break;
+      case 'house':
+        s.tone({ from: 46, to: 27, dur: 1 * t, gain: 0.5, attack: 0.02 });
+        s.tone({ from: 92, to: 58, dur: 0.9 * t, gain: 0.2, vibrato: { rate: 3, depth: 8 }, delay: 0.05 });
+        break;
+      case 'clock':
+        for (let i = 0; i < 4; i++) s.tone({ type: 'square', from: i % 2 === 0 ? 1250 : 880, dur: 0.04, gain: 0.16, delay: 0.08 + i * 0.16 });
+        s.tone({ from: 1800, to: 2600, dur: 0.4 * t, gain: 0.05, delay: 0.1 });
+        break;
+      case 'toybox':
+        for (let i = 0; i < 4; i++) s.modal([880, 1046.5, 1318.5, 880]![i]!, BELL, 0.16, 0.1 + i * 0.14);
+        s.tone({ from: 200, to: 700, dur: 0.18, gain: 0.1, delay: 0.6 * t });
+        break;
+      case 'dishwasher':
+        s.noise({ filter: 'bandpass', from: 800, to: 300, dur: 0.5 * t, gain: 0.35, q: 0.8, delay: 0.05 });
+        s.noise({ filter: 'highpass', from: 2600, dur: 0.35, gain: 0.14, attack: 0.1, delay: 0.2 });
+        s.modal(640, METAL, 0.2, 0.45);
+        break;
+      case 'cardboard':
+        for (let i = 0; i < 3; i++) s.noise({ filter: 'bandpass', from: 900, to: 400, dur: 0.09, gain: 0.3, q: 1, delay: 0.08 + i * 0.16 });
+        s.modal(300, WOOD, 0.25, 0.5);
+        break;
+    }
+    if (down) s.tone({ from: 90, to: 30, dur: 0.5, gain: 0.5, delay: 0.25 });
   }
 
   /**

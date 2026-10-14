@@ -231,7 +231,8 @@ export class RoomManager {
       game.camera.addShake(0.22);
       const bossType = ENEMY_TYPES[spec.type];
       if (bossType.boss) {
-        game.hud.banner(bossType.bossBanner ?? bossType.name.toUpperCase(), bossType.bossBlurb ?? '', 2.8);
+        game.audio.bossRoar(spec.type, enemy.type.voice);
+        game.hud.banner(bossType.bossBanner ?? bossType.name.toUpperCase(), '', 2.4);
         game.camera.addShake(0.5);
       }
     }
