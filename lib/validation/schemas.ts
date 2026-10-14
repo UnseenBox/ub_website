@@ -90,6 +90,7 @@ export const playableSchema = z.object({
       message: "Use a site path with a file extension, e.g. /arcade/my-game/index.html",
     }),
   poster: imageRef,
+  apkUrl: optionalUrl.optional(),
   genre: localized(120),
   summary: localizedRequired(3000),
   desktopControls: localized(500),

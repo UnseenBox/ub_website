@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { GameReviews } from "@/components/community/game-reviews";
 import { Stars } from "@/components/community/stars";
+import { ApkDownload } from "@/components/play/apk-download";
 import { GamePlayer } from "@/components/play/game-player";
 import { GameTile } from "@/components/play/game-tile";
 import { ColorStrip } from "@/components/play/color-strip";
@@ -134,6 +135,9 @@ export default async function PlayGamePage({ params }: PageProps<"/[locale]/play
               externalLink: dict.a11y.externalLink,
             }}
           />
+          {game.apkUrl ? (
+            <ApkDownload url={game.apkUrl} title={copy.downloadApk} note={copy.downloadApkNote} />
+          ) : null}
       </div>
       </div>
       <ColorStrip />

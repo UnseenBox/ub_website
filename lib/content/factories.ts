@@ -55,6 +55,7 @@ export function newPlayable(order: number): Playable {
     moods: [],
     src: "",
     poster: "",
+    apkUrl: "",
     genre: emptyLocalized(),
     summary: emptyLocalized(),
     desktopControls: emptyLocalized(),

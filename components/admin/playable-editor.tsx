@@ -5,7 +5,7 @@ import { deletePlayableAction, savePlayableAction } from "@/app/admin/actions";
 import { cn, slugify } from "@/lib/utils";
 import { PLAY_MOODS, type Playable, type PlayMood } from "@/types/content";
 import { EditorShell } from "./editor-shell";
-import { Card, ImageField, LocalizedInput, TextInput, Toggle } from "./fields";
+import { Card, FileField, ImageField, LocalizedInput, TextInput, Toggle } from "./fields";
 
 const MOOD_LABELS: Record<PlayMood, string> = {
   quick: "Quick fix",
@@ -99,6 +99,14 @@ export function PlayableEditor({ initial, isNew }: { initial: Playable; isNew: b
           hint="Must keep its file extension so the site serves it as a file, e.g. /arcade/my-game/index.html."
         />
         <ImageField label="Poster / tile image" value={game.poster} onChange={(v) => set("poster", v)} />
+        <FileField
+          label="Android build (.apk, optional)"
+          value={game.apkUrl ?? ""}
+          onChange={(v) => set("apkUrl", v)}
+          accept=".apk,application/vnd.android.package-archive"
+          uploadLabel="Upload APK"
+          hint="Upload the installable phone build (up to 50 MB), or paste its URL. While set, the game page shows a big download button."
+        />
       </Card>
 
       <Card title="Text" description="English is required where marked; French and Arabic fall back to English when empty.">

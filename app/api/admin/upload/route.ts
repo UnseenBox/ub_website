@@ -17,9 +17,11 @@ export const ACCEPTED_TYPES = [
   "image/avif",
   "image/gif",
   "image/svg+xml",
+  // Installable Android builds for the arcade download button.
+  "application/vnd.android.package-archive",
 ];
 
-const MAX_BYTES = 15 * 1024 * 1024;
+const MAX_BYTES = 50 * 1024 * 1024;
 
 export async function POST(request: Request): Promise<NextResponse> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {

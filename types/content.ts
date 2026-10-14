@@ -132,6 +132,8 @@ export interface Playable {
   /** Entry point of the static build. Must keep its file extension so the locale proxy skips it. */
   src: string;
   poster: string;
+  /** Optional installable Android build (.apk URL). The download button only shows when set. */
+  apkUrl?: string;
   genre: LocalizedString;
   summary: LocalizedString;
   desktopControls: LocalizedString;

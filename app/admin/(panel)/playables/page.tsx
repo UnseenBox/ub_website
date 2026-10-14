@@ -84,6 +84,9 @@ export default async function AdminPlayablesPage() {
                     ) : (
                       <span className="rounded bg-zinc-200 px-2 py-0.5 text-xs text-zinc-600">Disabled</span>
                     )}
+                    {game.apkUrl ? (
+                      <span className="ms-1.5 rounded bg-violet-100 px-2 py-0.5 text-xs text-violet-800">APK</span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{game.order}</td>
                   <td className="px-4 py-3 text-end">

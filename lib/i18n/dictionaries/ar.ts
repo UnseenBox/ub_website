@@ -127,6 +127,8 @@ const ar: Dictionary = {
     priceValue: "مجانية، بلا حساب",
     platformsValue: "متصفح الويب، على الحاسوب والهاتف",
     ad: "إعلان",
+    downloadApk: "حمّل والعب على هاتفك",
+    downloadApkNote: "APK أندرويد · مجاني وبلا حساب",
   },
   upcoming: {
     label: "في العتمة",

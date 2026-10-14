@@ -131,6 +131,8 @@ const fr: Dictionary = {
     priceValue: "Gratuit, sans compte",
     platformsValue: "Navigateur web, sur ordinateur et téléphone",
     ad: "Publicité",
+    downloadApk: "Télécharge & joue sur ton téléphone",
+    downloadApkNote: "APK Android · gratuit, sans compte",
   },
   upcoming: {
     label: "Dans le noir",

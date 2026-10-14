@@ -364,6 +364,139 @@ export function ImageField({
   );
 }
 
+/**
+ * File reference input: upload a file, or paste a URL.
+ * Same Blob flow as ImageField, but for non-image files (e.g. Android .apk builds).
+ */
+export function FileField({
+  label,
+  value,
+  onChange,
+  accept,
+  hint,
+  uploadLabel = "Upload file",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  /** e.g. ".apk,application/vnd.android.package-archive" */
+  accept: string;
+  hint?: string;
+  uploadLabel?: string;
+}) {
+  const id = useId();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [upload, setUpload] = useState<UploadStatus | null>(null);
+  const canUpload = upload ? upload.enabled : null;
+
+  useEffect(() => {
+    let active = true;
+    void uploadStatus().then((status) => {
+      if (active) setUpload(status);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      // Sent straight from the browser to Blob storage, so large builds are
+      // not limited by the serverless request size.
+      const { upload } = await import("@vercel/blob/client");
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        contentType: file.type,
+      });
+      onChange(blob.url);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed.";
+      setUploadError(
+        /client token|501/i.test(message)
+          ? "Uploads need a Blob store: Vercel → Storage → Blob → Create, then redeploy. You can paste a file URL instead."
+          : message,
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const fileName = value ? decodeURIComponent(value.split("/").pop()?.split("?")[0] ?? value) : "";
+
+  return (
+    <Field
+      label={label}
+      htmlFor={id}
+      hint={
+        uploadError ? (
+          <span className="text-red-600">{uploadError}</span>
+        ) : canUpload === false ? (
+          <span className="text-amber-700">{UPLOAD_HINTS[upload?.where ?? "deployed"]}</span>
+        ) : (
+          hint ?? "Upload a file, or paste a https:// URL."
+        )
+      }
+    >
+      <input
+        id={id}
+        dir="ltr"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="https://…"
+        className={inputClass}
+      />
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        {canUpload === false ? (
+          <span
+            className="rounded-md border border-dashed border-zinc-300 px-3 py-1.5 text-sm text-zinc-500"
+            title={UPLOAD_HINTS[upload?.where ?? "deployed"]}
+          >
+            {upload?.where === "local" ? "Uploads off locally — paste a link" : "Uploads off — paste a link"}
+          </span>
+        ) : (
+          <label
+            className={cn(
+              "cursor-pointer rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:border-violet-400",
+              (uploading || canUpload === null) && "pointer-events-none opacity-60",
+            )}
+          >
+            {uploading ? "Uploading…" : uploadLabel}
+            <input
+              type="file"
+              accept={accept}
+              className="sr-only"
+              disabled={uploading || canUpload === null}
+              onChange={(e) => {
+                void handleFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        )}
+        {value && (
+          <>
+            <span className="max-w-full truncate text-sm text-emerald-700" title={value}>
+              {fileName} ✓
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="text-sm text-zinc-500 hover:text-red-600"
+            >
+              Clear
+            </button>
+          </>
+        )}
+      </div>
+    </Field>
+  );
+}
+
 /** Generic repeatable list with add / remove / reorder. */
 export function ListEditor<T>({
   label,

@@ -101,7 +101,8 @@ export const SCHEMA_STATEMENTS: string[] = [
       phone_controls jsonb not null default '{}'::jsonb,
       enabled boolean not null default true,
       sort_order integer not null default 0,
-      updated_at timestamptz not null default now()
+      updated_at timestamptz not null default now(),
+      apk_url text
     )`,
 
   `create table if not exists messages (
@@ -152,6 +153,7 @@ export const SCHEMA_STATEMENTS: string[] = [
 
   // Added after the first release, so existing databases get the column too.
   `alter table games add column if not exists screenshot_shape text not null default 'auto'`,
+  `alter table playables add column if not exists apk_url text`,
 
   `create index if not exists games_sort_order_idx on games (sort_order)`,
   `create index if not exists playables_sort_order_idx on playables (sort_order)`,

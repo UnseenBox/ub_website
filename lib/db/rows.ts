@@ -256,6 +256,7 @@ export interface PlayableRow {
   moods: unknown;
   src: string;
   poster: string;
+  apk_url: string | null;
   genre: unknown;
   summary: unknown;
   desktop_controls: unknown;
@@ -274,6 +275,7 @@ export function toPlayable(row: PlayableRow): Playable {
     moods: list<PlayMood>(row.moods),
     src: row.src,
     poster: row.poster,
+    apkUrl: row.apk_url ?? "",
     genre: localized(row.genre),
     summary: localized(row.summary),
     desktopControls: localized(row.desktop_controls),
@@ -301,11 +303,12 @@ export function playableParams(playable: Playable): unknown[] {
     playable.enabled,
     playable.order,
     playable.updatedAt || new Date().toISOString(),
+    playable.apkUrl || null,
   ];
 }
 
 export const PLAYABLE_COLUMNS = `id, slug, title, added, moods, src, poster, genre, summary,
-  desktop_controls, phone_controls, enabled, sort_order, updated_at`;
+  desktop_controls, phone_controls, enabled, sort_order, updated_at, apk_url`;
 
 /* ------------------------------------------------------------------ */
 /* Studio + messages                                                   */

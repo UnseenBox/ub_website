@@ -129,6 +129,8 @@ const en = {
     priceValue: "Free, no account",
     platformsValue: "Web browser, on computer and phone",
     ad: "Advertisement",
+    downloadApk: "Download & play on your phone",
+    downloadApkNote: "Android APK · free, no account",
   },
   upcoming: {
     label: "In the dark",

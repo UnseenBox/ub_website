@@ -42,6 +42,20 @@ export function CheckIcon({ className }: IconProps) {
   );
 }
 
+export function DownloadIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden className={cn("shrink-0", className)}>
+      <path
+        d="M12 3v11m0 0 4.5-4.5M12 14 7.5 9.5M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** 9×9 pixel pictograms for the mood cards, in the same hand as the studio's pixel glyphs. */
 const MOOD_PATTERNS: Record<PlayMood, string[]> = {
   // A lightning bolt
