@@ -2044,6 +2044,27 @@ body.touch #game {
 }
 
 /* short landscape phones: everything has to fit in about 340px of height */
+/* upright phones: three HUD columns no longer fit side by side, so the line-up wraps
+   instead of shoving the bill off the screen */
+@media (max-width: 560px) {
+  .hud-top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 8px 8px 0;
+  }
+  .healthbar {
+    width: 96px;
+    height: 14px;
+  }
+  .lineup {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .mug {
+    transform: scale(0.82);
+  }
+}
+
 @media (max-height: 520px) {
   .hud-top {
     padding: 6px 12px 0;
