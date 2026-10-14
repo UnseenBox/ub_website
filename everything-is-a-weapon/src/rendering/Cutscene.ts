@@ -18,8 +18,6 @@ type Scene = 'evicted' | 'victory' | 'movedOut' | 'newManagement';
 const W = 480;
 const H = 270;
 const SKIP_AFTER = 0.6;
-
-const WIN_LINES = ['NOT TODAY!', 'STILL MY FLAT!', 'RENT IS PAID!', 'AND STAY OUT!'] as const;
 const DURATION: Readonly<Record<Scene, number>> = { evicted: 4.3, victory: 4.0, movedOut: 4.6, newManagement: 4.4 };
 
 const ease = (t: number): number => {
@@ -55,8 +53,8 @@ const easeOutBounce = (t: number): number => {
  * Four scenes (two wins, two losses), all drawn with the game's own character
  * art so the hero, pet and movers look like themselves. Each one is staged in
  * three beats — setup, payoff, button — with a slow push-in, handheld sway,
- * letterbox bars, a stamp-slam caption, film grain and a timeline, so it reads
- * like a tiny movie trailer rather than a frozen diorama.
+ * letterbox bars, film grain and a timeline, so it reads like a tiny movie
+ * trailer rather than a frozen diorama. No words: the scenes play silent.
  *
  * The simulation is frozen while one plays; a click, tap or key skips it.
  */
@@ -66,9 +64,6 @@ export class Cutscene {
   private t = 0;
   private duration = 3;
   private heroId: HeroId = 'tenant';
-  private line = '';
-  private sub = '';
-  private kicker = '';
   private readonly actor = new Player(0, 0);
   private pet: Pet = createPet('tenant', 0, 0);
   private crew: Enemy[] = [];
@@ -83,14 +78,8 @@ export class Cutscene {
     const room = game.room;
     if (kind === 'win') {
       this.scene = this.wins++ % 2 === 0 ? 'evicted' : 'victory';
-      this.line = this.scene === 'evicted' ? 'EVICTED!' : WIN_LINES[room.index % WIN_LINES.length]!;
-      this.sub = room.daily ? 'daily challenge cleared' : `room ${room.index + 1} is yours again`;
-      this.kicker = room.daily ? '★ DAILY CLEARED ★' : `★ ROOM ${room.index + 1} RECLAIMED ★`;
     } else {
       this.scene = this.losses++ % 2 === 0 ? 'movedOut' : 'newManagement';
-      this.line = this.scene === 'movedOut' ? 'MOVED OUT' : 'UNDER NEW MANAGEMENT';
-      this.sub = this.scene === 'movedOut' ? 'your things will follow. probably.' : 'they have already changed the locks';
-      this.kicker = room.daily ? '• DAILY FAILED •' : `• ROOM ${room.index + 1} LOST •`;
     }
     this.duration = DURATION[this.scene];
     // the crew that was in the room, so the right boxes turn up in the scene
@@ -227,13 +216,11 @@ export class Cutscene {
       ctx.fillRect(0, H - bar, W, 1);
     }
     this.chrome(ctx, t, bar);
-    if (t > this.captionAt()) this.caption(ctx, t - this.captionAt());
-    if (t > SKIP_AFTER) this.skipPill(ctx, fade);
     ctx.restore();
     ctx.globalAlpha = 1;
   }
 
-  /** Top-bar labels + bottom timeline. Drawn inside the letterbox space. */
+  /** Bottom timeline + running timecode. Drawn inside the letterbox space. */
   private chrome(ctx: Ctx, t: number, bar: number): void {
     if (bar < 6) return;
     ctx.save();
@@ -241,8 +228,6 @@ export class Cutscene {
     ctx.font = `700 8px ${TYPE_FONT}`;
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#8f86b8';
-    ctx.textAlign = 'left';
-    ctx.fillText(this.scene === 'evicted' || this.scene === 'victory' ? 'BONK! • TAKEBACK' : 'BONK! • EVICTION', 10, bar / 2);
     // running timecode, like a camera slate
     const total = Math.max(0, t);
     const mm = Math.floor(total / 60);
@@ -265,29 +250,6 @@ export class Cutscene {
     ctx.beginPath();
     ctx.arc(tx + tw * p, ty, 2.4, 0, TAU);
     ctx.fill();
-    ctx.restore();
-  }
-
-  private skipPill(ctx: Ctx, fade: number): void {
-    ctx.save();
-    ctx.globalAlpha = 0.85 * clamp(fade, 0, 1);
-    const label = 'SKIP ▸';
-    ctx.font = `700 8px ${TYPE_FONT}`;
-    const tw = ctx.measureText(label).width + 16;
-    const x = W - 10 - tw;
-    const y = H - 26 - 9;
-    ctx.fillStyle = 'rgba(11, 9, 23, 0.72)';
-    ctx.beginPath();
-    ctx.roundRect(x, y, tw, 15, 7);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 243, 214, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    const blink = 0.65 + 0.35 * Math.sin(this.t * 6);
-    ctx.fillStyle = `rgba(255, 243, 214, ${blink.toFixed(2)})`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, x + tw / 2, y + 8);
     ctx.restore();
   }
 
@@ -807,98 +769,6 @@ export class Cutscene {
     ctx.fill();
     drawEnemy(ctx, e, 0, 0, t);
     ctx.restore();
-  }
-
-  private caption(ctx: Ctx, age: number): void {
-    const win = this.isWin();
-    // slam in with an overshoot, then a tiny wobble; losers land softer
-    const raw = clamp(age / (win ? 0.26 : 0.4), 0, 1);
-    const pop = win ? easeOutBack(raw) : 1.6 - 0.6 * ease(raw);
-    const glitch = !win && this.scene === 'newManagement' && age < 0.3 ? (hash(Math.floor(age * 40)) - 0.5) * 8 : 0;
-    ctx.save();
-    // kicker ribbon
-    if (age > 0.12) {
-      ctx.save();
-      ctx.globalAlpha *= Math.min(1, (age - 0.12) / 0.18);
-      ctx.translate(W / 2, 30);
-      ctx.font = `700 9px ${TYPE_FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const kw = ctx.measureText(this.kicker).width + 22;
-      ctx.fillStyle = 'rgba(11, 9, 23, 0.85)';
-      ctx.beginPath();
-      ctx.roundRect(-kw / 2, -9, kw, 17, 8);
-      ctx.fill();
-      ctx.strokeStyle = win ? 'rgba(255, 210, 63, 0.7)' : 'rgba(229, 56, 59, 0.7)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.fillStyle = win ? '#ffd23f' : '#ff8f8a';
-      ctx.fillText(this.kicker, 0, 0.5);
-      ctx.restore();
-    }
-    ctx.translate(W / 2 + glitch, 60);
-    ctx.rotate(-0.045 + (win ? Math.sin(age * 30) * 0.008 * Math.exp(-age * 4) : 0));
-    ctx.scale(Math.max(0.01, pop), Math.max(0.01, pop));
-    ctx.font = `italic 400 34px ${SHOUT_FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const width = Math.min(W - 56, ctx.measureText(this.line).width + 36);
-    // expanding shockwave on the slam
-    if (win && age < 0.5) {
-      ctx.save();
-      ctx.globalAlpha *= 1 - age / 0.5;
-      ctx.strokeStyle = 'rgba(255, 210, 63, 0.9)';
-      ctx.lineWidth = 3 * (1 - age / 0.5) + 1;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, width * (0.6 + age * 1.4), 34 + age * 60, 0, 0, TAU);
-      ctx.stroke();
-      ctx.restore();
-    }
-    const strip = (): void => {
-      ctx.beginPath();
-      ctx.moveTo(-width / 2, -21);
-      for (let i = 1; i <= 12; i++) ctx.lineTo(-width / 2 + (width * i) / 12, -21 + (i % 2 === 0 ? 0 : 2.5));
-      ctx.lineTo(width / 2 + 3, 20);
-      for (let i = 11; i >= 0; i--) ctx.lineTo(-width / 2 + (width * i) / 12, 21 - (i % 2 === 0 ? 0 : 2.5));
-      ctx.closePath();
-    };
-    ctx.translate(4, 5);
-    strip();
-    ctx.fillStyle = 'rgba(11, 9, 23, 0.6)';
-    ctx.fill();
-    ctx.translate(-4, -5);
-    strip();
-    ctx.fillStyle = win ? '#ffd23f' : '#e5383b';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = win ? 'rgba(34,27,54,0.35)' : 'rgba(255,255,255,0.35)';
-    ctx.stroke();
-    ctx.fillStyle = win ? INK : '#ffffff';
-    ctx.fillText(this.line, 0, 2, width - 20);
-    ctx.restore();
-
-    // sub-line: typewriter reveal on a pasted label
-    if (age > 0.3) {
-      const subAge = age - 0.3;
-      const chars = Math.floor(subAge * 34);
-      const shown = this.sub.slice(0, Math.max(0, Math.min(this.sub.length, chars)));
-      const done = chars >= this.sub.length;
-      ctx.save();
-      ctx.globalAlpha *= Math.min(1, subAge / 0.2);
-      ctx.translate(W / 2, 94);
-      ctx.rotate(0.02);
-      ctx.font = `700 11px ${HAND_FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const full = ctx.measureText(this.sub).width + 20;
-      ctx.fillStyle = 'rgba(11, 9, 23, 0.45)';
-      ctx.fillRect(-full / 2 + 2, -9 + 2, full, 18);
-      ctx.fillStyle = '#fbf6e9';
-      ctx.fillRect(-full / 2, -9, full, 18);
-      ctx.fillStyle = INK;
-      ctx.fillText(done ? this.sub : `${shown}▌`, 0, 0.5);
-      ctx.restore();
-    }
   }
 
   // ───────────── win ─────────────
