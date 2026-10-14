@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>cast sheet</title>
+<style>
+  html, body { margin: 0; background: #1b1730; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="sheet" width="1200" height="860"></canvas>
+<script type="module">
+  import { HEROES } from '/src/core/Hero.ts';
+  import { Player } from '/src/entities/Player.ts';
+  import { drawPlayer } from '/src/rendering/PlayerArt.ts';
+  import { Cat } from '/src/entities/Cat.ts';
+  import { Dog, Parrot, Hamster } from '/src/entities/Pets.ts';
+  import { drawPet } from '/src/rendering/PetArt.ts';
+
+  const canvas = document.getElementById('sheet');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#241d3d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const label = (text, x, y, color) => {
+    ctx.fillStyle = color;
+    ctx.font = '700 15px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x, y);
+  };
+
+  HEROES.forEach((hero, i) => {
+    const cx = 150 + i * 300;
+    const base = 330;
+    const p = Object.assign(new Player(0, 0), { aimX: 0.26, aimY: 0.96 });
+    p.walkPhase = 1.1;
+    ctx.save();
+    ctx.translate(cx, base);
+    ctx.scale(2.6, 2.6);
+    drawPlayer(ctx, p, 0, 0, 1.2, hero.id);
+    ctx.restore();
+    label(hero.name.toUpperCase(), cx, 372, '#fbf6e9');
+  });
+
+  const pets = [
+    ['WAFFLE', new Dog(0, 0)],
+    ['BISCUIT', new Cat(0, 0)],
+    ['CAPTAIN', new Parrot(0, 0)],
+    ['NUGGET', new Hamster(0, 0)],
+  ];
+  pets.forEach(([name, pet], i) => {
+    const cx = 150 + i * 300;
+    const base = 690;
+    pet.facing = 1;
+    pet.sitting = true;
+    if (pet.species === 'parrot') pet.flying = 0;
+    ctx.save();
+    ctx.translate(cx, base);
+    ctx.scale(3.2, 3.2);
+    if (pet.species === 'dog') drawPet(ctx, pet, 0, 0, 0, 1.2);
+    else if (pet.species === 'cat') drawPet(ctx, pet, 0, 0, 0, 1.2);
+    else if (pet.species === 'parrot') drawPet(ctx, pet, 0, 0, 0, 1.2);
+    else drawPet(ctx, pet, 0, 0, 0, 1.2);
+    ctx.restore();
+    label(name, cx, 732, '#ffd23f');
+  });
+  document.title = 'cast-sheet-ready';
+</script>
+</body>
+</html>

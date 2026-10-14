@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>hero focus</title>
+<style>
+  html, body { margin: 0; background: #1b1730; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="sheet" width="1200" height="900"></canvas>
+<script type="module">
+  import { HEROES } from '/src/core/Hero.ts';
+  import { Player } from '/src/entities/Player.ts';
+  import { drawPlayer } from '/src/rendering/PlayerArt.ts';
+
+  const canvas = document.getElementById('sheet');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#241d3d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  HEROES.forEach((hero, i) => {
+    const cx = 300 + (i % 2) * 600;
+    const base = 360 + Math.floor(i / 2) * 470;
+    const p = Object.assign(new Player(0, 0), { aimX: 0.26, aimY: 0.96 });
+    p.walkPhase = 1.1;
+    ctx.save();
+    ctx.translate(cx, base);
+    ctx.scale(4, 4);
+    drawPlayer(ctx, p, 0, 0, 1.2, hero.id);
+    ctx.restore();
+    ctx.fillStyle = '#fbf6e9';
+    ctx.font = '700 18px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(hero.name.toUpperCase(), cx, base + 62);
+  });
+  document.title = 'hero-focus-ready';
+</script>
+</body>
+</html>

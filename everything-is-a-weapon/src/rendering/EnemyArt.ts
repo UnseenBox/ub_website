@@ -3,6 +3,10 @@ import { TAU } from '../core/math';
 import type { Enemy } from '../entities/Enemy';
 import type { EnemyTypeId } from '../entities/EnemyTypes';
 import { hash, mix, onTop, prism, type Ctx } from './draw';
+import type { BossBody } from './BossKit';
+import * as A from './BossesA';
+import * as B from './BossesB';
+import * as C from './BossesC';
 
 /**
  * THE MOVERS — a removal crew of living cardboard boxes, sent by the landlord at 3 a.m.
@@ -2017,7 +2021,27 @@ function cardboardBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p
 }
 
 /** Dispatches the twenty custom boss silhouettes. */
+const REDESIGNED: Partial<Record<EnemyTypeId, BossBody>> = {
+  chairman: A.chairman, flusher: A.flusher, kraken: A.kraken, fridgezilla: A.fridgezilla, piano: A.piano,
+  mower: B.mower, mom: B.mom, vacuumasaurus: B.vacuumasaurus, hydra: B.hydra, fan: B.fan,
+  popcorn: C.popcorn, cables: C.cables, cooker: C.cooker, train: C.train, junk: C.junk,
+  house: C.house, clock: C.clock, toybox: C.toybox, dishwasher: C.dishwasher, cardboard: C.cardboard,
+};
+
 function drawBossBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p: BossDraw): void {
+  // Every boss breathes, rides its hop and trembles through its windup.
+  // The shared pipeline already leans them back; this is the life on top.
+  ctx.save();
+  ctx.translate(
+    Math.sin(time * 40 + e.seed) * p.windup * 1.4,
+    Math.sin(time * 2.2 + e.seed) * 1.2 - p.hop * 3,
+  );
+  const fresh = REDESIGNED[e.type.id];
+  if (fresh) {
+    fresh(ctx, e, x, y, time, p);
+    ctx.restore();
+    return;
+  }
   switch (e.type.id) {
     case 'chairman': chairmanBody(ctx, e, x, y, time, p); break;
     case 'flusher': flusherBody(ctx, e, x, y, time, p); break;
@@ -2040,6 +2064,7 @@ function drawBossBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number, p:
     case 'dishwasher': dishwasherBody(ctx, e, x, y, time, p); break;
     case 'cardboard': cardboardBody(ctx, e, x, y, time, p); break;
   }
+  ctx.restore();
 }
 
 /** Small helper: signed smallest angle from a to b. */

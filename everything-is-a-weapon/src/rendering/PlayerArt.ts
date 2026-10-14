@@ -36,6 +36,8 @@ interface Look {
   glasses?: boolean;
   /** Smaller than a grown-up. */
   scale?: number;
+  /** Dinosaur onesie: a spiked hood crest and a tail. */
+  dino?: boolean;
 }
 
 const LOOKS: Record<HeroId, Look> = {
@@ -63,7 +65,7 @@ const LOOKS: Record<HeroId, Look> = {
   kid: {
     gown: '#6cc24a', gownShade: '#47962c', gownLight: '#b4ea8a', fluff: '#fff27a', fluffShade: '#e0c94a',
     pyjama: '#fff27a', skin: '#e8ad80', skinShade: '#c98558', hair: '#47962c', hairLight: '#b4ea8a',
-    mask: '#ff9f1c', maskShade: '#d97706', slipper: '#ff9f1c', slipperShade: '#d97706', bun: false, scale: 0.84,
+    mask: '#ff9f1c', maskShade: '#d97706', slipper: '#ff9f1c', slipperShade: '#d97706', bun: false, scale: 0.84, dino: true,
   },
 };
 
@@ -86,6 +88,7 @@ let BUN = false;
 let LASHES = false;
 let GLASSES = false;
 let SCALE = 1;
+let DINO = false;
 
 function useLook(hero: HeroId): void {
   const look = LOOKS[hero];
@@ -107,6 +110,7 @@ function useLook(hero: HeroId): void {
   LASHES = look.lashes === true;
   GLASSES = look.glasses === true;
   SCALE = look.scale ?? 1;
+  DINO = look.dino === true;
 }
 
 const HEAD_R = 11.5;
@@ -450,6 +454,27 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
   ctx.strokeStyle = INK;
   ctx.lineWidth = 3.6;
   ctx.stroke();
+  // light on the leading shoulder
+  ctx.strokeStyle = tone(GOWN_LIGHT);
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x - 9 + lean, top + 5);
+  ctx.quadraticCurveTo(x - 11.5 + lean, y - 12, x - 8 + lean, y - 20);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  if (!BUN && !GLASSES && SCALE === 1) {
+    // yesterday's coffee, worn with pride
+    ctx.strokeStyle = 'rgba(120, 70, 30, 0.55)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(x + 6 + lean * 0.5, y - 18 + bob, 3.2, 0, TAU);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(120, 70, 30, 0.5)';
+    ctx.beginPath();
+    ctx.arc(x + 10.5 + lean * 0.5, y - 12 + bob, 1, 0, TAU);
+    ctx.fill();
+  }
 
   const facingAway = ay < -0.55;
   const seamX = x + lean * 0.6 + ax * 7;
@@ -474,6 +499,20 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
     ctx.lineTo(seamX, top + 6.5);
     ctx.closePath();
     ctx.fill();
+    if (GLASSES) {
+      // gran's shawl pin: brass ring, red gem
+      ctx.fillStyle = tone('#ffd23f');
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(seamX, top + 9.5, 2.6, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = tone('#e5383b');
+      ctx.beginPath();
+      ctx.arc(seamX, top + 9.5, 1.1, 0, TAU);
+      ctx.fill();
+    }
     ctx.strokeStyle = 'rgba(34, 27, 54, 0.55)';
     ctx.lineWidth = 1.8;
     ctx.beginPath();
@@ -519,6 +558,34 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
 
   if (!armsBehind && ay < 0.35) drawArms();
 
+  if (DINO) {
+    // tail sweeping sideways out of the hem with a plate on top, swaying with the walk
+    const wag = Math.sin(p.walkPhase + 1) * 3 * (0.3 + moving);
+    const sx = x + px * 11;
+    const sy = y - 1;
+    const tipX = sx + px * 15 + wag;
+    const tipY = sy + 5;
+    ctx.fillStyle = tone(GOWN);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.4;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(sx - 4, sy - 5);
+    ctx.quadraticCurveTo(sx + px * 8 + wag, sy - 1, tipX, tipY);
+    ctx.quadraticCurveTo(sx + px * 6, sy + 7, sx - 2, sy + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tone(GOWN_LIGHT);
+    ctx.beginPath();
+    ctx.moveTo(sx + px * 5 + wag * 0.6, sy - 4);
+    ctx.lineTo(sx + px * 8 + wag * 0.6, sy - 11);
+    ctx.lineTo(sx + px * 11 + wag * 0.6, sy - 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
   // ── head ──
   const hx = x + lean * 1.35 + ax * 2.2;
   const hy = y - 36.5 + bob * 1.3 + ay * 1.2;
@@ -563,6 +630,26 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
     ctx.lineCap = 'butt';
   }
 
+  if (DINO) {
+    // hood crest: tall bright spikes ringing the hood, outside the bed hair
+    ctx.fillStyle = tone(GOWN_LIGHT);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = 'round';
+    for (let k = -2; k <= 2; k++) {
+      const a = -Math.PI / 2 + k * 0.42 - ax * 0.3;
+      const base = HEAD_R - 2;
+      const len = HEAD_R + 15 + (k % 2 === 0 ? 2 : 0) + moving * 2;
+      ctx.beginPath();
+      ctx.moveTo(hx + Math.cos(a - 0.13) * base, hy + Math.sin(a - 0.13) * base);
+      ctx.lineTo(hx + Math.cos(a) * len, hy + Math.sin(a) * len);
+      ctx.lineTo(hx + Math.cos(a + 0.13) * base, hy + Math.sin(a + 0.13) * base);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
   ctx.fillStyle = tone(facingAway ? HAIR : SKIN);
   ctx.strokeStyle = INK;
   ctx.lineWidth = 3.2;
@@ -570,6 +657,14 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
   ctx.arc(hx, hy, HEAD_R, 0, TAU);
   ctx.fill();
   ctx.stroke();
+  // light catching the hair
+  ctx.strokeStyle = tone(HAIR_LIGHT);
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(hx - 1, hy - 1, HEAD_R - 3.4, Math.PI * 1.02, Math.PI * 1.5);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
 
   if (facingAway) {
     // back of the head: the mask strap and a few strands
@@ -696,6 +791,16 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
       ctx.arc(ex + gap, ey, 4.4, 0, TAU);
       ctx.moveTo(ex - gap + 4.4, ey - 0.6);
       ctx.lineTo(ex + gap - 4.4, ey - 0.6);
+      ctx.stroke();
+    }
+
+    if (LASHES) {
+      // gold hoop on the facing ear
+      const eside = ax >= 0 ? 1 : -1;
+      ctx.strokeStyle = tone('#ffd23f');
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(hx + eside * (HEAD_R - 1), hy + 3.5, 2.2, 0, TAU);
       ctx.stroke();
     }
 

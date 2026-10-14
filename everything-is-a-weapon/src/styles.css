@@ -1542,6 +1542,209 @@ body.cinema .hud-top {
   animation: combo-bump 0.4s 0.7s cubic-bezier(0.2, 1.8, 0.4, 1) both;
 }
 
+/* victory card: the compact centered win screen — seal, one big number, icon chips */
+.screen.results.victory {
+  gap: 16px;
+}
+
+.victory-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: min(100%, 360px);
+  padding: 22px 22px 18px;
+  background: var(--grain), var(--paper);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 5px 6px 0 var(--shadow);
+  transform: rotate(-1deg);
+}
+
+.victory-card::before {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 96px;
+  height: 24px;
+  margin-left: -48px;
+  background: var(--tape);
+  clip-path: var(--tape-shape);
+  transform: rotate(2deg);
+  opacity: 0.95;
+}
+
+.victory-seal {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  font-size: 34px;
+  line-height: 1;
+  border: 4px double rgba(255, 255, 255, 0.85);
+  box-shadow: 0 3px 0 var(--ink), 2px 5px 0 var(--shadow);
+  animation: victory-pop 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+
+@keyframes victory-pop {
+  from { opacity: 0; transform: scale(0.4) rotate(-18deg); }
+}
+
+.victory-stamp {
+  font: italic 400 40px/1 var(--shout);
+  letter-spacing: 0.05em;
+  color: var(--green);
+  transform: rotate(-6deg);
+  opacity: 0;
+  -webkit-mask: var(--wear);
+  mask: var(--wear);
+}
+
+.victory-stamp.show {
+  opacity: 0.92;
+  animation: mark-slam 0.36s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+
+.victory-kicker {
+  padding: 2px 12px 1px;
+  background: var(--ink);
+  color: var(--yellow);
+  font: 700 11px var(--type);
+  letter-spacing: 0.2em;
+}
+
+.victory-room {
+  font: 700 15px var(--hand);
+  opacity: 0.8;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.victory-score-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 2px 0 4px;
+}
+
+.victory-score {
+  font: 700 52px/1 var(--font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.victory-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 4px;
+  background: var(--paper-2);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 2px 2px 0 var(--shadow);
+  font: 700 15px var(--type);
+}
+
+.vchip-icon { font-size: 15px; }
+
+.victory-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.vpill {
+  padding: 3px 10px 2px;
+  font: 700 11px var(--type);
+  letter-spacing: 0.1em;
+  border-radius: 999px;
+  transform: rotate(-1deg);
+}
+
+.vpill-best { background: var(--yellow); border: 2px solid var(--ink); }
+.vpill-bonus { background: var(--green); color: #fff; }
+.vpill-scrap { background: var(--sticky); border: 2px dashed var(--ink); }
+.vpill-record { background: transparent; border: 2px solid var(--ink); opacity: 0.75; }
+
+.victory-offer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--sticky);
+  box-shadow: 2px 3px 0 var(--shadow);
+  transform: rotate(0.6deg);
+  max-width: 100%;
+}
+
+.victory-offer-icon { font-size: 16px; }
+
+.victory-offer-name {
+  font: italic 400 17px var(--shout);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.victory-next {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 14px;
+  background: var(--grain), var(--news);
+  box-shadow: 2px 3px 0 var(--shadow);
+  transform: rotate(-0.6deg);
+  max-width: 100%;
+}
+
+.victory-next.new {
+  animation: next-door-in 0.5s 0.7s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.victory-next-label {
+  padding: 2px 8px 1px;
+  background: var(--red);
+  color: #fff;
+  font: 700 11px var(--type);
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.victory-next-name {
+  font: italic 400 18px var(--shout);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* room picker: a rack of key tags */
 .screen.rooms {
   width: min(100%, 760px);
@@ -2412,6 +2615,19 @@ body.touch #game {
     left: -22px;
     font-size: 13px;
   }
+  .victory-card {
+    width: min(100%, 340px);
+    padding: 18px 16px 14px;
+    gap: 4px;
+  }
+  .victory-seal {
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
+  }
+  .victory-stamp { font-size: 30px; }
+  .victory-score { font-size: 40px; }
+  .vchip { font-size: 13px; padding: 4px 10px 3px; }
 
   .screen.pause {
     gap: 22px;
@@ -2522,6 +2738,9 @@ body.touch #game {
 .high-contrast .receipt,
 .high-contrast .room-tag,
 .high-contrast .clipboard,
+.high-contrast .victory-card,
+.high-contrast .victory-next,
+.high-contrast .victory-offer,
 .high-contrast .hanger,
 .high-contrast .controls-note,
 .high-contrast .evidence,
@@ -2555,6 +2774,9 @@ body.touch #game {
   .hud-banner.show .cut,
   .hud-stamp.show,
   .stamp-mark.show,
+  .victory-stamp.show,
+  .victory-seal,
+  .victory-next.new,
   .health-fill::after,
   .health-shine,
   .healthbar[data-state='low'],
