@@ -2530,6 +2530,19 @@ body.touch #game {
   padding: clamp(2px, 1vh, 12px) 0;
 }
 
+/* the main menu sits on its key art: the purple burst with the flat's junk
+   flying. Scoped to the menu only, so pause / settings / results keep the
+   plain dim backdrop. The gradient keeps the logo, door and cards readable. */
+#screens.active:has(.screen.menu-keys) {
+  background-color: #2a1259;
+  background-image:
+    linear-gradient(rgba(20, 16, 36, 0.42), rgba(20, 16, 36, 0.62)),
+    url('./assets/menu-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .mk-head {
   flex: none;
   display: flex;
@@ -2616,7 +2629,7 @@ body.touch #game {
 .mk-doorway {
   flex: 1 1 auto;
   /* never crushed to nothing: on cramped screens the frame scrolls instead */
-  min-height: clamp(104px, 24vh, 200px);
+  min-height: clamp(64px, 14vh, 124px);
   display: flex;
   align-items: stretch;
   justify-content: center;
@@ -2626,7 +2639,10 @@ body.touch #game {
 /* the frame, and the dark room you glimpse when the leaf swings */
 .mk-door {
   flex: none;
+  /* a small door: capped by the viewport and centered in the leftover row height */
+  align-self: center;
   aspect-ratio: 5 / 8;
+  height: min(100%, clamp(84px, 20vh, 160px));
   min-height: 0;
   padding: 0;
   font: inherit;
@@ -2669,7 +2685,7 @@ body.touch #game {
   border: 3px solid var(--ink);
   border-radius: 6px;
   box-shadow: 2px 3px 0 rgba(10, 8, 24, 0.5);
-  font: 400 clamp(22px, 6.4vmin, 56px)/1.15 var(--shout);
+  font: 400 clamp(16px, 4.4vmin, 32px)/1.15 var(--shout);
   color: var(--ink);
   text-align: center;
 }
@@ -3150,7 +3166,7 @@ button.mk-card:hover {
     justify-content: center;
     gap: 14px;
   }
-  .mk-door { width: min(100%, 30vh); }
+  .mk-door { width: min(100%, 19vh); height: auto; }
   .door-note { width: 100%; transform: rotate(-2deg); }
   .mk-card {
     grid-template-columns: minmax(0, 1fr);
