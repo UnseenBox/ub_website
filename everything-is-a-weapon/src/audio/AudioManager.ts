@@ -2,7 +2,7 @@ import type { SoundKind } from '../objects/Materials';
 import type { EnemyTypeId } from '../entities/EnemyTypes';
 import { Music } from './Music';
 import { SAMPLE_FILES, SampleBank, samplesEnabled, type SampleName, type SampleOptions } from './Samples';
-import { Synth, VOWEL, type Partial } from './Synth';
+import { Synth, VOWEL, type Partial, type Vowel } from './Synth';
 
 export type SoundName =
   | 'pickup' | 'drop' | 'throw' | 'whistle' | 'chargeFull' | 'dash' | 'swipe' | 'hurt'
@@ -388,37 +388,84 @@ export class AudioManager {
     }
   }
 
+  /** Each boss talks funny: its mouth shape and wobble, matched to its personality. */
+  private static readonly BOSS_MOUTH: { [K in EnemyTypeId]?: { from: Vowel; to: Vowel; wob: number } } = {
+    chairman: { from: VOWEL.ah, to: VOWEL.o, wob: 0.5 },
+    flusher: { from: VOWEL.o, to: VOWEL.u, wob: 2.2 },
+    kraken: { from: VOWEL.u, to: VOWEL.o, wob: 0.6 },
+    fridgezilla: { from: VOWEL.i, to: VOWEL.i, wob: 2.8 },
+    piano: { from: VOWEL.e, to: VOWEL.a, wob: 1.6 },
+    mower: { from: VOWEL.a, to: VOWEL.o, wob: 2.5 },
+    mom: { from: VOWEL.a, to: VOWEL.a, wob: 0.7 },
+    vacuumasaurus: { from: VOWEL.o, to: VOWEL.u, wob: 1.2 },
+    hydra: { from: VOWEL.ah, to: VOWEL.e, wob: 1 },
+    fan: { from: VOWEL.e, to: VOWEL.i, wob: 1.8 },
+    popcorn: { from: VOWEL.i, to: VOWEL.e, wob: 3 },
+    cables: { from: VOWEL.e, to: VOWEL.i, wob: 2.6 },
+    cooker: { from: VOWEL.a, to: VOWEL.o, wob: 1.4 },
+    train: { from: VOWEL.o, to: VOWEL.a, wob: 0.8 },
+    junk: { from: VOWEL.a, to: VOWEL.e, wob: 2 },
+    house: { from: VOWEL.u, to: VOWEL.o, wob: 0.4 },
+    clock: { from: VOWEL.i, to: VOWEL.i, wob: 3.2 },
+    toybox: { from: VOWEL.e, to: VOWEL.a, wob: 2.2 },
+    dishwasher: { from: VOWEL.o, to: VOWEL.a, wob: 1.7 },
+    cardboard: { from: VOWEL.a, to: VOWEL.a, wob: 1.1 },
+  };
+
   /** Little formant voices. `pitch` is the speaker's base pitch in Hz. */
-  voice(kind: VoiceKind, pitch: number): void {
+  voice(kind: VoiceKind, pitch: number, id?: EnemyTypeId): void {
     const s = this.begin(`voice:${kind}`, kind === 'oof' ? 0.09 : 0.14);
     if (!s) return;
     const b = pitch * (0.94 + Math.random() * 0.12);
+    const mouth = id ? AudioManager.BOSS_MOUTH[id] : undefined;
+    const wob = mouth?.wob ?? 1;
+    const vowel = (from: Vowel, to: Vowel): { from: Vowel; to: Vowel } => ({
+      from: mouth?.from ?? from,
+      to: mouth?.to ?? to,
+    });
     switch (kind) {
-      case 'oof':
-        s.voice({ pitch: [b * 1.2, b * 0.78], dur: 0.16, from: VOWEL.o, to: VOWEL.u, gain: 0.3 });
+      case 'oof': {
+        const v = vowel(VOWEL.o, VOWEL.u);
+        s.voice({ pitch: [b * 1.2, b * 0.78], dur: 0.16, from: v.from, to: v.to, gain: 0.3 });
         break;
-      case 'yelp':
-        s.voice({ pitch: [b * 1.6, b * 2.3, b * 1.8], dur: 0.32, from: VOWEL.i, to: VOWEL.e, gain: 0.24, vibrato: { rate: 30, depth: b * 0.3 } });
+      }
+      case 'yelp': {
+        const v = vowel(VOWEL.i, VOWEL.e);
+        s.voice({ pitch: [b * 1.6, b * 2.3, b * 1.8], dur: 0.32, from: v.from, to: v.to, gain: 0.24, vibrato: { rate: 30, depth: b * 0.3 * wob } });
         break;
-      case 'panic':
-        s.voice({ pitch: [b * 1.4, b * 2, b * 1.5, b * 2.1], dur: 0.44, from: VOWEL.a, to: VOWEL.e, gain: 0.22, vibrato: { rate: 9, depth: b * 0.12 } });
+      }
+      case 'panic': {
+        const v = vowel(VOWEL.a, VOWEL.e);
+        s.voice({ pitch: [b * 1.4, b * 2, b * 1.5, b * 2.1], dur: 0.44, from: v.from, to: v.to, gain: 0.22, vibrato: { rate: 9, depth: b * 0.12 * wob } });
         break;
-      case 'defeat':
-        s.voice({ pitch: [b * 1.35, b * 0.95], dur: 0.15, from: VOWEL.u, to: VOWEL.a, gain: 0.3 });
-        s.voice({ pitch: [b, b * 0.5], dur: 0.4, from: VOWEL.o, to: VOWEL.u, gain: 0.3, delay: 0.17, vibrato: { rate: 7, depth: b * 0.05 } });
+      }
+      case 'defeat': {
+        const v = vowel(VOWEL.u, VOWEL.a);
+        const w = vowel(VOWEL.o, VOWEL.u);
+        s.voice({ pitch: [b * 1.35, b * 0.95], dur: 0.15, from: v.from, to: v.to, gain: 0.3 });
+        s.voice({ pitch: [b, b * 0.5], dur: 0.4, from: w.from, to: w.to, gain: 0.3, delay: 0.17, vibrato: { rate: 7, depth: b * 0.05 * wob } });
         break;
-      case 'alert':
-        s.voice({ pitch: [b * 0.9, b * 1.55], dur: 0.2, from: VOWEL.ah, to: VOWEL.e, gain: 0.2 });
+      }
+      case 'alert': {
+        const v = vowel(VOWEL.ah, VOWEL.e);
+        s.voice({ pitch: [b * 0.9, b * 1.55], dur: 0.2, from: v.from, to: v.to, gain: 0.2 });
         break;
-      case 'attack':
-        s.voice({ pitch: [b * 1.3, b * 1.75, b * 1.15], dur: 0.2, from: VOWEL.i, to: VOWEL.a, gain: 0.24 });
+      }
+      case 'attack': {
+        const v = vowel(VOWEL.i, VOWEL.a);
+        s.voice({ pitch: [b * 1.3, b * 1.75, b * 1.15], dur: 0.2, from: v.from, to: v.to, gain: 0.24 });
         break;
-      case 'ow':
-        s.voice({ pitch: [b * 1.55, b], dur: 0.26, from: VOWEL.a, to: VOWEL.u, gain: 0.3 });
+      }
+      case 'ow': {
+        const v = vowel(VOWEL.a, VOWEL.u);
+        s.voice({ pitch: [b * 1.55, b], dur: 0.26, from: v.from, to: v.to, gain: 0.3 });
         break;
-      case 'hup':
-        s.voice({ pitch: [b, b * 1.45], dur: 0.12, from: VOWEL.e, to: VOWEL.a, gain: 0.22 });
+      }
+      case 'hup': {
+        const v = vowel(VOWEL.e, VOWEL.a);
+        s.voice({ pitch: [b, b * 1.45], dur: 0.12, from: v.from, to: v.to, gain: 0.22 });
         break;
+      }
     }
   }
 

@@ -347,7 +347,7 @@ export class Enemy {
           this.lungeLanded = false;
           this.setState('lunge', this.type.lungeTime ?? LUNGE_TIME);
           game.audio.play('swipe', 0.5);
-          game.audio.voice('attack', this.type.voice);
+          game.audio.voice('attack', this.type.voice, this.type.id);
         }
         break;
 
@@ -497,7 +497,7 @@ export class Enemy {
     this.hurlT = spec.windup;
     this.setState('hurl', spec.windup);
     game.audio.play('whistle', 0.7);
-    game.audio.voice('attack', this.type.voice);
+    game.audio.voice('attack', this.type.voice, this.type.id);
     return true;
   }
 
@@ -560,7 +560,7 @@ export class Enemy {
     if (!spec) return;
     this.setState('lash', spec.windup);
     game.audio.play('whistle', 0.8);
-    game.audio.voice('attack', this.type.voice);
+    game.audio.voice('attack', this.type.voice, this.type.id);
   }
 
   private releaseLash(game: Game): void {
@@ -1086,7 +1086,7 @@ export class Enemy {
       if (phase.enrage) this.rageMult *= phase.enrage;
       if (phase.announce) game.hud.banner(phase.announce, '', 2);
       game.audio.play('alarm', 1);
-      game.audio.voice('attack', this.type.voice);
+      game.audio.voice('attack', this.type.voice, this.type.id);
       this.squash = 1;
       game.fx.ring(this.body.x, this.body.y, 8, 90, 0.5, 'rgba(255,90,78,0.85)', 4);
       if (phase.summon) {
@@ -1313,7 +1313,7 @@ export class Enemy {
     });
     game.bus.emit({ type: 'FIRE_CONTACT', target: this });
     game.audio.play('ignite', 0.7);
-    game.audio.voice('panic', this.type.voice);
+    game.audio.voice('panic', this.type.voice, this.type.id);
     game.fx.burst('FWOOSH!', this.body.x, this.body.y - 34, 0.95, '#ff9f1c');
     return true;
   }

@@ -151,7 +151,7 @@ export function buildSettings(game: Game, onBack: () => void): HTMLElement {
   const screen = el('div', 'screen settings');
   const sheet = el('div', 'sheet rules-sheet');
   const head = el('div', 'sheet-head');
-  head.append(el('span', 'sheet-title', 'SETTINGS'), el('span', 'sheet-no', 'tick as needed'));
+  head.append(el('span', 'sheet-title', 'SETTINGS'), el('span', 'sheet-no', 'tick'));
   sheet.append(head);
 
   const settings = game.save.data.settings;
@@ -180,10 +180,10 @@ export function buildSettings(game: Game, onBack: () => void): HTMLElement {
   );
 
   let armed = false;
-  const reset = button('SHRED ALL PROGRESS', 'danger', () => {
+  const reset = button('SHRED SAVE', 'danger', () => {
     if (!armed) {
       armed = true;
-      reset.querySelector('.btn-label')!.textContent = 'SURE? CLICK AGAIN TO SHRED';
+      reset.querySelector('.btn-label')!.textContent = 'SURE? AGAIN';
       return;
     }
     game.save.clear();

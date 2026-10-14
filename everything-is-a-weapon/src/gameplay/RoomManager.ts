@@ -225,7 +225,7 @@ export class RoomManager {
       room.entranceOpen = 1;
       room.knocked = false;
       game.audio.play('door', 0.8);
-      game.audio.voice('alert', enemy.type.voice);
+      game.audio.voice('alert', enemy.type.voice, spec.type);
       game.particles.burst('dust', door.x, door.y, 10, 150, { dirX: door.dirX, dirY: door.dirY, spread: 0.9 });
       game.fx.ring(door.x, door.y, 8, 54, 0.3, 'rgba(255,255,255,0.7)', 3);
       game.camera.addShake(0.22);

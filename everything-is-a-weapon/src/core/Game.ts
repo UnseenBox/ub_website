@@ -1044,13 +1044,13 @@ export class Game {
       const weapon = source && source.kind === 'object' ? source : null;
 
       if (cause.type === 'shock') {
-        this.audio.voice('yelp', pitch);
+        this.audio.voice('yelp', pitch, enemy.type.id);
         this.fx.burst('ZZAP!', b.x, b.y - 36, 1.05, '#fff27a');
         this.particles.burst('spark', b.x, b.y - 10, 10, 260);
       } else if (cause.type === 'fire') {
-        this.audio.voice('panic', pitch);
+        this.audio.voice('panic', pitch, enemy.type.id);
       } else {
-        this.audio.voice('oof', pitch);
+        this.audio.voice('oof', pitch, enemy.type.id);
         // Flesh thump under the material hit when a thrown thing connects.
         if (cause.type === 'impact' && cause.source && cause.source.kind === 'object') {
           this.audio.impactFlesh(e.damage);
@@ -1108,7 +1108,7 @@ export class Game {
 
     bus.on('ENEMY_DEFEATED', (e) => {
       const b = e.enemy.body;
-      this.audio.voice('defeat', e.enemy.type.voice);
+      this.audio.voice('defeat', e.enemy.type.voice, e.enemy.type.id);
       if (e.enemy.type.boss) {
         this.audio.bossRoar(e.enemy.type.id, e.enemy.type.voice, true);
         this.hud.banner(e.enemy.type.bossTitle ?? 'LANDLORD EVICTED', '', 2.2);

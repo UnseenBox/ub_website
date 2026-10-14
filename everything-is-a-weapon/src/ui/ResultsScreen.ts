@@ -169,7 +169,7 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   buttons.append(button(summary.daily ? 'DONE' : 'NEXT →', 'primary', actions.next), button('↻ REPLAY', '', actions.retry));
   buttons.append(button('⌂ HOME', '', actions.home));
   screen.append(buttons);
-  if (summary.adMissed) screen.append(el('p', 'ad-note', 'no advert available right now'));
+  if (summary.adMissed) screen.append(el('p', 'ad-note', 'no ad right now'));
   return screen;
 }
 
@@ -192,15 +192,15 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   );
 
   const fields = el('div', 'fields');
-  const score = field('DAMAGE BILL', '0');
+  const score = field('BILL', '0');
   fields.append(
     score.row,
-    field('LONGEST CHAIN', summary.bestChain > 0 ? `x${summary.bestChain}` : '—').row,
-    field('OBJECTS USED', String(summary.objectsUsed)).row,
-    field('NEW EVIDENCE', String(summary.newDiscoveries)).row,
+    field('CHAIN', summary.bestChain > 0 ? `x${summary.bestChain}` : '—').row,
+    field('OBJECTS', String(summary.objectsUsed)).row,
+    field('NEW', String(summary.newDiscoveries)).row,
   );
   // Something to beat on a replay.
-  if (summary.roomBest > 0 && !summary.daily) fields.append(field('YOUR BEST HERE', formatScore(summary.roomBest)).row);
+  if (summary.roomBest > 0 && !summary.daily) fields.append(field('BEST', formatScore(summary.roomBest)).row);
   countUp(score.value, summary.score);
 
   sheet.append(head, where, fields);
@@ -223,9 +223,9 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   buttons.append(button('RETRY', 'primary', actions.retry));
   // Only offered when a rewarded ad is genuinely available; never forced.
   // The label says plainly that it costs an advert; RETRY beside it is the same size and free.
-  if (summary.canContinue) buttons.append(button('▶ WATCH AD: CONTINUE', 'ad-offer', actions.continueWithReward));
+  if (summary.canContinue) buttons.append(button('▶ CONTINUE', 'ad-offer', actions.continueWithReward));
   buttons.append(button('HOME', '', actions.home));
   screen.append(buttons);
-  if (summary.adMissed) screen.append(el('p', 'ad-note', 'no advert available right now'));
+  if (summary.adMissed) screen.append(el('p', 'ad-note', 'no ad right now'));
   return screen;
 }

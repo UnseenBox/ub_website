@@ -60,6 +60,12 @@ function challengeText(roomChallenge: string | undefined): string | null {
   return CHALLENGES.find((c) => c.id === roomChallenge)?.text.toLowerCase() ?? null;
 }
 
+/** Two-word sticky version for the key wall; the full text lives in the tooltip. */
+function challengeShort(roomChallenge: string | undefined): string | null {
+  if (!roomChallenge) return null;
+  return CHALLENGES.find((c) => c.id === roomChallenge)?.short.toLowerCase() ?? null;
+}
+
 /**
  * The front page: logo up top with a settings cog in the corner, the chosen
  * room's front door over one big red PLAY button, and the four characters in
@@ -138,7 +144,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   door.append(leaf);
   const doorNote = el('div', 'door-note');
   const doorRoom = el('strong', 'door-note-room');
-  doorNote.append(el('span', '', 'now playing'), doorRoom, el('span', 'door-note-hint', 'tap door = rooms'));
+  doorNote.append(doorRoom, el('span', 'door-note-hint', 'tap door = rooms'));
   doorway.append(door, doorNote);
   screen.append(doorway);
 
@@ -174,10 +180,12 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
       if (briefing) {
         info.append(el('span', 'key-info-objective', `◎ ${briefing.objective}`));
       }
-      const challenge = challengeText(def.challenge);
-      if (challenge) {
+      const short = challengeShort(def.challenge);
+      if (short) {
         const done = save.completedChallenges.includes(def.challenge!);
-        info.append(el('span', 'key-info-challenge', `${done ? '✓ ' : '✚ '}${challenge}`));
+        const tag = el('span', 'key-info-challenge', `${done ? '✓ ' : '✚ '}${short}`);
+        tag.title = challengeText(def.challenge) ?? '';
+        info.append(tag);
       }
     } else {
       info.append(el('span', 'key-info-story', 'endless rooms · daily work'));
@@ -331,7 +339,9 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   // The only footer left: a warning when the browser refuses storage.
   if (!game.save.persistent) {
     const footer = el('div', 'menu-footer');
-    footer.append(el('span', 'warn', 'Storage is blocked — progress will not be saved.'));
+    const warn = el('span', 'warn', '⚠ no save');
+    warn.title = 'Storage is blocked — progress will not be saved.';
+    footer.append(warn);
     screen.append(footer);
   }
   return screen;
