@@ -293,42 +293,135 @@ body {
   line-height: 1;
 }
 
-/* health is a row of sticking plasters */
-.plasters {
-  display: flex;
-  gap: 5px;
-  margin: 4px 0 0 4px;
+/* health is a liquid bar on a paper backing: green while healthy, orange past half, red when critical */
+.healthbar {
+  position: relative;
+  width: 172px;
+  height: 20px;
+  margin: 5px 0 0 4px;
+  border: 2px solid var(--ink);
+  border-radius: 11px;
+  background: linear-gradient(rgba(34, 27, 54, 0.18), rgba(34, 27, 54, 0.18)), var(--grain), var(--paper-2);
+  box-shadow: inset 0 2px 4px rgba(34, 27, 54, 0.4);
+  overflow: hidden;
+  transform: rotate(-1.6deg);
 }
 
-.plaster {
-  width: 30px;
-  height: 12px;
-  border-radius: 6px;
-  border: 1.5px solid rgba(34, 27, 54, 0.75);
-  background:
-    radial-gradient(circle at 4px 3px, rgba(34, 27, 54, 0.3) 1px, transparent 1.4px),
-    radial-gradient(circle at 4px 8px, rgba(34, 27, 54, 0.3) 1px, transparent 1.4px),
-    radial-gradient(circle at 25px 3px, rgba(34, 27, 54, 0.3) 1px, transparent 1.4px),
-    radial-gradient(circle at 25px 8px, rgba(34, 27, 54, 0.3) 1px, transparent 1.4px),
-    linear-gradient(90deg, #edb98a 0 30%, #fbe6cd 30% 70%, #edb98a 70%);
-  transform: rotate(var(--tilt, 0deg));
-  transform-origin: 20% 50%;
+.health-ghost,
+.health-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
 }
 
-.plaster.off {
-  animation: plaster-peel 0.55s cubic-bezier(0.5, 0, 0.8, 0.4) forwards;
+/* the fading trail left behind by a fresh wound */
+.health-ghost {
+  background: rgba(229, 56, 59, 0.5);
+  transition: width 0.75s ease 0.3s;
 }
 
-@keyframes plaster-peel {
-  35% {
-    transform: rotate(calc(var(--tilt, 0deg) - 38deg)) translateY(-5px);
-    opacity: 1;
-  }
-  100% {
-    transform: rotate(60deg) translate(8px, 34px);
-    opacity: 0.16;
-    filter: grayscale(1);
-  }
+.health-fill {
+  overflow: hidden;
+  transition: width 0.28s cubic-bezier(0.3, 1.3, 0.5, 1), filter 0.2s;
+}
+
+.healthbar[data-state='full'] .health-fill {
+  background: linear-gradient(180deg, #8bf0ae 0%, #2e9e5b 55%, #1f7a44 100%);
+}
+
+.healthbar[data-state='mid'] .health-fill {
+  background: linear-gradient(180deg, #ffd9a0 0%, #f59e0b 55%, #c26a00 100%);
+}
+
+.healthbar[data-state='low'] .health-fill {
+  background: linear-gradient(180deg, #ffb3ab 0%, #e5383b 55%, #a31621 100%);
+}
+
+/* diagonal stripes crawling across the fill */
+.health-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(-55deg, rgba(255, 255, 255, 0.26) 0 6px, transparent 6px 12px);
+  animation: health-stripes 0.9s linear infinite;
+}
+
+@keyframes health-stripes {
+  to { background-position: 17px 0; }
+}
+
+/* a glint sweeping along whatever fill is left */
+.health-shine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -35%;
+  width: 32%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: health-shine 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes health-shine {
+  0% { left: -35%; }
+  60%, 100% { left: 135%; }
+}
+
+/* one divider per hit point */
+.health-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.health-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(34, 27, 54, 0.55);
+}
+
+/* critical: the whole bar throbs with a red glow */
+.healthbar[data-state='low'] {
+  animation: health-low-pulse 0.9s ease-in-out infinite;
+  box-shadow: inset 0 2px 4px rgba(34, 27, 54, 0.4), 0 0 14px rgba(229, 56, 59, 0.85);
+}
+
+@keyframes health-low-pulse {
+  50% { transform: rotate(-1.6deg) scale(1.06); }
+}
+
+/* a fresh hit shakes the bar and flashes the fill white */
+.healthbar.hit {
+  animation: health-hit 0.4s;
+}
+
+.healthbar.hit .health-fill {
+  filter: brightness(1.9);
+}
+
+@keyframes health-hit {
+  20% { transform: rotate(-1.6deg) translateX(-6px); }
+  40% { transform: rotate(-1.6deg) translateX(5px); }
+  60% { transform: rotate(-1.6deg) translateX(-3px); }
+  80% { transform: rotate(-1.6deg) translateX(2px); }
+}
+
+/* a heal pops the bar back up */
+.healthbar.heal {
+  animation: health-heal 0.45s;
+}
+
+.healthbar.heal .health-fill {
+  filter: brightness(1.5) saturate(1.3);
+}
+
+@keyframes health-heal {
+  35% { transform: rotate(-1.6deg) scale(1.12); }
 }
 
 .hud-center {
@@ -1961,10 +2054,9 @@ body.touch #game {
   .room-tag-num {
     font-size: 22px;
   }
-  .plaster {
-    width: 24px;
-    height: 10px;
-    background: linear-gradient(90deg, #edb98a 0 30%, #fbe6cd 30% 70%, #edb98a 70%);
+  .healthbar {
+    width: 132px;
+    height: 15px;
   }
   .lineup {
     padding: 4px 12px 3px 10px;
@@ -2263,14 +2355,19 @@ body.touch #game {
   .hud-banner.show .cut,
   .hud-stamp.show,
   .stamp-mark.show,
-  .plaster.off,
+  .health-fill::after,
+  .health-shine,
+  .healthbar[data-state='low'],
+  .healthbar.hit,
+  .healthbar.heal,
   .mug.out,
   .btn.primary.play,
   .rotate-phone {
     animation: none;
   }
-  .plaster.off {
-    opacity: 0.16;
+  .health-ghost,
+  .health-fill {
+    transition: none;
   }
 }
 

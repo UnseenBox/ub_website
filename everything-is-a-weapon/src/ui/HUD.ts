@@ -14,14 +14,17 @@ interface Mug {
 
 /**
  * The in-game overlay, built as things lying around the flat rather than a status bar:
- * a luggage tag for the room, sticking plasters for health, a police-style line-up of the
- * intruders, a sticky note for the bonus, and a till receipt for the damage bill.
- * DOM writes only happen when a value actually changes.
+ * a luggage tag for the room, a liquid health bar for the player, a police-style
+ * line-up of the intruders, a sticky note for the bonus, and a till receipt for the
+ * damage bill. DOM writes only happen when a value actually changes.
  */
 export class HUD {
   private readonly root: HTMLElement;
   private readonly roomNum: HTMLElement;
-  private readonly plasters: HTMLElement[] = [];
+  private readonly healthBar: HTMLElement;
+  private readonly healthFill: HTMLElement;
+  private readonly healthGhost: HTMLElement;
+  private healthTimer = 0;
   private readonly lineup: HTMLElement;
   private readonly sticky: HTMLElement;
   private readonly stickyText: HTMLElement;
@@ -53,20 +56,29 @@ export class HUD {
     this.root = el('div', 'hud hidden');
     const top = el('div', 'hud-top');
 
-    // ── left: room tag + plasters ──
+    // ── left: room tag + health bar ──
     const left = el('div', 'hud-left');
     const tag = el('div', 'room-tag');
     tag.setAttribute('aria-label', 'Room');
     tag.append(el('span', 'room-tag-hole'), (this.roomNum = el('span', 'room-tag-num', '1')));
-    const plasterRow = el('div', 'plasters');
-    plasterRow.setAttribute('aria-label', 'Health');
-    for (let i = 0; i < game.player.maxHp; i++) {
-      const plaster = el('span', 'plaster');
-      plaster.style.setProperty('--tilt', `${[-9, 6, -4, 10, -7][i % 5]}deg`);
-      this.plasters.push(plaster);
-      plasterRow.append(plaster);
+    const bar = el('div', 'healthbar');
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-label', 'Health');
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', String(game.player.maxHp));
+    this.healthGhost = el('span', 'health-ghost');
+    this.healthFill = el('span', 'health-fill');
+    this.healthFill.append(el('span', 'health-shine'));
+    const ticks = el('span', 'health-ticks');
+    for (let i = 1; i < game.player.maxHp; i++) {
+      const tick = el('span', 'health-tick');
+      tick.style.left = `${(i / game.player.maxHp) * 100}%`;
+      ticks.append(tick);
     }
-    left.append(tag, plasterRow);
+    bar.append(this.healthGhost, this.healthFill, ticks);
+    this.healthBar = bar;
+    this.updateHealth(game.player.hp, game.player.maxHp, true);
+    left.append(tag, bar);
 
     // ── centre: the line-up + bonus note ──
     const center = el('div', 'hud-center');
@@ -240,6 +252,24 @@ export class HUD {
     }
   }
 
+  /** Paints the health bar: green while healthy, orange past half, red when critical. */
+  private updateHealth(hp: number, max: number, snap = false): void {
+    const ratio = Math.max(0, Math.min(1, hp / max));
+    this.healthBar.dataset.state = ratio >= 0.6 ? 'full' : ratio > 0.3 ? 'mid' : 'low';
+    this.healthBar.setAttribute('aria-valuenow', String(hp));
+    this.healthFill.style.width = `${ratio * 100}%`;
+    if (snap) {
+      // First paint (or a revive): the trailing ghost jumps straight there, no lag.
+      this.healthGhost.style.transition = 'none';
+      this.healthGhost.style.width = `${ratio * 100}%`;
+      void this.healthGhost.offsetWidth;
+      this.healthGhost.style.transition = '';
+    } else {
+      // Damage leaves a fading trail because the ghost drains slower than the fill.
+      this.healthGhost.style.width = `${ratio * 100}%`;
+    }
+  }
+
   reset(): void {
     this.bannerBox.classList.remove('show');
     this.stampBox.classList.remove('show');
@@ -305,8 +335,19 @@ export class HUD {
 
     const hp = game.player.hp;
     if (hp !== last.hp) {
+      const first = last.hp < 0;
+      const healed = hp > last.hp;
       last.hp = hp;
-      this.plasters.forEach((plaster, i) => plaster.classList.toggle('off', i >= hp));
+      this.updateHealth(hp, game.player.maxHp, first);
+      if (!first) {
+        // One-shot thump: shake on a hit, pop on a heal. The class comes off so
+        // the low-health pulse can take over again afterwards.
+        window.clearTimeout(this.healthTimer);
+        this.healthBar.classList.remove('hit', 'heal');
+        void this.healthBar.offsetWidth;
+        this.healthBar.classList.add(healed ? 'heal' : 'hit');
+        this.healthTimer = window.setTimeout(() => this.healthBar.classList.remove('hit', 'heal'), 500);
+      }
     }
 
     // Mugshots stay greyed until that intruder has actually come through the door.

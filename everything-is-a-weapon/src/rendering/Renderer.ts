@@ -166,7 +166,7 @@ export class Renderer {
     const w = this.canvas.width;
     const h = this.canvas.height;
     const player = game.player;
-    // Red closes in from the edges when you are hit, and throbs when you are on your last plaster.
+    // Red closes in from the edges when you are hit, and throbs when the bar is critical.
     const lastLegs = player.alive && player.hp === 1 && game.state === 'playing' ? 0.16 + 0.1 * Math.sin(time * 5.5) : 0;
     const danger = Math.max(player.hurtFlash * 0.6, lastLegs);
     if (danger > 0.02) {
