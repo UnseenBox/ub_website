@@ -138,7 +138,6 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const describe = (entry: KeyEntry): void => {
     info.replaceChildren();
     info.append(el('span', 'key-info-room', `${roomLabel(entry.index)} — ${entry.name}`));
-    info.append(el('span', 'key-info-act', actFor(entry.index).name.toLowerCase()));
     if (entry.index < total) {
       const def = HANDCRAFTED_ROOMS[entry.index]!;
       const best = save.roomBests[def.id];

@@ -16,7 +16,7 @@ const SNOOZE_SECONDS = 5;
 
 const RAM_DAMAGE = 9;
 const RAM_EVERY = 0.6;
-const SHOUTS = ['GET OUT!', 'MY FLAT!', 'RAAAGH!', 'I PAY RENT HERE!', 'NOT THE SOFA!', 'IT IS 3 A.M.!', 'OUT! OUT! OUT!'] as const;
+const SHOUTS = ['GET OUT!', 'MY FLAT!', 'RAAAGH!', 'OUT!'] as const;
 
 /** What each pet's owner says when the treat comes out. */
 const TREAT_BANNERS: Readonly<Record<string, readonly [string, string]>> = {
@@ -77,7 +77,7 @@ export function consumePickup(game: Game, object: PhysicsObject): boolean {
       pet.feed(game);
       game.camera.addShake(0.3);
       const words = TREAT_BANNERS[object.def.id];
-      if (words) game.hud.banner(words[0], words[1], 2);
+      if (words) game.hud.banner(words[0], '', 2);
       break;
     }
 

@@ -404,7 +404,6 @@ export class Game {
     // mini-goal is, once per first visit. Replays just show the room name.
     const briefing = briefingFor(def.id, index);
     if (firstVisit && !def.tutorial) this.hud.banner(`${index + 1} · ${def.name}`, briefing.objective, 3);
-    else if (firstVisit && def.teaser && !def.tutorial) this.hud.banner(def.name, def.teaser, 2.6);
     this.analytics.track('room_start', { room: index + 1, daily, generated: index >= this.rooms.handcraftedCount });
   }
 

@@ -87,8 +87,7 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   tag.title = summary.daily ? 'Daily challenge' : `Room ${summary.roomNumber}`;
   where.append(el('span', 'victory-ring'), tag, el('span', 'victory-room', summary.roomName.toLowerCase()));
   card.append(where);
-  // Campaign: act + stars + mini-goal result.
-  card.append(el('div', 'victory-act', summary.actName.toLowerCase()));
+  // Campaign: stars for this room.
   if (!summary.daily) {
     const stars = el('div', 'victory-stars');
     stars.title = `Clear ★ · bonus ${summary.challengePassed ? '★' : '☆'} · style ${summary.stars >= (summary.challengePassed ? 3 : 2) ? '★' : '☆'}`;

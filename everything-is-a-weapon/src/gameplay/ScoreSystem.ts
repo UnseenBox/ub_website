@@ -33,9 +33,6 @@ function emptyStats(): RoomStats {
 export const COMBO_WINDOW = 5;
 const MAX_COMBO = 8;
 
-const REACTIONS = ['Nice.', 'That worked?', 'Disrespectful.', 'Return to sender.', 'Recycled.', 'Physics is beautiful.', 'Okay... that was actually clever.', "You definitely weren't supposed to do that."];
-const HAZARD_REACTIONS = ['You never even touched it.', 'Handle with care.', 'The room did that.', 'Workplace accident.', 'Physics is beautiful.'];
-
 const FUNNY_KILLS: Readonly<Record<string, { discovery: string; line: string }>> = {
   shoe: { discovery: 'shoe_kill', line: 'You killed him with a SHOE.' },
   book: { discovery: 'book_kill', line: 'Knowledge is power.' },
@@ -144,7 +141,7 @@ export class ScoreSystem {
       this.award(bonus, x, y - 8, '#ffd23f');
       game.discoveries.unlock(length >= 5 ? 'chain_5' : length === 4 ? 'chain_4' : 'chain_3');
       const headline = length >= 5 ? 'HOW DID THAT WORK?!' : length === 4 ? 'ABSOLUTELY STUPID!' : 'CHAIN REACTION!';
-      game.hud.banner(headline, [...chain.steps, enemy.label].join('  →  '));
+      game.hud.banner(headline, '', 2);
       game.bus.emit({ type: 'CHAIN', length, steps: chain.steps });
       game.audio.chain(length);
       if (length >= 4) game.slowMotion(0.35, 0.9);
@@ -186,7 +183,7 @@ export class ScoreSystem {
             this.react('WHY THE ' + source.label + '?', x, y, true);
           }
         } else {
-          this.react(game.rng.pick(REACTIONS), x, y);
+          this.react('WHY THE ' + source.label + '?', x, y, true);
         }
       }
     } else {
@@ -196,7 +193,6 @@ export class ScoreSystem {
       if (cause.type === 'explosion') game.discoveries.unlock('kaboom');
       if (cause.type === 'fire' && chain && chain.steps.length >= 2) game.discoveries.unlock('flaming');
       if (!chain) game.discoveries.unlock('hands_off');
-      this.react(game.rng.pick(HAZARD_REACTIONS), x, y);
     }
 
     if (chain) {
