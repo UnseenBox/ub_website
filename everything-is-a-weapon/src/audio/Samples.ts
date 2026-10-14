@@ -3,10 +3,13 @@
  *
  * - Impacts, doors, UI, explosion, zap, plop, gong-pot: Kenney game audio
  *   (kenney.nl), Creative Commons CC0, converted ogg -> mp3.
- * - Cartoon hits, animals, whistle, trombone, win jingle, splash, alarm:
+ * - Cartoon hits, animals, whistle, splash, alarm:
  *   Mixkit (mixkit.co), royalty-free, no attribution required, mp3 previews.
  * - Late-night music loop ("One Night In France" by HoliznaCC0, via Free Music
  *   Archive), Creative Commons CC0, with loop fades applied.
+ *
+ * Win and lose stingers are synthesised (smooth pads in AudioManager), so no
+ * sample files are needed for them.
  *
  * Files live in `public/sfx/` next to the page and are fetched + decoded after
  * the first user gesture creates the AudioContext. Anything missing — or the
@@ -32,7 +35,7 @@ export type SampleName =
   | 'click' | 'drop' | 'stamp' | 'swipe' | 'metal-pot'
   | 'dog' | 'cat' | 'parrot' | 'hamster'
   | 'boing' | 'plastic' | 'throw' | 'dash' | 'pickup' | 'splash' | 'duck' | 'whistle'
-  | 'fail' | 'winclear' | 'bell' | 'alarm' | 'death' | 'poof'
+  | 'bell' | 'alarm' | 'poof'
   | 'music-night';
 
 /** Every sample that is prefetched at boot. */
@@ -43,7 +46,7 @@ export const SAMPLE_FILES: readonly SampleName[] = [
   'click', 'drop', 'stamp', 'swipe', 'metal-pot',
   'dog', 'cat', 'parrot', 'hamster',
   'boing', 'plastic', 'throw', 'dash', 'pickup', 'splash', 'duck', 'whistle',
-  'fail', 'winclear', 'bell', 'alarm', 'death', 'poof',
+  'bell', 'alarm', 'poof',
   'music-night',
 ];
 

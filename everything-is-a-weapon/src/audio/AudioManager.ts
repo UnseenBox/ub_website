@@ -29,15 +29,14 @@ const SAMPLE_FOR: { [K in SoundName]?: { file: SampleName; gain?: number; rateFr
   discovery: { file: 'bell', gain: 0.5 },
   paper: { file: 'impact-paper-page' },
   stamp: { file: 'stamp' },
-  roomClear: { file: 'winclear', gain: 0.7 },
-  fail: { file: 'fail', gain: 0.7 },
+  // Win and lose stingers are always synthesised (smooth pads below): the same
+  // cue in every build, with no sample to wait on.
   door: { file: 'door-open' },
   knock: { file: 'impact-wood-light' },
   squeak: { file: 'duck' },
   gong: { file: 'metal-pot', rateFromPitch: true },
   alarm: { file: 'alarm' },
   plop: { file: 'plop' },
-  scream: { file: 'death', gain: 0.7 },
   click: { file: 'click', gain: 0.5 },
   boing: { file: 'boing', rateFromPitch: true },
 };
@@ -671,28 +670,39 @@ export class AudioManager {
         s.noise({ filter: 'lowpass', from: 1300, to: 240, dur: 0.07, gain: 0.5 * g });
         s.noise({ filter: 'bandpass', from: 3000, dur: 0.03, gain: 0.12 * g, q: 1.2, delay: 0.05 });
         break;
-      case 'roomClear':
-        s.modal(SCALE[0]!, MARIMBA, 0.2, 0.12);
-        s.modal(SCALE[2]!, MARIMBA, 0.2, 0.22);
-        s.modal(SCALE[3]!, MARIMBA, 0.2, 0.32);
-        s.modal(SCALE[5]!, MARIMBA, 0.24, 0.42);
-        s.modal(SCALE[5]! * 2, BELL, 0.1, 0.42);
+      case 'roomClear': {
+        // a warm major swell: soft sine pad tones arriving one by one over a
+        // breath of air, resolving on a high shimmer. Nothing plucky.
+        const pad: Array<[freq: number, delay: number]> = [
+          [261.63, 0],
+          [329.63, 0.14],
+          [392.0, 0.28],
+          [523.25, 0.42],
+        ];
+        for (const [freq, delay] of pad) {
+          s.tone({ from: freq, dur: 1.9, gain: 0.11 * g, delay, attack: 0.32 });
+          s.tone({ type: 'triangle', from: freq / 2, dur: 1.9, gain: 0.05 * g, delay, attack: 0.4 });
+        }
+        s.tone({ from: 130.81, dur: 2.1, gain: 0.12 * g, delay: 0.1, attack: 0.35 });
+        s.noise({ filter: 'lowpass', from: 500, to: 2600, dur: 1.5, gain: 0.045 * g, attack: 0.55 });
+        s.tone({ from: 783.99, dur: 1.3, gain: 0.05 * g, delay: 0.55, attack: 0.45 });
+        s.tone({ from: 1046.5, dur: 1.5, gain: 0.04 * g, delay: 0.7, attack: 0.5 });
         break;
+      }
       case 'fail': {
-        // sad trombone
-        const notes = [233.1, 220, 207.7, 196];
-        notes.forEach((f, i) => {
-          const last = i === notes.length - 1;
-          s.voice({
-            pitch: last ? [f, f, f * 0.93] : [f * 1.03, f],
-            dur: last ? 0.95 : 0.3,
-            from: VOWEL.u,
-            to: VOWEL.a,
-            gain: 0.26,
-            delay: i * 0.33,
-            vibrato: last ? { rate: 5.5, depth: 5 } : undefined,
-          });
-        });
+        // a gentle descent: three legato tones settling onto a low tonic with
+        // a soft vibrato, under a slow downward sigh. No trombone.
+        s.tone({ from: 329.63, dur: 0.75, gain: 0.13 * g, attack: 0.28 });
+        s.tone({ from: 293.66, dur: 0.75, gain: 0.13 * g, delay: 0.55, attack: 0.28 });
+        s.tone({ from: 261.63, dur: 1.5, gain: 0.15 * g, delay: 1.1, attack: 0.3, vibrato: { rate: 5, depth: 3 } });
+        s.tone({ from: 110, dur: 1.7, gain: 0.09 * g, delay: 1.1, attack: 0.4 });
+        s.noise({ filter: 'lowpass', from: 1200, to: 300, dur: 1.7, gain: 0.045 * g, attack: 0.45 });
+        break;
+      }
+      case 'scream': {
+        // the moment the tenant goes down: a soft exhale and a low drop, no scream.
+        s.noise({ filter: 'lowpass', from: 900, to: 200, dur: 0.5, gain: 0.22 * g, attack: 0.03 });
+        s.tone({ from: 200, to: 70, dur: 0.5, gain: 0.28 * g, attack: 0.02 });
         break;
       }
       case 'door':
