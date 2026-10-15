@@ -521,6 +521,37 @@ export class RoomArt {
         ctx.lineTo(x + 22, 0);
       }
       ctx.stroke();
+    } else if (theme === 'pool') {
+      // swim-lane lines down the deck
+      ctx.fillStyle = 'rgba(47, 111, 159, 0.35)';
+      for (let i = 1; i <= 3; i++) {
+        const y = (h * i) / 4;
+        for (let x = 20; x < w - 20; x += 46) ctx.fillRect(x, y - 2, 30, 4);
+      }
+    } else if (theme === 'garden') {
+      // stepping-stone path across the lawn
+      ctx.fillStyle = 'rgba(251, 246, 233, 0.75)';
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 7; i++) {
+        const x = 60 + ((w - 120) * i) / 6;
+        const y = h * 0.72 + Math.sin(i * 1.7) * 26;
+        ctx.beginPath();
+        ctx.ellipse(x, y, 26, 15, 0, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (theme === 'jail') {
+      // yard lines: center circle and scuffs
+      ctx.strokeStyle = 'rgba(251, 246, 233, 0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, 70, 0, TAU);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(w / 2, 0);
+      ctx.lineTo(w / 2, h);
+      ctx.stroke();
     }
 
     ctx.fillStyle = style.trim;

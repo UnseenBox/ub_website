@@ -167,6 +167,8 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   const placed: Placed[] = [
     { x: playerStart.x, y: playerStart.y, r: 80 },
     { x: width - 20, y: entrancePos, r: 100 },
+    // Exits are walked out of nowhere, but nothing may pile up on the door.
+    { x: 20, y: height * 0.82, r: 70 },
   ];
   const objects: RoomObjectSpec[] = [];
   const zones: RoomZoneSpec[] = [];
@@ -434,7 +436,39 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   };
   const cx = width / 2;
   const cy = height / 2;
-  // Some rooms insist on their own shape: pools circle a platform, jails run cells.
+  // A third of rooms carve the outer silhouette itself: L, T, U, plus,
+  // snake chambers, staircases. The rest dress the interior.
+  const sil = theme === 'pool' ? null : rng.chance(0.35) ? rng.pick(['L', 'T', 'U', 'plus', 'snake', 'steps'] as const) : null;
+  if (sil === 'L') {
+    // top-left quadrant gone: the room bends around it
+    wallAt(width * 0.17, height * 0.19, width * 0.13, height * 0.15);
+  } else if (sil === 'T') {
+    // two top corners gone: a T opening downward
+    wallAt(width * 0.15, height * 0.17, width * 0.11, height * 0.13);
+    wallAt(width * 0.85, height * 0.17, width * 0.11, height * 0.13);
+  } else if (sil === 'U') {
+    // bottom corners gone: a U opening upward
+    wallAt(width * 0.14, height * 0.82, width * 0.1, height * 0.12);
+    wallAt(width * 0.86, height * 0.82, width * 0.1, height * 0.12);
+  } else if (sil === 'plus') {
+    // four corner masses: a plus-sign arena
+    wallAt(150, 140, 84, 66);
+    wallAt(width - 150, 140, 84, 66);
+    wallAt(150, height - 140, 84, 66);
+    wallAt(width - 150, height - 140, 84, 66);
+  } else if (sil === 'snake') {
+    // two full dividers with offset doorways: three chambers, snake flow
+    wallAt(width * 0.36, height * 0.36, width * 0.3, 10);
+    wallAt(width * 0.72, height * 0.36, width * 0.12, 10);
+    wallAt(width * 0.28, height * 0.68, width * 0.12, 10);
+    wallAt(width * 0.64, height * 0.68, width * 0.3, 10);
+  } else if (sil === 'steps') {
+    // staircase blocks climbing to the far corner
+    wallAt(width * 0.32, height * 0.68, 58, 48);
+    wallAt(width * 0.52, height * 0.48, 58, 48);
+    wallAt(width * 0.72, height * 0.28, 58, 48);
+  } else {
+    // Some rooms insist on their own shape: pools circle a platform, jails run cells.
   const shapes = theme === 'pool'
     ? (['court'] as const)
     : theme === 'jail'
@@ -500,6 +534,7 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
       wallAt(width * 0.6, height * 0.24, 10, height * 0.15);
       wallAt(width * 0.5, height * 0.52, width * 0.2, 10);
       break;
+  }
   }
 
   // ── guaranteed ammunition, then clutter (deeper rooms are lived-in warzones) ──
