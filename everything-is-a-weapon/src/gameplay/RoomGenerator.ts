@@ -8,6 +8,8 @@ interface Placed {
   x: number;
   y: number;
   r: number;
+  /** Smaller clearance ring used only by wall masses (movers just need to slip past). */
+  wr?: number;
 }
 
 type Weighted = ReadonlyArray<readonly [string, number]>;
@@ -165,10 +167,10 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   const entrancePos = rng.range(height * 0.3, height * 0.7);
 
   const placed: Placed[] = [
-    { x: playerStart.x, y: playerStart.y, r: 80 },
-    { x: width - 20, y: entrancePos, r: 100 },
+    { x: playerStart.x, y: playerStart.y, r: 80, wr: 20 },
+    { x: width - 20, y: entrancePos, r: 100, wr: 40 },
     // Exits are walked out of nowhere, but nothing may pile up on the door.
-    { x: 20, y: height * 0.82, r: 70 },
+    { x: 20, y: height * 0.82, r: 70, wr: 30 },
   ];
   const objects: RoomObjectSpec[] = [];
   const zones: RoomZoneSpec[] = [];
@@ -212,9 +214,40 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
 
   /** Puts something flush against the back wall and reserves its footprint. */
   const againstWall = (type: string, x: number, halfWidth: number, halfDepth: number): number => {
+    if (hitsWall(x, halfDepth + 3, halfWidth + 6)) return -1;
     objects.push({ type, x, y: halfDepth + 3 });
     placed.push({ x, y: halfDepth + 3, r: halfWidth + 6 });
     return objects.length - 1;
+  };
+
+  /** True when a fixed furniture spot would land inside a silhouette mass. */
+  const hitsWall = (x: number, y: number, r: number): boolean => {
+    for (const w of walls) {
+      const dx = Math.max(0, Math.abs(x - w.x) - w.hw);
+      const dy = Math.max(0, Math.abs(y - w.y) - w.hh);
+      if (Math.hypot(dx, dy) < r + 10) return true;
+    }
+    return false;
+  };
+
+  /** Back-wall sleeper (bed, tub, sofa): retries along the wall, skips on failure. */
+  const sleeper = (type: string, y: number, r: number): number => {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const x = rng.range(110, width - 110 - r);
+      if (hitsWall(x, y, r)) continue;
+      let clash = false;
+      for (const p of placed) {
+        if (Math.hypot(p.x - x, p.y - y) < p.r + r + 14) {
+          clash = true;
+          break;
+        }
+      }
+      if (clash) continue;
+      objects.push({ type, x, y });
+      placed.push({ x, y, r });
+      return objects.length - 1;
+    }
+    return -1;
   };
 
   const onTop = (surface: number, type: string, dx: number, dy: number): void => {
@@ -232,15 +265,64 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
     for (let i = 0; i < count; i++) onTop(index, rng.pick(kit.tabletop), i === 0 ? -20 : 22, rng.range(-10, 10));
   };
 
+  // ── silhouette first: room-shaping masses claim space before furniture ──
+  // Masses may sit near-flush to the outer walls (narrow edge) to truly carve
+  // the silhouette; interior partitions keep wide margins instead.
+  const wallAt = (x: number, y: number, hw: number, hh: number, edge = 70): boolean => {
+    if (x - hw < edge || x + hw > width - edge || y - hh < edge || y + hh > height - edge) return false;
+    for (const p of placed) {
+      const dx = Math.max(0, Math.abs(p.x - x) - hw);
+      const dy = Math.max(0, Math.abs(p.y - y) - hh);
+      if (Math.hypot(dx, dy) < (p.wr ?? p.r) + 46) return false;
+    }
+    walls.push({ x, y, hw, hh });
+    placed.push({ x, y, r: Math.min(90, Math.max(hw, hh)) });
+    return true;
+  };
+  const cx = width / 2;
+  const cy = height / 2;
+  // A third of rooms carve the outer silhouette itself: L, T, U, plus,
+  // snake chambers, staircases. Placed first, they almost always fit.
+  const sil = theme === 'pool' ? null : rng.chance(0.35) ? rng.pick(['L', 'T', 'U', 'plus', 'snake', 'steps'] as const) : null;
+  if (sil === 'L') {
+    // top-left quadrant gone: the room bends around it
+    wallAt(width * 0.17, height * 0.19, width * 0.13, height * 0.15, 24);
+  } else if (sil === 'T') {
+    // two top corners gone: a T opening downward
+    wallAt(width * 0.15, height * 0.17, width * 0.11, height * 0.13, 24);
+    wallAt(width * 0.85, height * 0.17, width * 0.11, height * 0.13, 24);
+  } else if (sil === 'U') {
+    // bottom corners gone: a U opening upward
+    wallAt(width * 0.14, height * 0.82, width * 0.1, height * 0.12, 24);
+    wallAt(width * 0.86, height * 0.82, width * 0.1, height * 0.12, 24);
+  } else if (sil === 'plus') {
+    // four corner masses: a plus-sign arena
+    wallAt(150, 140, 84, 66, 24);
+    wallAt(width - 150, 140, 84, 66, 24);
+    wallAt(150, height - 140, 84, 66, 24);
+    wallAt(width - 150, height - 140, 84, 66, 24);
+  } else if (sil === 'snake') {
+    // two full dividers with offset doorways: three chambers, snake flow
+    wallAt(width * 0.36, height * 0.36, width * 0.3, 10, 24);
+    wallAt(width * 0.72, height * 0.36, width * 0.12, 10, 24);
+    wallAt(width * 0.28, height * 0.68, width * 0.12, 10, 24);
+    wallAt(width * 0.64, height * 0.68, width * 0.3, 10, 24);
+  } else if (sil === 'steps') {
+    // staircase blocks climbing to the far corner
+    wallAt(width * 0.32, height * 0.68, 58, 48, 24);
+    wallAt(width * 0.52, height * 0.48, 58, 48, 24);
+    wallAt(width * 0.72, height * 0.28, 58, 48, 24);
+  }
+  const shaped = sil !== null;
+
   // ── the furniture that makes it this kind of room ──
   switch (theme) {
     case 'bedroom': {
-      const x = rng.range(110, width * 0.45);
-      objects.push({ type: 'bed', x, y: 92 });
-      placed.push({ x, y: 92, r: 84 });
-      const bed = objects.length - 1;
-      onTop(bed, 'pillow', -18, -42);
-      onTop(bed, 'pillow', 20, -38);
+      const bed = sleeper('bed', 92, 84);
+      if (bed >= 0) {
+        onTop(bed, 'pillow', -18, -42);
+        onTop(bed, 'pillow', 20, -38);
+      }
       if (rng.chance(0.6)) table();
       break;
     }
@@ -251,11 +333,21 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
     }
     case 'living': {
       const x = rng.range(200, width - 260);
-      objects.push({ type: 'sofa', x, y: 150 });
-      placed.push({ x, y: 150, r: 66 });
-      const sofa = objects.length - 1;
-      onTop(sofa, 'pillow', -30, 6);
-      onTop(sofa, 'pillow', 34, 8);
+      let sofa = -1;
+      if (!hitsWall(x, 150, 70)) {
+        objects.push({ type: 'sofa', x, y: 150 });
+        placed.push({ x, y: 150, r: 66 });
+        sofa = objects.length - 1;
+        onTop(sofa, 'pillow', -30, 6);
+        onTop(sofa, 'pillow', 34, 8);
+      } else {
+        const retry = sleeper('sofa', 150, 66);
+        if (retry >= 0) {
+          onTop(retry, 'pillow', -30, 6);
+          onTop(retry, 'pillow', 34, 8);
+          sofa = retry;
+        }
+      }
       table();
       if (rng.chance(0.6)) againstWall('bookshelf', x < width / 2 ? x + 240 : x - 240, 46, 13);
       break;
@@ -265,8 +357,8 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
       const left = againstWall('counter', x, 70, 23);
       againstWall('stove', x + 104, 32, 23);
       const right = againstWall('counter', x + 208, 70, 23);
-      onTop(left, rng.pick(['toaster', 'flour', 'plate']), -30, 1);
-      onTop(right, rng.pick(['pan', 'plate', 'bottle']), 26, 0);
+      if (left >= 0) onTop(left, rng.pick(['toaster', 'flour', 'plate']), -30, 1);
+      if (right >= 0) onTop(right, rng.pick(['pan', 'plate', 'bottle']), 26, 0);
       if (x + 330 < width - 90) againstWall('fridge', x + 320, 26, 22);
       table();
       break;
@@ -279,18 +371,20 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
     case 'garden': {
       // potting bench with seedlings
       const bench = againstWall('bookshelf', rng.range(220, width - 220), 46, 13);
-      onTop(bench, 'flowerpot', -20, 0);
-      onTop(bench, 'flowerpot', 22, 2);
+      if (bench >= 0) {
+        onTop(bench, 'flowerpot', -20, 0);
+        onTop(bench, 'flowerpot', 22, 2);
+      }
       break;
     }
     case 'pool': {
       // deck loungers facing the water
-      againstWall('bed', rng.range(200, width - 300), 44, 64);
+      sleeper('bed', 67, 80);
       break;
     }
     case 'jail': {
       // bunks along the back wall
-      againstWall('bed', rng.range(160, width * 0.4), 44, 64);
+      sleeper('bed', 67, 80);
       table();
       break;
     }
@@ -321,6 +415,11 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
     if (x < 50 + r || x > width - 50 - r || y < 50 + r || y > height - 50 - r) return -1;
     for (const p of placed) {
       if (Math.hypot(p.x - x, p.y - y) < p.r + r + 14) return -1;
+    }
+    for (const w of walls) {
+      const dx = Math.max(0, Math.abs(x - w.x) - w.hw);
+      const dy = Math.max(0, Math.abs(y - w.y) - w.hh);
+      if (Math.hypot(dx, dy) < r + 12) return -1;
     }
     placed.push({ x, y, r });
     objects.push({ type, x, y, angle });
@@ -422,53 +521,9 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
     }
   }
 
-  // ── floor plan: eight archetypes so the depths stop being empty rectangles ──
-  const wallAt = (x: number, y: number, hw: number, hh: number): boolean => {
-    if (x - hw < 70 || x + hw > width - 70 || y - hh < 70 || y + hh > height - 70) return false;
-    for (const p of placed) {
-      const dx = Math.max(0, Math.abs(p.x - x) - hw);
-      const dy = Math.max(0, Math.abs(p.y - y) - hh);
-      if (Math.hypot(dx, dy) < p.r + 46) return false;
-    }
-    walls.push({ x, y, hw, hh });
-    placed.push({ x, y, r: Math.min(90, Math.max(hw, hh)) });
-    return true;
-  };
-  const cx = width / 2;
-  const cy = height / 2;
-  // A third of rooms carve the outer silhouette itself: L, T, U, plus,
-  // snake chambers, staircases. The rest dress the interior.
-  const sil = theme === 'pool' ? null : rng.chance(0.35) ? rng.pick(['L', 'T', 'U', 'plus', 'snake', 'steps'] as const) : null;
-  if (sil === 'L') {
-    // top-left quadrant gone: the room bends around it
-    wallAt(width * 0.17, height * 0.19, width * 0.13, height * 0.15);
-  } else if (sil === 'T') {
-    // two top corners gone: a T opening downward
-    wallAt(width * 0.15, height * 0.17, width * 0.11, height * 0.13);
-    wallAt(width * 0.85, height * 0.17, width * 0.11, height * 0.13);
-  } else if (sil === 'U') {
-    // bottom corners gone: a U opening upward
-    wallAt(width * 0.14, height * 0.82, width * 0.1, height * 0.12);
-    wallAt(width * 0.86, height * 0.82, width * 0.1, height * 0.12);
-  } else if (sil === 'plus') {
-    // four corner masses: a plus-sign arena
-    wallAt(150, 140, 84, 66);
-    wallAt(width - 150, 140, 84, 66);
-    wallAt(150, height - 140, 84, 66);
-    wallAt(width - 150, height - 140, 84, 66);
-  } else if (sil === 'snake') {
-    // two full dividers with offset doorways: three chambers, snake flow
-    wallAt(width * 0.36, height * 0.36, width * 0.3, 10);
-    wallAt(width * 0.72, height * 0.36, width * 0.12, 10);
-    wallAt(width * 0.28, height * 0.68, width * 0.12, 10);
-    wallAt(width * 0.64, height * 0.68, width * 0.3, 10);
-  } else if (sil === 'steps') {
-    // staircase blocks climbing to the far corner
-    wallAt(width * 0.32, height * 0.68, 58, 48);
-    wallAt(width * 0.52, height * 0.48, 58, 48);
-    wallAt(width * 0.72, height * 0.28, 58, 48);
-  } else {
-    // Some rooms insist on their own shape: pools circle a platform, jails run cells.
+  // ── interior plan, unless the silhouette already shaped the room ──
+  if (!shaped) {
+  // Some rooms insist on their own shape: pools circle a platform, jails run cells.
   const shapes = theme === 'pool'
     ? (['court'] as const)
     : theme === 'jail'
@@ -590,6 +645,47 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   if (depth >= 3 && !enemies.some((e) => costOf(e.type) >= 2) && enemies.length > 0) {
     const heavy = rng.pick(['helmet', 'kaboom', 'hurler'] as const);
     enemies[enemies.length - 1] = { type: heavy, delay: enemies[enemies.length - 1]!.delay };
+  }
+
+  // ── settle: nudge anything a silhouette mass swallowed out into the open ──
+  // (placeOn reseats tabletop stacks from final positions, so stacks ride along)
+  for (let i = 0; i < objects.length; i++) {
+    const spec = objects[i]!;
+    const r = radiusOf(spec.type);
+    const spots: ReadonlyArray<readonly [number, number]> = [
+      [0, 0], [60, 0], [-60, 0], [0, 60], [0, -60],
+      [110, 0], [-110, 0], [0, 110], [0, -110],
+      [170, 0], [-170, 0], [0, 170], [0, -170],
+    ];
+    for (const [ox, oy] of spots) {
+      const nx = spec.x + ox;
+      const ny = spec.y + oy;
+      if (nx < 30 + r || nx > width - 30 - r || ny < 30 + r || ny > height - 30 - r) continue;
+      let clear = true;
+      for (const w of walls) {
+        const dx = Math.max(0, Math.abs(nx - w.x) - w.hw);
+        const dy = Math.max(0, Math.abs(ny - w.y) - w.hh);
+        if (Math.hypot(dx, dy) < r * 0.6) {
+          clear = false;
+          break;
+        }
+      }
+      if (!clear) continue;
+      if (ox !== 0 || oy !== 0) {
+        objects[i] = { ...spec, x: nx, y: ny };
+        const moveStack = (s: number): void => {
+          for (let j = s + 1; j < objects.length; j++) {
+            const child = objects[j]!;
+            if (child.on === s) {
+              objects[j] = { ...child, x: child.x + ox, y: child.y + oy };
+              moveStack(j);
+            }
+          }
+        };
+        moveStack(i);
+      }
+      break;
+    }
   }
 
   return {
