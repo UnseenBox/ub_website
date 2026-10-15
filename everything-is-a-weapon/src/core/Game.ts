@@ -1116,7 +1116,10 @@ export class Game {
         );
       }
       if (big) this.particles.burst('dust', b.x, b.y + 6, Math.min(8, 2 + Math.floor(e.damage / 10)), 110);
+      // Light taps still kick up dust so every connection lands; medium hits earn a small ring.
+      else this.particles.burst('dust', b.x, b.y + 4, 2, 70, cone);
       if (big || firstHit) this.fx.ring(b.x, b.y, 6, 34 + e.damage * 0.7, 0.3, 'rgba(255,255,255,0.85)', 4);
+      else if (e.damage >= 10) this.fx.ring(b.x, b.y, 4, 18 + e.damage * 0.6, 0.22, 'rgba(255,255,255,0.6)', 2);
       // Huge hits get a second, tighter shockwave on top: the "double-crack" feel.
       if (huge) this.fx.ring(b.x, b.y, 4, 22 + e.damage * 0.45, 0.32, 'rgba(255,210,63,0.9)', 3);
       // Massive hits flash the room for a beat (scaled by the reduced-shake setting).
@@ -1151,6 +1154,8 @@ export class Game {
         killDir ? { dirX: e.cause.dirX, dirY: e.cause.dirY, spread: 0.8 } : undefined,
       );
       this.fx.ring(b.x, b.y, 10, 92, 0.42, 'rgba(255,255,255,0.9)', 5);
+      this.particles.burst('dust', b.x, b.y + 6, 6, 120);
+      this.fx.ring(b.x, b.y, 4, 40, 0.35, 'rgba(255,210,63,0.9)', 3);
       if (this.enemiesRemaining === 0) {
         // The last one out gets the full treatment: letterbox, slow motion, a push-in.
         this.cinema = 1.25;

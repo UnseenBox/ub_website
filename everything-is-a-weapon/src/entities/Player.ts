@@ -291,6 +291,7 @@ export class Player {
     game.audio.play('pickup', 0.6, 1.2 - Math.min(0.6, object.body.mass / 60));
     game.audio.impact(object.material.sound, 0.14, object.body.mass);
     game.fx.ring(object.body.x, object.body.y, object.body.boundR + 12, object.body.boundR, 0.18, 'rgba(255,255,255,0.8)', 2);
+    game.particles.burst('spark', object.body.x, object.body.y - 10, 3, 130);
     game.bus.emit({ type: 'OBJECT_GRABBED', object });
   }
 
@@ -391,7 +392,19 @@ export class Player {
     if (object.def.funny && charge > 0.3) game.audio.play('whistle', charge);
     if (ob.mass >= 8 && charge > 0.4) game.audio.voice('hup', 230);
     game.fx.ring(b.x, b.y, 10, 26 + charge * 30, 0.22, 'rgba(255,255,255,0.7)', 2 + charge * 2);
+    // Back-blast of dust plus white-hot streaks off the release point; a full
+    // charge earns a second, hotter ring and a pop of stars.
     game.particles.burst('dust', b.x, b.y + 4, 3 + Math.floor(charge * 5), 70, { dirX: -this.aimX, dirY: -this.aimY, spread: 0.9 });
+    game.particles.burst('spark', ob.x, ob.y - 8, 2 + Math.floor(charge * 6), 240 + charge * 340, {
+      dirX: this.aimX, dirY: this.aimY, spread: 0.32, color: '#ffffff',
+    });
+    game.particles.burst('dust', ob.x, ob.y, 2 + Math.floor(charge * 3), 60 + charge * 60, {
+      dirX: this.aimX, dirY: this.aimY, spread: 1.1,
+    });
+    if (charge >= 1) {
+      game.fx.ring(b.x, b.y, 20, 52 + charge * 30, 0.3, 'rgba(255,210,63,0.9)', 3);
+      game.particles.burst('star', ob.x, ob.y - 12, 6, 220);
+    }
     game.bus.emit({ type: 'OBJECT_THROWN', object, charge });
   }
 

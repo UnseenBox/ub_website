@@ -73,10 +73,22 @@ export class ImpactSystem {
 
     if (impulse > 700) {
       if (object) {
-        game.particles.burst(object.material.debris, contact.px, contact.py - object.body.z, 2 + Math.floor(intensity * 6), 120 + intensity * 200);
+        // Debris sprays along the contact normal so every smash reads directionally.
+        game.particles.burst(object.material.debris, contact.px, contact.py - object.body.z, 2 + Math.floor(intensity * 6), 120 + intensity * 200, {
+          dirX: contact.nx, dirY: contact.ny, spread: 1.1,
+        });
         object.squash = Math.max(object.squash, intensity);
       }
-      game.particles.burst('dust', contact.px, contact.py, 1 + Math.floor(intensity * 4), 60 + intensity * 80);
+      game.particles.burst('dust', contact.px, contact.py, 1 + Math.floor(intensity * 4), 60 + intensity * 80, {
+        dirX: contact.nx, dirY: contact.ny, spread: 1.4,
+      });
+      game.fx.ring(contact.px, contact.py, 4, 14 + intensity * 30, 0.22, 'rgba(255,255,255,0.5)', 2);
+      // Really hard smashes pop stars even when no creature is involved.
+      if (impulse > 2200) {
+        game.particles.burst('star', contact.px, contact.py - 10, 3 + Math.floor(intensity * 4), 200 + intensity * 160, {
+          dirX: contact.nx, dirY: contact.ny, spread: 1.0,
+        });
+      }
       game.bus.emit({ type: 'OBJECT_HIT', a, b, impulse, x: contact.px, y: contact.py });
     }
     if (impulse > 1400) {
