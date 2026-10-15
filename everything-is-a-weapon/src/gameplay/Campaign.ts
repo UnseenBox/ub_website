@@ -138,6 +138,18 @@ export const BRIEFINGS: Readonly<Record<string, Briefing>> = {
     landlord: '“Keep off the grass. — M.”',
     par: 170,
   },
+  'porch-19': {
+    story: 'Out front: sunset, sweet tea, two fast movers who skipped the queue.',
+    objective: 'one throw, two movers',
+    landlord: '“Wipe your feet. — M.”',
+    par: 140,
+  },
+  'basement-20': {
+    story: 'Under everything: the furnace room. It is lit, slick, and hungry.',
+    objective: 'let the room do it',
+    landlord: '“Mind the boiler. — M.”',
+    par: 180,
+  },
 };
 
 const DEPTH_STORIES: readonly string[] = [

@@ -589,4 +589,86 @@ export const ANCHOR_ROOMS: Readonly<Record<number, RoomDefinition>> = {
       { type: 'gnat', delay: 9 },
     ],
   },
+
+  // 19 — SUNPORCH: a long verandah, sweet tea for two, no boss. Breathe.
+  19: {
+    id: 'porch-19', name: 'SUNPORCH', theme: 'porch', width: 1240, height: 440, seed: 1919, challenge: 'one_throw_two',
+    teaser: 'sweet tea for two', spotlight: ['chair', 'lamp'],
+    playerStart: { x: 150, y: 220 },
+    entrance: { side: 'right', pos: 220 },
+    exit: { side: 'left', pos: 220 },
+    rug: { x: 620, y: 230, w: 300, h: 150, color: '#c9a24f' },
+    walls: [
+      // porch posts marching down both sides
+      { x: 420, y: 90, hw: 14, hh: 50 },
+      { x: 820, y: 90, hw: 14, hh: 50 },
+      { x: 420, y: 350, hw: 14, hh: 50 },
+      { x: 820, y: 350, hw: 14, hh: 50 },
+    ],
+    objects: [
+      { type: 'table', x: 620, y: 220 },
+      { type: 'candle', x: 600, y: 220, on: 0 },
+      { type: 'book', x: 644, y: 222, angle: 0.4, on: 0 },
+      { type: 'chair', x: 500, y: 220, angle: 1.4 },
+      { type: 'chair', x: 740, y: 220, angle: -1.4 },
+      { type: 'lamp', x: 620, y: 120 },
+      { type: 'flowerpot', x: 320, y: 320 },
+      { type: 'flowerpot', x: 920, y: 320 },
+      { type: 'ball', x: 220, y: 320 },
+      { type: 'bottle', x: 1020, y: 180 },
+      { type: 'shoe', x: 1080, y: 320, angle: 0.9 },
+      { type: 'boombox', x: 420, y: 250, angle: -0.2 },
+      { type: 'book', x: 820, y: 160, angle: 0.6 },
+    ],
+    zones: [],
+    enemies: [
+      { type: 'fast', delay: 1.8 },
+      { type: 'fast', delay: 5 },
+      { type: 'basic', delay: 8 },
+    ],
+  },
+
+  // 20 — BOILER ROOM: furnace lit, floor slick, vacuumasaurus on rotation.
+  20: {
+    id: 'basement-20', name: 'BOILER ROOM', theme: 'basement', width: 900, height: 620, seed: 2020, challenge: 'environment_only',
+    teaser: 'the furnace is on', spotlight: ['extinguisher', 'bucket'],
+    playerStart: { x: 150, y: 310 },
+    entrance: { side: 'right', pos: 310 },
+    exit: { side: 'left', pos: 310 },
+    walls: [
+      // pipe stacks to circle around
+      { x: 350, y: 180, hw: 26, hh: 26 },
+      { x: 550, y: 180, hw: 26, hh: 26 },
+      { x: 350, y: 450, hw: 26, hh: 26 },
+      { x: 550, y: 450, hw: 26, hh: 26 },
+      // coal heap corner
+      { x: 780, y: 520, hw: 80, hh: 60 },
+    ],
+    objects: [
+      { type: 'stove', x: 450, y: 40 },
+      { type: 'bookshelf', x: 250, y: 40 },
+      { type: 'tire', x: 650, y: 520 },
+      { type: 'tire', x: 690, y: 555 },
+      { type: 'toolbox', x: 350, y: 320 },
+      { type: 'paintcan', x: 560, y: 330 },
+      { type: 'wrench', x: 450, y: 420, angle: 0.7 },
+      { type: 'bucket', x: 250, y: 480 },
+      { type: 'bottle', x: 700, y: 250 },
+      { type: 'extinguisher', x: 120, y: 200 },
+      { type: 'chair', x: 200, y: 380, angle: 0.4 },
+      { type: 'lamp', x: 780, y: 150 },
+      { type: 'shoe', x: 550, y: 550, angle: 1.3 },
+    ],
+    zones: [
+      { kind: 'fire', x: 450, y: 110, r: 24 },
+      { kind: 'oil', x: 620, y: 450, r: 55 },
+      { kind: 'water', x: 250, y: 480, r: 50 },
+      { kind: 'electric', x: 700, y: 12, r: 18, outlet: true },
+    ],
+    enemies: [
+      { type: 'helmet', delay: 2 },
+      { type: 'kaboom', delay: 6.5 },
+      { type: 'trolley', delay: 10 },
+    ],
+  },
 };

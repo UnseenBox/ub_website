@@ -142,8 +142,25 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   const depth = depthFor(index);
   const theme = rng.pick(THEMES);
   const kit = KITS[theme];
-  const width = 40 * rng.int(24, 27);
-  const height = 20 * rng.int(27, 30);
+  // ── dimensions: verandahs run long, cells run small, pools run grand ──
+  let width = 40 * rng.int(24, 27);
+  let height = 20 * rng.int(27, 30);
+  const sizeRoll = rng.next();
+  if (theme === 'porch') {
+    width = 1300; height = 430;
+  } else if (theme === 'pool' && sizeRoll < 0.6) {
+    width = 1150; height = 620;
+  } else if (theme === 'garden' && sizeRoll < 0.5) {
+    width = 1140; height = 620;
+  } else if (theme === 'jail' && sizeRoll < 0.4) {
+    width = 720; height = 520;
+  } else if (theme === 'basement' && sizeRoll < 0.4) {
+    width = 860; height = 640;
+  } else if (sizeRoll < 0.1) {
+    width = 1140; height = 620;
+  } else if (sizeRoll < 0.18) {
+    width = 860; height = 640;
+  }
   const playerStart = { x: 150, y: height / 2 };
   const entrancePos = rng.range(height * 0.3, height * 0.7);
 
@@ -421,14 +438,14 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   const shapes = theme === 'pool'
     ? (['court'] as const)
     : theme === 'jail'
-      ? (['split', 'lanes'] as const)
+      ? (['split', 'lanes', 'cells'] as const)
       : theme === 'garden'
-        ? (['court', 'pockets', 'pillars'] as const)
+        ? (['court', 'pockets', 'pillars', 'maze'] as const)
         : theme === 'porch'
           ? (['lanes', 'pockets'] as const)
           : theme === 'basement'
-            ? (['cross', 'pillars', 'ring'] as const)
-            : (['cross', 'pillars', 'lanes', 'pockets', 'ring', 'split', 'ell', 'court'] as const);
+            ? (['cross', 'pillars', 'ring', 'cells'] as const)
+            : (['cross', 'pillars', 'lanes', 'pockets', 'ring', 'split', 'ell', 'court', 'maze'] as const);
   switch (rng.pick(shapes)) {
     case 'cross':
       // four stubs stopping short of the middle: a four-way intersection
@@ -470,6 +487,19 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
       // courtyard block: run the ring around it
       wallAt(cx, cy, 95, 68);
       break;
+    case 'maze':
+      // hedge zigzag: four blocks, slalom through
+      wallAt(width * 0.35, height * 0.35, 52, 52);
+      wallAt(width * 0.65, height * 0.4, 52, 52);
+      wallAt(width * 0.38, height * 0.68, 52, 52);
+      wallAt(width * 0.66, height * 0.72, 52, 52);
+      break;
+    case 'cells':
+      // two cells, open at the bottom: choose your cell
+      wallAt(width * 0.4, height * 0.24, 10, height * 0.15);
+      wallAt(width * 0.6, height * 0.24, 10, height * 0.15);
+      wallAt(width * 0.5, height * 0.52, width * 0.2, 10);
+      break;
   }
 
   // ── guaranteed ammunition, then clutter (deeper rooms are lived-in warzones) ──
@@ -504,9 +534,10 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   }
   if (rng.chance(0.5)) zones.push({ kind: 'electric', x: rng.range(200, width - 200), y: 12, r: 18, outlet: true });
 
-  // ── the crew: tougher mixes the deeper you go ──
+  // ── the crew: tougher mixes the deeper you go, sized to the room ──
   const enemies: RoomEnemySpec[] = [];
-  let budget = 4.5 + depth * 1.1;
+  const areaFactor = Math.min(1.3, Math.max(0.55, (width * height) / 560000));
+  let budget = (4.5 + depth * 1.1) * areaFactor;
   // A third of depths rooms are survival: outlast the clock, killing is optional.
   const hasBoss = (index + 1) % 3 === 0;
   const survive = !hasBoss && rng.chance(0.35) ? Math.min(90, 45 + depth * 5) : null;
