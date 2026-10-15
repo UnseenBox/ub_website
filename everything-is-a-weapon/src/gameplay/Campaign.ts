@@ -120,6 +120,24 @@ export const BRIEFINGS: Readonly<Record<string, Briefing>> = {
     landlord: '“FINAL NOTICE. — THE LANDLORD”',
     par: 220,
   },
+  'pool-11': {
+    story: 'Below the flat: a pool nobody drained. The platform is dry. Be on it.',
+    objective: 'one throw, two movers',
+    landlord: '“No lifeguard on duty. — M.”',
+    par: 150,
+  },
+  'jail-14': {
+    story: 'Below that: a cell with your name on it. Pick one — they open downward.',
+    objective: 'no direct hits',
+    landlord: '“Lights out at nine. — M.”',
+    par: 160,
+  },
+  'garden-17': {
+    story: 'Below that: green. Weed them out between the beds — mind the pond.',
+    objective: 'one throw, two movers',
+    landlord: '“Keep off the grass. — M.”',
+    par: 170,
+  },
 };
 
 const DEPTH_STORIES: readonly string[] = [

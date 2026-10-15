@@ -5,8 +5,8 @@ import { Layer, RigidBody } from '../physics/RigidBody';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import type { PhysicsObject } from '../entities/PhysicsObject';
 import { doorPosition, type RoomDefinition, type RoomEnemySpec, type WallSpec } from './Room';
-import { HANDCRAFTED_ROOMS } from './RoomDefinitions';
-import { generateRoom } from './RoomGenerator';
+import { ANCHOR_ROOMS, HANDCRAFTED_ROOMS } from './RoomDefinitions';
+import { depthFor, generateRoom } from './RoomGenerator';
 
 /** A live interior wall: static partition, or sliding machinery (kinematic). */
 export interface WallRuntime {
@@ -85,6 +85,9 @@ export class RoomManager {
   definition(index: number): RoomDefinition {
     const handcrafted = HANDCRAFTED_ROOMS[index];
     if (handcrafted) return handcrafted;
+    // Pinned signature rooms keep the endless floors dealing surprises.
+    const anchor = ANCHOR_ROOMS[index];
+    if (anchor) return anchor;
     // A generated room keeps its seed for the session, so Retry gives the same layout.
     let seed = this.generatedSeeds.get(index);
     if (seed === undefined) {
@@ -227,7 +230,7 @@ export class RoomManager {
       const enemy = game.spawnEnemy(spec.type, door.x + door.dirY * lateral, door.y + door.dirX * lateral, door.dirX, door.dirY);
       // Depths crew gets tougher with depth (bosses stay exactly as designed).
       if (room.index >= game.rooms.handcraftedCount && !ENEMY_TYPES[spec.type].boss) {
-        const depth = Math.max(1, room.index - 7);
+        const depth = depthFor(room.index);
         enemy.hp = Math.round(enemy.hp * Math.min(1.6, 1 + 0.07 * depth));
       }
       room.entranceOpen = 1;

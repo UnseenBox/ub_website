@@ -472,3 +472,121 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     boss: 'house',
   },
 ];
+
+/**
+ * Handcrafted set-pieces pinned to depths indices, so the endless floors keep
+ * dealing signature rooms: a pool, a jail, a garden. Bosses arrive by the
+ * every-third-room rule, on top of whatever the anchor holds.
+ */
+export const ANCHOR_ROOMS: Readonly<Record<number, RoomDefinition>> = {
+  // 11 — THE DEEP END: a diving platform in the middle of the pool.
+  11: {
+    id: 'pool-11', name: 'THE DEEP END', theme: 'pool', width: 1000, height: 580, seed: 1111, challenge: 'one_throw_two',
+    teaser: 'the water is the weapon', spotlight: ['ball', 'duck'],
+    playerStart: { x: 150, y: 300 },
+    entrance: { side: 'right', pos: 290 },
+    exit: { side: 'left', pos: 470 },
+    walls: [
+      // diving platform: dry, high, and worth fighting over
+      { x: 500, y: 290, hw: 90, hh: 50 },
+    ],
+    objects: [
+      { type: 'duck', x: 420, y: 200, angle: 0.6 },
+      { type: 'ball', x: 620, y: 400 },
+      { type: 'bucket', x: 300, y: 450 },
+      { type: 'bottle', x: 700, y: 150 },
+      { type: 'bottle', x: 240, y: 180 },
+      { type: 'chair', x: 200, y: 420, angle: 0.5 },
+      { type: 'chair', x: 820, y: 420, angle: -0.5 },
+      { type: 'pillow', x: 180, y: 480, angle: 0.2 },
+      { type: 'shoe', x: 850, y: 250, angle: 1.2 },
+      { type: 'book', x: 380, y: 480, angle: -0.3 },
+      { type: 'spraycan', x: 760, y: 120 },
+    ],
+    zones: [
+      { kind: 'water', x: 500, y: 290, r: 125 },
+      { kind: 'electric', x: 500, y: 12, r: 18, outlet: true },
+    ],
+    enemies: [
+      { type: 'basic', delay: 1.8 },
+      { type: 'fast', delay: 5 },
+      { type: 'fast', delay: 8 },
+    ],
+  },
+
+  // 14 — THE CLINK: three open cells along the top, yard below.
+  14: {
+    id: 'jail-14', name: 'THE CLINK', theme: 'jail', width: 960, height: 560, seed: 1414, challenge: 'no_direct_hits',
+    teaser: 'do not drop the soap', spotlight: ['bowlingball', 'book'],
+    playerStart: { x: 150, y: 400 },
+    entrance: { side: 'right', pos: 280 },
+    exit: { side: 'left', pos: 280 },
+    walls: [
+      // cell dividers, open at the bottom: pick a cell, any cell
+      { x: 320, y: 140, hw: 10, hh: 120 },
+      { x: 500, y: 140, hw: 10, hh: 120 },
+      { x: 680, y: 140, hw: 10, hh: 120 },
+    ],
+    objects: [
+      { type: 'bed', x: 180, y: 90 },
+      { type: 'table', x: 480, y: 420 },
+      { type: 'book', x: 460, y: 426, angle: 0.4, on: 1 },
+      { type: 'plate', x: 505, y: 414, on: 1 },
+      { type: 'bowlingball', x: 700, y: 420 },
+      { type: 'plank', x: 600, y: 250, angle: 0.2 },
+      { type: 'chair', x: 380, y: 460, angle: -0.4 },
+      { type: 'bottle', x: 820, y: 180 },
+      { type: 'shoe', x: 250, y: 480, angle: 1 },
+      { type: 'pillow', x: 150, y: 200, angle: 0.3 },
+      { type: 'bucket', x: 600, y: 120 },
+    ],
+    zones: [
+      { kind: 'water', x: 720, y: 420, r: 55 },
+      { kind: 'electric', x: 760, y: 12, r: 18, outlet: true },
+    ],
+    enemies: [
+      { type: 'helmet', delay: 2 },
+      { type: 'shield', delay: 6.5 },
+      { type: 'basic', delay: 9.5 },
+    ],
+  },
+
+  // 17 — THE ALLOTMENT: planter beds, a shed, and a duck pond.
+  17: {
+    id: 'garden-17', name: 'THE ALLOTMENT', theme: 'garden', width: 1040, height: 580, seed: 1717, challenge: 'one_throw_two',
+    teaser: 'weed them out', spotlight: ['rake', 'flowerpot'],
+    playerStart: { x: 150, y: 300 },
+    entrance: { side: 'right', pos: 300 },
+    exit: { side: 'left', pos: 300 },
+    walls: [
+      // raised beds: cover that smells like tomatoes
+      { x: 380, y: 290, hw: 100, hh: 60 },
+      { x: 660, y: 290, hw: 100, hh: 60 },
+    ],
+    objects: [
+      { type: 'table', x: 150, y: 120 },
+      { type: 'toolbox', x: 132, y: 118, on: 0 },
+      { type: 'flowerpot', x: 350, y: 210 },
+      { type: 'flowerpot', x: 690, y: 370 },
+      { type: 'flowerpot', x: 420, y: 380 },
+      { type: 'rake', x: 540, y: 420, angle: 0.4 },
+      { type: 'broom', x: 240, y: 420, angle: -0.3 },
+      { type: 'bucket', x: 800, y: 380 },
+      { type: 'duck', x: 860, y: 430, angle: 0.8 },
+      { type: 'ball', x: 250, y: 200 },
+      { type: 'bottle', x: 920, y: 180 },
+      { type: 'shoe', x: 480, y: 480, angle: 1.1 },
+      { type: 'chair', x: 150, y: 480, angle: 0.3 },
+      { type: 'book', x: 760, y: 180, angle: -0.5 },
+    ],
+    zones: [
+      { kind: 'water', x: 860, y: 430, r: 58 },
+    ],
+    enemies: [
+      { type: 'basic', delay: 1.8 },
+      { type: 'fast', delay: 5 },
+      { type: 'gnat', delay: 7.5 },
+      { type: 'gnat', delay: 9 },
+    ],
+  },
+};

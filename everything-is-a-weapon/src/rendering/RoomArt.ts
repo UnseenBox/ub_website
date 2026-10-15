@@ -8,8 +8,8 @@ import { hash, roundRectPath, type Ctx } from './draw';
 const FACE = 26;
 const DOOR_HALF = 34;
 
-type FloorKind = 'planks' | 'boards' | 'checker' | 'tiles' | 'carpet' | 'concrete';
-type DecorKind = 'window' | 'cabinets' | 'bathroom' | 'pegboard';
+type FloorKind = 'planks' | 'boards' | 'checker' | 'tiles' | 'carpet' | 'concrete' | 'grass';
+type DecorKind = 'window' | 'cabinets' | 'bathroom' | 'pegboard' | 'fence' | 'bars' | 'pipes';
 
 interface ThemeStyle {
   floor: FloorKind;
@@ -30,6 +30,11 @@ const THEMES: Readonly<Record<RoomTheme, ThemeStyle>> = {
   bathroom: { floor: 'tiles', a: '#e4f3f6', b: '#d3ebf0', line: '#ffffff', wallTop: '#4f9aa6', wallFace: '#3a7985', trim: '#8fd0d9', decor: 'bathroom' },
   kitchen: { floor: 'checker', a: '#f6f1e4', b: '#c6e6da', line: '#a8cfc1', wallTop: '#c26a4a', wallFace: '#964a30', trim: '#e08a66', decor: 'cabinets' },
   garage: { floor: 'concrete', a: '#cfcfc8', b: '#c2c2ba', line: '#a9a9a0', wallTop: '#7d8590', wallFace: '#5a616c', trim: '#9aa2ad', decor: 'pegboard' },
+  garden: { floor: 'grass', a: '#7fb069', b: '#6a9a58', line: '#578a48', wallTop: '#3e5c3a', wallFace: '#2e4630', trim: '#8a6f4d', decor: 'fence' },
+  pool: { floor: 'tiles', a: '#d8f0f5', b: '#bfe4ee', line: '#ffffff', wallTop: '#2f6f9f', wallFace: '#225a82', trim: '#7cc4de', decor: 'window' },
+  jail: { floor: 'concrete', a: '#b9bec9', b: '#adb2bf', line: '#8f95a5', wallTop: '#4a4f5e', wallFace: '#353945', trim: '#6e7484', decor: 'bars' },
+  porch: { floor: 'boards', a: '#d9a86c', b: '#cf9a5e', line: '#b3854f', wallTop: '#7c5c48', wallFace: '#5f4636', trim: '#a37c55', decor: 'window' },
+  basement: { floor: 'concrete', a: '#8f8b96', b: '#84808d', line: '#63616c', wallTop: '#3d3a4d', wallFace: '#2c2a38', trim: '#57536a', decor: 'pipes' },
 };
 
 function paintFloor(ctx: Ctx, w: number, h: number, style: ThemeStyle, seed: number): void {
@@ -103,6 +108,26 @@ function paintFloor(ctx: Ctx, w: number, h: number, style: ThemeStyle, seed: num
         const x = hash(i * 1.37 + seed) * w;
         const y = hash(i * 2.91 + seed * 1.7) * h;
         ctx.fillRect(x, y, 3 + hash(i) * 3, 1.6);
+      }
+      break;
+    }
+    case 'grass': {
+      // lawn: blade flecks plus the odd daisy
+      const count = Math.floor((w * h) / 420);
+      for (let i = 0; i < count; i++) {
+        ctx.fillStyle = i % 4 === 0 ? style.line : style.b;
+        const x = hash(i * 1.53 + seed) * w;
+        const y = hash(i * 2.77 + seed * 1.3) * h;
+        ctx.fillRect(x, y, 1.8, 3 + hash(i * 3) * 4);
+      }
+      ctx.fillStyle = '#fbf6e9';
+      for (let i = 0; i < 12; i++) {
+        const x = hash(i * 7.9 + seed) * w;
+        const y = hash(i * 4.2 + seed) * h;
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = i % 2 === 0 ? '#fbf6e9' : '#ffd23f';
       }
       break;
     }
@@ -269,6 +294,93 @@ function towelRail(ctx: Ctx, x: number, seed: number): void {
   ctx.strokeRect(x - 16, y - 1, 26, 15);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
   ctx.fillRect(x - 16, y + 9, 26, 2.5);
+}
+
+/** A garden fence running along the back wall. */
+function fence(ctx: Ctx, x: number, seed: number): void {
+  const w = 110;
+  const top = -FACE + 2;
+  const h = FACE - 4;
+  ctx.fillStyle = '#8a6f4d';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 7; i++) {
+    const sx = x - w / 2 + 4 + i * ((w - 8) / 6);
+    const peak = top + hash(seed + i * 3.1) * 3;
+    ctx.beginPath();
+    ctx.moveTo(sx - 6, top + h);
+    ctx.lineTo(sx - 6, peak + 4);
+    ctx.lineTo(sx, peak);
+    ctx.lineTo(sx + 6, peak + 4);
+    ctx.lineTo(sx + 6, top + h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#6e5739';
+  ctx.fillRect(x - w / 2, top + h * 0.35, w, 4);
+  ctx.fillRect(x - w / 2, top + h * 0.7, w, 4);
+}
+
+/** Jail bars across the back wall. */
+function bars(ctx: Ctx, x: number): void {
+  const w = 96;
+  const top = -FACE + 1;
+  const h = FACE - 3;
+  ctx.fillStyle = '#22242e';
+  ctx.fillRect(x - w / 2, top, w, h);
+  ctx.fillStyle = '#9aa2ad';
+  for (let i = 0; i <= 6; i++) {
+    const bx = x - w / 2 + 6 + i * ((w - 12) / 6);
+    ctx.fillRect(bx - 2.5, top, 5, h);
+    ctx.fillStyle = '#d7dee9';
+    ctx.fillRect(bx - 2.5, top, 1.5, h);
+    ctx.fillStyle = '#9aa2ad';
+  }
+  ctx.fillStyle = '#22242e';
+  ctx.fillRect(x - w / 2 - 3, top - 2, w + 6, 5);
+  ctx.fillRect(x - w / 2 - 3, top + h - 3, w + 6, 5);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x - w / 2 - 3, top - 2, w + 6, h + 4);
+}
+
+/** Basement pipework along the back wall. */
+function pipes(ctx: Ctx, x: number, seed: number): void {
+  const w = 104;
+  ctx.lineCap = 'round';
+  const runs: Array<[number, number, string]> = [
+    [-FACE + 6, 5, '#7d8590'],
+    [-FACE + 16, 7, '#9aa2ad'],
+  ];
+  for (const [y, r, color] of runs) {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = r + 3;
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2, y);
+    ctx.lineTo(x + w / 2, y);
+    ctx.stroke();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = r;
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2, y);
+    ctx.lineTo(x + w / 2, y);
+    ctx.stroke();
+  }
+  // valve wheel
+  const vx = x + hash(seed) * 40 - 20;
+  ctx.strokeStyle = '#e5383b';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(vx, -FACE + 16, 7, 0, TAU);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(vx - 7, -FACE + 16);
+  ctx.lineTo(vx + 7, -FACE + 16);
+  ctx.moveTo(vx, -FACE + 9);
+  ctx.lineTo(vx, -FACE + 23);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
 }
 
 function pegboard(ctx: Ctx, x: number): void {
@@ -472,6 +584,16 @@ export class RoomArt {
           break;
         case 'pegboard':
           if (i % 2 === 0 && free(x, 48)) pegboard(ctx, x);
+          break;
+        case 'fence':
+          if (i % 2 === 0 && free(x, 58)) fence(ctx, x, seed);
+          else if (free(x, 20)) pictureFrame(ctx, x, seed);
+          break;
+        case 'bars':
+          if (i % 2 === 0 && free(x, 52)) bars(ctx, x);
+          break;
+        case 'pipes':
+          if (i % 2 === 0 && free(x, 56)) pipes(ctx, x, seed);
           break;
       }
     });

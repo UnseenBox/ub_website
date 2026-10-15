@@ -66,6 +66,41 @@ const KITS: Readonly<Record<RoomTheme, ThemeKit>> = {
     rugs: [],
     puddleChance: 0.4,
   },
+  garden: {
+    names: ['BACKYARD', 'GREENHOUSE', 'ALLOTMENT'],
+    filler: [['flowerpot', 4], ['rake', 2.5], ['cactus', 2], ['bucket', 2.5], ['broom', 2], ['ball', 1.5], ['bottle', 1.5], ['lamp', 1], ['chair', 1.5], ['teeth', 1], ['boombox', 1], ['shoe', 1]],
+    tabletop: ['flowerpot', 'bottle', 'book'],
+    rugs: [],
+    puddleChance: 0.45,
+  },
+  pool: {
+    names: ['DEEP END', 'SPLASH ZONE', 'LIDO'],
+    filler: [['duck', 3], ['ball', 2.5], ['bucket', 2], ['bottle', 2], ['pillow', 2], ['chair', 2], ['shoe', 1.5], ['spraycan', 1], ['soap', 1.5], ['lamp', 1]],
+    tabletop: ['bottle', 'duck', 'soap'],
+    rugs: [],
+    puddleChance: 0.3,
+  },
+  jail: {
+    names: ['HOLDING CELL', 'CELL BLOCK', 'THE CLINK'],
+    filler: [['ball', 2], ['plank', 3], ['chair', 2], ['book', 2], ['bottle', 1.5], ['pillow', 1.5], ['lamp', 1], ['trashcan', 1.5], ['shoe', 2], ['dumbbell', 2]],
+    tabletop: ['book', 'bottle', 'plate'],
+    rugs: [],
+    puddleChance: 0.3,
+  },
+  porch: {
+    names: ['FRONT PORCH', 'VERANDA', 'STOOP'],
+    filler: [['chair', 3], ['lamp', 3], ['flowerpot', 3], ['ball', 1.5], ['book', 2], ['bottle', 1.5], ['shoe', 2], ['boombox', 1.5], ['pillow', 1.5], ['candle', 1.5]],
+    tabletop: ['book', 'candle', 'flowerpot'],
+    rugs: ['#c96f5a', '#c9a24f'],
+    puddleChance: 0.25,
+  },
+  basement: {
+    names: ['CELLAR', 'BOILER ROOM', 'DOWNSTAIRS'],
+    filler: [['tire', 3], ['toolbox', 2.5], ['paintcan', 2.5], ['wrench', 2.5], ['bucket', 2], ['bottle', 2], ['plank', 2], ['chair', 1.5], ['lamp', 1.5], ['paperball', 1], ['ball', 1]],
+    tabletop: ['toolbox', 'paintcan', 'bottle'],
+    rugs: [],
+    puddleChance: 0.4,
+  },
 };
 
 const THEMES = Object.keys(KITS) as RoomTheme[];
@@ -118,6 +153,8 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   ];
   const objects: RoomObjectSpec[] = [];
   const zones: RoomZoneSpec[] = [];
+  // Declared up here: the placer avoids walls, which are laid down later.
+  const walls: WallSpec[] = [];
 
   const findSpot = (r: number, margin: number): Placed | null => {
     for (let attempt = 0; attempt < 60; attempt++) {
@@ -128,6 +165,17 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
         if (Math.hypot(p.x - x, p.y - y) < p.r + r + 14) {
           ok = false;
           break;
+        }
+      }
+      // Walls are long: test the rect itself, not just its reserved circle.
+      if (ok) {
+        for (const w of walls) {
+          const dx = Math.max(0, Math.abs(x - w.x) - w.hw);
+          const dy = Math.max(0, Math.abs(y - w.y) - w.hh);
+          if (Math.hypot(dx, dy) < r + 12) {
+            ok = false;
+            break;
+          }
         }
       }
       if (ok) return { x, y, r };
@@ -209,6 +257,36 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
       if (rng.chance(0.7)) againstWall('bookshelf', rng.range(180, width - 180), 46, 13);
       break;
     }
+    case 'garden': {
+      // potting bench with seedlings
+      const bench = againstWall('bookshelf', rng.range(220, width - 220), 46, 13);
+      onTop(bench, 'flowerpot', -20, 0);
+      onTop(bench, 'flowerpot', 22, 2);
+      break;
+    }
+    case 'pool': {
+      // deck loungers facing the water
+      againstWall('bed', rng.range(200, width - 300), 44, 64);
+      break;
+    }
+    case 'jail': {
+      // bunks along the back wall
+      againstWall('bed', rng.range(160, width * 0.4), 44, 64);
+      table();
+      break;
+    }
+    case 'porch': {
+      // rocking chairs facing the street, lamp between them
+      table();
+      if (rng.chance(0.7)) place('lamp', 70);
+      break;
+    }
+    case 'basement': {
+      // furnace row plus shelves of paint
+      againstWall('stove', rng.range(200, width - 320), 32, 23);
+      againstWall('bookshelf', rng.range(220, width - 220), 46, 13);
+      break;
+    }
     case 'office': {
       table();
       if (rng.chance(0.4)) table();
@@ -277,10 +355,55 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
       tryPlace('chair', width * 0.55, height * 0.42);
       break;
     }
+    case 'garden': {
+      // flower beds flanking the lawn
+      tryPlace('flowerpot', width * 0.4, height * 0.35);
+      tryPlace('flowerpot', width * 0.6, height * 0.35);
+      tryPlace('flowerpot', width * 0.5, height * 0.68);
+      tryPlace('rake', width * 0.62, height * 0.55, 0.5);
+      tryPlace('bucket', width * 0.36, height * 0.6);
+      break;
+    }
+    case 'pool': {
+      // beachhead: loungers' litter at the shallow end
+      tryPlace('pillow', width * 0.32, height * 0.62, 0.2);
+      tryPlace('pillow', width * 0.68, height * 0.62, -0.3);
+      tryPlace('ball', width * 0.5, height * 0.72);
+      tryPlace('duck', width * 0.56, height * 0.4, 0.7);
+      tryPlace('chair', width * 0.3, height * 0.3, 1.1);
+      break;
+    }
+    case 'jail': {
+      // yard time: weights, lines and a ball to chain
+      tryPlace('dumbbell', width * 0.42, height * 0.55);
+      tryPlace('bowlingball', width * 0.58, height * 0.55);
+      tryPlace('plank', width * 0.5, height * 0.68, 0.2);
+      tryPlace('book', width * 0.36, height * 0.4, -0.4);
+      break;
+    }
+    case 'porch': {
+      // sweet tea for two
+      const t = tryPlace('table', width * 0.5, height * 0.5);
+      if (t >= 0) {
+        onTop(t, 'candle', -20, 0);
+        onTop(t, 'book', 22, 0);
+      }
+      tryPlace('chair', width * 0.5 - 120, height * 0.5, 1.4);
+      tryPlace('chair', width * 0.5 + 120, height * 0.5, -1.4);
+      tryPlace('flowerpot', width * 0.32, height * 0.66);
+      break;
+    }
+    case 'basement': {
+      // workbench corner that never got finished
+      tryPlace('toolbox', width * 0.4, height * 0.4);
+      tryPlace('paintcan', width * 0.6, height * 0.42);
+      tryPlace('wrench', width * 0.5, height * 0.58, 0.7);
+      tryPlace('tire', width * 0.64, height * 0.62);
+      break;
+    }
   }
 
-  // ── floor plan: six archetypes so the depths stop being empty rectangles ──
-  const walls: WallSpec[] = [];
+  // ── floor plan: eight archetypes so the depths stop being empty rectangles ──
   const wallAt = (x: number, y: number, hw: number, hh: number): boolean => {
     if (x - hw < 70 || x + hw > width - 70 || y - hh < 70 || y + hh > height - 70) return false;
     for (const p of placed) {
@@ -294,7 +417,19 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   };
   const cx = width / 2;
   const cy = height / 2;
-  switch (rng.pick(['cross', 'pillars', 'lanes', 'pockets', 'ring', 'split'] as const)) {
+  // Some rooms insist on their own shape: pools circle a platform, jails run cells.
+  const shapes = theme === 'pool'
+    ? (['court'] as const)
+    : theme === 'jail'
+      ? (['split', 'lanes'] as const)
+      : theme === 'garden'
+        ? (['court', 'pockets', 'pillars'] as const)
+        : theme === 'porch'
+          ? (['lanes', 'pockets'] as const)
+          : theme === 'basement'
+            ? (['cross', 'pillars', 'ring'] as const)
+            : (['cross', 'pillars', 'lanes', 'pockets', 'ring', 'split', 'ell', 'court'] as const);
+  switch (rng.pick(shapes)) {
     case 'cross':
       // four stubs stopping short of the middle: a four-way intersection
       wallAt(cx - width * 0.16, cy, width * 0.09, 10);
@@ -327,6 +462,14 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
       wallAt(width * 0.6, height * 0.26, 10, height * 0.12);
       wallAt(width * 0.6, height * 0.76, 10, height * 0.11);
       break;
+    case 'ell':
+      // collapsed corner: the room bends around it
+      wallAt(width - 185, 155, 105, 80);
+      break;
+    case 'court':
+      // courtyard block: run the ring around it
+      wallAt(cx, cy, 95, 68);
+      break;
   }
 
   // ── guaranteed ammunition, then clutter (deeper rooms are lived-in warzones) ──
@@ -341,6 +484,23 @@ export function generateRoom(index: number, seed: number, challengeOverride?: st
   }
   if (theme === 'garage' && rng.chance(0.6)) {
     zones.push({ kind: 'oil', x: rng.range(width * 0.4, width * 0.75), y: rng.range(140, height - 120), r: rng.range(46, 62) });
+  }
+  if (theme === 'pool') {
+    // the pool itself: deep water around the platform
+    zones.push({ kind: 'water', x: cx, y: cy, r: rng.range(105, 135) });
+  }
+  if (theme === 'basement') {
+    if (rng.chance(0.5)) {
+      zones.push({ kind: 'oil', x: rng.range(width * 0.4, width * 0.75), y: rng.range(140, height - 120), r: rng.range(46, 62) });
+    }
+    // the furnace is still lit
+    if (rng.chance(0.35)) {
+      zones.push({ kind: 'fire', x: rng.range(width * 0.3, width * 0.7), y: rng.range(100, 160), r: rng.range(20, 28) });
+    }
+  }
+  if (theme === 'garden' && rng.chance(0.35)) {
+    // duck pond
+    zones.push({ kind: 'water', x: rng.range(width * 0.55, width * 0.8), y: rng.range(height * 0.5, height - 120), r: rng.range(48, 64) });
   }
   if (rng.chance(0.5)) zones.push({ kind: 'electric', x: rng.range(200, width - 200), y: 12, r: 18, outlet: true });
 

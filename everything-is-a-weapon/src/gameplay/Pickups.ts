@@ -34,6 +34,11 @@ const THEME_EXTRAS: Readonly<Record<RoomTheme, readonly string[]>> = {
   living: ['guitar', 'lavalamp', 'pizza', 'trophy', 'cactus', 'globe', 'piggybank'],
   kitchen: ['kettle', 'syrup', 'pizza', 'cactus', 'syrup'],
   garage: ['dumbbell', 'guitar', 'trophy', 'pizza', 'kettle'],
+  garden: ['cactus', 'piggybank', 'globe', 'trophy'],
+  pool: ['piggybank', 'lavalamp', 'globe'],
+  jail: ['dumbbell', 'guitar', 'piggybank'],
+  porch: ['guitar', 'lavalamp', 'trophy', 'piggybank', 'cactus'],
+  basement: ['dumbbell', 'kettle', 'trophy', 'pizza'],
 };
 const BONUS_PICKUPS = ['plasters', 'bubblewrap', 'snooze'] as const;
 

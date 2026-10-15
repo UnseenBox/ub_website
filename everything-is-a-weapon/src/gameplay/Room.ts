@@ -4,7 +4,9 @@ import type { ZoneKind } from '../hazards/Zone';
 export type Side = 'left' | 'right' | 'top' | 'bottom';
 
 /** Which part of the flat this is: decides the floor, the walls and what hangs on them. */
-export type RoomTheme = 'bedroom' | 'office' | 'bathroom' | 'living' | 'kitchen' | 'garage';
+export type RoomTheme =
+  | 'bedroom' | 'office' | 'bathroom' | 'living' | 'kitchen' | 'garage'
+  | 'garden' | 'pool' | 'jail' | 'porch' | 'basement';
 
 export interface DoorSpec {
   readonly side: Side;
