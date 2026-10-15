@@ -3116,23 +3116,73 @@ body.touch #game {
 .menu-keys.wall-open .mk-chars {
   display: none;
 }
-/* front page, mobile-first: head, door, rooms overview, characters, PLAY stack top to bottom */
+/* front page, mobile-first: head, campaign, door, rooms overview, characters, PLAY stack top to bottom */
 .screen.menu-keys:not(.wall-open) {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-  grid-template-areas: 'head' 'door' 'pips' 'chars' 'play';
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+  grid-template-areas: 'head' 'campaign' 'door' 'pips' 'chars' 'play';
 }
-/* desktop: door + full-width PLAY on the left, a 2×2 character board on the right */
+/* desktop: door on the left, a 2×2 character board on the right, pips + PLAY full-width */
 @media (min-width: 860px) {
   .screen.menu-keys:not(.wall-open) {
     grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
-    grid-template-areas: 'head head' 'door chars' 'pips pips' 'play play';
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: 'head head' 'campaign campaign' 'door chars' 'pips pips' 'play play';
   }
   /* a bigger door on desktop: it owns the left column */
-  .mk-door { height: min(100%, clamp(120px, 30vh, 220px)); }
+  .mk-door { height: min(100%, clamp(140px, 32vh, 250px)); }
   .door-note { width: clamp(150px, 20vmin, 210px); }
+}
+
+/* very few texts: the flavor lines go away (DOM + aria stay for screen readers).
+   Kept: logo, room number + name, character names, progress strip, pips, PLAY. */
+.screen.menu-keys:not(.wall-open) .mm-tagline,
+.screen.menu-keys:not(.wall-open) .door-note > span:first-child,
+.screen.menu-keys:not(.wall-open) .door-note-hint,
+.screen.menu-keys:not(.wall-open) .mm-card-note,
+.screen.menu-keys:not(.wall-open) .mk-chars > .tape-label,
+.screen.menu-keys:not(.wall-open) .mk-play-sub {
+  display: none;
+}
+
+/* compact logo: the door and cards are the heroes now */
+.screen.menu-keys:not(.wall-open) .mm-letter {
+  font-size: clamp(28px, 5.6vmin, 54px);
+  padding: 2px clamp(5px, 1vmin, 9px) 5px;
+}
+.screen.menu-keys:not(.wall-open) .mk-head { gap: 2px; }
+
+/* room name is the only line on the sticky: say it big */
+.screen.menu-keys:not(.wall-open) .door-note-room {
+  font-size: clamp(20px, 4vmin, 34px);
+}
+
+/* bigger portraits, names only beneath them */
+.screen.menu-keys:not(.wall-open) .hero-blank {
+  height: clamp(88px, 15vh, 132px);
+}
+
+/* PLAY owns the bottom: bigger type, and pinned in reach on phones */
+.screen.menu-keys:not(.wall-open) .btn.mk-play {
+  font-size: clamp(30px, 6vmin, 54px);
+  padding: clamp(10px, 2vh, 18px) clamp(10px, 1.6vw, 16px);
+}
+/* the CHARACTER tape is gone: the panel needs less headroom */
+.screen.menu-keys:not(.wall-open) .mk-chars {
+  padding-top: clamp(10px, 1.6vh, 16px);
+}
+@media (max-width: 859px) {
+  .screen.menu-keys:not(.wall-open) .mk-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+  }
+}
+@media (max-width: 520px) {
+  #screens.active:has(.screen.menu-keys) {
+    padding: 12px max(12px, env(safe-area-inset-right)) 12px max(12px, env(safe-area-inset-left));
+  }
 }
 
 .mk-head { grid-area: head; position: relative; }
