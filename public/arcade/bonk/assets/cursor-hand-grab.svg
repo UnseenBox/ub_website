@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <filter id="fist-rough" x="-12%" y="-12%" width="124%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="0.9"/>
+    </filter>
+    <filter id="fist-drop" x="-30%" y="-30%" width="170%" height="170%">
+      <feDropShadow dx="2" dy="3" stdDeviation="0.35" flood-color="#100c1e" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#fist-drop)">
+    <g filter="url(#fist-rough)" fill="#fbf6e9" stroke="#221b36" stroke-width="2.4"
+       stroke-linejoin="round" stroke-linecap="round">
+      <!-- closed fist -->
+      <path d="M20 27 Q 15 33 17 42 Q 21 52 33 52 Q 46 52 48 42 Q 50 31 44 27 Q 33 23 20 27 Z"/>
+      <!-- thumb wrapped over -->
+      <path d="M21 36 Q 13 37 14 43 Q 17 48 25 46 Q 28 43 26 38 Q 24 36 21 36 Z"/>
+      <!-- curled finger tops -->
+      <path d="M27 27 Q 28 33 27 40" fill="none" stroke-width="1.9"/>
+      <path d="M34 26 Q 35 32 34 39" fill="none" stroke-width="1.9"/>
+      <path d="M41 27 Q 42 32 41 39" fill="none" stroke-width="1.9"/>
+      <!-- cuff -->
+      <path d="M21 50 Q 22 58 33 58 Q 45 57 45 50 Q 33 55 21 50 Z" fill="#e5383b"/>
+    </g>
+
+    <!-- knuckle bumps -->
+    <g fill="#f1e7cc" stroke="#221b36" stroke-width="1.2">
+      <ellipse cx="26" cy="26" rx="3.4" ry="2.6"/>
+      <ellipse cx="33.5" cy="25" rx="3.6" ry="2.7"/>
+      <ellipse cx="41" cy="26" rx="3.2" ry="2.5"/>
+    </g>
+
+    <!-- grab energy -->
+    <g fill="#ffd23f" stroke="#221b36" stroke-width="1">
+      <circle cx="15" cy="21" r="1.9"/>
+      <circle cx="19" cy="14" r="1.5"/>
+      <circle cx="50" cy="22" r="1.8"/>
+      <circle cx="54" cy="29" r="1.4"/>
+    </g>
+    <g fill="none" stroke="#ffd23f" stroke-width="1.8" stroke-linecap="round" opacity="0.9">
+      <path d="M12 30 Q 10 26 12 22"/>
+      <path d="M52 34 Q 55 31 54 27"/>
+    </g>
+  </g>
+</svg>
