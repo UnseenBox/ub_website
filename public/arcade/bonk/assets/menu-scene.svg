@@ -47,12 +47,38 @@
       .flicker { animation: flicker 6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
       .flicker-2 { animation: flicker 6s ease-in-out infinite .9s; transform-box: fill-box; transform-origin: center; }
       .flicker-3 { animation: flicker 8s ease-in-out infinite 1.6s; transform-box: fill-box; transform-origin: center; }
+      .curtain-l { transform-box: fill-box; transform-origin: top center; animation: sway-l 11s ease-in-out infinite; }
+      .curtain-r { transform-box: fill-box; transform-origin: top center; animation: sway-r 11s ease-in-out infinite .6s; }
+      .plant     { transform-box: fill-box; transform-origin: bottom center; animation: plant-sway 7.5s ease-in-out infinite; }
+      .motes     { animation: mote-rise 16s linear infinite; }
+      .motes-2   { animation: mote-rise 21s linear infinite 4s; }
+
       @keyframes flicker {
         0%, 100% { opacity: 0.85; }
         45%      { opacity: 1; }
         70%      { opacity: 0.92; }
       }
-      @media (prefers-reduced-motion: reduce) { .flicker, .flicker-2, .flicker-3 { animation: none; } }
+      @keyframes sway-l {
+        0%, 100% { transform: rotate(-0.9deg) skewX(0deg); }
+        50%      { transform: rotate(0.9deg) skewX(0.6deg); }
+      }
+      @keyframes sway-r {
+        0%, 100% { transform: rotate(0.9deg) skewX(0deg); }
+        50%      { transform: rotate(-0.9deg) skewX(-0.6deg); }
+      }
+      @keyframes plant-sway {
+        0%, 100% { transform: rotate(-1.4deg); }
+        50%      { transform: rotate(1.6deg); }
+      }
+      @keyframes mote-rise {
+        0%   { transform: translateY(24px); opacity: 0.15; }
+        35%  { opacity: 0.6; }
+        70%  { opacity: 0.35; }
+        100% { transform: translateY(-52px); opacity: 0; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .flicker, .flicker-2, .flicker-3, .curtain-l, .curtain-r, .plant, .motes, .motes-2 { animation: none; }
+      }
     </style>
   </defs>
 
@@ -90,8 +116,8 @@
     <rect x="1034" y="492" width="404" height="20" rx="6" fill="#c8b28c"/>
     <rect x="1034" y="124" width="404" height="11" rx="5" fill="#b99a74"/>
     <!-- curtains -->
-    <path d="M1034 126 q 48 42 30 126 q -16 82 8 140 q -6 122 -38 158 L1034 534 Z" fill="#c4704f" opacity="0.92"/>
-    <path d="M1438 126 q -48 42 -30 126 q 16 82 -8 140 q 6 122 38 158 L1438 534 Z" fill="#c4704f" opacity="0.92"/>
+    <path class="curtain-l" d="M1034 126 q 48 42 30 126 q -16 82 8 140 q -6 122 -38 158 L1034 534 Z" fill="#c4704f" opacity="0.92"/>
+    <path class="curtain-r" d="M1438 126 q -48 42 -30 126 q 16 82 -8 140 q 6 122 38 158 L1438 534 Z" fill="#c4704f" opacity="0.92"/>
     <path d="M1040 130 q 30 90 10 190" fill="none" stroke="#a95c3e" stroke-width="4" opacity="0.5"/>
     <path d="M1432 130 q -30 90 -10 190" fill="none" stroke="#a95c3e" stroke-width="4" opacity="0.5"/>
   </g>
@@ -228,7 +254,7 @@
   </g>
 
   <!-- ===== plant ===== -->
-  <g>
+  <g class="plant">
     <path d="M1414 700 l 14 -100 h 80 l 14 100 Z" fill="#c4704f"/>
     <rect x="1422" y="592" width="78" height="15" rx="4" fill="#a95c3e"/>
     <g fill="#6f9c4a">
@@ -243,10 +269,13 @@
   </g>
 
   <!-- ===== dust motes in the light ===== -->
-  <g fill="#fff3d0" opacity="0.5">
-    <circle cx="900" cy="520" r="3"/><circle cx="980" cy="600" r="2.4"/>
-    <circle cx="1050" cy="540" r="2"/><circle cx="860" cy="640" r="2.6"/>
-    <circle cx="1140" cy="660" r="2.2"/><circle cx="760" cy="700" r="2"/>
+  <g class="motes" fill="#fff3d0">
+    <circle cx="900" cy="520" r="3" opacity="0.55"/><circle cx="980" cy="600" r="2.4" opacity="0.45"/>
+    <circle cx="1050" cy="540" r="2" opacity="0.5"/>
+  </g>
+  <g class="motes-2" fill="#fff3d0">
+    <circle cx="860" cy="640" r="2.6" opacity="0.45"/><circle cx="1140" cy="660" r="2.2" opacity="0.4"/>
+    <circle cx="760" cy="700" r="2" opacity="0.35"/>
   </g>
 
   <!-- ===== vignette ===== -->

@@ -287,6 +287,34 @@
 
         new MutationObserver(sync).observe(screens, { childList: true });
         sync();
+
+        /* ---- subtle parallax: the room leans with the pointer ---- */
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var px = 0, py = 0, tx = 0, ty = 0, running = false;
+
+        function tick() {
+          px += (tx - px) * 0.075;
+          py += (ty - py) * 0.075;
+          var bg = document.querySelector('#bonk-menu-scene .scene-bg');
+          if (bg) {
+            bg.style.transform =
+              'scale(1.06) translate3d(' + (-px * 16).toFixed(2) + 'px,' + (-py * 12).toFixed(2) + 'px,0)';
+          }
+          if (Math.abs(tx - px) > 0.0015 || Math.abs(ty - py) > 0.0015) {
+            requestAnimationFrame(tick);
+          } else {
+            running = false;
+          }
+        }
+
+        if (!reduce) {
+          document.addEventListener('mousemove', function (e) {
+            if (!document.querySelector('#bonk-menu-scene')) return;
+            tx = (e.clientX / window.innerWidth) - 0.5;
+            ty = (e.clientY / window.innerHeight) - 0.5;
+            if (!running) { running = true; requestAnimationFrame(tick); }
+          }, { passive: true });
+        }
       })();
     </script>
   </body>
