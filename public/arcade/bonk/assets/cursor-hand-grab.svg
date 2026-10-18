@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56">
+  <defs>
+    <filter id="handgrab-rough" x="-18%" y="-18%" width="136%" height="136%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/>
+    </filter>
+  </defs>
+  <!-- torn paper backing -->
+  <path d="M4 46 Q 6 4 20 4 Q 34 4 38 14 Q 42 36 30 38 Q 22 40 14 36 Q 6 30 4 46 Z"
+        fill="#fffdf6" stroke="#1a142d" stroke-width="1.8" stroke-linejoin="round"/>
+  <!-- wrist cuff -->
+  <path d="M18 42 Q 16 44 20 46 Q 24 48 28 46 Q 32 44 30 42 Z" fill="#e5383b" stroke="#1a142d" stroke-width="1.6"/>
+  <!-- closed fist knuckles -->
+  <path d="M22 26 Q 18 26 16 30 Q 16 36 22 40 Q 28 40 34 36 Q 34 30 28 26 Q 24 24 22 26 Z"
+        fill="#f5e6d4" stroke="#8a6d3b" stroke-width="1.6" stroke-linejoin="round"/>
+  <!-- knuckle bumps -->
+  <circle cx="24" cy="26" r="2.4" fill="#ffe0b5"/>
+  <circle cx="28" cy="26" r="2.4" fill="#ffe0b5"/>
+  <circle cx="32" cy="28" r="2.2" fill="#ffe0b5"/>
+  <!-- thumb over fist -->
+  <path d="M16 32 Q 12 32 12 36 Q 14 40 20 40 Q 22 38 20 34 Q 18 32 16 32 Z"
+        fill="#f5e6d4" stroke="#8a6d3b" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="20" cy="32" r="2" fill="#ffe0b5"/>
+  <!-- grab lines -->
+  <path d="M24 30 Q 22 34 24 38" fill="none" stroke="#8a6d3b" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M28 30 Q 26 34 28 38" fill="none" stroke="#8a6d3b" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- punch accent -->
+  <circle cx="33" cy="8" r="2.6" fill="#ffd23f"/>
+  <circle cx="37" cy="12" r="2.2" fill="#ffd23f"/>
+</svg>
