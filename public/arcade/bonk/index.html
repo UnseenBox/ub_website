@@ -12,10 +12,25 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231b1730'/%3E%3Cpath d='M9 8h4v8h8v4h2v6h-3v-5h-8v5H9z' fill='%23ffd23f'/%3E%3C/svg%3E" />
     <script type="module" crossorigin src="./assets/index-DAKlC1oT.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-arPfi0qf.css">
+    <style>
+      #game { cursor: none; }
+      #game-cursor {
+        position: fixed;
+        left: 0; top: 0;
+        width: 56px; height: 56px;
+        pointer-events: none;
+        z-index: 99999;
+        display: none;
+        transform-origin: 31px 7px; /* index fingertip = cursor hotspot */
+      }
+      #game-cursor.show { display: block; }
+      #game-cursor img { width: 100%; height: 100%; display: block; }
+    </style>
   </head>
   <body>
     <div id="app">
       <canvas id="game" aria-label="Game"></canvas>
+      <div id="game-cursor"><img id="game-cursor-img" src="./assets/cursor-hand.svg" draggable="false"></div>
       <div id="hud"></div>
       <div id="screens"></div>
       <div id="debug"></div>
@@ -26,5 +41,26 @@
         <button id="rotate-dismiss" type="button" class="btn">PLAY UPRIGHT ANYWAY</button>
       </div>
     </div>
+    <script>
+      (function(){
+        var cur = document.getElementById('game-cursor');
+        var img = document.getElementById('game-cursor-img');
+        var open = './assets/cursor-hand.svg';
+        var grab = './assets/cursor-hand-grab.svg';
+        // index fingertip hotspot in the 56x56 svg
+        var hx = 31, hy = 7;
+        var show = function(){ cur.classList.add('show'); };
+        var hide = function(){ cur.classList.remove('show'); };
+        document.addEventListener('mousemove', function(e){
+          cur.style.left = (e.clientX - hx) + 'px';
+          cur.style.top = (e.clientY - hy) + 'px';
+          show();
+        });
+        document.addEventListener('mousedown', function(){ img.src = grab; });
+        document.addEventListener('mouseup',   function(){ img.src = open; });
+        document.addEventListener('mouseleave', hide);
+        document.addEventListener('mouseenter', show);
+      })();
+    </script>
   </body>
 </html>
