@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="cloudGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6f4fa"/>
+    </linearGradient>
+    <linearGradient id="hillFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b4d98f"/>
+      <stop offset="1" stop-color="#9cc377"/>
+    </linearGradient>
+    <linearGradient id="hillNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#93bd57"/>
+      <stop offset="1" stop-color="#7a9b2a"/>
+    </linearGradient>
+  </defs>
+
+  <style>
+    .drift      { animation: drift 70s linear infinite; }
+    .drift-slow { animation: drift 110s linear infinite; }
+    .tuft       { transform-box: fill-box; transform-origin: bottom center; animation: sway 5s ease-in-out infinite; }
+    .tuft-2     { transform-box: fill-box; transform-origin: bottom center; animation: sway 6.2s ease-in-out infinite .7s; }
+    .tuft-3     { transform-box: fill-box; transform-origin: bottom center; animation: sway 4.4s ease-in-out infinite 1.3s; }
+
+    @keyframes drift {
+      from { transform: translateX(-70px); }
+      to   { transform: translateX(1670px); }
+    }
+    @keyframes sway {
+      0%, 100% { transform: rotate(-2.5deg); }
+      50%      { transform: rotate(2.5deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .drift, .drift-slow, .tuft, .tuft-2, .tuft-3 { animation: none !important; }
+    }
+  </style>
+
+  <!-- ===== distant hills ===== -->
+  <path d="M0 660 Q 240 596 470 646 Q 700 694 900 638 Q 1140 574 1330 640 Q 1470 686 1600 652 L1600 900 L0 900 Z"
+        fill="url(#hillFar)" opacity="0.85"/>
+  <path d="M0 716 Q 300 664 560 706 Q 840 750 1080 700 Q 1340 648 1600 712 L1600 900 L0 900 Z"
+        fill="url(#hillNear)"/>
+
+  <!-- ===== clouds ===== -->
+  <g class="drift" opacity="0.95">
+    <g transform="translate(140 128) scale(1.05)" fill="url(#cloudGrad)">
+      <ellipse cx="0"  cy="18" rx="52" ry="25"/>
+      <ellipse cx="44" cy="6"  rx="44" ry="30"/>
+      <ellipse cx="92" cy="18" rx="46" ry="22"/>
+      <ellipse cx="26" cy="-6" rx="30" ry="22"/>
+    </g>
+  </g>
+  <g class="drift-slow" opacity="0.8">
+    <g transform="translate(1100 96) scale(0.82)" fill="url(#cloudGrad)">
+      <ellipse cx="0"  cy="16" rx="46" ry="22"/>
+      <ellipse cx="38" cy="4"  rx="38" ry="26"/>
+      <ellipse cx="80" cy="16" rx="40" ry="19"/>
+    </g>
+  </g>
+  <g class="drift" opacity="0.7" style="animation-duration: 95s; animation-delay: -30s">
+    <g transform="translate(700 168) scale(0.62)" fill="url(#cloudGrad)">
+      <ellipse cx="0"  cy="14" rx="42" ry="20"/>
+      <ellipse cx="34" cy="2"  rx="34" ry="24"/>
+      <ellipse cx="72" cy="14" rx="36" ry="17"/>
+    </g>
+  </g>
+
+  <!-- ===== grass, back row ===== -->
+  <g fill="#6f9622" opacity="0.75">
+    <path class="tuft"   d="M120 900 q 6 -60 16 -74 q -2 44 8 74 Z"/>
+    <path class="tuft-2" d="M300 900 q 8 -52 20 -66 q -4 40 6 66 Z"/>
+    <path class="tuft-3" d="M520 900 q 6 -58 18 -70 q -2 42 8 70 Z"/>
+    <path class="tuft"   d="M760 900 q 7 -54 18 -68 q -3 40 7 68 Z"/>
+    <path class="tuft-2" d="M980 900 q 6 -60 18 -74 q -2 44 8 74 Z"/>
+    <path class="tuft-3" d="M1210 900 q 7 -50 19 -64 q -3 38 7 64 Z"/>
+    <path class="tuft"   d="M1420 900 q 6 -58 17 -70 q -2 42 8 70 Z"/>
+  </g>
+
+  <!-- ===== grass, front row ===== -->
+  <g fill="#5f7f08">
+    <path class="tuft-3" d="M60 900 q 8 -46 20 -58 q -4 34 6 58 Z"/>
+    <path class="tuft"   d="M420 900 q 9 -54 22 -66 q -4 40 6 66 Z"/>
+    <path class="tuft-2" d="M660 900 q 8 -44 20 -56 q -4 32 6 56 Z"/>
+    <path class="tuft"   d="M880 900 q 9 -52 21 -64 q -4 38 6 64 Z"/>
+    <path class="tuft-3" d="M1120 900 q 8 -46 19 -58 q -3 34 7 58 Z"/>
+    <path class="tuft-2" d="M1360 900 q 9 -54 21 -66 q -4 40 6 66 Z"/>
+    <path class="tuft"   d="M1520 900 q 8 -44 19 -56 q -3 32 7 56 Z"/>
+  </g>
+
+  <!-- foreground grass line -->
+  <path d="M0 856 Q 200 838 400 852 Q 600 866 800 850 Q 1000 834 1200 854 Q 1400 874 1600 852 L1600 900 L0 900 Z"
+        fill="#6b8c1c" opacity="0.9"/>
+</svg>
