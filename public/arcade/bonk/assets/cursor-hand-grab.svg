@@ -10,7 +10,7 @@
   </defs>
 
   <g filter="url(#fist-drop)">
-    <g filter="url(#fist-rough)" fill="#f4eed2" stroke="#2b2622" stroke-width="2.4"
+    <g filter="url(#fist-rough)" fill="#f7fbee" stroke="#2f3a12" stroke-width="2.4"
        stroke-linejoin="round" stroke-linecap="round">
       <!-- closed fist -->
       <path d="M20 27 Q 15 33 17 42 Q 21 52 33 52 Q 46 52 48 42 Q 50 31 44 27 Q 33 23 20 27 Z"/>
@@ -21,24 +21,24 @@
       <path d="M34 26 Q 35 32 34 39" fill="none" stroke-width="1.9"/>
       <path d="M41 27 Q 42 32 41 39" fill="none" stroke-width="1.9"/>
       <!-- cuff -->
-      <path d="M21 50 Q 22 58 33 58 Q 45 57 45 50 Q 33 55 21 50 Z" fill="#752e2e"/>
+      <path d="M21 50 Q 22 58 33 58 Q 45 57 45 50 Q 33 55 21 50 Z" fill="#7da70f"/>
     </g>
 
     <!-- knuckle bumps -->
-    <g fill="#e3d7b4" stroke="#2b2622" stroke-width="1.2">
+    <g fill="#e4f2d0" stroke="#2f3a12" stroke-width="1.2">
       <ellipse cx="26" cy="26" rx="3.4" ry="2.6"/>
       <ellipse cx="33.5" cy="25" rx="3.6" ry="2.7"/>
       <ellipse cx="41" cy="26" rx="3.2" ry="2.5"/>
     </g>
 
     <!-- grab energy -->
-    <g fill="#c0a973" stroke="#2b2622" stroke-width="1">
+    <g fill="#e8c34a" stroke="#2f3a12" stroke-width="1">
       <circle cx="15" cy="21" r="1.9"/>
       <circle cx="19" cy="14" r="1.5"/>
       <circle cx="50" cy="22" r="1.8"/>
       <circle cx="54" cy="29" r="1.4"/>
     </g>
-    <g fill="none" stroke="#c0a973" stroke-width="1.8" stroke-linecap="round" opacity="0.9">
+    <g fill="none" stroke="#e8c34a" stroke-width="1.8" stroke-linecap="round" opacity="0.9">
       <path d="M12 30 Q 10 26 12 22"/>
       <path d="M52 34 Q 55 31 54 27"/>
     </g>
