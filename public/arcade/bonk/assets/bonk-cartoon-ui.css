@@ -51,14 +51,10 @@
 /* ---------- Kenney button surfaces ---------- */
 
 .btn:not(.key-tag) {
-  background-color: #046D41;
-  background-image: url("./ui/btn-green-dark.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  background: none;
+  border: 12px solid transparent;
+  border-image: url("./ui/btn-flat-green-dark.svg") 12 fill / 12px / 0 stretch;
+  box-sizing: border-box;
   color: #fff;
   filter: drop-shadow(0 5px 0 rgba(42, 29, 16, 0.45));
   font-family: var(--shout);
@@ -68,15 +64,16 @@
   text-transform: uppercase;
   transform: none;
   transition: filter 0.12s ease-out, transform 0.12s ease-out;
-  padding: 16px 34px 15px;
+  padding: 6px 30px 6px;
 }
 .btn:not(.key-tag)::before,
 .btn:not(.key-tag)::after { display: none; }
 
 .btn:not(.key-tag):hover,
 .btn:not(.key-tag):focus-visible {
+  border-image-source: url("./ui/btn-border-green-dark.svg");
   outline: none;
-  filter: drop-shadow(0 8px 0 rgba(42, 29, 16, 0.45)) brightness(1.06);
+  filter: drop-shadow(0 8px 0 rgba(42, 29, 16, 0.45)) brightness(1.05);
   transform: translateY(-3px);
 }
 .btn:not(.key-tag):active {
@@ -85,8 +82,11 @@
 }
 
 .btn.primary:not(.key-tag) {
-  background-color: #029357;
-  background-image: url("./ui/btn-green.svg");
+  border-image-source: url("./ui/btn-flat-green.svg");
+}
+.btn.primary:not(.key-tag):hover,
+.btn.primary:not(.key-tag):focus-visible {
+  border-image-source: url("./ui/btn-border-green.svg");
 }
 .btn.primary:not(.key-tag) .btn-label { border: 0; padding: 0; }
 
@@ -201,20 +201,15 @@
 /* settings: Kenney button with gear */
 .screen.menu-board .mk-gear {
   align-items: center;
-  background-color: #e8c34a;
-  background-image: url("./ui/btn-yellow.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  color: var(--edge);
+  border: 12px solid transparent;
+  border-image: url("./ui/btn-flat-yellow.svg") 12 fill / 12px / 0 stretch;
+  box-sizing: border-box;
+  color: #3b2f1e;
   display: flex;
   filter: drop-shadow(0 5px 0 rgba(42, 29, 16, 0.4));
   gap: 10px;
   height: auto;
-  padding: 14px 24px 13px 18px;
+  padding: 4px 16px 4px 8px;
   pointer-events: auto;
   position: absolute;
   right: 12%;
@@ -236,7 +231,8 @@
   letter-spacing: 0.1em;
 }
 .screen.menu-board .mk-gear:hover {
-  filter: drop-shadow(0 8px 0 rgba(42, 29, 16, 0.45)) brightness(1.05);
+  border-image-source: url("./ui/btn-border-yellow.svg");
+  filter: drop-shadow(0 8px 0 rgba(42, 29, 16, 0.45)) brightness(1.03);
   transform: translateY(-3px);
 }
 .screen.menu-board .mk-gear:hover svg { transform: rotate(70deg); }
@@ -261,7 +257,7 @@
   align-items: center;
   animation: menu-bob 2.8s ease-in-out infinite;
   background-color: #029357;
-  background-image: url("./ui/disc-green.svg");
+  background-image: url("./ui/disc-flat-green.svg");
   background-position: center;
   background-repeat: no-repeat;
   background-size: 100% 100%;
@@ -294,6 +290,7 @@
   font-family: var(--shout);
   font-size: clamp(34px, 6.6vmin, 54px);
   letter-spacing: 0.06em;
+  text-shadow: 0 3px 0 #024d2e, 0 -1px 0 #024d2e, 2px 0 0 #024d2e, -2px 0 0 #024d2e;
 }
 .screen.menu-board .btn.rm-play:hover { animation-play-state: paused; }
 @keyframes menu-bob {
@@ -387,19 +384,16 @@
 .mcp-card h2 { font: 400 26px var(--shout); letter-spacing: 0.12em; margin: 0 0 12px; }
 .mcp-card p { color: var(--soft); font: 400 14px/1.6 var(--narrow); margin: 5px 0; }
 .mcp-card .mcp-close {
-  background-color: #029357;
-  background-image: url("./ui/btn-green.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  border: 0;
+  border: 12px solid transparent;
+  border-image: url("./ui/btn-flat-green.svg") 12 fill / 12px / 0 stretch;
+  box-sizing: border-box;
   color: #fff;
   cursor: pointer;
   filter: drop-shadow(0 4px 0 rgba(42, 29, 16, 0.4));
   font: 400 15px var(--shout);
   letter-spacing: 0.1em;
   margin-top: 16px;
-  padding: 13px 26px 12px;
+  padding: 6px 20px;
   transition: filter 0.12s, transform 0.12s;
 }
 .mcp-card .mcp-close:hover {
@@ -415,18 +409,14 @@
 
 .room-tag {
   background-color: #029357;
-  background-image: url("./ui/btn-green.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  background-image: linear-gradient(#02a85f, #029357);
+  border: 2px solid #024d2e;
+  border-radius: 10px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25), 0 3px 0 rgba(42, 29, 16, 0.4);
   clip-path: none;
   color: #fff;
-  filter: drop-shadow(0 3px 0 rgba(42, 29, 16, 0.4));
   font-family: var(--shout);
-  padding: 6px 16px 6px 24px;
+  padding: 6px 15px 6px 23px;
   transform: rotate(-2deg);
 }
 .room-tag-num { font-family: var(--shout); }
@@ -512,7 +502,7 @@
 
 .hud-pause {
   background-color: #cfcfcf;
-  background-image: url("./ui/disc-grey.svg");
+  background-image: url("./ui/disc-flat-grey.svg");
   background-position: center;
   background-repeat: no-repeat;
   background-size: 100% 100%;
@@ -561,21 +551,20 @@
 .shop-head .note-title,
 .note-title { color: var(--green-dark); font-family: var(--shout); letter-spacing: 0.06em; }
 .ability-buy {
-  background-color: #e8c34a;
-  background-image: url("./ui/btn-yellow.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  color: var(--edge);
+  border: 10px solid transparent;
+  border-image: url("./ui/btn-flat-yellow.svg") 12 fill / 10px / 0 stretch;
+  box-sizing: border-box;
+  color: #3b2f1e;
   filter: drop-shadow(0 3px 0 rgba(42, 29, 16, 0.35));
   font: 400 13px var(--shout);
-  padding: 10px 16px 9px;
+  padding: 2px 8px;
   transition: filter 0.12s, transform 0.12s;
 }
-.ability-buy:hover { filter: drop-shadow(0 5px 0 rgba(42, 29, 16, 0.4)) brightness(1.06); transform: translateY(-2px); }
+.ability-buy:hover {
+  border-image-source: url("./ui/btn-border-yellow.svg");
+  filter: drop-shadow(0 5px 0 rgba(42, 29, 16, 0.4)) brightness(1.04);
+  transform: translateY(-2px);
+}
 .ability-row { border-bottom: 1px dashed rgba(59, 47, 30, 0.3); }
 
 /* key hints sit on cream: deepen the blue so they stay legible */
