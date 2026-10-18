@@ -12,7 +12,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231b1730'/%3E%3Cpath d='M9 8h4v8h8v4h2v6h-3v-5h-8v5H9z' fill='%23ffd23f'/%3E%3C/svg%3E" />
     <script type="module" crossorigin src="./assets/index-DAKlC1oT.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-arPfi0qf.css">
-    <link rel="stylesheet" href="./assets/bonk-painted-ui.css">
+    <link rel="stylesheet" href="./assets/bonk-cartoon-ui.css">
     <style>
       /* Custom torn-paper hand cursor, drawn to match BONK! */
       #game { cursor: none; }
@@ -81,6 +81,19 @@
       </div>
       <div id="hud"></div>
       <div id="screens"></div>
+      <div id="menu-credits-bar" aria-hidden="false">
+        <button id="menu-credits-btn" type="button">credits</button>
+        <p id="menu-copy">© BONK! — UnseenBox</p>
+      </div>
+      <div id="menu-credits-panel" hidden>
+        <div class="mcp-card" role="dialog" aria-modal="true" aria-label="Credits">
+          <h2>CREDITS</h2>
+          <p>BONK! — everything is a weapon</p>
+          <p>A physics sandbox brawler by UnseenBox</p>
+          <p>Design, code &amp; art: the UnseenBox team</p>
+          <button id="menu-credits-close" type="button" class="mcp-close">CLOSE</button>
+        </div>
+      </div>
       <div id="debug"></div>
       <div id="rotate" role="dialog" aria-label="Rotate your phone">
         <div class="rotate-phone"></div>
@@ -224,6 +237,24 @@
           requestAnimationFrame(frame);
         }
         requestAnimationFrame(frame);
+      })();
+    </script>
+    <script>
+      (function () {
+        var btn = document.getElementById('menu-credits-btn');
+        var panel = document.getElementById('menu-credits-panel');
+        var close = document.getElementById('menu-credits-close');
+        if (!btn || !panel) return;
+
+        function open() { panel.hidden = false; if (close) close.focus(); }
+        function shut() { panel.hidden = true; btn.focus(); }
+
+        btn.addEventListener('click', open);
+        if (close) close.addEventListener('click', shut);
+        panel.addEventListener('click', function (e) { if (e.target === panel) shut(); });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && !panel.hidden) shut();
+        });
       })();
     </script>
   </body>
