@@ -3869,6 +3869,512 @@ button.mk-card:hover {
   .door-leaf { transition: none; }
 }
 
+/* ───────────── menu board: one flow, logo → rooms → hero → PLAY ─────────────
+   Rooms are cards on a rail (grouped by act, locked face-up), heroes are a
+   strip, and a sticky action bar always says what PLAY is about to play.
+   The whole board scrolls; only the rail scrolls sideways. */
+
+.screen.menu-board {
+  width: min(100%, 880px);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(10px, 1.8vh, 20px);
+  padding: clamp(4px, 1.2vh, 14px) clamp(8px, 2vw, 20px) 0;
+  overflow-y: auto;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kraft) transparent;
+}
+
+/* the menu sits on its key art; pause / settings / results keep the dim backdrop */
+#screens.active:has(.screen.menu-board) {
+  background-color: #2a1259;
+  background-image:
+    linear-gradient(rgba(20, 16, 36, 0.42), rgba(20, 16, 36, 0.62)),
+    url('./assets/menu-bg.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* ── rooms ── */
+.rm-rooms {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1vh, 10px);
+}
+
+.rm-rooms-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rm-progress {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(100%, 260px);
+}
+
+.rm-bar {
+  flex: 1 1 auto;
+  height: 10px;
+  min-width: 80px;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  background: rgba(251, 246, 233, 0.25);
+  overflow: hidden;
+}
+
+.rm-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(180deg, #ffe08a, var(--yellow));
+}
+
+.rm-progress-text {
+  flex: none;
+  font: 700 clamp(11px, 1.8vmin, 13px) var(--type);
+  letter-spacing: 0.08em;
+  color: var(--paper);
+  text-shadow: 0 2px 0 var(--ink);
+  white-space: nowrap;
+}
+
+/* the signpost: picked room on a button that opens the full map */
+.rm-mapbtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  background: var(--grain), #fffdf6;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 3px 4px 0 var(--shadow);
+  cursor: pointer;
+  transform: rotate(-0.6deg);
+  transition: transform 0.12s ease-out;
+}
+
+.rm-mapbtn:hover {
+  transform: rotate(0deg) translateY(-2px);
+}
+
+.rm-mapbtn:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.rm-mapbtn::after {
+  content: '▾';
+  margin-left: auto;
+  font: 400 22px var(--shout);
+  color: var(--ink);
+}
+
+.rm-mapbtn[aria-expanded='true']::after {
+  content: '▴';
+}
+
+.rm-mapicon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  color: var(--ink);
+}
+
+.rm-mapbtn-words {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rm-mapbtn-room {
+  font: 400 clamp(18px, 3vmin, 24px)/1.1 var(--shout);
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.rm-mapbtn-hint {
+  font: 700 clamp(10px, 1.7vmin, 12px) var(--hand);
+  opacity: 0.7;
+}
+
+/* the map: every room as a tile, locked face-up, grouped by act */
+.rm-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rm-map-head[hidden] {
+  display: none;
+}
+
+.rm-map-close {
+  flex: none;
+  padding: 6px 14px 5px;
+  font: 700 12px var(--type);
+  letter-spacing: 0.08em;
+  color: var(--paper);
+  background: var(--grain), #2b2752;
+  border: 2.5px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 2px 3px 0 var(--shadow);
+  cursor: pointer;
+}
+
+.rm-map-close:hover {
+  background: var(--grain), #3b3670;
+}
+
+.rm-map-close:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.rm-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 8px;
+  max-height: min(46vh, 380px);
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: 12px;
+  background: var(--grain), var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 4px 5px 0 var(--shadow);
+  scrollbar-width: thin;
+  scrollbar-color: var(--kraft) transparent;
+}
+
+.rm-map[hidden] {
+  display: none;
+}
+
+.rm-map-act {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 2px 12px 3px;
+  background: var(--tape);
+  clip-path: var(--tape-shape);
+  color: var(--ink);
+  font: 700 11px var(--hand);
+  transform: rotate(-1deg);
+}
+
+.rm-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 8px 9px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: #fffdf6;
+  border: 2.5px solid var(--ink);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.12s ease-out;
+}
+
+.rm-tile:hover {
+  transform: translateY(-2px);
+}
+
+.rm-tile:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.rm-tile.picked {
+  outline: 3px solid var(--yellow);
+  outline-offset: -1px;
+  box-shadow: 0 0 14px rgba(255, 210, 63, 0.55);
+}
+
+.rm-tile.picked .rm-tile-num {
+  background: var(--red);
+  color: #fff;
+}
+
+.rm-tile-num {
+  align-self: flex-start;
+  min-width: 2em;
+  padding: 0 7px 2px;
+  background: linear-gradient(170deg, #e8c87a, #c9a24f);
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  font: 400 19px/1.1 var(--shout);
+  text-align: center;
+}
+
+.rm-tile-name {
+  font: 700 12px/1.15 var(--type);
+  overflow-wrap: anywhere;
+}
+
+.rm-tile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 2px;
+  font: 700 11px var(--type);
+}
+
+.rm-tile-meta:empty {
+  display: none;
+}
+
+.rm-tile-best {
+  color: var(--ink);
+  opacity: 0.78;
+  white-space: nowrap;
+}
+
+.rm-boss {
+  padding: 0 6px 1px;
+  background: var(--ink);
+  color: #ffd23f;
+  font: 700 9px var(--type);
+  letter-spacing: 0.12em;
+  border-radius: 4px;
+  transform: rotate(-3deg);
+}
+
+.rm-stars {
+  font: 700 12px var(--type);
+  color: #8a6a14;
+  letter-spacing: 0.06em;
+}
+
+.rm-tile.locked {
+  cursor: not-allowed;
+  filter: grayscale(0.85) brightness(0.9);
+}
+
+.rm-tile.locked .rm-tile-num {
+  font-size: 15px;
+  padding-top: 3px;
+}
+
+.rm-tile.depths {
+  background: #2b2752;
+  color: var(--paper);
+}
+
+.rm-tile.depths .rm-tile-best {
+  color: var(--paper);
+}
+
+.rm-tile.depths .rm-stars {
+  color: #ffd23f;
+}
+
+/* ── heroes ── */
+.rm-heroes {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1vh, 10px);
+  padding: clamp(14px, 2vh, 22px) clamp(10px, 1.6vw, 16px) clamp(10px, 1.4vh, 14px);
+  background: var(--grain), var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 4px 5px 0 var(--shadow);
+}
+
+.rm-heroes > .tape-label {
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-1deg);
+  white-space: nowrap;
+}
+
+.rm-cast {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(8px, 1.4vw, 14px);
+  width: 100%;
+}
+
+.rm-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 6px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--grain), #fffdf6;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 3px 4px 0 var(--shadow);
+  cursor: pointer;
+  transition: transform 0.12s ease-out;
+}
+
+.rm-hero:nth-child(2n) {
+  transform: rotate(1.2deg);
+}
+
+.rm-hero:nth-child(2n+1) {
+  transform: rotate(-1.2deg);
+}
+
+.rm-hero:hover {
+  transform: rotate(0deg) translateY(-3px);
+}
+
+.rm-hero:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.rm-hero.picked {
+  transform: rotate(0deg);
+  outline: 4px solid var(--yellow);
+  outline-offset: -1px;
+}
+
+.rm-hero .hero-blank {
+  width: 100%;
+  max-width: 104px;
+}
+
+.rm-hero .mm-card-name {
+  font-size: clamp(11px, 1.9vmin, 14px);
+}
+
+.rm-hero .mm-card-note {
+  font-size: clamp(9px, 1.6vmin, 11px);
+}
+
+/* ── action: summary plus the one red button, pinned to the bottom ── */
+.rm-action {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 calc(-1 * clamp(8px, 2vw, 20px));
+  padding: 22px clamp(8px, 2vw, 20px) calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgba(20, 16, 36, 0.94) 28%);
+}
+
+.rm-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  text-align: center;
+  text-shadow: 0 2px 0 var(--ink);
+}
+
+.rm-summary-room {
+  font: 400 clamp(18px, 3.4vmin, 30px)/1.1 var(--shout);
+  letter-spacing: 0.02em;
+  color: var(--paper);
+}
+
+.rm-summary-hero {
+  font: 700 clamp(12px, 2vmin, 15px) var(--hand);
+  color: var(--yellow);
+}
+
+.btn.rm-play {
+  width: min(100%, 560px);
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: clamp(8px, 1.6vh, 14px) clamp(10px, 1.6vw, 16px);
+  font-size: clamp(26px, 5.4vmin, 44px);
+}
+
+.btn.rm-play .btn-label {
+  font-family: var(--shout);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.rm-play-sub {
+  font: 700 clamp(10px, 1.7vmin, 13px) var(--type);
+  letter-spacing: 0.24em;
+  color: #fff;
+  opacity: 0.92;
+}
+
+/* ── responsive ── */
+@media (max-width: 640px) {
+  .screen.menu-board {
+    width: min(100%, 480px);
+  }
+  .menu-board .mm-letter {
+    font-size: clamp(28px, 8.6vw, 40px);
+    padding-bottom: 4px;
+  }
+  .rm-cast {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rm-rooms-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .rm-progress {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .rm-mapbtn-room {
+    font-size: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rm-tile, .rm-hero, .rm-mapbtn {
+    transition: none;
+  }
+}
+
+.high-contrast .rm-tile,
+.high-contrast .rm-hero,
+.high-contrast .rm-mapbtn {
+  transform: none;
+}
+
 /* ───────────── the coach: controls shown as pictures, not described ───────────── */
 
 .coach {
