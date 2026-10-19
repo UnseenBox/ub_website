@@ -318,5 +318,111 @@
         }
       })();
     </script>
+    <script>
+      /* Candy UI: menu action row (MODE / SHOP / SETTINGS) and settings tabs. */
+      (function () {
+        var screens = document.getElementById('screens');
+        if (!screens) return;
+
+        var POWERS = [
+          ['BIG RED BUTTON', 150],
+          ['SUGAR RUSH', 120],
+          ['DEEP FREEZE', 120]
+        ];
+        var wantShop = false;
+
+        function gear() { return screens.querySelector('.screen.menu-board .mk-gear'); }
+
+        function menuRow() {
+          var row = document.createElement('div');
+          row.className = 'candy-menu-row';
+          row.innerHTML =
+            '<button type="button" class="candy-btn candy-blue" data-candy="mode"><span class="candy-ico">\u2605</span>MODE</button>' +
+            '<button type="button" class="candy-btn candy-orange" data-candy="shop"><span class="candy-ico">\u25C6</span>SHOP</button>' +
+            '<button type="button" class="candy-btn candy-purple" data-candy="settings"><span class="candy-ico">\u2699</span>SETTINGS</button>';
+          return row;
+        }
+
+        function shopPanel() {
+          var shop = document.createElement('div');
+          shop.className = 'candy-shop';
+          shop.hidden = true;
+          POWERS.forEach(function (p) {
+            var card = document.createElement('div');
+            card.className = 'candy-item';
+            card.innerHTML =
+              '<div class="candy-item-art"></div>' +
+              '<div class="candy-item-name">' + p[0] + '</div>' +
+              '<div class="candy-item-price">' + p[1] + '</div>' +
+              '<div class="candy-item-note">buy during a run</div>';
+            shop.appendChild(card);
+          });
+          return shop;
+        }
+
+        function tabBar() {
+          var bar = document.createElement('div');
+          bar.className = 'candy-tabs';
+          bar.innerHTML =
+            '<button type="button" class="candy-tab on" data-tab="settings">SETTINGS</button>' +
+            '<button type="button" class="candy-tab" data-tab="shop">SHOP</button>';
+          return bar;
+        }
+
+        function setTab(sheet, want) {
+          var shop = sheet.querySelector('.candy-shop');
+          var tabs = sheet.querySelectorAll('.candy-tab');
+          sheet.classList.toggle('tab-shop', want === 'shop');
+          if (shop) shop.hidden = want !== 'shop';
+          for (var i = 0; i < tabs.length; i++) {
+            tabs[i].classList.toggle('on', tabs[i].getAttribute('data-tab') === want);
+          }
+        }
+
+        screens.addEventListener('click', function (e) {
+          var btn = e.target && e.target.closest ? e.target.closest('.candy-btn[data-candy]') : null;
+          if (!btn) return;
+          var what = btn.getAttribute('data-candy');
+          if (what === 'mode') {
+            var map = screens.querySelector('.screen.menu-board .rm-mapbtn');
+            if (map) map.click();
+          } else if (what === 'shop') {
+            wantShop = true;
+            if (gear()) gear().click();
+          } else {
+            wantShop = false;
+            if (gear()) gear().click();
+          }
+        });
+
+        function syncMenu() {
+          var action = screens.querySelector('.screen.menu-board .rm-action');
+          if (action && !action.querySelector('.candy-menu-row')) action.appendChild(menuRow());
+        }
+
+        function syncSettings() {
+          var sheet = screens.querySelector('.screen.settings .sheet');
+          if (!sheet) return;
+          if (!sheet.querySelector('.candy-tabs')) {
+            var bar = tabBar();
+            sheet.insertBefore(bar, sheet.firstChild);
+            sheet.appendChild(shopPanel());
+            bar.addEventListener('click', function (e) {
+              var tab = e.target.closest ? e.target.closest('.candy-tab') : null;
+              if (tab) setTab(sheet, tab.getAttribute('data-tab'));
+            });
+          }
+          if (wantShop) {
+            setTab(sheet, 'shop');
+            wantShop = false;
+          }
+        }
+
+        function sync() { syncMenu(); syncSettings(); }
+
+        new MutationObserver(sync).observe(screens, { childList: true, subtree: true });
+        sync();
+      })();
+    </script>
   </body>
 </html>
