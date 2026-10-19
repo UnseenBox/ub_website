@@ -4,21 +4,12 @@ import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import { Layer, RigidBody } from '../physics/RigidBody';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import type { PhysicsObject } from '../entities/PhysicsObject';
-import { doorPosition, type RoomDefinition, type RoomEnemySpec, type WallSpec } from './Room';
+import { doorPosition, type RoomDefinition, type RoomEnemySpec } from './Room';
 import { ANCHOR_ROOMS, HANDCRAFTED_ROOMS } from './RoomDefinitions';
 import { depthFor, generateRoom } from './RoomGenerator';
 
-/** A live interior wall: static partition, or sliding machinery (kinematic). */
-export interface WallRuntime {
-  readonly spec: WallSpec;
-  readonly body: RigidBody;
-  x: number;
-  y: number;
-  hw: number;
-  hh: number;
-  /** Seconds since the room started (drives sliding walls). */
-  t: number;
-}
+/** How long before a boss reaches the door its heavy footsteps start (the `boss-walk` clip length). */
+const BOSS_WALK_LEAD = 4.7;
 
 export interface RoomRuntime {
   readonly def: RoomDefinition;
@@ -36,6 +27,8 @@ export interface RoomRuntime {
   exitOpen: number;
   /** The next intruder has already knocked. */
   knocked: boolean;
+  /** The boss's heavy footsteps have already played. */
+  footsteps: boolean;
   /** 0..1 while the entrance door is being hammered on. */
   entranceRattle: number;
   /** A Landlord walks in this room (every third room). */
@@ -141,23 +134,6 @@ export class RoomManager {
     game.player.body.teleport(def.playerStart.x, def.playerStart.y);
     world.add(game.player.body);
 
-    // Interior partitions: static colliders, or sliding machinery on a kinematic body.
-    game.walls.length = 0;
-    for (const spec of def.walls ?? []) {
-      const sliding = spec.slide !== undefined;
-      const body = new RigidBody({
-        type: sliding ? 'kinematic' : 'static',
-        shape: { kind: 'box', hw: spec.hw, hh: spec.hh },
-        x: spec.x,
-        y: spec.y,
-        layer: Layer.Wall,
-        friction: 0.4,
-        restitution: 0.1,
-      });
-      world.add(body);
-      game.walls.push({ spec, body, x: spec.x, y: spec.y, hw: spec.hw, hh: spec.hh, t: 0 });
-    }
-
     return {
       def,
       index,
@@ -171,44 +147,12 @@ export class RoomManager {
       entranceOpen: 0,
       exitOpen: 0,
       knocked: false,
+      footsteps: false,
       entranceRattle: 0,
       hasBoss: false,
       bossType: null,
       survive: def.objective?.kind === 'survive' ? def.objective.seconds : null,
     };
-  }
-
-  /**
-   * Advances sliding walls. Runs before the physics step: the kinematic body is
-   * velocity-driven so it shoves dynamics aside, while the analytic position
-   * (what navigation and rendering read) never drifts.
-   */
-  updateWalls(game: Game, dt: number): void {
-    for (const wall of game.walls) {
-      const slide = wall.spec.slide;
-      if (!slide) continue;
-      wall.t += dt;
-      const phase = (wall.t / slide.period) * Math.PI * 2;
-      const offset = Math.sin(phase) * slide.range;
-      const speed = Math.cos(phase) * ((Math.PI * 2 * slide.range) / slide.period);
-      if (slide.axis === 'x') {
-        wall.x = wall.spec.x + offset;
-        wall.body.vx = speed;
-        wall.body.vy = 0;
-        if (Math.abs(wall.body.x - wall.x) > 3) {
-          wall.body.teleport(wall.x, wall.body.y, wall.body.angle);
-          wall.body.vx = speed;
-        }
-      } else {
-        wall.y = wall.spec.y + offset;
-        wall.body.vx = 0;
-        wall.body.vy = speed;
-        if (Math.abs(wall.body.y - wall.y) > 3) {
-          wall.body.teleport(wall.body.x, wall.y, wall.body.angle);
-          wall.body.vy = speed;
-        }
-      }
-    }
   }
 
   /** Brings in every intruder whose time has come. */
@@ -218,6 +162,11 @@ export class RoomManager {
     room.entranceRattle = Math.max(0, room.entranceRattle - dt * 1.5);
     // Anticipation: whoever is next hammers on the door just before coming through it.
     const next = room.pending[0];
+    // Something huge takes the long way in: boots on the floor well before the knock.
+    if (next && !room.footsteps && ENEMY_TYPES[next.type].boss && next.delay - room.elapsed < BOSS_WALK_LEAD) {
+      room.footsteps = true;
+      game.audio.play('bossWalk', 1);
+    }
     if (next && !room.knocked && next.delay - room.elapsed < 0.75) {
       room.knocked = true;
       room.entranceRattle = 1;

@@ -1,11 +1,10 @@
 import type { RoomDefinition } from './Room';
 
 /**
- * The handcrafted tour of the flat. Every room has its own floor plan, silhouette
- * and gimmick — partitions to hide behind, narrow gaps to funnel movers through,
- * machinery that changes the fight, and a set piece per room. `walls` are interior
- * partitions (static, or sliding machinery); coordinates are interior space and every
- * gap between walls, furniture and doors is wide enough to walk through.
+ * The handcrafted tour of the flat. Every room has its own layout and gimmick —
+ * furniture to hide behind, open lanes to steer movers through, and a set piece
+ * per room. Coordinates are interior space and every gap between furniture and
+ * doors is wide enough to walk through.
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // 1 — bedroom: the lesson plan (gameplay/Tutorial.ts). The frying pan is a short walk
@@ -18,13 +17,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'top', pos: 640 },
     exit: { side: 'left', pos: 300 },
     rug: { x: 450, y: 310, w: 320, h: 200, color: '#c96f5a' },
-    walls: [
-      // bed nook: two stubs around the bed, open to the room
-      { x: 200, y: 90, hw: 10, hh: 55 },
-      { x: 120, y: 185, hw: 70, hh: 10 },
-      // dresser against the right wall
-      { x: 700, y: 120, hw: 60, hh: 10 },
-    ],
     objects: [
       { type: 'bed', x: 100, y: 92 },
       { type: 'pillow', x: 82, y: 50, angle: 0.2, on: 0 },
@@ -54,9 +46,9 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     ],
   },
 
-  // 2 — CUBICLE FARM: partition maze. Three cubicles with loaded desks; shove a
-  // table and everything on it goes sliding down the aisles. Movers funnel through
-  // the gaps, so one good throw can catch two of them.
+  // 2 — CUBICLE FARM: three cubicles, three loaded desks. Shove a table and
+  // everything on it goes sliding across the open floor, where one good throw
+  // can catch two movers.
   {
     id: 'room-2', name: 'CUBICLE FARM', theme: 'office', width: 960, height: 540, seed: 202, challenge: 'no_chair',
     teaser: 'shove a desk and everything on it goes too', spotlight: ['table', 'officechair'],
@@ -64,14 +56,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'right', pos: 270 },
     exit: { side: 'top', pos: 480 },
     rug: { x: 480, y: 420, w: 380, h: 150, color: '#5a8fa8' },
-    walls: [
-      // cubicle grid: two aisles of desks, walled on three sides
-      { x: 370, y: 150, hw: 10, hh: 90 },
-      { x: 630, y: 150, hw: 10, hh: 90 },
-      { x: 500, y: 330, hw: 140, hh: 10 },
-      // a low divider shielding the player's corner
-      { x: 150, y: 300, hw: 110, hh: 10 },
-    ],
     objects: [
       { type: 'table', x: 280, y: 130 },
       { type: 'computer', x: 262, y: 124, angle: 0.1, on: 0 },
@@ -98,9 +82,9 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     boss: 'chairman',
   },
 
-  // 3 — FLOODED LAUNDRY: a partition splits the wet room; two gaps, one big puddle,
-  // a wall socket, and standing water everywhere it matters. Then THE HOOVER walks
-  // in and starts eating the room. Feed it something explosive.
+  // 3 — FLOODED LAUNDRY: the wet room — one big puddle, a wall socket and
+  // standing water everywhere it matters. Then THE HOOVER walks in and starts
+  // eating the room. Feed it something explosive.
   {
     id: 'room-3', name: 'FLOODED LAUNDRY', theme: 'bathroom', width: 1000, height: 560, seed: 303, challenge: 'environment_only',
     teaser: 'water, a socket, and something that eats the room', spotlight: ['bottle', 'bucket'],
@@ -108,14 +92,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'right', pos: 290 },
     exit: { side: 'top', pos: 520 },
     rug: { x: 280, y: 110, w: 150, h: 64, color: '#f2c14e' },
-    walls: [
-      // the laundry partition: cross through either gap, never around
-      { x: 520, y: 125, hw: 12, hh: 115 },
-      { x: 520, y: 455, hw: 12, hh: 95 },
-      // dry islands in the wet: stand on them, throw from them
-      { x: 320, y: 300, hw: 55, hh: 45 },
-      { x: 740, y: 300, hw: 55, hh: 45 },
-    ],
     objects: [
       { type: 'bathtub', x: 280, y: 29 },
       { type: 'toilet', x: 890, y: 22 },
@@ -154,13 +130,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'left', pos: 130 },
     rug: { x: 500, y: 380, w: 360, h: 190, color: '#8a6fb0' },
-    walls: [
-      // hearth alcove: the fire sits in its own nook, open at the bottom
-      { x: 340, y: 150, hw: 10, hh: 100 },
-      { x: 660, y: 150, hw: 10, hh: 100 },
-      // a sideboard to circle around
-      { x: 120, y: 360, hw: 60, hh: 10 },
-    ],
     objects: [
       { type: 'sofa', x: 500, y: 420 },
       { type: 'pillow', x: 465, y: 426, angle: 0.3, on: 0 },
@@ -202,12 +171,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     playerStart: { x: 150, y: 320 },
     entrance: { side: 'right', pos: 320 },
     exit: { side: 'left', pos: 470 },
-    walls: [
-      // staggered kitchen islands: an S-path between the slicks
-      { x: 300, y: 220, hw: 80, hh: 12 },
-      { x: 500, y: 360, hw: 80, hh: 12 },
-      { x: 700, y: 220, hw: 80, hh: 12 },
-    ],
     objects: [
       { type: 'counter', x: 250, y: 25 },
       { type: 'stove', x: 354, y: 25 },
@@ -255,12 +218,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'top', pos: 380 },
     rug: { x: 520, y: 300, w: 420, h: 240, color: '#8a6fb0' },
-    walls: [
-      // display aisles: three long plinths, browse between them
-      { x: 330, y: 190, hw: 100, hh: 12 },
-      { x: 710, y: 190, hw: 100, hh: 12 },
-      { x: 520, y: 420, hw: 120, hh: 12 },
-    ],
     objects: [
       { type: 'sofa', x: 520, y: 120 },
       { type: 'pillow', x: 488, y: 126, angle: 0.3, on: 0 },
@@ -298,22 +255,15 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     boss: 'piano',
   },
 
-  // 7 — THE COMPACTOR: a warehouse with a moving wall. Crates lane the floor, oil
-  // pools where the forklift bled out, and the Bulwark walks the lanes daring you
+  // 7 — THE COMPACTOR: the warehouse floor. Crates lane the aisles, oil pools
+  // where the forklift bled out, and the Bulwark walks between them daring you
   // to throw things at its front. Don't. Burn it, shock it, or go around.
   {
     id: 'room-7', name: 'THE COMPACTOR', theme: 'garage', width: 1040, height: 580, seed: 707, challenge: 'untouched',
-    teaser: 'mind the wall, it moves', spotlight: ['battery', 'firework'],
+    teaser: 'oiled floor, armoured fronts', spotlight: ['battery', 'firework'],
     playerStart: { x: 150, y: 300 },
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'left', pos: 480 },
-    walls: [
-      // the compactor: slides east-west forever, never sealing the room
-      { x: 700, y: 290, hw: 14, hh: 170, slide: { axis: 'x', range: 60, period: 9 } },
-      // fallen stock crates: static cover outside the compactor's path
-      { x: 870, y: 190, hw: 60, hh: 40 },
-      { x: 300, y: 420, hw: 60, hh: 40 },
-    ],
     objects: [
       { type: 'bookshelf', x: 320, y: 60 },
       { type: 'bookshelf', x: 320, y: 520 },
@@ -360,16 +310,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'right', pos: 290 },
     exit: { side: 'left', pos: 460 },
     rug: { x: 520, y: 300, w: 420, h: 240, color: '#6fa37a' },
-    walls: [
-      // grand hall columns: four pillars around the carpet runway
-      { x: 420, y: 180, hw: 22, hh: 22 },
-      { x: 620, y: 180, hw: 22, hh: 22 },
-      { x: 420, y: 420, hw: 22, hh: 22 },
-      { x: 620, y: 420, hw: 22, hh: 22 },
-      // foyer fins by the door: drama on entry, never in the way
-      { x: 880, y: 120, hw: 10, hh: 80 },
-      { x: 880, y: 460, hw: 10, hh: 80 },
-    ],
     objects: [
       { type: 'table', x: 520, y: 300 },
       { type: 'bottle', x: 490, y: 290, on: 0 },
@@ -419,15 +359,6 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'left', pos: 300 },
     rug: { x: 300, y: 320, w: 340, h: 220, color: '#c9a24f' },
-    walls: [
-      // collapsed stairwell, top right: the L that breaks the rectangle
-      { x: 950, y: 90, hw: 90, hh: 70 },
-      // fallen cabinet, bottom left: cover near the lamp, never on the door
-      { x: 130, y: 520, hw: 70, hh: 55 },
-      // right-side fins: chambers to hide in, gaps to slip through
-      { x: 830, y: 140, hw: 10, hh: 80 },
-      { x: 830, y: 470, hw: 10, hh: 80 },
-    ],
     objects: [
       // the barricade: everything you own, piled across the middle
       { type: 'sofa', x: 560, y: 150 },
@@ -479,17 +410,13 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
  * every-third-room rule, on top of whatever the anchor holds.
  */
 export const ANCHOR_ROOMS: Readonly<Record<number, RoomDefinition>> = {
-  // 11 — THE DEEP END: a diving platform in the middle of the pool.
+  // 11 — THE DEEP END: one deep pool in the middle of the floor.
   11: {
     id: 'pool-11', name: 'THE DEEP END', theme: 'pool', width: 1000, height: 580, seed: 1111, challenge: 'one_throw_two',
     teaser: 'the water is the weapon', spotlight: ['ball', 'duck'],
     playerStart: { x: 150, y: 300 },
     entrance: { side: 'right', pos: 290 },
     exit: { side: 'left', pos: 470 },
-    walls: [
-      // diving platform: dry, high, and worth fighting over
-      { x: 500, y: 290, hw: 90, hh: 50 },
-    ],
     objects: [
       { type: 'duck', x: 420, y: 200, angle: 0.6 },
       { type: 'ball', x: 620, y: 400 },
@@ -514,19 +441,13 @@ export const ANCHOR_ROOMS: Readonly<Record<number, RoomDefinition>> = {
     ],
   },
 
-  // 14 — THE CLINK: three open cells along the top, yard below.
+  // 14 — THE CLINK: cot, table and a bowling ball in the open yard.
   14: {
     id: 'jail-14', name: 'THE CLINK', theme: 'jail', width: 960, height: 560, seed: 1414, challenge: 'no_direct_hits',
     teaser: 'do not drop the soap', spotlight: ['bowlingball', 'book'],
     playerStart: { x: 150, y: 400 },
     entrance: { side: 'right', pos: 280 },
     exit: { side: 'left', pos: 280 },
-    walls: [
-      // cell dividers, open at the bottom: pick a cell, any cell
-      { x: 320, y: 140, hw: 10, hh: 120 },
-      { x: 500, y: 140, hw: 10, hh: 120 },
-      { x: 680, y: 140, hw: 10, hh: 120 },
-    ],
     objects: [
       { type: 'bed', x: 180, y: 90 },
       { type: 'table', x: 480, y: 420 },
@@ -551,18 +472,13 @@ export const ANCHOR_ROOMS: Readonly<Record<number, RoomDefinition>> = {
     ],
   },
 
-  // 17 — THE ALLOTMENT: planter beds, a shed, and a duck pond.
+  // 17 — THE ALLOTMENT: planter pots, long-handled tools, and a duck pond.
   17: {
     id: 'garden-17', name: 'THE ALLOTMENT', theme: 'garden', width: 1040, height: 580, seed: 1717, challenge: 'one_throw_two',
     teaser: 'weed them out', spotlight: ['rake', 'flowerpot'],
     playerStart: { x: 150, y: 300 },
     entrance: { side: 'right', pos: 300 },
     exit: { side: 'left', pos: 300 },
-    walls: [
-      // raised beds: cover that smells like tomatoes
-      { x: 380, y: 290, hw: 100, hh: 60 },
-      { x: 660, y: 290, hw: 100, hh: 60 },
-    ],
     objects: [
       { type: 'table', x: 150, y: 120 },
       { type: 'toolbox', x: 132, y: 118, on: 0 },
@@ -598,13 +514,6 @@ export const ANCHOR_ROOMS: Readonly<Record<number, RoomDefinition>> = {
     entrance: { side: 'right', pos: 220 },
     exit: { side: 'left', pos: 220 },
     rug: { x: 620, y: 230, w: 300, h: 150, color: '#c9a24f' },
-    walls: [
-      // porch posts marching down both sides
-      { x: 420, y: 90, hw: 14, hh: 50 },
-      { x: 820, y: 90, hw: 14, hh: 50 },
-      { x: 420, y: 350, hw: 14, hh: 50 },
-      { x: 820, y: 350, hw: 14, hh: 50 },
-    ],
     objects: [
       { type: 'table', x: 620, y: 220 },
       { type: 'candle', x: 600, y: 220, on: 0 },
@@ -635,15 +544,6 @@ export const ANCHOR_ROOMS: Readonly<Record<number, RoomDefinition>> = {
     playerStart: { x: 150, y: 310 },
     entrance: { side: 'right', pos: 310 },
     exit: { side: 'left', pos: 310 },
-    walls: [
-      // pipe stacks to circle around
-      { x: 350, y: 180, hw: 26, hh: 26 },
-      { x: 550, y: 180, hw: 26, hh: 26 },
-      { x: 350, y: 450, hw: 26, hh: 26 },
-      { x: 550, y: 450, hw: 26, hh: 26 },
-      // coal heap corner
-      { x: 780, y: 520, hw: 80, hh: 60 },
-    ],
     objects: [
       { type: 'stove', x: 450, y: 40 },
       { type: 'bookshelf', x: 250, y: 40 },

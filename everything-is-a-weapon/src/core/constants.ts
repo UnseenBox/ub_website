@@ -2,6 +2,20 @@ export const FIXED_DT = 1 / 120;
 export const MAX_FRAME_DT = 0.1;
 export const MAX_STEPS_PER_FRAME = 14;
 
+/**
+ * On-screen text switches.
+ *
+ * `TEXT_VISIBLE` — the in-world floating text: reaction popups ("+250",
+ * "PERFECT IMPACT!", "HATS OFF") and the comic impact words
+ * (KABOOM!/SMASH!/CRUNCH! …). On by default.
+ *
+ * `ANNOUNCEMENTS_VISIBLE` — the announcement layer: the ransom-note banners
+ * ("CHAIN REACTION!", room names, boss titles) and the level-up cards
+ * ("NEW POWER / BIG RED BUTTON"). Off: no announcement cards cover the screen.
+ */
+export const TEXT_VISIBLE = true;
+export const ANNOUNCEMENTS_VISIBLE = false;
+
 /** Wall thickness around the room interior, in world units. */
 export const WALL = 40;
 

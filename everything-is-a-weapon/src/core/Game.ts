@@ -16,7 +16,7 @@ import { NavField } from '../gameplay/Navigation';
 import { placePickups, updateRage } from '../gameplay/Pickups';
 import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
-import { bossSpecFor, RoomManager, type RoomRuntime, type WallRuntime } from '../gameplay/RoomManager';
+import { bossSpecFor, RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
@@ -39,7 +39,7 @@ import { Fx, impactWord } from '../rendering/Fx';
 import { Renderer } from '../rendering/Renderer';
 import { ReplayRecorder } from '../replay/ReplayRecorder';
 import { SaveManager } from '../save/SaveManager';
-import { FIXED_DT } from './constants';
+import { FIXED_DT, TEXT_VISIBLE } from './constants';
 import { EventBus } from './Events';
 import { GameLoop } from './GameLoop';
 import type { HeroId } from './Hero';
@@ -157,8 +157,6 @@ export class Game {
 
   readonly objects: PhysicsObject[] = [];
   readonly enemies: Enemy[] = [];
-  /** Interior partition walls of the current room (static or sliding machinery). */
-  readonly walls: WallRuntime[] = [];
   readonly popups: Popup[] = [];
   readonly decals: Decal[] = [];
   player: Player = new Player(0, 0);
@@ -682,7 +680,6 @@ export class Game {
 
     const room = this.room;
     this.rooms.updateSpawns(this, room, dt);
-    this.rooms.updateWalls(this, dt);
     this.nav.update(this, dt);
 
     this.player.update(this, input, dt);
@@ -975,7 +972,10 @@ export class Game {
     return count;
   }
 
+  /** A floating word (score receipt, reaction, animal noise). Skipped when
+   *  `TEXT_VISIBLE` is false. */
   popup(text: string, x: number, y: number, color = '#fff3d6', size = 20, seconds = 1.1): void {
+    if (!TEXT_VISIBLE) return;
     if (this.popups.length > 24) this.popups.shift();
     this.popups.push({ text, x, y, life: seconds, maxLife: seconds, color, size, tilt: (Math.random() - 0.5) * 0.22 });
   }
@@ -1101,8 +1101,23 @@ export class Game {
 
       const directional = cause.dirX !== 0 || cause.dirY !== 0;
       const cone = directional ? { dirX: cause.dirX, dirY: cause.dirY, spread: 0.75 } : undefined;
-      // Impact stars, scaled up: a heavy chair should erupt, a tossed shoe should pfft.
-      this.particles.burst('star', b.x, b.y - 12, Math.min(16, 3 + Math.floor(e.damage / 5)), 260, cone);
+      // Translucent red smoke: body for the hit without hiding the enemy.
+      this.particles.burst('blast', b.x, b.y - 18, Math.min(10, 4 + Math.floor(e.damage / 6)), 190 + Math.min(200, e.damage * 3), cone ? { ...cone, spread: 1 } : undefined);
+      this.particles.ringBurst('blast', b.x, b.y - 18, 4 + Math.min(6, Math.floor(e.damage / 8)), 200 + Math.min(150, e.damage * 2), 38);
+      // A red impact flare at the point of contact; only heavy blows earn it.
+      this.particles.burst('glint', b.x + cause.dirX * 5, b.y - 20, (big ? 1 : 0) + (huge ? 1 : 0), 40);
+      // Red-hot sparks: a dense shower of short streaks with hot tips.
+      this.particles.burst('sparkle', b.x, b.y - 18, Math.min(36, 18 + Math.floor(e.damage / 3)), 220 + Math.min(280, e.damage * 4), cone ? { ...cone, spread: 1 } : undefined);
+      this.particles.ringBurst('sparkle', b.x, b.y - 18, 14 + Math.min(12, Math.floor(e.damage / 4)), 230 + Math.min(170, e.damage * 3), 38);
+      if (big) {
+        // heavy hits keep shedding sparks as the cloud drifts up and cools
+        this.particles.burst('blast', b.x, b.y - 30, Math.min(6, 2 + Math.floor(e.damage / 8)), 150, { dirX: 0, dirY: -1, spread: 0.8 });
+        this.particles.burst('sparkle', b.x, b.y - 30, Math.min(16, 6 + Math.floor(e.damage / 4)), 190, { dirX: 0, dirY: -1, spread: 0.8 });
+        // fine hot grit inside the smoke adds sparkle without more big shapes
+        this.particles.burst('ember', b.x, b.y - 20, Math.min(12, 4 + Math.floor(e.damage / 5)), 260, { dirX: cause.dirX, dirY: cause.dirY - 0.35, spread: 1.05, color: '#ff5a3c' });
+      }
+      // The shockwave is spawned last so it draws over the smoke and sparks.
+      this.particles.burst('shock', b.x, b.y - 18, 1, 0);
       // Shrapnel of whatever did the hitting: splinters for wood, sparks for metal,
       // shards for glass/ceramic — a frying pan reads differently from a lamp.
       if (weapon && (big || firstHit)) {
@@ -1115,15 +1130,14 @@ export class Game {
           cone ? { ...cone, spread: 0.95 } : undefined,
         );
       }
-      if (big) this.particles.burst('dust', b.x, b.y + 6, Math.min(8, 2 + Math.floor(e.damage / 10)), 110);
-      // Light taps still kick up dust so every connection lands; medium hits earn a small ring.
-      else this.particles.burst('dust', b.x, b.y + 4, 2, 70, cone);
-      if (big || firstHit) this.fx.ring(b.x, b.y, 6, 34 + e.damage * 0.7, 0.3, 'rgba(255,255,255,0.85)', 4);
-      else if (e.damage >= 10) this.fx.ring(b.x, b.y, 4, 18 + e.damage * 0.6, 0.22, 'rgba(255,255,255,0.6)', 2);
+      // Light taps still kick up dust so every connection lands; big hits are all smoke.
+      if (!big) this.particles.burst('dust', b.x, b.y + 4, 2, 70, cone);
+      if (big || firstHit) this.fx.ring(b.x, b.y, 6, 34 + e.damage * 0.7, 0.3, 'rgba(255,70,58,0.9)', 4);
+      else if (e.damage >= 10) this.fx.ring(b.x, b.y, 4, 18 + e.damage * 0.6, 0.22, 'rgba(255,90,78,0.7)', 2);
       // Huge hits get a second, tighter shockwave on top: the "double-crack" feel.
-      if (huge) this.fx.ring(b.x, b.y, 4, 22 + e.damage * 0.45, 0.32, 'rgba(255,210,63,0.9)', 3);
-      // Massive hits flash the room for a beat (scaled by the reduced-shake setting).
-      if (massive) this.fx.flash('#ffffff', 0.15);
+      if (huge) this.fx.ring(b.x, b.y, 4, 22 + e.damage * 0.45, 0.32, 'rgba(255,120,86,0.95)', 3);
+      // Massive hits flash the room red for a beat (scaled by the reduced-shake setting).
+      if (massive) this.fx.flash('#ff2e2e', 0.14);
       this.camera.addShake(firstHit ? Math.max(0.35, Math.min(0.65, e.damage / 70)) : Math.min(0.65, e.damage / 70));
       if (showWord) this.camera.punchZoom(0.025 + Math.min(0.04, e.damage / 1000));
       if (directional) this.camera.kick(cause.dirX * Math.min(10, e.damage / 4.5), cause.dirY * Math.min(10, e.damage / 4.5));
@@ -1144,6 +1158,10 @@ export class Game {
       // the box bursts: packing peanuts everywhere, plus a starburst in the
       // direction of the killing blow so the knockout tops the hit that caused it
       this.particles.burst('peanut', b.x, b.y - 14, 30, 340);
+      this.particles.burst('sparkle', b.x, b.y - 20, 26, 300);
+      this.particles.ringBurst('sparkle', b.x, b.y - 20, 14, 260, 28);
+      this.particles.burst('shock', b.x, b.y - 20, 1, 0);
+      this.particles.burst('glint', b.x, b.y - 22, 2, 55);
       const killDir = e.cause.dirX !== 0 || e.cause.dirY !== 0;
       this.particles.burst(
         'star',

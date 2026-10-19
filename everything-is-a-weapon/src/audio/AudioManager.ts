@@ -7,50 +7,77 @@ import { Synth, VOWEL, type Partial, type Vowel } from './Synth';
 export type SoundName =
   | 'pickup' | 'drop' | 'throw' | 'whistle' | 'chargeFull' | 'dash' | 'swipe' | 'hurt'
   | 'poof' | 'glassBreak' | 'zap' | 'ignite' | 'hiss' | 'splash' | 'explosion'
-  | 'discovery' | 'paper' | 'stamp' | 'roomClear' | 'fail' | 'door' | 'knock' | 'yawn'
+  | 'discovery' | 'paper' | 'stamp' | 'roomClear' | 'fail' | 'door' | 'knock' | 'bossWalk' | 'yawn'
   | 'slide' | 'squeak' | 'gong' | 'alarm' | 'plop' | 'scream'
   | 'chomp' | 'click' | 'fuse' | 'boombox' | 'snap' | 'kettle' | 'crackle' | 'boing';
 
 export type VoiceKind = 'oof' | 'yelp' | 'panic' | 'defeat' | 'alert' | 'attack' | 'ow' | 'hup';
 
-/** Which recorded sample (if any) replaces a named sound. Functional pitch-critical
- *  sounds (charge notes, combo/scale runs, contain no entry and stay synthesised. */
-const SAMPLE_FOR: { [K in SoundName]?: { file: SampleName; gain?: number; rateFromPitch?: boolean } } = {
+/** Which recorded sample replaces a named sound. Most named sounds still have
+ *  a recording; anything the packs had no good match for (`hiss`, `kettle`,
+ *  `slide`, `squeak`) and the single-file portal builds fall back to the synth
+ *  recipes below. Sound sources under `public/sfx/`: the RPG Sound Pack
+ *  (`assets/sfx/rpg_sound_pack/`), Kenney/Mixkit oddballs, the "New Added"
+ *  replacement set, the 400 Sounds Pack and JDSherbert's UI pack, and the
+ *  jute-dh RPG pack / "hits and punches" pack for fire, fall and flesh. Mapping:
+ *  throw->swing, dash->swing2, swipe->swing3, snap->sword-unsheathe2,
+ *  tin->sword-unsheathe5, click->interface1, discovery->interface2,
+ *  chargeFull->interface3, note->interface4, bell->the chime, pickup->coin,
+ *  roomClear->coin2, drop->wood-small raps, knock->door hammering, bossWalk->heavy marching,
+ *  gong->metal-ringing,
+ *  plop->bubble, poof->magic1, crackle->random1, glassBreak->chainmail2,
+ *  zap->an electric bzzt, glass->a clean glass tink, plastic->a dry plastic
+ *  knock, paper->a UI click, page->page rustle, punch->a flesh thump,
+ *  hurt->a body hit, scream->shade14, rage->shade8 (CompanionSounds),
+ *  shout->mnstr6, fail->fall, yawn->giant5, oof->ogre5, hup->ogre3,
+ *  door->the world door, chomp->the beetle bite. Intruder voices, boss roars
+ *  and mom borrow the pack's creature voices (CRY_BY_TYPE); combo/chain/
+ *  boombox play pack tones via `note`. */
+const SAMPLE_FOR: { [K in SoundName]?: { file: SampleName; gain?: number; rate?: number; rateFromPitch?: boolean; burst?: number } } = {
   pickup: { file: 'pickup' },
-  drop: { file: 'drop' },
+  drop: { file: 'wood-small' },
   throw: { file: 'throw' },
   whistle: { file: 'whistle' },
+  chargeFull: { file: 'charge-full', gain: 0.55 },
   dash: { file: 'dash' },
   swipe: { file: 'swipe' },
-  poof: { file: 'poof' },
+  hurt: { file: 'hurt', gain: 0.65 },
+  poof: { file: 'poof', gain: 0.45, rate: 1.25 },
   glassBreak: { file: 'impact-glass-big' },
-  zap: { file: 'zap' },
+  zap: { file: 'zap', gain: 0.6 },
+  ignite: { file: 'ignite', gain: 0.6 },
   splash: { file: 'splash' },
   explosion: { file: 'boom', gain: 0.9 },
-  discovery: { file: 'bell', gain: 0.5 },
-  paper: { file: 'impact-paper-page' },
-  stamp: { file: 'stamp' },
-  // Win and lose stingers are always synthesised (smooth pads below): the same
-  // cue in every build, with no sample to wait on.
+  discovery: { file: 'discovery', gain: 0.6 },
+  paper: { file: 'impact-paper-page', gain: 0.8 },
+  stamp: { file: 'stamp', gain: 0.9 },
+  roomClear: { file: 'room-clear', gain: 0.55 },
+  fail: { file: 'fail', gain: 0.6, rate: 0.95 },
   door: { file: 'door-open' },
-  knock: { file: 'impact-wood-light' },
-  squeak: { file: 'duck' },
-  gong: { file: 'metal-pot', rateFromPitch: true },
+  knock: { file: 'knock-knock', gain: 0.85 },
+  bossWalk: { file: 'boss-walk', gain: 0.9 },
+  yawn: { file: 'yawn', gain: 0.45, rate: 0.8 },
+  gong: { file: 'metal-ringing', rateFromPitch: true },
   alarm: { file: 'alarm' },
   plop: { file: 'plop' },
+  scream: { file: 'scream', gain: 0.5, rate: 0.75 },
   click: { file: 'click', gain: 0.5 },
+  fuse: { file: 'fuse', gain: 0.5, rate: 1.35 },
+  snap: { file: 'snap' },
+  crackle: { file: 'crackle', gain: 0.6 },
   boing: { file: 'boing', rateFromPitch: true },
+  chomp: { file: 'bite2', gain: 0.6 },
 };
 
 /** Recorded thud per material for `impact()`. Mass still picks the pitch, via rate. */
 const IMPACT_SAMPLE: Record<SoundKind, SampleName> = {
-  wood: 'impact-wood',
-  metal: 'impact-metal',
+  wood: 'wood-small',
+  metal: 'metal-small',
   glass: 'impact-glass',
   plastic: 'plastic',
   rubber: 'boing',
   paper: 'impact-paper',
-  soft: 'impact-soft',
+  soft: 'cloth',
 };
 
 type AudioContextCtor = typeof AudioContext;
@@ -70,10 +97,15 @@ const BELL: readonly Partial[] = [[1, 0.5, 1], [2.01, 0.35, 0.5], [3.03, 0.2, 0.
 const SCALE = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51, 1567.98, 1760];
 
 /**
- * Sound for the whole game, synthesised at runtime — there is not a single audio file.
- * Objects ring according to their material and mass, intruders have little formant voices,
- * combos play notes of a scale, and a four-layer score follows how busy the room is.
- * Every call is a safe no-op until the browser allows audio, or if Web Audio is missing.
+ * Sound for the whole game: recorded samples where they exist — RPG-pack
+ * swings, clinks, chimes, door and creature voices, Kenney/Mixkit and
+ * "New Added" odds and ends, and the jute-dh/hits fire, fall and flesh
+ * sounds — and the synth everywhere else. Objects ring according to their
+ * material and mass,
+ * intruders have little formant voices with recorded cries on top, combos
+ * play notes of a scale, and a four-layer score follows how busy the room is.
+ * Every call is a safe no-op until the browser allows audio, or if Web Audio
+ * is missing.
  */
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -412,8 +444,82 @@ export class AudioManager {
     cardboard: { from: VOWEL.a, to: VOWEL.a, wob: 1.1 },
   };
 
-  /** Little formant voices. `pitch` is the speaker's base pitch in Hz. */
+  /**
+   * The NPC creature each intruder borrows its recorded cry from (RPG Sound
+   * Pack, `public/sfx/`): scamps chirp and gurgle with beetle and slime
+   * voices, boxes grunt with ogres and giants, bosses roar and wail with the
+   * big families, and mom wails with the shades. Any build without the
+   * samples falls back to the formant voices below.
+   */
+  private static readonly CRY_BY_TYPE: { [K in EnemyTypeId]?: readonly SampleName[] } = {
+    // Scamps.
+    fast: ['bite1', 'bite2'],
+    gnat: ['bite3', 'bite2'],
+    mini: ['bite2', 'bite3'],
+    nested: ['bite1', 'bite3'],
+    fragile: ['slime2', 'slime6', 'slime9'],
+    electric: ['shade2'],
+    // Boxes.
+    basic: ['ogre5', 'ogre1'],
+    helmet: ['ogre5', 'ogre2'],
+    shield: ['ogre1', 'ogre2'],
+    trolley: ['ogre1', 'ogre5'],
+    hurler: ['ogre2', 'mnstr1'],
+    heavy: ['ogre2', 'giant4'],
+    bulwark: ['giant4', 'ogre2'],
+    kaboom: ['mnstr1'],
+    // Bosses.
+    chairman: ['ogre1', 'ogre2', 'ogre5'],
+    flusher: ['slime2', 'slime6', 'slime8', 'slime9'],
+    kraken: ['mnstr1', 'mnstr7', 'mnstr14'],
+    fridgezilla: ['giant1', 'giant2', 'giant4'],
+    piano: ['shade2', 'shade6', 'shade12'],
+    mower: ['wolfman'],
+    vacuumasaurus: ['giant1', 'giant2', 'giant4'],
+    hydra: ['mnstr1', 'mnstr7', 'mnstr14'],
+    fan: ['shade2', 'shade6', 'shade12'],
+    popcorn: ['bite1', 'bite2', 'bite3'],
+    cables: ['mnstr1', 'mnstr7', 'mnstr14'],
+    cooker: ['ogre1', 'ogre2', 'ogre5'],
+    train: ['giant1', 'giant2', 'giant4'],
+    junk: ['mnstr1', 'mnstr7', 'mnstr14'],
+    house: ['giant1', 'giant2', 'giant4'],
+    clock: ['shade2', 'shade6', 'shade12'],
+    toybox: ['bite1', 'bite2', 'bite3'],
+    dishwasher: ['slime2', 'slime6', 'slime8', 'slime9'],
+    cardboard: ['ogre1', 'ogre2', 'ogre5'],
+    // The final boss: a mother's wail, borrowed from the shades.
+    mom: ['shade12'],
+  };
+
+  /** Rate for a recorded cry so the creature sits at the speaker's pitch. */
+  private cryRate(pitch: number, down = false): number {
+    const base = Math.min(1.6, Math.max(0.5, pitch / 140));
+    return base * (down ? 0.62 : 1) * (0.97 + Math.random() * 0.06);
+  }
+
+  /**
+   * A little formant voice, `pitch` being the speaker's base pitch in Hz.
+   * Reaction kinds play the speaker's recorded creature cry when it exists,
+   * and the frequent 'oof'/'hup' stings are the pack's short ogre grunts;
+   * builds without samples stay on the synthesiser. A boss's defeat cry comes
+   * from bossRoar (same creature), so it is skipped here rather than doubled.
+   */
   voice(kind: VoiceKind, pitch: number, id?: EnemyTypeId): void {
+    if (kind === 'oof' || kind === 'hup') {
+      const sting: SampleName = kind === 'oof' ? 'oof' : 'hup';
+      if (this.sample(sting, { gain: 0.32, rate: this.cryRate(pitch), key: `voice:${kind}`, gap: 0.12 })) {
+        return;
+      }
+    }
+    const cries = id !== undefined && kind !== 'oof' && kind !== 'hup' ? AudioManager.CRY_BY_TYPE[id] : undefined;
+    const bossDefeat = kind === 'defeat' && id !== undefined && AudioManager.BOSS_MOUTH[id] !== undefined;
+    if (cries && cries.length > 0 && !bossDefeat) {
+      const pick = cries[(Math.random() * cries.length) | 0]!;
+      if (this.sample(pick, { gain: kind === 'defeat' ? 0.5 : 0.4, rate: this.cryRate(pitch), key: `voice:${kind}`, gap: 0.14 })) {
+        return;
+      }
+    }
     const s = this.begin(`voice:${kind}`, kind === 'oof' ? 0.09 : 0.14);
     if (!s) return;
     const b = pitch * (0.94 + Math.random() * 0.12);
@@ -469,8 +575,20 @@ export class AudioManager {
     }
   }
 
-  /** One marimba note per combo level, climbing the scale. */
+  /** One chime per combo level, climbing with the streak: the pack's `bell`
+   *  when decoded, otherwise a marimba note. */
   combo(level: number): void {
+    // Recorded chime first (pitch climbs with the combo); sample builds stop
+    // here, and the marimba below is the fallback for those without files.
+    if (
+      this.sample('bell', {
+        gain: 0.45,
+        rate: Math.min(1.6, Math.max(0.7, 0.9 + level * 0.06)),
+        key: 'combo:chime',
+      })
+    ) {
+      return;
+    }
     const s = this.begin('combo');
     if (!s) return;
     const note = SCALE[Math.min(SCALE.length - 1, Math.max(0, level - 1))]!;
@@ -478,20 +596,52 @@ export class AudioManager {
     s.noise({ filter: 'bandpass', from: 2400, dur: 0.012, gain: 0.08, q: 2 });
   }
 
-  /** A run up the scale, one note per link of the chain reaction. */
+  /** A run up the scale, one note per link of the chain reaction: the pack's
+   *  `note` tone when decoded, otherwise the marimba. */
   chain(length: number): void {
+    const run = Math.min(length + 1, 8);
+    if (this.bank?.has('note') && this.allow('chain', 0.4)) {
+      for (let i = 0; i < run; i++) {
+        this.sample('note', {
+          gain: 0.3,
+          rate: SCALE[i]! / 783.99,
+          delay: i * 0.075,
+          key: `chain:${i}`,
+          gap: 0,
+        });
+      }
+      this.sample('bell', { gain: 0.18, rate: 1.25, delay: run * 0.075, key: 'chain:top', gap: 0 });
+      return;
+    }
     const s = this.begin('chain', 0.4);
     if (!s) return;
-    for (let i = 0; i < Math.min(length + 1, 8); i++) s.modal(SCALE[i]!, MARIMBA, 0.2, i * 0.075);
-    s.modal(SCALE[Math.min(length + 1, 8)]! * 2, BELL, 0.1, Math.min(length + 1, 8) * 0.075);
+    for (let i = 0; i < run; i++) s.modal(SCALE[i]!, MARIMBA, 0.2, i * 0.075);
+    s.modal(SCALE[run]! * 2, BELL, 0.1, run * 0.075);
   }
 
   /**
    * Each boss announces itself (and its defeat, with `down`) with its own cry:
-   * two layers from its base pitch plus one signature gesture. All procedural,
-   * so every build — including single-file portals — roars the same way.
+   * one of the pack's NPC creature sounds (see CRY_BY_TYPE), slowed for the
+   * defeat. Once the file has decoded, the cry is the whole roar; the synth
+   * layers below cover single-file portals and still-decoding builds.
    */
   bossRoar(id: EnemyTypeId, pitch: number, down = false): void {
+    // The creature cry opens the roar; separate rate-limit key so it can never
+    // suppress the synth bed.
+    const cries = AudioManager.CRY_BY_TYPE[id];
+    if (cries && cries.length > 0) {
+      const pick = cries[(Math.random() * cries.length) | 0]!;
+      if (
+        this.sample(pick, {
+          gain: down ? 0.6 : 0.55,
+          rate: this.cryRate(pitch, down),
+          key: `boss-cry:${id}`,
+          gap: 0.8,
+        })
+      ) {
+        return;
+      }
+    }
     const s = this.begin(`boss:${id}`, 0.8);
     if (!s) return;
     const b = Math.max(30, pitch * (down ? 0.55 : 1) * (0.96 + Math.random() * 0.08));
@@ -717,20 +867,43 @@ export class AudioManager {
     }
   }
 
+  /**
+   * The boombox's tinny groove, sampled: one pack tone per note, a wooden kick
+   * on the beat and a plastic tick off it. Returns false until the files have
+   * decoded, and the synth bar further down covers those builds.
+   */
+  private sampledBoombox(beat: number): boolean {
+    const bank = this.bank;
+    if (!bank || !bank.has('note') || !bank.has('wood-small') || !bank.has('plastic')) return false;
+    if (!this.allow('boombox', 0.06)) return false;
+    const step = Math.floor(beat) % 8;
+    const riff = [0, -1, 2, 0, 3, -1, 2, 4][step]!;
+    if (riff >= 0) {
+      this.sample('note', { gain: 0.24, rate: (SCALE[riff]! * 2) / 783.99, key: `boombox:n${step}`, gap: 0 });
+    }
+    if (step % 2 === 0) {
+      this.sample('wood-small', { gain: 0.5, rate: 0.5, key: `boombox:k${step}`, gap: 0 });
+    } else {
+      this.sample('plastic', { gain: 0.2, rate: 1.5, key: `boombox:t${step}`, gap: 0 });
+    }
+    return true;
+  }
+
   play(name: SoundName, intensity = 1, pitch = 1): void {
     const g = Math.min(1, Math.max(0.05, intensity));
+    if (name === 'boombox' && this.sampledBoombox(pitch)) return;
     const mapped = SAMPLE_FOR[name];
     if (mapped) {
-      // A knock is three raps; everything else is one shot (pitch bends gongs/boings).
-      if (name === 'knock') {
-        if (this.burstSamples(mapped.file, 3, 0.16, { gain: 0.5 * g })) return;
-      } else if (
-        this.sample(mapped.file, {
-          gain: (mapped.gain ?? 0.6) * g,
-          rate: mapped.rateFromPitch ? Math.min(1.6, Math.max(0.5, pitch)) : undefined,
-          key: name,
-        })
-      ) {
+      const options = {
+        gain: (mapped.gain ?? 0.6) * g,
+        rate: mapped.rateFromPitch ? Math.min(1.6, Math.max(0.5, pitch)) : mapped.rate,
+        key: name,
+      };
+      // A burst is one rate-limit check for several spaced shots (door raps).
+      const burst = mapped.burst ?? 1;
+      const played =
+        burst > 1 ? this.burstSamples(mapped.file, burst, 0.15, options) : this.sample(mapped.file, options);
+      if (played) {
         return;
       } else if (this.bank && this.bank.has(mapped.file)) {
         return;
@@ -888,6 +1061,13 @@ export class AudioManager {
         for (let i = 0; i < 3; i++) {
           s.modal(168 + i * 4, WOOD, 0.34 * g, i * 0.15, 1.1);
           s.noise({ filter: 'lowpass', from: 800, to: 260, dur: 0.03, gain: 0.16 * g, delay: i * 0.15 });
+        }
+        break;
+      case 'bossWalk':
+        // something huge tramping to the door: four slow, heavy footfalls
+        for (let i = 0; i < 4; i++) {
+          s.modal(66 - i * 2, WOOD, 0.5 * g, i * 1.1, 0.5);
+          s.noise({ filter: 'lowpass', from: 420, to: 120, dur: 0.18, gain: 0.3 * g, delay: i * 1.1 });
         }
         break;
       case 'slide':

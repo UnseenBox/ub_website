@@ -1211,7 +1211,11 @@ export class Enemy {
       const facingDot = Math.cos(this.facing) * -dirX + Math.sin(this.facing) * -dirY;
       if (facingDot > 0.3) {
         this.blockFlash = 1;
-        game.particles.burst('spark', b.x + Math.cos(this.facing) * 16, b.y + Math.sin(this.facing) * 16, 8, 240);
+        const sx = b.x + Math.cos(this.facing) * 16;
+        const sy = b.y + Math.sin(this.facing) * 16;
+        game.particles.burst('spark', sx, sy, 8, 240);
+        game.particles.burst('sparkle', sx, sy - 14, 10, 220);
+        game.particles.burst('glint', sx, sy - 10, 2, 30);
         game.audio.impact('metal', 0.8, 3);
         game.fx.burst('CLANG!', b.x + Math.cos(this.facing) * 22, b.y - 30, 0.9, '#cfd8ea');
         game.discoveries.unlock('clang');
@@ -1286,6 +1290,8 @@ export class Enemy {
     this.shockCooldown = 0.8;
     this.shockTimer = stunSeconds;
     game.particles.burst('spark', this.body.x, this.body.y - 8, 14, 260);
+    game.particles.burst('sparkle', this.body.x, this.body.y - 14, 12, 230);
+    game.particles.burst('glint', this.body.x, this.body.y - 16, 2, 40);
     game.fx.ring(this.body.x, this.body.y, 8, 52, 0.3, 'rgba(255,242,122,0.9)', 3);
     game.audio.play('zap', 1);
     game.bus.emit({ type: 'ELECTRICITY_CONTACT', target: this });

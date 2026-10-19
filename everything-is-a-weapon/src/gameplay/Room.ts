@@ -54,21 +54,6 @@ export interface RoomObjective {
   readonly seconds: number;
 }
 
-/** A partition wall inside the room: a static collider drawn like the outer walls. */
-export interface WallSpec {
-  readonly x: number;
-  readonly y: number;
-  /** Half-extents of the wall block, in room units. */
-  readonly hw: number;
-  readonly hh: number;
-  /**
-   * Sliding machinery (the warehouse compactor): the wall oscillates along one
-   * axis by `range` units with the given period in seconds. Gaps at both ends
-   * must stay passable at every point of the travel — the validator enforces it.
-   */
-  readonly slide?: { readonly axis: 'x' | 'y'; readonly range: number; readonly period: number };
-}
-
 /** A room is pure data. Coordinates are in interior space: (0,0) is the top-left floor corner. */
 export interface RoomDefinition {
   readonly id: string;
@@ -81,8 +66,6 @@ export interface RoomDefinition {
   readonly enemies: readonly RoomEnemySpec[];
   /** Optional boss for this room (replaces the every-third-room Landlord here). */
   readonly boss?: EnemyTypeId;
-  /** Interior partition walls. Omit for a plain open arena. */
-  readonly walls?: readonly WallSpec[];
   readonly entrance: DoorSpec;
   readonly exit: DoorSpec;
   readonly playerStart: { readonly x: number; readonly y: number };

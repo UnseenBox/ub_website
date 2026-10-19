@@ -1,9 +1,9 @@
 export type ParticleKind =
   | 'spark' | 'dust' | 'smoke' | 'steam' | 'ember' | 'ash'
   | 'splinter' | 'shard' | 'chip' | 'scrap' | 'water' | 'foam' | 'dirt' | 'star' | 'confetti'
-  | 'feather' | 'flour' | 'peanut' | 'paint' | 'bubble' | 'note';
+  | 'feather' | 'flour' | 'peanut' | 'paint' | 'bubble' | 'note' | 'sparkle' | 'blast' | 'shock' | 'glint';
 
-export type ParticleShape = 'circle' | 'rect' | 'tri' | 'line' | 'star';
+export type ParticleShape = 'circle' | 'rect' | 'tri' | 'line' | 'star' | 'streak' | 'puff' | 'shock' | 'glow';
 
 interface Preset {
   readonly colors: readonly string[];
@@ -16,6 +16,10 @@ interface Preset {
   /** Size multiplier reached at end of life. */
   readonly grow: number;
   readonly alpha: number;
+  /** Optional orbital drift in radians/second: curves the flight path into a spiral. */
+  readonly swirl?: readonly [number, number];
+  /** Optional stagger window in seconds: particles in one burst wake up one after another. */
+  readonly delay?: number;
 }
 
 const PRESETS: Readonly<Record<ParticleKind, Preset>> = {
@@ -39,6 +43,23 @@ const PRESETS: Readonly<Record<ParticleKind, Preset>> = {
   paint: { colors: ['#ff5a8a', '#4ad6e8', '#ffd23f', '#9be564'], shape: 'circle', size: [2.5, 6], life: [0.35, 0.7], drag: 3, gravity: 300, grow: 0.6, alpha: 1 },
   bubble: { colors: ['rgba(255,255,255,0.85)', 'rgba(220,245,255,0.8)'], shape: 'circle', size: [2, 5], life: [0.6, 1.2], drag: 2.5, gravity: -60, grow: 1.3, alpha: 0.8 },
   note: { colors: ['#a48cf2', '#ff5a8a', '#4ad6e8', '#ffd23f'], shape: 'star', size: [4, 6], life: [0.8, 1.3], drag: 2, gravity: -40, grow: 1, alpha: 1 },
+  // Hit sparks: short red-orange streaks with hot tips. Thin, fast and numerous,
+  // so they read as a shower of embers rather than a handful of solid shapes.
+  sparkle: {
+    colors: ['#ff3b30', '#ff2d2d', '#e11d2e', '#ff5a3c', '#ff7a4a', '#c0121f'],
+    shape: 'streak', size: [3.5, 6.5], life: [0.35, 0.7], drag: 2.6, gravity: -28, grow: 0.7, alpha: 1,
+    swirl: [1.8, 3.4], delay: 0.03,
+  },
+  // Translucent red smoke behind the sparks: body, not another hard shape.
+  blast: {
+    colors: ['#e11d2e', '#c0121f', '#ff3b30'],
+    shape: 'puff', size: [10, 16], life: [0.45, 0.8], drag: 2.6, gravity: -24, grow: 1.5, alpha: 0.45,
+    swirl: [1.2, 2.4], delay: 0.05,
+  },
+  // A screen-space shockwave: grows fast, fades as it expands.
+  shock: { colors: ['#ff3b30'], shape: 'shock', size: [11, 15], life: [0.36, 0.46], drag: 0, gravity: 0, grow: 5.6, alpha: 1 },
+  // The impact flare: a brief red-orange pop that swells and vanishes.
+  glint: { colors: ['#ff8a5c', '#ff2d2d', '#b3121f'], shape: 'glow', size: [8, 11], life: [0.16, 0.28], drag: 6, gravity: 0, grow: 2.0, alpha: 0.7 },
   star: { colors: ['#ffd23f', '#ffffff', '#ff5a4e'], shape: 'star', size: [4, 8], life: [0.35, 0.7], drag: 4, gravity: 0, grow: 0.3, alpha: 1 },
 };
 
@@ -59,6 +80,12 @@ export interface Particle {
   gravity: number;
   grow: number;
   alpha: number;
+  /** Seconds left before this particle wakes up (staggered bursts). */
+  delay: number;
+  /** Orbital velocity in radians/second; curves the flight path. */
+  swirl: number;
+  /** Twinkle phase seed, so simultaneous particles do not pulse in lockstep. */
+  phase: number;
 }
 
 export interface BurstOptions {
@@ -69,7 +96,8 @@ export interface BurstOptions {
   color?: string;
 }
 
-const POOL_SIZE = 700;
+/** Comfortably above the busiest moments (massive hits, broken glass, a boss dying). */
+const POOL_SIZE = 1400;
 
 /** Fixed-size pooled particle system. Nothing is allocated after construction. */
 export class ParticleSystem {
@@ -81,7 +109,7 @@ export class ParticleSystem {
     for (let i = 0; i < POOL_SIZE; i++) {
       this.pool.push({
         active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 1, size: 1, rotation: 0, spin: 0,
-        color: '#fff', shape: 'circle', drag: 0, gravity: 0, grow: 1, alpha: 1,
+        color: '#fff', shape: 'circle', drag: 0, gravity: 0, grow: 1, alpha: 1, delay: 0, swirl: 0, phase: 0,
       });
     }
   }
@@ -105,17 +133,48 @@ export class ParticleSystem {
       p.y = y + (Math.random() - 0.5) * 6;
       p.vx = Math.cos(angle) * v;
       p.vy = Math.sin(angle) * v;
-      p.maxLife = p.life = preset.life[0] + Math.random() * (preset.life[1] - preset.life[0]);
-      p.size = preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]);
-      p.rotation = Math.random() * Math.PI * 2;
-      p.spin = (Math.random() - 0.5) * 14;
-      p.color = options?.color ?? preset.colors[Math.floor(Math.random() * preset.colors.length)]!;
-      p.shape = preset.shape;
-      p.drag = preset.drag;
-      p.gravity = preset.gravity;
-      p.grow = preset.grow;
-      p.alpha = preset.alpha;
+      this.apply(preset, p, options?.color);
     }
+  }
+
+  /**
+   * Emits `count` particles evenly around a circle, flying outward: the starburst ring
+   * that pops around an impact point. The ring starts clear of whatever sprite or text
+   * sits on the contact, so the burst stays readable.
+   */
+  ringBurst(kind: ParticleKind, x: number, y: number, count: number, speed: number, radius: number, options?: BurstOptions): void {
+    const preset = PRESETS[kind];
+    for (let i = 0; i < count; i++) {
+      const p = this.acquire();
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4 + (options ? Math.atan2(options.dirY ?? 0, options.dirX ?? 1) : 0);
+      const r = radius * (0.8 + Math.random() * 0.45);
+      const v = speed * (0.6 + Math.random() * 0.55);
+      p.active = true;
+      p.x = x + Math.cos(angle) * r;
+      p.y = y + Math.sin(angle) * r * 0.8;
+      p.vx = Math.cos(angle) * v;
+      p.vy = Math.sin(angle) * v * 0.8;
+      this.apply(preset, p, options?.color);
+      // A ring is a shape: keep it synchronized instead of waking petal by petal.
+      p.delay = 0;
+    }
+  }
+
+  /** Copies a preset's look onto a particle, keeping per-particle randomness. */
+  private apply(preset: Preset, p: Particle, color?: string): void {
+    p.maxLife = p.life = preset.life[0] + Math.random() * (preset.life[1] - preset.life[0]);
+    p.size = preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]);
+    p.rotation = Math.random() * Math.PI * 2;
+    p.spin = (Math.random() - 0.5) * 14;
+    p.color = color ?? preset.colors[Math.floor(Math.random() * preset.colors.length)]!;
+    p.shape = preset.shape;
+    p.drag = preset.drag;
+    p.gravity = preset.gravity;
+    p.grow = preset.grow;
+    p.alpha = preset.alpha;
+    p.swirl = preset.swirl ? (preset.swirl[0] + Math.random() * (preset.swirl[1] - preset.swirl[0])) * (Math.random() < 0.5 ? -1 : 1) : 0;
+    p.delay = preset.delay ? Math.random() * preset.delay : 0;
+    p.phase = Math.random() * Math.PI * 2;
   }
 
   /** Round-robin reuse: when the pool is full the oldest particles are recycled first. */
@@ -138,6 +197,12 @@ export class ParticleSystem {
     for (let i = 0; i < POOL_SIZE; i++) {
       const p = this.pool[i]!;
       if (!p.active) continue;
+      if (p.delay > 0) {
+        // Staggered wake-up: the particle hangs invisible for a beat, then pops.
+        p.delay -= dt;
+        active++;
+        continue;
+      }
       p.life -= dt;
       if (p.life <= 0) {
         p.active = false;
@@ -146,6 +211,15 @@ export class ParticleSystem {
       const damping = Math.exp(-p.drag * dt);
       p.vx *= damping;
       p.vy = p.vy * damping + p.gravity * dt;
+      if (p.swirl !== 0) {
+        // Rotate the velocity a little each step: the flight path becomes an arc.
+        const a = p.swirl * dt;
+        const cos = Math.cos(a);
+        const sin = Math.sin(a);
+        const vx = p.vx * cos - p.vy * sin;
+        p.vy = p.vx * sin + p.vy * cos;
+        p.vx = vx;
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.rotation += p.spin * dt;

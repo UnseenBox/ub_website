@@ -1,5 +1,6 @@
 import { moveKeysLabel } from '../input/KeyLabels';
 import type { Game } from '../core/Game';
+import { ANNOUNCEMENTS_VISIBLE } from '../core/constants';
 import { ENEMY_TYPES, type EnemyTypeId } from '../entities/EnemyTypes';
 import type { GuideIcon } from '../gameplay/Tutorial';
 import { DISCOVERY_BY_ID } from '../gameplay/Discoveries';
@@ -167,8 +168,10 @@ export class HUD {
     mug.node.classList.add('out');
   }
 
-  /** Big ransom-note announcement. `sub` may be a chain ("A → B → C"), shown as linked tags. */
+  /** Big ransom-note announcement. `sub` may be a chain ("A → B → C"), shown as linked tags.
+   *  Off while `ANNOUNCEMENTS_VISIBLE` is false: no announcement banners cover the screen. */
   banner(title: string, sub = '', seconds = 2): void {
+    if (!ANNOUNCEMENTS_VISIBLE) return;
     const box = this.bannerBox;
     box.classList.remove('show');
     box.replaceChildren(ransom(title, this.bannerSeed++, 'banner-title'));
@@ -202,8 +205,10 @@ export class HUD {
     this.toastQueue.push(title);
   }
 
-  /** The level-up card: a sticky note slapped on the screen for a few seconds. */
+  /** The level-up card: a sticky note slapped on the screen for a few seconds.
+   *  Off while `ANNOUNCEMENTS_VISIBLE` is false. */
   unlock(kicker: string, title: string, sub: string): void {
+    if (!ANNOUNCEMENTS_VISIBLE) return;
     const box = this.unlockBox;
     box.replaceChildren(el('span', 'unlock-kicker', kicker), ransom(title, this.bannerSeed++, 'unlock-title'), el('span', 'unlock-sub', sub));
     box.classList.remove('show');

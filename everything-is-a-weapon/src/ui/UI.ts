@@ -26,6 +26,8 @@ function goFullscreenOnPhones(game: Game): void {
  */
 export class UI implements GameUi {
   private readonly hud: HUD;
+  /** Whether the cursor is currently drawn as the closed hand. */
+  private holding = false;
 
   constructor(
     private readonly game: Game,
@@ -60,6 +62,12 @@ export class UI implements GameUi {
   }
 
   frame(dt: number): void {
+    // The pointer is an open hand while aiming and a fist while carrying something.
+    const holding = this.game.state === 'playing' && this.game.player.held !== null;
+    if (holding !== this.holding) {
+      this.holding = holding;
+      document.body.classList.toggle('holding', holding);
+    }
     if (this.game.state !== 'menu') this.hud.frame(dt);
   }
 

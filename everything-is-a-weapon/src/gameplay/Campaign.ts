@@ -103,7 +103,7 @@ export const BRIEFINGS: Readonly<Record<string, Briefing>> = {
     par: 170,
   },
   'room-7': {
-    story: 'Down in the warehouse the wall itself moves. The Bulwark dares you to hit its front.',
+    story: 'Down in the warehouse the forklift bled oil. The Bulwark dares you to hit its front.',
     objective: "don't hit its front",
     landlord: '“Storage fees tripled. — M.”',
     par: 180,

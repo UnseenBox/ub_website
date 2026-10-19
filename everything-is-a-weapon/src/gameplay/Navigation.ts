@@ -51,9 +51,6 @@ export class NavField {
 
   private rebuild(game: Game): void {
     this.cost.fill(1);
-    for (const wall of game.walls) {
-      this.mark(wall.x, wall.y, wall.hw, wall.hh, BLOCKED);
-    }
     for (const object of game.objects) {
       if (!object.alive || object.held) continue;
       const b = object.body;

@@ -1,4 +1,4 @@
-import { INK, PALETTE } from '../core/constants';
+import { INK, PALETTE, TEXT_VISIBLE } from '../core/constants';
 import type { Game } from '../core/Game';
 import { TAU, lerp } from '../core/math';
 import type { Pet } from '../entities/Pets';
@@ -143,7 +143,6 @@ export class Renderer {
     const catX = cat ? lerp(cat.prevX, cat.x, alpha) : 0;
     const catY = cat ? lerp(cat.prevY, cat.y, alpha) : 0;
     this.drawRings();
-    this.drawWalls(time);
     drawPowerRings(ctx, game, this.bx(pb), this.by(pb), catX, catY, time);
     this.drawShadows();
     this.drawEntities(time);
@@ -157,8 +156,10 @@ export class Renderer {
     this.drawParticles();
     if (game.state === 'playing') this.drawAim(time);
     this.drawGuide(time);
-    this.drawBursts();
-    this.drawPopups();
+    if (TEXT_VISIBLE) {
+      this.drawBursts();
+      this.drawPopups();
+    }
     if (this.debug.hitboxes || this.debug.grid) this.drawDebug();
 
     // screen-space finish
@@ -185,63 +186,6 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     game.cutscene.draw(ctx, w, h);
-  }
-
-  /** Interior partitions: flat on the floor under everything, like low room dividers. */
-  private drawWalls(time: number): void {
-    const walls = this.game.walls;
-    if (walls.length === 0) return;
-    const ctx = this.ctx;
-    for (const wall of walls) {
-      const { x, y, hw, hh } = wall;
-      const sliding = wall.spec.slide !== undefined;
-      // soft shadow on the floor
-      ctx.fillStyle = 'rgba(34, 27, 54, 0.25)';
-      ctx.beginPath();
-      ctx.ellipse(x + 3, y + 5, hw + 4, hh * 0.5 + 4, 0, 0, TAU);
-      ctx.fill();
-      // block face
-      ctx.fillStyle = sliding ? '#4a3b2a' : '#3a3348';
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.rect(x - hw, y - hh, hw * 2, hh * 2);
-      ctx.fill();
-      ctx.stroke();
-      // lighter top edge so it reads as something with height
-      ctx.fillStyle = sliding ? '#c96f2e' : '#554d6e';
-      ctx.fillRect(x - hw + 2, y - hh + 2, hw * 2 - 4, 5);
-      if (sliding) {
-        // hazard chevrons crawl along a moving wall; direction flips with travel
-        const dir = Math.cos((wall.t / wall.spec.slide!.period) * Math.PI * 2) >= 0 ? 1 : -1;
-        const off = ((time * 40 * dir) % 28 + 28) % 28;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(x - hw + 2, y + hh - 12, hw * 2 - 4, 8);
-        ctx.clip();
-        ctx.fillStyle = '#ffd23f';
-        for (let sx = x - hw - 28 + off; sx < x + hw + 28; sx += 28) {
-          ctx.beginPath();
-          ctx.moveTo(sx, y + hh - 4);
-          ctx.lineTo(sx + 9, y + hh - 12);
-          ctx.lineTo(sx + 15, y + hh - 12);
-          ctx.lineTo(sx + 6, y + hh - 4);
-          ctx.closePath();
-          ctx.fill();
-        }
-        ctx.restore();
-      } else {
-        // rivets along a still partition
-        ctx.fillStyle = 'rgba(251, 246, 233, 0.5)';
-        const nx = Math.max(2, Math.floor(hw / 26));
-        for (let i = 0; i < nx; i++) {
-          const rx = nx === 1 ? x : x - hw + 14 + ((hw * 2 - 28) * i) / (nx - 1);
-          ctx.beginPath();
-          ctx.arc(rx, y, 2.2, 0, TAU);
-          ctx.fill();
-        }
-      }
-    }
   }
 
   /** Shockwaves, drawn flat on the floor under everything standing on it. */
@@ -437,6 +381,29 @@ export class Renderer {
         }
         drawObject(ctx, entity, x, y, z, angle, time);
       } else if (entity.kind === 'enemy') {
+        const flash = entity.hitFlash;
+        const block = entity.blockFlash;
+        if (flash > 0.04 || block > 0.04) {
+          // an additive rim of light so a connected hit reads even in a crowd
+          const cy = y - entity.body.boundR * 0.7;
+          const radius = entity.body.boundR * (1.5 + (flash > block ? flash : block) * 0.9);
+          const glow = ctx.createRadialGradient(x, cy, 2, x, cy, radius);
+          if (block > flash) {
+            glow.addColorStop(0, `rgba(214, 232, 255, ${(0.5 * block).toFixed(3)})`);
+            glow.addColorStop(0.45, `rgba(150, 178, 236, ${(0.3 * block).toFixed(3)})`);
+            glow.addColorStop(1, 'rgba(120, 150, 220, 0)');
+          } else {
+            glow.addColorStop(0, `rgba(255, 110, 80, ${(0.4 * flash).toFixed(3)})`);
+            glow.addColorStop(0.45, `rgba(235, 40, 35, ${(0.28 * flash).toFixed(3)})`);
+            glow.addColorStop(1, 'rgba(190, 18, 28, 0)');
+          }
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(x, cy, radius, 0, TAU);
+          ctx.fill();
+          ctx.globalCompositeOperation = 'source-over';
+        }
         drawEnemy(ctx, entity, x, y, time);
       } else {
         drawPlayer(ctx, entity, x, y, time, game.hero);
@@ -502,7 +469,7 @@ export class Renderer {
     const pool = this.game.particles.pool;
     for (let i = 0; i < pool.length; i++) {
       const p = pool[i]!;
-      if (!p.active) continue;
+      if (!p.active || p.delay > 0) continue;
       const t = 1 - p.life / p.maxLife;
       const size = p.size * (1 + (p.grow - 1) * t);
       ctx.globalAlpha = p.alpha * Math.min(1, (p.life / p.maxLife) * 2.2);
@@ -513,6 +480,137 @@ export class Renderer {
           ctx.arc(p.x, p.y, size, 0, TAU);
           ctx.fill();
           break;
+        case 'glow': {
+          // an additive flash: a soft lens of light that swells and vanishes
+          ctx.globalCompositeOperation = 'lighter';
+          const flare = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 1.7);
+          flare.addColorStop(0, p.color);
+          flare.addColorStop(0.45, p.color);
+          flare.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = flare;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, size * 1.7, 0, TAU);
+          ctx.fill();
+          ctx.globalCompositeOperation = 'source-over';
+          break;
+        }
+        case 'streak': {
+          // A red-hot spark: a short tapered streak with a bright head. No fat
+          // body, no droplet silhouette — it reads as speed and heat.
+          const born = Math.min(1, t * 14);
+          const dying = Math.min(1, p.life / 0.22);
+          const r = Math.max(1, size);
+          const full = p.alpha * born * dying;
+          const speed = Math.hypot(p.vx, p.vy);
+          const ang = speed > 10 ? Math.atan2(p.vy, p.vx) : p.rotation;
+          const len = r * 2.0 + Math.min(10, speed * 0.02);
+          const tailX = p.x - Math.cos(ang) * len;
+          const tailY = p.y - Math.sin(ang) * len;
+
+          ctx.lineCap = 'round';
+          ctx.globalAlpha = full;
+
+          // soft red glow along the streak
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.strokeStyle = 'rgba(255, 60, 40, 0.3)';
+          ctx.lineWidth = r * 1.1;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(tailX, tailY);
+          ctx.stroke();
+
+          // thin saturated body: hot at the head, cooling to transparent at the tail
+          ctx.globalCompositeOperation = 'source-over';
+          const streak = ctx.createLinearGradient(p.x, p.y, tailX, tailY);
+          streak.addColorStop(0, '#ffd9a0');
+          streak.addColorStop(0.22, '#ff6a3c');
+          streak.addColorStop(0.6, p.color);
+          streak.addColorStop(1, 'rgba(160, 8, 20, 0)');
+          ctx.strokeStyle = streak;
+          ctx.lineWidth = Math.max(1, r * 0.5);
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(tailX, tailY);
+          ctx.stroke();
+
+          ctx.lineCap = 'butt';
+          break;
+        }
+        case 'puff': {
+          // A soft red smoke puff: a lumpy translucent cloud with no hard rim.
+          const born = Math.min(1, t * 10);
+          const dying = Math.min(1, p.life / 0.3);
+          const r = Math.max(2, size);
+          const full = p.alpha * born * dying;
+          const steps = 28;
+          ctx.beginPath();
+          for (let k = 0; k <= steps; k++) {
+            const a = (k / steps) * TAU;
+            const rr = r * (1 + 0.11 * Math.sin(a * 5 + p.phase) + 0.05 * Math.sin(a * 8 - p.phase * 1.3 + t * 2.2));
+            const ang = a + p.rotation;
+            const px = p.x + Math.cos(ang) * rr;
+            const py = p.y + Math.sin(ang) * rr * 0.84;
+            if (k === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+
+          const fill = ctx.createLinearGradient(p.x, p.y - r, p.x, p.y + r);
+          fill.addColorStop(0, '#ff6b55');
+          fill.addColorStop(0.45, p.color);
+          fill.addColorStop(1, '#a8121f');
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = full;
+          ctx.fillStyle = fill;
+          ctx.fill();
+          break;
+        }
+        case 'shock': {
+          // Expanding shockwave: a saturated red band with a soft bloom and a hot
+          // inner edge, squashed slightly to sit in the room's three-quarter view.
+          const fade = Math.min(1, p.life / 0.34);
+          const full = p.alpha * fade * (0.6 + 0.4 * (1 - t));
+          const radius = Math.max(1, size);
+          const thick = Math.max(1, p.size * 0.24);
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.scale(1, 0.86);
+          // soft outer bloom
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = full * 0.16;
+          ctx.strokeStyle = '#ff2d2d';
+          ctx.lineWidth = thick * 4.4;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, 0, TAU);
+          ctx.stroke();
+          ctx.globalAlpha = full * 0.3;
+          ctx.lineWidth = thick * 2.3;
+          ctx.stroke();
+          // main red band
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = full * 0.92;
+          ctx.strokeStyle = '#ff3b30';
+          ctx.lineWidth = thick;
+          ctx.stroke();
+          // hot inner edge
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = full * 0.75;
+          ctx.strokeStyle = '#ffb45a';
+          ctx.lineWidth = Math.max(0.8, thick * 0.3);
+          ctx.beginPath();
+          ctx.arc(0, 0, Math.max(1, radius - thick * 0.55), 0, TAU);
+          ctx.stroke();
+          // faint inner echo
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = full * 0.32;
+          ctx.strokeStyle = '#e02a2a';
+          ctx.lineWidth = Math.max(0.8, thick * 0.45);
+          ctx.beginPath();
+          ctx.arc(0, 0, radius * 0.76, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+          break;
+        }
         case 'line':
           ctx.strokeStyle = p.color;
           ctx.lineWidth = size * 0.7;

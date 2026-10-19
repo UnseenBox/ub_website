@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Open hand: index finger out, thumb across the palm. Pointer is the fingertip. -->
+  <g fill="#221b36" stroke="#221b36" stroke-width="2.6" stroke-linejoin="round">
+    <rect x="7" y="13" width="17.5" height="15" rx="6"/>
+    <rect x="6.8" y="2.6" width="6.4" height="15.5" rx="3.2"/>
+    <rect x="12.9" y="7.8" width="6.9" height="11" rx="3.45"/>
+    <rect x="18.7" y="10.8" width="6.1" height="9.6" rx="3.05"/>
+    <rect x="2" y="18" width="11.5" height="6.8" rx="3.4" transform="rotate(22 7.75 21.4)"/>
+  </g>
+  <g fill="#ffffff">
+    <rect x="7" y="13" width="17.5" height="15" rx="6"/>
+    <rect x="6.8" y="2.6" width="6.4" height="15.5" rx="3.2"/>
+    <rect x="12.9" y="7.8" width="6.9" height="11" rx="3.45"/>
+    <rect x="18.7" y="10.8" width="6.1" height="9.6" rx="3.05"/>
+    <rect x="2" y="18" width="11.5" height="6.8" rx="3.4" transform="rotate(22 7.75 21.4)"/>
+  </g>
+</svg>

@@ -1,19 +1,39 @@
 /**
  * Recorded sound effects and music. Sources (all free for commercial use):
  *
- * - Impacts, doors, UI, explosion, zap, plop, gong-pot: Kenney game audio
- *   (kenney.nl), Creative Commons CC0, converted ogg -> mp3.
- * - Cartoon hits, animals, whistle, splash, alarm:
- *   Mixkit (mixkit.co), royalty-free, no attribution required, mp3 previews.
+ * - RPG Sound Pack by artisticdude (opengameart.org/content/rpg-sound-pack),
+ *   CC0, converted wav -> mp3 — most of what the pack does best: weapon
+ *   swings (`throw`/`dash`/`swipe`), `snap`, interface blips (`click`,
+ *   `discovery`, `charge-full`, `note`), coins (`pickup`, `room-clear`),
+ *   wood/metal/cloth impacts, the creaky world door (`door-open`), `poof`,
+ *   `crackle`, the shatter cascade (`chainmail2` as `glassBreak`), bubbles
+ *   (`plop`), `tin`, creature stings (`scream`, `rage`, `shout`, `yawn`,
+ *   `oof`, `hup`) and the NPC creature voices (`bite*`, `slime*`, `shade*`,
+ *   `giant*`, `ogre*`, `mnstr*`, `wolfman`) that intruder reactions, boss
+ *   roars and mom all borrow (see AudioManager's CRY_BY_TYPE).
+ * - Kenney.nl / Mixkit free recordings the game started with, still in for
+ *   `bell` and `plastic`.
+ * - The "New Added" replacement set (provided in the source assets) —
+ *   `alarm`, `boing`, the `boom` explosion, `splash`, `stamp`, `zap`, the
+ *   glass and paper impacts and the boss's `boss-walk` march.
+ * - The 400 Sounds Pack (provided in the source assets) — `knock-knock`'s
+ *   door raps (`enemy knock knock.mp3`), `whistle` (the rising first phrase
+ *   of `Human/whistle.wav`) and the `impact-paper-page` toggle click behind
+ *   `paper` (menu page flips, `UI/toggle_on.wav`).
+ * - jute-dh RPG sounds (provided in the source assets) — the fire loops
+ *   behind `ignite`/`fuse`, and `fall` for `fail`.
+ * - "hits and punches" (provided in the source assets) — `hurt` and the
+ *   `impact-punch` flesh layer.
+ * - Mixkit (mixkit.co) royalty-free for the pet voices; the pack has no cats,
+ *   dogs, parrots or hamsters, so the pets keep their own recordings (their
+ *   pitch contours live in PetVoices.ts).
  * - Late-night music loop ("One Night In France" by HoliznaCC0, via Free Music
- *   Archive), Creative Commons CC0, with loop fades applied.
- *
- * Win and lose stingers are synthesised (smooth pads in AudioManager), so no
- * sample files are needed for them.
+ *   Archive), CC0, with loop fades applied — no pack ships music.
  *
  * Files live in `public/sfx/` next to the page and are fetched + decoded after
- * the first user gesture creates the AudioContext. Anything missing — or the
- * single-file CrazyGames build (`__SAMPLES__` false, no `sfx/` folder ships) —
+ * the first user gesture creates the AudioContext. Anything missing — sounds
+ * with no good recording (`hiss`, `kettle`, `slide`, `squeak`), or the
+ * single-file portal builds (`__SAMPLES__` false, no `sfx/` folder ships) —
  * falls back to the synthesiser, so every call site works either way.
  */
 
@@ -29,24 +49,42 @@ export function samplesEnabled(): boolean {
 }
 
 export type SampleName =
-  | 'impact-wood' | 'impact-wood-light' | 'impact-metal' | 'impact-glass' | 'impact-glass-big'
-  | 'impact-paper' | 'impact-paper-page' | 'impact-punch' | 'impact-soft'
-  | 'bell-gong' | 'door-open' | 'door-close' | 'boom' | 'zap' | 'plop'
-  | 'click' | 'drop' | 'stamp' | 'swipe' | 'metal-pot'
+  | 'wood-small' | 'metal-small' | 'metal-ringing' | 'cloth'
+  | 'impact-glass' | 'impact-glass-big' | 'impact-paper' | 'impact-paper-page' | 'impact-punch'
+  | 'door-open' | 'knock-knock' | 'boss-walk' | 'boom' | 'fuse' | 'zap' | 'plop'
+  | 'click' | 'stamp' | 'swipe' | 'discovery' | 'snap' | 'note' | 'tin'
   | 'dog' | 'cat' | 'parrot' | 'hamster'
-  | 'boing' | 'plastic' | 'throw' | 'dash' | 'pickup' | 'splash' | 'duck' | 'whistle'
-  | 'bell' | 'alarm' | 'poof'
+  | 'boing' | 'plastic' | 'throw' | 'dash' | 'pickup' | 'splash' | 'whistle'
+  | 'bell' | 'alarm' | 'poof' | 'charge-full'
+  | 'hurt' | 'room-clear' | 'fail' | 'yawn' | 'ignite'
+  | 'crackle' | 'scream' | 'rage' | 'shout'
+  | 'oof' | 'hup'
+  | 'bite1' | 'bite2' | 'bite3'
+  | 'slime2' | 'slime6' | 'slime8' | 'slime9'
+  | 'shade2' | 'shade6' | 'shade12'
+  | 'giant1' | 'giant2' | 'giant4'
+  | 'ogre1' | 'ogre2' | 'ogre5'
+  | 'mnstr1' | 'mnstr7' | 'mnstr14' | 'wolfman'
   | 'music-night';
 
 /** Every sample that is prefetched at boot. */
 export const SAMPLE_FILES: readonly SampleName[] = [
-  'impact-wood', 'impact-wood-light', 'impact-metal', 'impact-glass', 'impact-glass-big',
-  'impact-paper', 'impact-paper-page', 'impact-punch', 'impact-soft',
-  'bell-gong', 'door-open', 'door-close', 'boom', 'zap', 'plop',
-  'click', 'drop', 'stamp', 'swipe', 'metal-pot',
+  'wood-small', 'metal-small', 'metal-ringing', 'cloth',
+  'impact-glass', 'impact-glass-big', 'impact-paper', 'impact-paper-page', 'impact-punch',
+  'door-open', 'knock-knock', 'boss-walk', 'boom', 'fuse', 'zap', 'plop',
+  'click', 'stamp', 'swipe', 'discovery', 'snap', 'note', 'tin',
   'dog', 'cat', 'parrot', 'hamster',
-  'boing', 'plastic', 'throw', 'dash', 'pickup', 'splash', 'duck', 'whistle',
-  'bell', 'alarm', 'poof',
+  'boing', 'plastic', 'throw', 'dash', 'pickup', 'splash', 'whistle',
+  'bell', 'alarm', 'poof', 'charge-full',
+  'hurt', 'room-clear', 'fail', 'yawn', 'ignite',
+  'crackle', 'scream', 'rage', 'shout',
+  'oof', 'hup',
+  'bite1', 'bite2', 'bite3',
+  'slime2', 'slime6', 'slime8', 'slime9',
+  'shade2', 'shade6', 'shade12',
+  'giant1', 'giant2', 'giant4',
+  'ogre1', 'ogre2', 'ogre5',
+  'mnstr1', 'mnstr7', 'mnstr14', 'wolfman',
   'music-night',
 ];
 
