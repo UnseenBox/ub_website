@@ -325,9 +325,9 @@
         if (!screens) return;
 
         var POWERS = [
-          ['BIG RED BUTTON', 150],
-          ['SUGAR RUSH', 120],
-          ['DEEP FREEZE', 120]
+          ['BIG RED BUTTON', 150, '!'],
+          ['SUGAR RUSH', 120, '\u26A1'],
+          ['DEEP FREEZE', 120, '\u2744']
         ];
         var wantShop = false;
 
@@ -351,7 +351,7 @@
             var card = document.createElement('div');
             card.className = 'candy-item';
             card.innerHTML =
-              '<div class="candy-item-art"></div>' +
+              '<div class="candy-item-art">' + (p[2] || '') + '</div>' +
               '<div class="candy-item-name">' + p[0] + '</div>' +
               '<div class="candy-item-price">' + p[1] + '</div>' +
               '<div class="candy-item-note">buy during a run</div>';
@@ -401,7 +401,8 @@
         }
 
         function syncSettings() {
-          var sheet = screens.querySelector('.screen.settings .sheet');
+          var pane = screens.querySelector('.screen.settings');
+          var sheet = pane && pane.querySelector('.sheet');
           if (!sheet) return;
           if (!sheet.querySelector('.candy-tabs')) {
             var bar = tabBar();
@@ -412,6 +413,17 @@
               if (tab) setTab(sheet, tab.getAttribute('data-tab'));
             });
           }
+          /* BACK and SHRED SAVE belong inside the card, not floating on the
+             dimmed board behind it */
+          var actions = sheet.querySelector('.candy-actions');
+          if (!actions) {
+            actions = document.createElement('div');
+            actions.className = 'candy-actions';
+            sheet.appendChild(actions);
+          }
+          Array.prototype.slice.call(pane.children).forEach(function (el) {
+            if (el !== sheet && el.tagName === 'BUTTON') actions.appendChild(el);
+          });
           if (wantShop) {
             setTab(sheet, 'shop');
             wantShop = false;
