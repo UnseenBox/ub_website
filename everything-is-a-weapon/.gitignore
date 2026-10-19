@@ -3,3 +3,7 @@ dist
 .env.gamemonetize
 .vercel
 *.log
+
+# Raw sound libraries (hundreds of MB) used to curate the shipped samples.
+# Only the recordings the game actually plays ship, in public/sfx/.
+assets/sfx/
