@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BONK! cutscene review</title>
+<style>
+  html, body { margin: 0; min-height: 100%; background: #05040d; }
+  body { display: grid; place-items: center; }
+  canvas { display: block; width: min(100vw, 1440px); height: auto; }
+</style>
+</head>
+<body>
+<canvas id="frame" width="1920" height="1080"></canvas>
+<script type="module">
+  import { Cutscene } from '/src/rendering/Cutscene.ts';
+
+  const params = new URLSearchParams(location.search);
+  const canvas = document.getElementById('frame');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  // The cutscene only reads `hero` and `room.def.enemies` when it starts.
+  const game = {
+    hero: 'tenant',
+    room: { def: { enemies: [{ type: 'basic' }, { type: 'trolley' }, { type: 'fragile' }] } },
+  };
+
+  function render(scene, t, hero = 'tenant') {
+    game.hero = hero;
+    const cs = new Cutscene();
+    cs.start(game, 'win', scene);
+    cs.seek(t);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#05040d';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    cs.draw(ctx, canvas.width, canvas.height);
+    return cs;
+  }
+
+  window.__render = render;
+  window.__canvas = canvas;
+
+  // Frame list for the contact sheet and the individual stills.
+  window.__frames = [
+    { id: 'evicted-01-hall',   scene: 'evicted',       t: 1.10, label: 'The hallway' },
+    { id: 'evicted-02-throw',  scene: 'evicted',       t: 1.86, label: 'The throw' },
+    { id: 'evicted-03-burst',  scene: 'evicted',       t: 2.45, label: 'The burst' },
+    { id: 'evicted-04-boxes',  scene: 'evicted',       t: 3.55, label: 'The boxes' },
+    { id: 'evicted-05-street', scene: 'evicted',       t: 5.95, label: 'Still yours' },
+    { id: 'home-01-room',      scene: 'victory',       t: 1.55, label: 'Morning' },
+    { id: 'home-02-still',     scene: 'victory',       t: 3.30, label: 'The little things' },
+    { id: 'home-03-step',      scene: 'victory',       t: 5.30, label: 'Home' },
+    { id: 'moved-01-carry',    scene: 'movedOut',      t: 1.20, label: 'The sofa' },
+    { id: 'moved-02-keys',     scene: 'movedOut',      t: 3.20, label: 'The keys' },
+    { id: 'moved-03-walk',     scene: 'movedOut',      t: 5.95, label: 'Moving day' },
+    { id: 'new-01-sofa',       scene: 'newManagement', t: 1.30, label: 'The new tenants' },
+    { id: 'new-02-glass',      scene: 'newManagement', t: 3.30, label: 'The window' },
+    { id: 'new-03-walk',       scene: 'newManagement', t: 5.55, label: 'New management' },
+  ];
+
+  /** Render every frame, save it through the dev server, and return pixel stats. */
+  window.__captureAll = async () => {
+    const written = [];
+    for (const f of window.__frames) {
+      render(f.scene, f.t);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let sum = 0;
+      let sum2 = 0;
+      let n = 0;
+      for (let i = 0; i < data.length; i += 160) {
+        const v = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        sum += v;
+        sum2 += v * v;
+        n++;
+      }
+      const mean = sum / n;
+      const sd = Math.sqrt(sum2 / n - mean * mean);
+      const res = await fetch(`/__cover/cutscene-${f.id}.png`, { method: 'POST', body: blob });
+      written.push({ id: f.id, label: f.label, file: await res.text(), kb: Math.round(blob.size / 1024), mean: mean.toFixed(1), sd: sd.toFixed(1) });
+    }
+    return written;
+  };
+
+  const scene = params.get('scene') || 'evicted';
+  const t = parseFloat(params.get('t') || '1.2');
+  render(scene, t, params.get('hero') || 'tenant');
+</script>
+</body>
+</html>

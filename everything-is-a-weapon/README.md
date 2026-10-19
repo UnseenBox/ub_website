@@ -383,10 +383,13 @@ loads, from room 2 on, so the hand-made rooms have them too):
 (splits into two Smalls), *Kaboom* (explodes when beaten: beat it next to its colleagues) and
 *Trolley* (slow to turn, then charges the length of the room).
 
-**Cutscenes** (`rendering/Cutscene.ts`): a few seconds of theatre between the last blow and
+**Cutscenes** (`rendering/Cutscene.ts`): a few seconds of cinema between the last blow and
 the results clipboard, drawn with the game's own character art and skippable with a tap.
-Two for a win (the boxes thrown into their own van; a victory hop on the pile) and two for a
-loss (boxed up and carried out; the movers on your sofa), alternating.
+Each of the four scenes is cut into three shots — an establishing beat, a close-up and a
+button — staged as a bright comic: bold flat colour, thick ink outlines, halftone dots and
+paper grain, closed with a torn-paper title card. Two for a win (the hallway throw and the
+quiet morning after) and two for a loss (the doorstep and the new tenants), alternating.
+`cutscene-preview.html` renders any frame for review.
 
 **Objects (77):** every one has a trait of its own, written on the tag that appears when you can
 pick it up.
