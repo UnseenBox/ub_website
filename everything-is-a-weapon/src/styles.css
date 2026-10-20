@@ -63,14 +63,9 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  /* In-world pointer: an open hand over the playspace, the fingertip on the aim
-     point. Falls back to the system hand if the image cannot be used. */
-  cursor: url('./assets/cursor-hand.svg') 10 2, pointer;
-}
-
-/* Carrying something, the hand closes into a fist. Toggled from UI.frame(). */
-body.holding #game {
-  cursor: url('./assets/cursor-grab.svg') 10 2, pointer;
+  /* The in-world pointer is the DOM hand in #game-cursor. Hide the native one
+     here as well as in cursor.css so no state can ever show both. */
+  cursor: none;
 }
 
 .hidden {
