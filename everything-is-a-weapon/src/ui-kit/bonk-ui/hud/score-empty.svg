@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="65" viewBox="0 0 150 65" role="img" aria-labelledby="title"><title id="title">Score</title><defs>
+    <linearGradient id="face" x2="0" y2="1"><stop stop-color="#46c9ff"/><stop offset=".42" stop-color="#078bd5"/><stop offset="1" stop-color="#044c91"/></linearGradient>
+    <linearGradient id="cream" x2=".25" y2="1"><stop stop-color="#fff2c9"/><stop offset="1" stop-color="#e8c58d"/></linearGradient>
+    <linearGradient id="metal" x2="1" y2="1"><stop stop-color="#515452"/><stop offset=".5" stop-color="#171b1c"/><stop offset="1" stop-color="#79746a"/></linearGradient>
+    <linearGradient id="gold" x2=".3" y2="1"><stop stop-color="#fff79c"/><stop offset=".5" stop-color="#ffd12e"/><stop offset="1" stop-color="#df8d06"/></linearGradient>
+    </defs><rect x="3" y="21" width="144" height="41" rx="14" fill="#4d301b"/></svg>

@@ -7,9 +7,10 @@ Everything needed for the submission is in this folder:
 | Game file to upload | `bonk-gamemonetize.zip` (a single `index.html` at the zip root — `dist-gamemonetize/index.html` is the same file) |
 | gameId baked into the build | `vytehkcwa8l16v4b1yet7b2ai9z5zl35` (kept in `.env.gamemonetize`) |
 
-The game is one self-contained file of about 530 KB: the code and styles are inside
-`index.html`, so the zip cannot lose an assets folder and nothing is fetched except
-GameMonetize's own SDK script (`https://api.gamemonetize.com/sdk.js`).
+The game is one self-contained file of about 1.4 MB (about 540 KB zipped): the code,
+styles, UI art and fonts are inside `index.html`, so the zip cannot lose an assets
+folder and nothing is fetched except GameMonetize's own SDK script
+(`https://api.gamemonetize.com/sdk.js`).
 
 ## Submitting
 
@@ -58,7 +59,7 @@ Their verifier completes only when it has seen the game make an ad request, so t
 session has to reach a natural break:
 
 1. Upload the **current** zip (`bonk-gamemonetize.zip`, one index.html of about
-   530 KB — not the old 28 MB BONK.zip, which has no SDK at all).
+   1.4 MB / 540 KB zipped — not the old 28 MB BONK.zip, which has no SDK at all).
 2. Make sure no ad blocker is on, then press **Verify Game** and play the window it
    opens.
 3. Their SDK plays an automatic preroll ad as the page loads (its own doing, on top

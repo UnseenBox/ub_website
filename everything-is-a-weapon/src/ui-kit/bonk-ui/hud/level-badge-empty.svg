@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44" role="img" aria-labelledby="title"><title id="title">Level Badge</title><defs>
+    <linearGradient id="face" x2="0" y2="1"><stop stop-color="#46c9ff"/><stop offset=".42" stop-color="#078bd5"/><stop offset="1" stop-color="#044c91"/></linearGradient>
+    <linearGradient id="cream" x2=".25" y2="1"><stop stop-color="#fff2c9"/><stop offset="1" stop-color="#e8c58d"/></linearGradient>
+    <linearGradient id="metal" x2="1" y2="1"><stop stop-color="#515452"/><stop offset=".5" stop-color="#171b1c"/><stop offset="1" stop-color="#79746a"/></linearGradient>
+    <linearGradient id="gold" x2=".3" y2="1"><stop stop-color="#fff79c"/><stop offset=".5" stop-color="#ffd12e"/><stop offset="1" stop-color="#df8d06"/></linearGradient>
+    </defs><path d="M22 3 40 10V29L22 41 4 29V10Z" fill="url(#face)" stroke="#073e65" stroke-width="3"/></svg>
