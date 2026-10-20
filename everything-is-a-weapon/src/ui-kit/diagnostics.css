@@ -1,0 +1,59 @@
+/* Last-resort runtime error panel. It sits above every game screen. */
+.fatal {
+  z-index: 999999;
+  color: var(--paper);
+}
+
+.fatal-box {
+  background: #2a2118;
+  border: 3px solid #20150d;
+  border-radius: 18px;
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.35), 0 20px 44px rgba(0, 0, 0, 0.45);
+  max-width: min(94vw, 620px);
+  padding: 24px 24px 20px;
+  text-align: left;
+  width: 100%;
+}
+
+.fatal-box h2 {
+  color: var(--kit-gold, #ffd12e);
+  font: 900 clamp(26px, 5vmin, 40px)/1 var(--kit-display, Impact, sans-serif);
+  letter-spacing: 0.03em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.fatal-box p {
+  color: #fff2c9;
+  font: 600 15px/1.5 var(--font, sans-serif);
+  margin: 0 0 12px;
+}
+
+.fatal-box pre {
+  background: #17110c;
+  border: 2px solid #4a3322;
+  border-radius: 10px;
+  color: #ffd7a1;
+  font: 600 12px/1.5 'Courier New', monospace;
+  margin: 0 0 16px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.fatal-reload {
+  background: linear-gradient(180deg, #a4e631 0%, var(--kit-green, #3f9e04) 42%, var(--kit-green-2, #1e6200) 100%);
+  border: 3px solid #291b12;
+  border-radius: 999px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.45);
+  color: #fff7dc;
+  cursor: pointer;
+  font: 900 15px var(--kit-display, Impact, sans-serif);
+  letter-spacing: 0.08em;
+  padding: 10px 26px;
+  text-transform: uppercase;
+}
+.fatal-reload:hover { filter: brightness(1.07); transform: translateY(-1px); }
+.fatal-reload:active { transform: translateY(1px); }

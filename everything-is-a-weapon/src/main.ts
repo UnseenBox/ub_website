@@ -1,7 +1,13 @@
 import './styles.css';
+import './ui-kit/legacy/bonk-cartoon-ui.css';
+import './ui-kit/legacy/bonk-overlay-ui.css';
+import './ui-kit/bonk-ui-kit.css';
+import './ui-kit/cursor.css';
+import './ui-kit/diagnostics.css';
 import { Game } from './core/Game';
 import { detectKeyLabels } from './input/KeyLabels';
 import { createPortal } from './platform';
+import { installBonkUi } from './ui/bonkKit';
 import { UI } from './ui/UI';
 
 function required<T extends HTMLElement>(id: string): T {
@@ -9,6 +15,44 @@ function required<T extends HTMLElement>(id: string): T {
   if (!node) throw new Error(`Missing #${id} in index.html`);
   return node as T;
 }
+
+/**
+ * A crash used to leave the last painted frame or a bare backdrop behind, with the
+ * cause only in the console. Put the error on top instead, with a way out.
+ */
+function showFatal(error: unknown): void {
+  console.error(error);
+  const text = error instanceof Error ? error.message : String(error);
+  const box = document.createElement('div');
+  box.className = 'fatal-box';
+  const title = document.createElement('h2');
+  title.textContent = 'BONK! hit a snag';
+  const message = document.createElement('p');
+  message.textContent = 'The game stopped before it could draw the next frame.';
+  const detail = document.createElement('pre');
+  detail.textContent = text.slice(0, 800) || 'Unknown error';
+  const reload = document.createElement('button');
+  reload.type = 'button';
+  reload.className = 'fatal-reload';
+  reload.textContent = 'RELOAD';
+  reload.addEventListener('click', () => window.location.reload());
+  box.append(title, message, detail, reload);
+
+  let panel = document.querySelector<HTMLElement>('.fatal');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'fatal';
+    document.body.append(panel);
+  }
+  panel.replaceChildren(box);
+}
+
+window.addEventListener('error', (event) => {
+  if (event.error) showFatal(event.error);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  showFatal(event.reason);
+});
 
 async function boot(): Promise<void> {
   // The portal's SDK has to be up before anything asks it for ads or the save file.
@@ -20,7 +64,9 @@ async function boot(): Promise<void> {
   detectKeyLabels();
   const canvas = required<HTMLCanvasElement>('game');
   const game = new Game(canvas, portal);
-  game.hud = new UI(game, required('hud'), required('screens'));
+  const screens = required<HTMLElement>('screens');
+  game.hud = new UI(game, required('hud'), screens);
+  installBonkUi(screens);
 
   // Browsers only allow audio after a gesture; the first click or key press unlocks it.
   const unlock = (): void => game.audio.unlock();
@@ -45,10 +91,4 @@ async function boot(): Promise<void> {
   }
 }
 
-boot().catch((error: unknown) => {
-  console.error(error);
-  const message = document.createElement('div');
-  message.className = 'fatal';
-  message.textContent = 'This browser could not start the game. Try a current version of Chrome, Edge, Firefox or Safari.';
-  document.body.append(message);
-});
+boot().catch(showFatal);
