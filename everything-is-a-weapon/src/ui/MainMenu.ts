@@ -63,14 +63,46 @@ function heroPair(heroId: HeroId): string {
   return `${hero.name} & ${pet}`;
 }
 
+/** Hero picks rebuild the menu (the room behind it needs the new pet), so the
+ *  MODE sheet remembers where it was and opens again on the new screen. */
+let reopenMode: 'rooms' | 'characters' | null = null;
+/** The room picked in MODE, kept across the hero-pick rebuild. */
+let lastRoomPick: number | null = null;
+
 /**
- * One screen, top to bottom: logo, rooms behind a map button (the full map of
- * locked and open rooms opens on tap), the four heroes, and a sticky action
- * bar whose PLAY button always says exactly what it is about to play.
+ * The home screen is the kit's three-beat composition: wordmark, PLAY, and the
+ * MODE / SHOP / SETTINGS row. The full room map and the four hero cards live
+ * inside the MODE sheet, so the home screen can stay as clean as the reference.
  */
 export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const save = game.save.data;
   const screen = el('div', 'screen menu-board');
+
+  // The quiet home screen, with rooms + characters behind one sheet.
+  const mode = el('div', 'mode-overlay');
+  mode.id = 'bonk-mode';
+  mode.hidden = true;
+  mode.innerHTML = `
+    <div class="mode-backdrop" data-mode-close></div>
+    <div class="mode-panel" role="dialog" aria-modal="true" aria-labelledby="mode-title">
+      <header class="mode-head">
+        <div class="mode-heading">
+          <div class="mode-kicker">RUN SETUP</div>
+          <h2 class="mode-title" id="mode-title">MODE</h2>
+        </div>
+        <button class="mode-close" type="button" data-mode-close>CLOSE</button>
+      </header>
+      <div class="mode-tabs" role="tablist" aria-label="Mode sections">
+        <button class="mode-tab on" type="button" role="tab" aria-selected="true" aria-controls="mode-pane-rooms" data-mode-tab="rooms">ROOMS</button>
+        <button class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="mode-pane-characters" data-mode-tab="characters">CHARACTERS</button>
+      </div>
+      <div class="mode-body">
+        <div class="mode-pane" id="mode-pane-rooms" role="tabpanel" data-mode-pane="rooms"></div>
+        <div class="mode-pane" id="mode-pane-characters" role="tabpanel" data-mode-pane="characters" hidden></div>
+      </div>
+    </div>`;
+  const modePaneRooms = mode.querySelector<HTMLElement>('[data-mode-pane="rooms"]')!;
+  const modePaneChars = mode.querySelector<HTMLElement>('[data-mode-pane="characters"]')!;
 
   // Tester unlock (?unlock in the URL): every room open plus the depths bosses
   // pinned to the end of the rail. Session-only: the save file is never touched.
@@ -79,7 +111,8 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const resumeRoom = save.unlockedRoom;
   const openThrough = tester ? total + 60 : resumeRoom;
 
-  // ── header: the logo, loud and centered, cog in the corner ──
+  // ── header: the wordmark, loud and centered. The cog stays hidden because
+  //    SETTINGS is a first-class button in the row below. ──
   const head = el('header', 'mk-head');
   const logo = el('div', 'mm-logo');
   logo.setAttribute('role', 'img');
@@ -120,6 +153,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   const roomLabel = (index: number): string => (index < total ? `ROOM ${index + 1}` : `DEPTHS ${index + 1}`);
   let selected = Math.max(0, resumeRoom);
+  if (lastRoomPick !== null && lastRoomPick >= 0 && lastRoomPick <= openThrough) selected = lastRoomPick;
   let mapOpen = false;
   const cardNodes = new Map<string, HTMLButtonElement>();
   const entries: Array<{ entry: RoomEntry; node: HTMLButtonElement }> = [];
@@ -136,6 +170,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   const select = (entry: RoomEntry, node: HTMLButtonElement): void => {
     selected = entry.index;
+    lastRoomPick = entry.index;
     for (const other of cardNodes.values()) {
       other.classList.remove('picked');
       other.setAttribute('aria-checked', 'false');
@@ -256,7 +291,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   mapClose.addEventListener('click', () => setMap(false));
   mapHead.hidden = true;
   roomsSec.append(mapBtn, mapHead, rail);
-  screen.append(roomsSec);
+  modePaneRooms.append(roomsSec);
 
   // ── characters: the four heroes in a strip, picked one wears the crown ──
   const chars = el('section', 'rm-heroes');
@@ -287,6 +322,10 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     card.append(frame, el('span', 'mm-card-name', info.name), el('span', 'mm-card-note', info.note));
     card.addEventListener('click', () => {
       paintHero(info.id);
+      if (info.id === game.hero) return;
+      // setHero() calls toMenu(), which rebuilds this screen. Keep the
+      // characters sheet open on the rebuilt menu.
+      reopenMode = 'characters';
       actions.hero(info.id);
     });
     cast.append(card);
@@ -294,17 +333,68 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   }
   paintHero(game.hero);
   chars.append(cast);
-  screen.append(chars);
+  modePaneChars.append(chars);
 
-  // ── action: what you are about to play, then one huge red PLAY ──
+  // ── action: one huge kit PLAY, the three square buttons, and a quiet
+  //    room/hero line that opens the MODE sheet. ──
   const action = el('div', 'rm-action');
-  const summary = el('div', 'rm-summary');
+  const summary = el('button', 'rm-summary mode-trigger') as HTMLButtonElement;
+  summary.type = 'button';
+  summary.title = 'Change room or hero';
+  summary.setAttribute('aria-haspopup', 'dialog');
+  summary.setAttribute('aria-controls', mode.id);
   summary.setAttribute('aria-live', 'polite');
-  summary.append(summaryRoom, summaryHero);
+  summary.append(summaryRoom, document.createTextNode(' '), summaryHero);
   const playBtn = button('▶ PLAY', 'primary rm-play', () => actions.play(selected));
   playBtn.append(playSub);
   action.append(summary, playBtn);
   screen.append(action);
+
+  // MODE sheet: tabs + open/close. The full map lives here now, so the home
+  // screen never opens a wall of room tiles on its own.
+  const modeTabs = [...mode.querySelectorAll<HTMLButtonElement>('.mode-tab')];
+  const setModeTab = (tab: 'rooms' | 'characters'): void => {
+    for (const node of modeTabs) {
+      const on = node.dataset.modeTab === tab;
+      node.classList.toggle('on', on);
+      node.setAttribute('aria-selected', String(on));
+      node.tabIndex = on ? 0 : -1;
+    }
+    modePaneRooms.hidden = tab !== 'rooms';
+    modePaneChars.hidden = tab !== 'characters';
+  };
+  const openMode = (tab: 'rooms' | 'characters' = 'rooms'): void => {
+    mode.hidden = false;
+    screen.classList.add('mode-open');
+    setModeTab(tab);
+    if (tab === 'rooms') setMap(true);
+    mode.querySelector<HTMLElement>('.mode-close')?.focus();
+  };
+  const closeMode = (): void => {
+    if (mode.hidden) return;
+    mode.hidden = true;
+    screen.classList.remove('mode-open');
+    summary.focus();
+  };
+  for (const tab of modeTabs) {
+    tab.addEventListener('click', () => {
+      const which = tab.dataset.modeTab === 'characters' ? 'characters' : 'rooms';
+      setModeTab(which);
+      if (which === 'rooms') setMap(true);
+    });
+  }
+  summary.addEventListener('click', () => openMode('rooms'));
+  for (const closer of mode.querySelectorAll<HTMLElement>('[data-mode-close]')) {
+    closer.addEventListener('click', closeMode);
+  }
+  mode.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMode();
+    }
+  });
+  setModeTab('rooms');
+  screen.append(mode);
 
   // Fallback if nothing was pre-selected: land on the first open tile.
   if (![...cardNodes.values()].some((n) => n.classList.contains('picked'))) {
@@ -317,6 +407,14 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     const footer = el('div', 'menu-footer');
     footer.append(el('span', 'warn', 'Storage is blocked — progress will not be saved.'));
     screen.append(footer);
+  }
+
+  // A hero click set this before setHero() rebuilt the menu. Reopen the
+  // characters sheet on the new screen, after it has been mounted.
+  if (reopenMode) {
+    const tab = reopenMode;
+    reopenMode = null;
+    requestAnimationFrame(() => openMode(tab));
   }
   return screen;
 }

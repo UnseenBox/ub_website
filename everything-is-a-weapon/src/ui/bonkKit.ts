@@ -324,7 +324,7 @@ function installCandy(screens: HTMLElement): void {
     if (!button) return;
     const what = button.dataset.candy;
     if (what === 'mode') {
-      screens.querySelector<HTMLElement>('.screen.menu-board .rm-mapbtn')?.click();
+      screens.querySelector<HTMLElement>('.screen.menu-board .mode-trigger')?.click();
     } else if (what === 'shop') {
       wantShop = true;
       gear()?.click();
@@ -435,14 +435,6 @@ function installKitWiring(screens: HTMLElement): void {
     }
   };
 
-  const openMapOnce = (): void => {
-    const rail = screens.querySelector<HTMLElement>('.screen.menu-board .rm-map');
-    const button = screens.querySelector<HTMLButtonElement>('.screen.menu-board .rm-mapbtn');
-    if (!rail || !button || rail.getAttribute('data-kit-auto')) return;
-    rail.setAttribute('data-kit-auto', '1');
-    if (window.innerWidth > 900 && window.innerHeight > 680 && rail.hidden) button.click();
-  };
-
   const bindVolume = (): void => {
     const slider = screens.querySelector<HTMLInputElement>('.screen.settings input[type="range"]');
     if (!slider || slider.getAttribute('data-kit-vol')) return;
@@ -455,7 +447,6 @@ function installKitWiring(screens: HTMLElement): void {
   const sync = (): void => {
     paintStars(screens);
     markResults(screens);
-    openMapOnce();
     bindVolume();
   };
 
