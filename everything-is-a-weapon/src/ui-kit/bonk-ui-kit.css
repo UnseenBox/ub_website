@@ -1205,6 +1205,7 @@
   display: inline-block;
   filter: none;
   height: auto;
+  text-shadow: none;
   width: auto;
 }
 
