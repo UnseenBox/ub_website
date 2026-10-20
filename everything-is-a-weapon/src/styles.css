@@ -270,6 +270,199 @@ body.holding #game {
   gap: 5px;
 }
 
+/* heat meter: a torn strip that fills as the room falls apart */
+.hud-heat {
+  width: 196px;
+  margin: 3px 0 0 3px;
+  padding: 4px 8px 6px;
+  color: var(--ink);
+  background: var(--grain), var(--paper-2);
+  clip-path: var(--torn-strip-b);
+  transform: rotate(-0.8deg);
+  transition: opacity 0.2s;
+}
+
+.hud-heat.hidden {
+  display: none;
+}
+
+.heat-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font: 700 10px var(--type);
+  letter-spacing: 0.1em;
+}
+
+.heat-label {
+  font-weight: 900;
+}
+
+.heat-pct {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.heat-tier {
+  padding: 1px 5px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 7px;
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+
+.heat-name {
+  display: block;
+  overflow: hidden;
+  margin: 1px 0 3px;
+  font: italic 700 9px var(--type);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.heat-track {
+  position: relative;
+  height: 9px;
+  border: 2px solid var(--ink);
+  background: rgba(34, 27, 54, 0.16);
+  overflow: hidden;
+}
+
+.heat-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: var(--yellow);
+  transition: width 0.25s cubic-bezier(0.3, 1.2, 0.5, 1), background 0.2s;
+}
+
+.heat-ticks {
+  position: absolute;
+  inset: 0;
+}
+
+.heat-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(34, 27, 54, 0.55);
+}
+
+.hud-heat[data-tier='1'] .heat-fill {
+  background: var(--orange, #f59e0b);
+}
+
+.hud-heat[data-tier='2'] .heat-fill {
+  background: var(--red);
+}
+
+.hud-heat.released .heat-fill {
+  animation: heat-alarm 0.45s ease-in-out infinite alternate;
+}
+
+@keyframes heat-alarm {
+  to { filter: brightness(1.45); }
+}
+
+/* Headliner / Enforcer health bar */
+.hud-boss {
+  position: absolute;
+  left: 50%;
+  top: 72px;
+  width: min(560px, 72vw);
+  padding: 7px 12px 9px;
+  color: var(--ink);
+  background: var(--grain), var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 6px 0 var(--shadow);
+  transform: translateX(-50%) rotate(0.5deg);
+}
+
+.hud-boss.hidden {
+  display: none;
+}
+
+.boss-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.boss-name {
+  overflow: hidden;
+  font: 900 clamp(15px, 2.4vw, 24px) var(--type);
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.boss-tag {
+  margin-left: auto;
+  padding: 2px 7px;
+  background: var(--red);
+  color: var(--paper);
+  font: 800 9px var(--type);
+  letter-spacing: 0.14em;
+}
+
+.hud-boss[data-kind='enforcer'] .boss-tag {
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.boss-track {
+  position: relative;
+  height: 15px;
+  border: 2px solid var(--ink);
+  background: rgba(34, 27, 54, 0.18);
+  overflow: hidden;
+}
+
+.boss-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  background: linear-gradient(180deg, #ff8d84, var(--red) 55%, #9e1c25);
+  transition: width 0.18s ease-out;
+}
+
+.hud-boss[data-kind='enforcer'] .boss-fill {
+  background: linear-gradient(180deg, #ffd98a, var(--yellow) 55%, #b87a00);
+}
+
+.hud-boss.phase-2 .boss-fill {
+  animation: boss-phase-pulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes boss-phase-pulse {
+  to { filter: brightness(1.35) saturate(1.3); }
+}
+
+.boss-pips {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  display: flex;
+  gap: 3px;
+  transform: translateY(-50%);
+}
+
+.boss-pip {
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.boss-pip.lit {
+  background: var(--ink);
+}
+
 /* room number on a luggage tag */
 .room-tag {
   position: relative;
@@ -468,6 +661,18 @@ body.holding #game {
 .mug-kaboom { box-shadow: inset 0 -6px 0 #ffd23f; }
 .mug-trolley { box-shadow: -4px 3px 0 -1px var(--ink), 4px 3px 0 -1px var(--ink); }
 .mug-boss { width: 30px; height: 28px; box-shadow: inset 0 -7px 0 #ffd23f; }
+.mug-enforcer { width: 30px; height: 27px; box-shadow: inset 0 -6px 0 #ffd23f, 0 0 0 2px rgba(255, 210, 63, 0.35); }
+.mug-crown {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  color: #ffd23f;
+  font-size: 16px;
+  line-height: 1;
+  transform: translateX(-50%) rotate(-8deg);
+  -webkit-text-stroke: 1px var(--ink);
+  paint-order: stroke fill;
+}
 .mug-electric { background: linear-gradient(90deg, transparent 38%, var(--yellow) 38% 62%, transparent 62%), var(--mug); }
 .mug-gnat { width: 14px; height: 15px; background: repeating-linear-gradient(0deg, var(--mug) 0 3px, #17132a 3px 4.5px); }
 .mug-hurler { box-shadow: inset 0 5px 0 #2f4fb5; }

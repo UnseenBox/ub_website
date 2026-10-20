@@ -2,6 +2,8 @@ import { moveKeysLabel } from '../input/KeyLabels';
 import type { Game } from '../core/Game';
 import { ANNOUNCEMENTS_VISIBLE } from '../core/constants';
 import { ENEMY_TYPES, type EnemyTypeId } from '../entities/EnemyTypes';
+import type { Enemy } from '../entities/Enemy';
+import type { IncidentKind } from '../gameplay/Incidents';
 import type { GuideIcon } from '../gameplay/Tutorial';
 import { DISCOVERY_BY_ID } from '../gameplay/Discoveries';
 import { COMBO_WINDOW } from '../gameplay/ScoreSystem';
@@ -10,6 +12,7 @@ import { el, formatScore, ransom } from './dom';
 interface Mug {
   node: HTMLElement;
   type: EnemyTypeId;
+  incident: IncidentKind | null;
   out: boolean;
 }
 
@@ -26,6 +29,19 @@ export class HUD {
   private readonly healthFill: HTMLElement;
   private readonly healthGhost: HTMLElement;
   private healthTimer = 0;
+  private readonly heatBox: HTMLElement;
+  private readonly heatFill: HTMLElement;
+  private readonly heatPct: HTMLElement;
+  private readonly heatName: HTMLElement;
+  private readonly heatTier: HTMLElement;
+  private lastHeat = '';
+  private readonly bossBox: HTMLElement;
+  private readonly bossName: HTMLElement;
+  private readonly bossTag: HTMLElement;
+  private readonly bossFill: HTMLElement;
+  private readonly bossPips: HTMLElement;
+  private lastBoss = '';
+  private lastBossUid = -1;
   private readonly lineup: HTMLElement;
   private readonly sticky: HTMLElement;
   private readonly stickyText: HTMLElement;
@@ -83,7 +99,25 @@ export class HUD {
     bar.append(this.healthGhost, this.healthFill, ticks);
     this.healthBar = bar;
     this.updateHealth(game.player.hp, game.player.maxHp, true);
-    left.append(tag, bar);
+
+    // Heat is a torn meter under the room tag: it fills as the player makes a mess.
+    this.heatBox = el('div', 'hud-heat hidden');
+    this.heatFill = el('span', 'heat-fill');
+    this.heatPct = el('span', 'heat-pct', '0%');
+    this.heatName = el('span', 'heat-name', '');
+    this.heatTier = el('span', 'heat-tier', 'QUIET');
+    const heatTrack = el('div', 'heat-track');
+    const heatTicks = el('span', 'heat-ticks');
+    for (const at of [34, 67]) {
+      const tick = el('span', 'heat-tick');
+      tick.style.left = `${at}%`;
+      heatTicks.append(tick);
+    }
+    heatTrack.append(this.heatFill, heatTicks);
+    const heatHead = el('div', 'heat-head');
+    heatHead.append(el('span', 'heat-label', 'HEAT'), this.heatPct, this.heatTier);
+    this.heatBox.append(heatHead, this.heatName, heatTrack);
+    left.append(tag, this.heatBox, bar);
 
     // ── centre: the line-up + bonus note ──
     const center = el('div', 'hud-center');
@@ -119,6 +153,16 @@ export class HUD {
 
     this.bannerBox = el('div', 'hud-banner');
     this.incomingBox = el('div', 'hud-incoming');
+    this.bossBox = el('div', 'hud-boss hidden');
+    this.bossName = el('span', 'boss-name', '');
+    this.bossTag = el('span', 'boss-tag', '');
+    this.bossFill = el('span', 'boss-fill');
+    this.bossPips = el('span', 'boss-pips');
+    const bossHead = el('div', 'boss-head');
+    bossHead.append(this.bossName, this.bossTag);
+    const bossTrack = el('div', 'boss-track');
+    bossTrack.append(this.bossFill, this.bossPips);
+    this.bossBox.append(bossHead, bossTrack);
     this.stampBox = el('div', 'hud-stamp');
     this.toast = el('div', 'hud-toast');
     this.toastTitle = el('div', 'toast-title');
@@ -133,13 +177,13 @@ export class HUD {
     skip.addEventListener('click', () => game.tutorial.skip());
 
     this.root.append(
-      top, this.bannerBox, this.incomingBox, this.stampBox, this.toast, this.coach, skip, this.unlockBox,
+      top, this.bannerBox, this.incomingBox, this.bossBox, this.stampBox, this.toast, this.coach, skip, this.unlockBox,
       el('div', 'cinema-bar top'), el('div', 'cinema-bar bottom'),
     );
     parent.append(this.root);
 
     game.bus.on('ROOM_START', () => this.buildLineup());
-    game.bus.on('ENEMY_DEFEATED', (e) => this.crossOut(e.enemy.type.id));
+    game.bus.on('ENEMY_DEFEATED', (e) => this.crossOut(e.enemy));
   }
 
   setVisible(visible: boolean): void {
@@ -149,22 +193,27 @@ export class HUD {
   /** One mugshot per intruder expected in this room, in the order they will arrive. */
   private buildLineup(): void {
     this.lineup.replaceChildren();
-    // Whoever is still outside: the room's list and its boss, minus anyone a replayed lesson left out.
-    const specs = [...this.game.room.pending];
+    // The incident always gets the last slot, even if a rushed regular is due sooner.
+    const pending = this.game.room.pending;
+    const specs = [...pending.filter((spec) => !spec.incident), ...pending.filter((spec) => spec.incident)];
     this.mugs = specs.map((spec) => {
       const type = ENEMY_TYPES[spec.type];
-      const node = el('span', `mug mug-${spec.type} waiting`);
+      const incident = spec.incident?.kind ?? null;
+      const boss = incident === 'headliner' ? ' mug-boss' : incident === 'enforcer' ? ' mug-enforcer' : '';
+      const node = el('span', `mug mug-${spec.type}${boss} waiting`);
       node.style.setProperty('--mug', type.color);
-      node.title = type.name;
+      node.title = spec.incident?.name ?? type.name;
       node.append(el('span', 'mug-face'));
+      if (incident === 'enforcer') node.append(el('span', 'mug-crown', '♛'));
       this.lineup.append(node);
-      return { node, type: spec.type, out: false };
+      return { node, type: spec.type, incident, out: false };
     });
     this.last.pending = -1;
   }
 
-  private crossOut(type: EnemyTypeId): void {
-    const mug = this.mugs.find((m) => !m.out && m.type === type && !m.node.classList.contains('waiting')) ?? this.mugs.find((m) => !m.out && m.type === type);
+  private crossOut(enemy: Enemy): void {
+    const mug = this.mugs.find((m) => !m.out && m.type === enemy.type.id && m.incident === enemy.incident)
+      ?? this.mugs.find((m) => !m.out && m.type === enemy.type.id);
     if (!mug) return;
     mug.out = true;
     mug.node.classList.remove('waiting');
@@ -197,10 +246,12 @@ export class HUD {
   incoming(kicker: string, title: string, sub: string, type: EnemyTypeId): void {
     if (!ANNOUNCEMENTS_VISIBLE) return;
     const typeDef = ENEMY_TYPES[type];
+    const mug = el('span', `incoming-mug mug mug-${type}`);
+    mug.append(el('span', 'mug-face'));
     this.incomingBox.style.setProperty('--incoming', typeDef.color);
     this.incomingBox.replaceChildren(
       el('span', 'incoming-kicker', kicker),
-      el('span', `incoming-mug mug mug-${type}`),
+      mug,
       ransom(title, this.bannerSeed++, 'incoming-title'),
       el('span', 'incoming-sub', sub),
     );
@@ -300,6 +351,8 @@ export class HUD {
   reset(): void {
     this.bannerBox.classList.remove('show');
     this.incomingBox.classList.remove('show');
+    this.bossBox.classList.add('hidden');
+    this.heatBox.classList.add('hidden');
     this.stampBox.classList.remove('show');
     this.toast.classList.remove('show');
     this.bannerTimer = 0;
@@ -307,8 +360,68 @@ export class HUD {
     this.stampTimer = 0;
     this.toastTimer = 0;
     this.toastQueue.length = 0;
+    this.lastHeat = '';
+    this.lastBoss = '';
+    this.lastBossUid = -1;
     this.shownScore = this.game.score.score;
     this.score.textContent = formatScore(this.shownScore);
+  }
+
+  /** Heat meter: quiet in the tutorial, climbing in every incident room. */
+  private updateHeat(): void {
+    const game = this.game;
+    const show = game.state === 'playing' && game.heat.active;
+    this.heatBox.classList.toggle('hidden', !show);
+    if (!show) {
+      this.lastHeat = '';
+      return;
+    }
+    const heat = Math.round(game.heat.heat);
+    const tier = game.heat.tier;
+    const released = game.heat.released;
+    const name = game.room.incidentSpec?.name ?? 'FINAL SURGE';
+    const key = `${heat}|${tier}|${released}|${name}`;
+    if (key === this.lastHeat) return;
+    this.lastHeat = key;
+    this.heatFill.style.width = `${Math.max(0, Math.min(100, game.heat.heat))}%`;
+    this.heatPct.textContent = `${heat}%`;
+    this.heatName.textContent = name;
+    this.heatTier.textContent = released ? 'INBOUND' : tier === 0 ? 'QUIET' : tier === 1 ? 'THEY NOTICED' : 'LOSING IT';
+    this.heatBox.dataset.tier = String(tier);
+    this.heatBox.classList.toggle('released', released);
+    this.heatBox.setAttribute('aria-label', `Heat ${heat} percent, ${this.heatTier.textContent.toLowerCase()}`);
+  }
+
+  /** One health bar for the room's current Headliner or Enforcer. */
+  private updateBoss(): void {
+    const game = this.game;
+    const boss = game.room.incidentEnemy;
+    const show = game.state === 'playing' && boss !== null && !boss.defeated;
+    this.bossBox.classList.toggle('hidden', !show);
+    if (!show || !boss) {
+      this.lastBoss = '';
+      this.lastBossUid = -1;
+      return;
+    }
+    const maxHp = Math.max(1, boss.type.hp);
+    const ratio = Math.max(0, Math.min(1, boss.hp / maxHp));
+    const key = `${boss.uid}|${Math.round(ratio * 1000)}|${boss.phaseIndex}`;
+    if (key === this.lastBoss) return;
+    this.lastBoss = key;
+    this.bossBox.dataset.kind = boss.incident ?? 'headliner';
+    this.bossName.textContent = game.room.incidentSpec?.name ?? boss.type.name;
+    this.bossTag.textContent = boss.incident === 'enforcer' ? 'ENFORCER' : 'HEADLINER';
+    this.bossFill.style.width = `${ratio * 100}%`;
+    this.bossBox.classList.toggle('phase-2', boss.phaseIndex >= 1);
+    if (boss.uid !== this.lastBossUid) {
+      this.lastBossUid = boss.uid;
+      const phases = boss.incident === 'headliner' ? boss.type.phases ?? [] : [];
+      this.bossPips.replaceChildren(...phases.map(() => el('span', 'boss-pip')));
+    }
+    const pips = this.bossPips.children;
+    for (let i = 0; i < pips.length; i++) {
+      pips[i]!.classList.toggle('lit', i < boss.phaseIndex);
+    }
   }
 
   frame(dt: number): void {
@@ -477,5 +590,7 @@ export class HUD {
       last.scrap = scrap;
       this.scrapSlip.textContent = scrap > 0 ? String(scrap) : '';
     }
+    this.updateHeat();
+    this.updateBoss();
   }
 }

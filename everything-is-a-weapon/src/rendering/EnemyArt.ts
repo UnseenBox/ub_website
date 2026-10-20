@@ -3255,6 +3255,37 @@ export function drawEnemy(ctx: Ctx, e: Enemy, x: number, y: number, time: number
   }
 
   if (e.defeated) return;
+  if (e.incident === 'enforcer') drawEnforcerCrown(ctx, e, x, time, done.overheadY);
   drawOverhead(ctx, e, x, time, done.overheadY);
   drawHpBar(ctx, e, x, y, done.barHw, hd);
+}
+
+/** A cheap gold crown so an Enforcer reads as an incident, not a regular. */
+function drawEnforcerCrown(ctx: Ctx, e: Enemy, x: number, time: number, topY: number): void {
+  const bob = Math.sin(time * 3 + e.seed) * 1.4;
+  const top = topY - 12 - (e.helmetHp > 0 ? 8 : 0) + bob;
+  ctx.save();
+  ctx.translate(x, top);
+  ctx.fillStyle = '#ffd23f';
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-13, 6);
+  ctx.lineTo(-13, -5);
+  ctx.lineTo(-6, 0);
+  ctx.lineTo(0, -8);
+  ctx.lineTo(6, 0);
+  ctx.lineTo(13, -5);
+  ctx.lineTo(13, 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = INK;
+  ctx.fillRect(-12, 2.5, 24, 2);
+  ctx.fillStyle = '#e5383b';
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.1, 0, TAU);
+  ctx.fill();
+  ctx.restore();
 }
