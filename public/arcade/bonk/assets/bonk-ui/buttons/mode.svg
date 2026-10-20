@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="116" height="104" viewBox="0 0 116 104" role="img" aria-labelledby="title"><title id="title">Mode</title><defs>
+    <linearGradient id="face" x2="0" y2="1"><stop stop-color="#46c9ff"/><stop offset=".42" stop-color="#078bd5"/><stop offset="1" stop-color="#044c91"/></linearGradient>
+    <linearGradient id="cream" x2=".25" y2="1"><stop stop-color="#fff2c9"/><stop offset="1" stop-color="#e8c58d"/></linearGradient>
+    <linearGradient id="metal" x2="1" y2="1"><stop stop-color="#515452"/><stop offset=".5" stop-color="#171b1c"/><stop offset="1" stop-color="#79746a"/></linearGradient>
+    <linearGradient id="gold" x2=".3" y2="1"><stop stop-color="#fff79c"/><stop offset=".5" stop-color="#ffd12e"/><stop offset="1" stop-color="#df8d06"/></linearGradient>
+    </defs><rect x="3" y="7" width="110" height="95" rx="19" fill="#28190e"/>
+    <rect x="3" y="2" width="110" height="94" rx="19" fill="url(#face)" stroke="#291b12" stroke-width="4"/>
+    <rect x="7" y="6" width="102" height="86" rx="15" fill="none" stroke="#fff1ba" stroke-width="2"/>
+    <path d="M19 11H97" stroke="#fff" stroke-opacity=".5" stroke-width="3" stroke-linecap="round"/><g transform="translate(35 10) scale(0.46)" fill="#fff0cc" stroke="#39271e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polygon points="50.00,10.00 61.17,34.63 88.04,37.64 68.07,55.87 73.51,82.36 50.00,69.00 26.49,82.36 31.93,55.87 11.96,37.64 38.83,34.63"/></g><text x="58" y="83" text-anchor="middle" font-family="Barlow Condensed, Impact, sans-serif" font-size="24" font-weight="900" fill="#fff7dc" stroke="#302318" stroke-width="3" stroke-linejoin="round" paint-order="stroke fill">MODE</text></svg>

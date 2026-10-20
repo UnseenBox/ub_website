@@ -14,6 +14,7 @@
     <link rel="stylesheet" crossorigin href="./assets/index-BDYnapyr.css">
     <link rel="stylesheet" href="./assets/bonk-cartoon-ui.css">
     <link rel="stylesheet" href="./assets/bonk-overlay-ui.css">
+    <link rel="stylesheet" href="./assets/bonk-ui-kit.css">
     <style>
       /* Custom torn-paper hand cursor, drawn to match BONK! */
       #game { cursor: none; }
@@ -324,10 +325,13 @@
         var screens = document.getElementById('screens');
         if (!screens) return;
 
-        var POWERS = [
-          ['BIG RED BUTTON', 150, '!'],
-          ['SUGAR RUSH', 120, '\u26A1'],
-          ['DEEP FREEZE', 120, '\u2744']
+        var ARSENAL = [
+          ['PAN', 'pan'],
+          ['SLIPPER', 'slipper'],
+          ['PILLOW', 'pillow'],
+          ['TOY HAMMER', 'toy-hammer'],
+          ['BROOM', 'broom'],
+          ['VACUUM', 'vacuum']
         ];
         var wantShop = false;
 
@@ -345,18 +349,19 @@
 
         function shopPanel() {
           var shop = document.createElement('div');
-          shop.className = 'candy-shop';
+          shop.className = 'candy-shop kit-arsenal';
           shop.hidden = true;
-          POWERS.forEach(function (p) {
+          ARSENAL.forEach(function (item) {
             var card = document.createElement('div');
             card.className = 'candy-item';
             card.innerHTML =
-              '<div class="candy-item-art">' + (p[2] || '') + '</div>' +
-              '<div class="candy-item-name">' + p[0] + '</div>' +
-              '<div class="candy-item-price">' + p[1] + '</div>' +
-              '<div class="candy-item-note">buy during a run</div>';
+              '<img class="kit-shop-card" src="./assets/bonk-ui/shop/' + item[1] + '.svg" alt="' + item[0] + '">';
             shop.appendChild(card);
           });
+          var note = document.createElement('div');
+          note.className = 'kit-shop-note';
+          note.textContent = 'EVERYTHING IS A WEAPON';
+          shop.appendChild(note);
           return shop;
         }
 
@@ -431,6 +436,91 @@
         }
 
         function sync() { syncMenu(); syncSettings(); }
+
+        new MutationObserver(sync).observe(screens, { childList: true, subtree: true });
+        sync();
+      })();
+    </script>
+    <script>
+      /* BONK UI kit wiring: real star icons, kit result buttons, open map, slider fill. */
+      (function () {
+        var screens = document.getElementById('screens');
+        if (!screens) return;
+        var KIT = './assets/bonk-ui/';
+
+        function paintStars(root) {
+          var nodes = root.querySelectorAll('.rm-stars, .victory-stars');
+          Array.prototype.forEach.call(nodes, function (node) {
+            var text = node.textContent || '';
+            if (!/[\u2605\u2606]/.test(text)) return;
+            if (node.getAttribute('data-kit-stars') === text) return;
+            node.setAttribute('data-kit-stars', text);
+            var frag = document.createDocumentFragment();
+            var textBuf = '';
+            function flushText() {
+              if (!textBuf) return;
+              var label = document.createElement('span');
+              label.className = 'kit-star-label';
+              label.textContent = textBuf;
+              frag.appendChild(label);
+              textBuf = '';
+            }
+            for (var i = 0; i < text.length; i++) {
+              var ch = text.charAt(i);
+              if (ch === '\u2605' || ch === '\u2606') {
+                flushText();
+                var img = document.createElement('img');
+                img.className = 'kit-star' + (ch === '\u2606' ? ' is-empty' : '');
+                img.src = KIT + 'icons/' + (ch === '\u2605' ? 'star-earned.svg' : 'star-empty.svg');
+                img.alt = '';
+                img.setAttribute('aria-hidden', 'true');
+                frag.appendChild(img);
+              } else {
+                textBuf += ch;
+              }
+            }
+            flushText();
+            node.textContent = '';
+            node.appendChild(frag);
+          });
+        }
+
+        function markResults(root) {
+          var buttons = root.querySelectorAll('.screen.results .menu-buttons .btn');
+          Array.prototype.forEach.call(buttons, function (btn) {
+            var label = (btn.textContent || '').toUpperCase();
+            var kind = '';
+            if (label.indexOf('NEXT') >= 0) kind = 'next';
+            else if (label.indexOf('REPLAY') >= 0) kind = 'replay';
+            else if (label.indexOf('RETRY') >= 0) kind = 'retry';
+            else if (label.indexOf('HOME') >= 0) kind = 'quit';
+            if (kind && btn.getAttribute('data-kit') !== kind) btn.setAttribute('data-kit', kind);
+          });
+        }
+
+        function openMapOnce() {
+          var rail = screens.querySelector('.screen.menu-board .rm-map');
+          var btn = screens.querySelector('.screen.menu-board .rm-mapbtn');
+          if (!rail || !btn || rail.getAttribute('data-kit-auto')) return;
+          rail.setAttribute('data-kit-auto', '1');
+          if (window.innerWidth > 900 && window.innerHeight > 680 && rail.hidden) btn.click();
+        }
+
+        function bindVolume() {
+          var slider = screens.querySelector('.screen.settings input[type="range"]');
+          if (!slider || slider.getAttribute('data-kit-vol')) return;
+          slider.setAttribute('data-kit-vol', '1');
+          var update = function () { slider.style.setProperty('--kit-vol', slider.value + '%'); };
+          slider.addEventListener('input', update);
+          update();
+        }
+
+        function sync() {
+          paintStars(screens);
+          markResults(screens);
+          openMapOnce();
+          bindVolume();
+        }
 
         new MutationObserver(sync).observe(screens, { childList: true, subtree: true });
         sync();
