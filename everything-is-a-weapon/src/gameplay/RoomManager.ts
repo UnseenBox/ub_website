@@ -4,19 +4,18 @@ import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import { Layer, RigidBody } from '../physics/RigidBody';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import type { PhysicsObject } from '../entities/PhysicsObject';
+import type { Enemy } from '../entities/Enemy';
 import { doorPosition, type RoomDefinition, type RoomEnemySpec } from './Room';
 import { ANCHOR_ROOMS, HANDCRAFTED_ROOMS } from './RoomDefinitions';
 import { depthFor, generateRoom } from './RoomGenerator';
-
-/** How long before a boss reaches the door its heavy footsteps start (the `boss-walk` clip length). */
-const BOSS_WALK_LEAD = 4.7;
+import { INCIDENT_WALK_LEAD, type IncidentSpec, type PendingEnemy } from './Incidents';
 
 export interface RoomRuntime {
   readonly def: RoomDefinition;
   readonly index: number;
   readonly daily: boolean;
   /** Intruders that have not walked in yet, soonest first. */
-  pending: RoomEnemySpec[];
+  pending: PendingEnemy[];
   elapsed: number;
   totalEnemies: number;
   cleared: boolean;
@@ -27,14 +26,20 @@ export interface RoomRuntime {
   exitOpen: number;
   /** The next intruder has already knocked. */
   knocked: boolean;
-  /** The boss's heavy footsteps have already played. */
+  /** The incident's heavy footsteps have already played. */
   footsteps: boolean;
   /** 0..1 while the entrance door is being hammered on. */
   entranceRattle: number;
-  /** A Landlord walks in this room (every third room). */
+  /** A Headliner walks in this room. */
   hasBoss: boolean;
-  /** Which boss walks in, when hasBoss is set. */
+  /** Which Headliner walks in, when hasBoss is set. */
   bossType: RoomEnemySpec['type'] | null;
+  /** The room's one incident, if it has one. */
+  incidentSpec: IncidentSpec | null;
+  incidentEnemy: Enemy | null;
+  bossReleased: boolean;
+  heatEnabled: boolean;
+  hasEnforcer: boolean;
   /** Survival rooms: seconds to outlast (null: kill everything). */
   survive: number | null;
 }
@@ -94,7 +99,13 @@ export class RoomManager {
     this.generatedSeeds.delete(index);
   }
 
-  build(game: Game, def: RoomDefinition, index: number, daily: boolean): RoomRuntime {
+  build(
+    game: Game,
+    def: RoomDefinition,
+    index: number,
+    daily: boolean,
+    incident: IncidentSpec | null = null,
+  ): RoomRuntime {
     const world = game.world;
     world.clear();
     world.setBounds({ x0: 0, y0: 0, x1: def.width, y1: def.height }, WALL);
@@ -134,13 +145,17 @@ export class RoomManager {
     game.player.body.teleport(def.playerStart.x, def.playerStart.y);
     world.add(game.player.body);
 
+    const pending: PendingEnemy[] = def.enemies.map((spec) => ({ type: spec.type, delay: spec.delay }));
+    if (incident) pending.push({ type: incident.baseType, delay: Number.POSITIVE_INFINITY, incident });
+    pending.sort((a, b) => a.delay - b.delay);
+
     return {
       def,
       index,
       daily,
-      pending: [...def.enemies].sort((a, b) => a.delay - b.delay),
+      pending,
       elapsed: 0,
-      totalEnemies: def.enemies.length,
+      totalEnemies: pending.length,
       cleared: false,
       clearTimer: 0,
       failTimer: 0,
@@ -149,8 +164,13 @@ export class RoomManager {
       knocked: false,
       footsteps: false,
       entranceRattle: 0,
-      hasBoss: false,
-      bossType: null,
+      hasBoss: incident?.kind === 'headliner',
+      bossType: incident?.baseType ?? null,
+      incidentSpec: incident,
+      incidentEnemy: null,
+      bossReleased: false,
+      heatEnabled: incident !== null || def.objective?.kind === 'survive',
+      hasEnforcer: incident?.kind === 'enforcer',
       survive: def.objective?.kind === 'survive' ? def.objective.seconds : null,
     };
   }
@@ -162,8 +182,8 @@ export class RoomManager {
     room.entranceRattle = Math.max(0, room.entranceRattle - dt * 1.5);
     // Anticipation: whoever is next hammers on the door just before coming through it.
     const next = room.pending[0];
-    // Something huge takes the long way in: boots on the floor well before the knock.
-    if (next && !room.footsteps && ENEMY_TYPES[next.type].boss && next.delay - room.elapsed < BOSS_WALK_LEAD) {
+    // An incident takes the long way in: boots on the floor well before the knock.
+    if (next?.incident && !room.footsteps && next.delay - room.elapsed < INCIDENT_WALK_LEAD) {
       room.footsteps = true;
       game.audio.play('bossWalk', 1);
     }
@@ -176,11 +196,32 @@ export class RoomManager {
       const spec = room.pending.shift()!;
       const door = doorPosition(room.def, room.def.entrance, 24);
       const lateral = game.rng.range(-14, 14);
-      const enemy = game.spawnEnemy(spec.type, door.x + door.dirY * lateral, door.y + door.dirX * lateral, door.dirX, door.dirY);
-      // Depths crew gets tougher with depth (bosses stay exactly as designed).
-      if (room.index >= game.rooms.handcraftedCount && !ENEMY_TYPES[spec.type].boss) {
-        const depth = depthFor(room.index);
-        enemy.hp = Math.round(enemy.hp * Math.min(1.6, 1 + 0.07 * depth));
+      const x = door.x + door.dirY * lateral;
+      const y = door.y + door.dirX * lateral;
+      let enemy: Enemy;
+      if (spec.incident?.kind === 'enforcer') {
+        const base = ENEMY_TYPES[spec.type];
+        const scaled = {
+          ...base,
+          name: spec.incident.name,
+          hp: Math.round(base.hp * spec.incident.hpScale),
+          speed: base.speed * spec.incident.speedScale,
+        };
+        enemy = game.spawnEnemyType(scaled, x, y, door.dirX, door.dirY);
+      } else {
+        enemy = game.spawnEnemy(spec.type, x, y, door.dirX, door.dirY);
+        // Depths crew gets tougher with depth (Headliners stay exactly as designed).
+        if (!spec.incident && room.index >= game.rooms.handcraftedCount) {
+          const depth = depthFor(room.index);
+          enemy.hp = Math.round(enemy.hp * Math.min(1.6, 1 + 0.07 * depth));
+        }
+      }
+      if (spec.incident) {
+        enemy.incident = spec.incident.kind;
+        room.incidentEnemy = enemy;
+        game.hud.incoming(spec.incident.kind.toUpperCase(), spec.incident.name, spec.incident.line, spec.type);
+        game.audio.bossRoar(spec.type, enemy.type.voice);
+        game.camera.addShake(spec.incident.kind === 'headliner' ? 0.5 : 0.3);
       }
       room.entranceOpen = 1;
       room.knocked = false;
@@ -190,7 +231,7 @@ export class RoomManager {
       game.fx.ring(door.x, door.y, 8, 54, 0.3, 'rgba(255,255,255,0.7)', 3);
       game.camera.addShake(0.22);
       const bossType = ENEMY_TYPES[spec.type];
-      if (bossType.boss) {
+      if (!spec.incident && bossType.boss) {
         game.audio.bossRoar(spec.type, enemy.type.voice);
         game.hud.banner(bossType.bossBanner ?? bossType.name.toUpperCase(), '', 2.4);
         game.camera.addShake(0.5);

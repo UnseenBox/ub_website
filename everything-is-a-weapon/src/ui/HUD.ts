@@ -35,6 +35,8 @@ export class HUD {
   private readonly powers: HTMLElement;
   private readonly scrapSlip: HTMLElement;
   private readonly bannerBox: HTMLElement;
+  private readonly incomingBox: HTMLElement;
+  private incomingTimer = 0;
   private readonly stampBox: HTMLElement;
   private readonly toast: HTMLElement;
   private readonly toastTitle: HTMLElement;
@@ -116,6 +118,7 @@ export class HUD {
     top.append(left, center, right);
 
     this.bannerBox = el('div', 'hud-banner');
+    this.incomingBox = el('div', 'hud-incoming');
     this.stampBox = el('div', 'hud-stamp');
     this.toast = el('div', 'hud-toast');
     this.toastTitle = el('div', 'toast-title');
@@ -130,7 +133,7 @@ export class HUD {
     skip.addEventListener('click', () => game.tutorial.skip());
 
     this.root.append(
-      top, this.bannerBox, this.stampBox, this.toast, this.coach, skip, this.unlockBox,
+      top, this.bannerBox, this.incomingBox, this.stampBox, this.toast, this.coach, skip, this.unlockBox,
       el('div', 'cinema-bar top'), el('div', 'cinema-bar bottom'),
     );
     parent.append(this.root);
@@ -188,6 +191,23 @@ export class HUD {
     void box.offsetWidth;
     box.classList.add('show');
     this.bannerTimer = seconds;
+  }
+
+  /** A torn arrival card for the room's Headliner or Enforcer. */
+  incoming(kicker: string, title: string, sub: string, type: EnemyTypeId): void {
+    if (!ANNOUNCEMENTS_VISIBLE) return;
+    const typeDef = ENEMY_TYPES[type];
+    this.incomingBox.style.setProperty('--incoming', typeDef.color);
+    this.incomingBox.replaceChildren(
+      el('span', 'incoming-kicker', kicker),
+      el('span', `incoming-mug mug mug-${type}`),
+      ransom(title, this.bannerSeed++, 'incoming-title'),
+      el('span', 'incoming-sub', sub),
+    );
+    this.incomingBox.classList.remove('show');
+    void this.incomingBox.offsetWidth;
+    this.incomingBox.classList.add('show');
+    this.incomingTimer = 2.4;
   }
 
   /** A rubber stamp slammed across the screen. */
@@ -279,9 +299,11 @@ export class HUD {
 
   reset(): void {
     this.bannerBox.classList.remove('show');
+    this.incomingBox.classList.remove('show');
     this.stampBox.classList.remove('show');
     this.toast.classList.remove('show');
     this.bannerTimer = 0;
+    this.incomingTimer = 0;
     this.stampTimer = 0;
     this.toastTimer = 0;
     this.toastQueue.length = 0;
@@ -296,6 +318,10 @@ export class HUD {
     if (this.bannerTimer > 0) {
       this.bannerTimer -= dt;
       if (this.bannerTimer <= 0) this.bannerBox.classList.remove('show');
+    }
+    if (this.incomingTimer > 0) {
+      this.incomingTimer -= dt;
+      if (this.incomingTimer <= 0) this.incomingBox.classList.remove('show');
     }
     if (this.stampTimer > 0) {
       this.stampTimer -= dt;

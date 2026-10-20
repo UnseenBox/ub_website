@@ -49,6 +49,8 @@ export class Enemy {
   stun = 0;
   shockTimer = 0;
   private shockCooldown = 0;
+  /** Campaign Headliner or Depths Enforcer tag; null for a regular. */
+  incident: 'headliner' | 'enforcer' | null = null;
   /** Boss phase already crossed (indexes into type.phases). */
   phaseIndex = 0;
   /** Speed multiplier from crossed phases. */

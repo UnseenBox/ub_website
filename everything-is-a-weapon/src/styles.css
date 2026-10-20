@@ -712,6 +712,63 @@ body.holding #game {
   }
 }
 
+/* torn arrival card for a Headliner or Enforcer */
+.hud-incoming {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 14px;
+  width: min(480px, 88vw);
+  padding: 16px 22px 18px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 7px 8px 0 var(--shadow);
+  transform: translate(-50%, -50%) rotate(-1.5deg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.28));
+}
+
+.hud-incoming.show {
+  opacity: 1;
+  animation: incoming-pop 0.25s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.hud-incoming .incoming-mug {
+  grid-row: span 3;
+  width: 56px;
+  height: 56px;
+  border: 2px solid var(--ink);
+  background: var(--incoming, var(--red));
+}
+
+.hud-incoming .incoming-kicker {
+  color: var(--incoming, var(--red));
+  font: 800 12px var(--type);
+  letter-spacing: 0.18em;
+}
+
+.hud-incoming .incoming-title {
+  display: block;
+  font-size: clamp(20px, 4vw, 34px);
+  line-height: 1;
+}
+
+.hud-incoming .incoming-sub {
+  font: italic 14px var(--type);
+  opacity: 0.8;
+}
+
+@keyframes incoming-pop {
+  from { opacity: 0; transform: translate(-50%, -45%) rotate(-5deg) scale(0.86); }
+  to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.5deg) scale(1); }
+}
+
 /* a chain reaction spelled out as tags on a red string */
 .chain-strip {
   display: flex;

@@ -15,7 +15,20 @@ export type AnalyticsEventName =
   | 'first_grab'
   | 'first_throw'
   | 'first_hit'
-  | 'first_clear';
+  | 'first_clear'
+  | 'run_start'
+  | 'run_continue'
+  | 'run_end'
+  | 'edge_offer'
+  | 'edge_pick'
+  | 'heat_tier'
+  | 'boss_arrive'
+  | 'boss_defeat'
+  | 'daily_start'
+  | 'daily_clear'
+  | 'daily_already_paid'
+  | 'ledger_claim'
+  | 'tutorial_skip';
 
 export type AnalyticsParams = Readonly<Record<string, string | number | boolean>>;
 

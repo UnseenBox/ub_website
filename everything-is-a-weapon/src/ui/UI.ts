@@ -61,6 +61,10 @@ export class UI implements GameUi {
     this.hud.unlock(kicker, title, sub);
   }
 
+  incoming(kicker: string, title: string, sub: string, type: Parameters<HUD['incoming']>[3]): void {
+    this.hud.incoming(kicker, title, sub, type);
+  }
+
   frame(dt: number): void {
     // The pointer is an open hand while aiming and a fist while carrying something.
     const holding = this.game.state === 'playing' && this.game.player.held !== null;

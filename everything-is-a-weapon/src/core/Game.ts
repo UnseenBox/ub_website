@@ -3,7 +3,7 @@ import { AnalyticsManager } from '../analytics/AnalyticsManager';
 import { AudioManager } from '../audio/AudioManager';
 import { createPet, type Pet } from '../entities/Pets';
 import { Enemy } from '../entities/Enemy';
-import { ENEMY_TYPES, type EnemyTypeId } from '../entities/EnemyTypes';
+import { ENEMY_TYPES, type EnemyType, type EnemyTypeId } from '../entities/EnemyTypes';
 import type { PhysicsObject } from '../entities/PhysicsObject';
 import { Player } from '../entities/Player';
 import { ChallengeSystem } from '../gameplay/ChallengeSystem';
@@ -13,6 +13,8 @@ import { ABILITIES, AbilitySystem, type AbilityDefinition, type AbilityId } from
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
 import { isEdgeId, type EdgeId } from '../gameplay/Edges';
 import { EdgeSystem } from '../gameplay/EdgeSystem';
+import { HeatSystem, type HeatEvent } from '../gameplay/Heat';
+import { enforcerSpec, headlinerSpec, releaseIncident, rushRegulars, type IncidentSpec } from '../gameplay/Incidents';
 import { ImpactSystem } from '../gameplay/ImpactSystem';
 import { NavField } from '../gameplay/Navigation';
 import { placePickups, updateRage } from '../gameplay/Pickups';
@@ -100,6 +102,8 @@ export interface GameUi {
   showSummary(summary: RoomSummary): void;
   /** Slams a rubber stamp across the screen ("CLEARED"). */
   stamp(text: string): void;
+  /** The incident arrival card. */
+  incoming(kicker: string, title: string, sub: string, type: EnemyTypeId): void;
   frame(dt: number): void;
 }
 
@@ -126,7 +130,9 @@ const CLEAR_DELAY = 1.6;
 const FAIL_DELAY = 1.4;
 const MAX_OBJECTS = 90;
 
-const NULL_UI: GameUi = { banner() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, stamp() {}, frame() {} };
+const NULL_UI: GameUi = {
+  banner() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, stamp() {}, incoming() {}, frame() {},
+};
 
 export class Game {
   readonly bus = new EventBus();
@@ -139,6 +145,7 @@ export class Game {
   readonly camera = new Camera();
   readonly save: SaveManager;
   readonly edges: EdgeSystem;
+  readonly heat = new HeatSystem();
   readonly analytics = new AnalyticsManager();
   readonly ads: AdManager;
   readonly replay = new ReplayRecorder();
@@ -198,6 +205,8 @@ export class Game {
   private funnelHit = false;
   private funnelClear = false;
   private devEdges: EdgeId[] = [];
+  private objectHeatWindow = 0;
+  private objectHeatTimer = 0;
 
   constructor(
     readonly canvas: HTMLCanvasElement,
@@ -240,6 +249,7 @@ export class Game {
 
     this.wireFeedback();
     this.wireFunnel();
+    this.wireHeat();
     this.audio.prefetchSamples();
     this.input.onAction((action) => {
       if (action === 'pause') this.togglePause();
@@ -323,7 +333,7 @@ export class Game {
     this.hud.stateChanged(state);
   }
 
-  private loadRoom(def: RoomDefinition, index: number, daily: boolean): void {
+  private loadRoom(def: RoomDefinition, index: number, daily: boolean, incident: IncidentSpec | null = null): void {
     this.objects.length = 0;
     this.enemies.length = 0;
     this.popups.length = 0;
@@ -348,7 +358,7 @@ export class Game {
     this.edges.beginFloor();
     this.player = new Player(def.playerStart.x, def.playerStart.y);
     this.player.armor = this.edges.armorAtFloorStart();
-    this.room = this.rooms.build(this, def, index, daily);
+    this.room = this.rooms.build(this, def, index, daily, incident);
     this.pet = createPet(this.hero, def.playerStart.x - 34, def.playerStart.y + 12);
     placePickups(this);
     this.discoveries.newThisRoom = 0;
@@ -390,19 +400,18 @@ export class Game {
     this.enterRoom(dailyChallenge(new Date()).room, 0, true);
   }
 
+  /** One incident per non-tutorial room; survival rooms get only the heat surge. */
+  private incidentFor(def: RoomDefinition, index: number, daily: boolean): IncidentSpec | null {
+    if (daily) return def.objective?.kind === 'survive' ? null : enforcerSpec(0);
+    if (index < this.rooms.handcraftedCount) return def.boss ? headlinerSpec(def.boss) : null;
+    if (def.boss) return headlinerSpec(def.boss);
+    return def.objective?.kind === 'survive' ? null : enforcerSpec(index);
+  }
+
   private enterRoom(def: RoomDefinition, index: number, daily: boolean): void {
-    this.loadRoom(def, index, daily);
-    // Handcrafted rooms name their own boss; otherwise every third room ends
-    // with the Landlord, after the regular crew has arrived.
-    const latest = def.enemies.reduce((max, spec) => Math.max(max, spec.delay), 0);
-    const boss = def.boss ? { type: def.boss, delay: latest + 4 } : bossSpecFor(index, daily, def);
-    if (boss) {
-      this.room.pending.push(boss);
-      this.room.pending.sort((a, b) => a.delay - b.delay);
-      this.room.totalEnemies++;
-      this.room.hasBoss = true;
-      this.room.bossType = boss.type;
-    }
+    const incident = this.incidentFor(def, index, daily);
+    this.loadRoom(def, index, daily, incident);
+    this.heat.reset(this.room);
     // Room 1 teaches until it has been sat through once; a replay names its lesson.
     const saved = this.save.data.tutorial;
     const lesson = this.lessonFrom ?? (saved === 'done' ? null : LESSONS.find((l) => l === saved) ?? 'move');
@@ -534,6 +543,7 @@ export class Game {
       save.totalChains += this.score.stats.chainEvents;
       save.totalHazardKills += this.score.stats.hazardKills;
       if (this.room.hasBoss) save.bossesBeaten++;
+      if (this.room.hasEnforcer) save.enforcersBeaten++;
       if (isNewBestStars) save.roomStars[this.room.def.id] = stars;
       else if (save.roomStars[this.room.def.id] === undefined && stars > 0) save.roomStars[this.room.def.id] = stars;
       // First clear pays out scrap for the ability shop: bosses pay double.
@@ -695,6 +705,12 @@ export class Game {
 
     const room = this.room;
     this.rooms.updateSpawns(this, room, dt);
+    this.objectHeatTimer += dt;
+    if (this.objectHeatTimer >= 1) {
+      this.objectHeatTimer -= 1;
+      this.objectHeatWindow = 0;
+    }
+    this.heat.update(dt, room, this.enemies, (event) => this.onHeatEvent(event));
     this.nav.update(this, dt);
 
     this.player.update(this, input, dt);
@@ -853,7 +869,12 @@ export class Game {
   }
 
   spawnEnemy(type: EnemyTypeId, x: number, y: number, dirX = -1, dirY = 0): Enemy {
-    const enemy = new Enemy(ENEMY_TYPES[type], x, y, dirX, dirY);
+    return this.spawnEnemyType(ENEMY_TYPES[type], x, y, dirX, dirY);
+  }
+
+  /** Spawns an already-built type, for scaled Enforcer variants. */
+  spawnEnemyType(type: EnemyType, x: number, y: number, dirX = -1, dirY = 0): Enemy {
+    const enemy = new Enemy(type, x, y, dirX, dirY);
     this.enemies.push(enemy);
     this.world.add(enemy.body);
     if (enemy.type.electric) {
@@ -1042,6 +1063,59 @@ export class Game {
       this.funnelHit = true;
       this.analytics.track('first_hit', { room: room(), ms: elapsed() });
     });
+  }
+
+  /** Player chaos feeds the incident meter. */
+  private wireHeat(): void {
+    const bus = this.bus;
+    bus.on('ENEMY_DEFEATED', (e) => {
+      this.heat.add(e.cause.type === 'fire' || e.cause.type === 'explosion' ? 12 : 7);
+    });
+    bus.on('PLAYER_HIT', () => this.heat.add(5));
+    bus.on('CHAIN', () => this.heat.add(10));
+    bus.on('OBJECT_BROKEN', () => this.heat.add(2));
+    bus.on('OBJECT_HIT', (e) => {
+      if (e.impulse < 1400 || this.objectHeatWindow >= 4) return;
+      this.objectHeatWindow += 0.5;
+      this.heat.add(0.5);
+    });
+  }
+
+  private onHeatEvent(event: HeatEvent): void {
+    const room = this.room.index + 1;
+    switch (event.kind) {
+      case 'tier':
+        this.analytics.track('heat_tier', { tier: event.tier, room, seconds: Math.round(this.room.elapsed) });
+        if (event.tier === 1) {
+          rushRegulars(this.room);
+          this.hud.banner('THEY NOTICED', 'the door is getting louder', 2);
+        } else {
+          this.incidentSurge(false);
+          this.hud.banner('THE ROOM IS LOSING IT', 'watch the floor', 2);
+        }
+        break;
+      case 'release':
+        if (!releaseIncident(this.room)) this.incidentSurge(true);
+        break;
+      case 'surge':
+        this.incidentSurge(true);
+        break;
+    }
+  }
+
+  /** Fire lands where the room is already chaotic; the zone does the damage. */
+  private incidentSurge(final: boolean): void {
+    const def = this.room.def;
+    const count = final ? 2 : 1;
+    for (let i = 0; i < count; i++) {
+      const x = this.rng.range(70, Math.max(71, def.width - 70));
+      const y = this.rng.range(70, Math.max(71, def.height - 50));
+      this.zones.spawn(this, 'fire', x, y, final ? 40 : 30, { ttl: final ? 6 : 4.5 });
+      this.fx.ring(x, y, 6, final ? 58 : 42, 0.35, 'rgba(255,120,60,0.9)', 3);
+      this.particles.burst('ember', x, y - 8, final ? 16 : 10, 220);
+      this.audio.play('explosion', final ? 0.9 : 0.7);
+      this.camera.addShake(final ? 0.5 : 0.3);
+    }
   }
 
   private wireFeedback(): void {
