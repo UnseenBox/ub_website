@@ -83,11 +83,9 @@ export class ImpactSystem {
         dirX: contact.nx, dirY: contact.ny, spread: 1.4,
       });
       game.fx.ring(contact.px, contact.py, 4, 14 + intensity * 30, 0.22, 'rgba(255,255,255,0.5)', 2);
-      // Really hard smashes pop stars even when no creature is involved.
+      // Really hard smashes throw sparks even when no creature is involved.
       if (impulse > 2200) {
-        game.particles.burst('star', contact.px, contact.py - 10, 3 + Math.floor(intensity * 4), 200 + intensity * 160, {
-          dirX: contact.nx, dirY: contact.ny, spread: 1.0,
-        });
+        game.impactSpark(contact.px, contact.py - 10, Math.min(0.6, 0.3 + intensity * 0.3), contact.nx, contact.ny);
       }
       game.bus.emit({ type: 'OBJECT_HIT', a, b, impulse, x: contact.px, y: contact.py });
     }

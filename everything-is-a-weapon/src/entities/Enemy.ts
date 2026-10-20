@@ -382,6 +382,7 @@ export class Enemy {
             game.audio.play('gong', 1, 1.1);
             game.fx.burst('PARRY!', b.x - this.lungeX * 10, b.y - 44, 1.05, '#cfd8ea', true);
             game.particles.burst('spark', guard.body.x, guard.body.y - 14, 10, 260);
+            game.impactSpark(guard.body.x, guard.body.y - 14, 0.5);
             game.camera.addShake(0.3);
             game.hitStop(0.06);
             game.discoveries.unlock('parry');
@@ -1216,6 +1217,7 @@ export class Enemy {
         game.particles.burst('spark', sx, sy, 8, 240);
         game.particles.burst('sparkle', sx, sy - 14, 10, 220);
         game.particles.burst('glint', sx, sy - 10, 2, 30);
+        game.impactSpark(sx, sy - 10, 0.45);
         game.audio.impact('metal', 0.8, 3);
         game.fx.burst('CLANG!', b.x + Math.cos(this.facing) * 22, b.y - 30, 0.9, '#cfd8ea');
         game.discoveries.unlock('clang');

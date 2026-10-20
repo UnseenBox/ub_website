@@ -418,7 +418,7 @@ export class Player {
     game.camera.addShake(0.45);
     game.audio.play('hurt', 1);
     game.audio.voice('ow', 300);
-    game.particles.burst('star', this.body.x, this.body.y - 10, 8, 200);
+    game.impactSpark(this.body.x, this.body.y - 10, 0.55);
     game.fx.burst('OW!', this.body.x, this.body.y - 58, 0.9, '#ff5a4e', true);
     game.hitStop(0.07);
     game.bus.emit({ type: 'PLAYER_HIT', cause });

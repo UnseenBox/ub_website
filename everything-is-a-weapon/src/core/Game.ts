@@ -943,6 +943,8 @@ export class Game {
       this.fx.burst('KABOOM!', x, y - 40, 1.7, '#ff5a4e', true);
       this.audio.play('explosion', 1);
     }
+    // Steam keeps its cool palette; fire and fireworks get the red spark shower.
+    if (style !== 'steam') this.impactSpark(x, y - 10, 0.9);
     this.camera.addShake(0.9);
     this.camera.punchZoom(0.05);
     this.fx.flash('#ffffff', 0.6);
@@ -994,6 +996,16 @@ export class Game {
     this.hitStopLeft = Math.max(this.hitStopLeft, seconds);
   }
 
+  /** Compact red spark burst for impacts outside the enemy-hit path. */
+  impactSpark(x: number, y: number, power: number, dirX = 0, dirY = 0): void {
+    const p = Math.max(0.2, Math.min(1, power));
+    const cone = dirX !== 0 || dirY !== 0 ? { dirX, dirY, spread: 1 } : undefined;
+    this.particles.burst('sparkle', x, y, Math.round(10 + p * 18), 200 + p * 180, cone);
+    this.particles.ringBurst('sparkle', x, y, Math.round(6 + p * 8), 220 + p * 120, 26);
+    if (p >= 0.35) this.particles.burst('glint', x, y - 4, p >= 0.8 ? 2 : 1, 40);
+    if (p >= 0.4) this.particles.burst('shock', x, y, 1, 0);
+  }
+
   // ───────────── juice: turn gameplay events into feedback ─────────────
 
   /** Dev-only funnel: where first-time players stall, in milliseconds since room entry. */
@@ -1031,6 +1043,7 @@ export class Game {
       const top = b.y - b.z - object.def.height * 0.5;
       this.particles.burst(object.material.debris, b.x, top, brittle ? 20 : 13, 290);
       this.particles.burst('dust', b.x, b.y, 5, 110);
+      this.impactSpark(b.x, top, brittle ? 0.8 : 0.55);
       if (brittle) {
         this.audio.play('glassBreak', 0.9);
         this.fx.burst('SMASH!', b.x, top - 22, 1, '#d9fbf0');
@@ -1202,6 +1215,7 @@ export class Game {
       this.slowMotion(0.25, 1.2);
       this.audio.play('scream', 0.8);
       this.particles.burst('star', this.player.body.x, this.player.body.y, 16, 240);
+      this.impactSpark(this.player.body.x, this.player.body.y - 10, 0.7);
     });
 
     bus.on('OBJECT_GRABBED', (e) => this.analytics.track('object_grab', { object: e.object.def.id }));
