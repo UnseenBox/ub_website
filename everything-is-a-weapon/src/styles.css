@@ -1981,6 +1981,20 @@ body.cinema .hud-top {
   white-space: nowrap;
 }
 
+.victory-run {
+  margin-top: -2px;
+  padding: 3px 9px 2px;
+  background: var(--grain), var(--kraft);
+  border: 1.5px solid rgba(34, 27, 54, 0.35);
+  font: 800 10px var(--type);
+  letter-spacing: 0.12em;
+  transform: rotate(-0.8deg);
+}
+
+.victory-card.has-edges {
+  width: min(100%, 780px);
+}
+
 .victory-score {
   font: 800 clamp(44px, 13vw, 58px)/1 var(--font);
   font-variant-numeric: tabular-nums;
@@ -2151,6 +2165,161 @@ body.cinema .hud-top {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* run reward: three physical cards, one from each trade */
+.edge-choice {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.edge-heading {
+  margin-bottom: 7px;
+  font: 900 10px var(--type);
+  letter-spacing: 0.14em;
+  color: var(--red);
+}
+
+.edge-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.edge-card {
+  --edge: var(--red);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 154px;
+  padding: 11px 11px 10px;
+  border: 2.5px solid var(--ink);
+  border-top: 8px solid var(--edge);
+  background: var(--grain), var(--paper-2);
+  box-shadow: 3px 4px 0 var(--shadow);
+  color: var(--ink);
+  font-family: var(--type);
+  text-align: left;
+  cursor: pointer;
+  transform: rotate(-1deg);
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+}
+
+.edge-card:nth-child(2) { transform: rotate(0.9deg); }
+.edge-card:nth-child(3) { transform: rotate(-0.4deg); }
+
+.edge-card:hover,
+.edge-card:focus-visible {
+  z-index: 1;
+  filter: brightness(1.04);
+  box-shadow: 5px 7px 0 var(--shadow);
+  transform: translateY(-3px) rotate(0deg);
+}
+
+.edge-card:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.edge-card:disabled {
+  cursor: default;
+  opacity: 0.38;
+  filter: grayscale(0.4);
+  box-shadow: 2px 2px 0 var(--shadow);
+  transform: none;
+}
+
+.edge-heavy { --edge: var(--red); }
+.edge-slick { --edge: #2a9d8f; }
+.edge-greed { --edge: #b17d00; }
+
+.edge-kicker {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: var(--edge);
+}
+
+.edge-rarity {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px 4px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.edge-card.edge-rare .edge-rarity {
+  background: var(--yellow);
+}
+
+.edge-card.edge-rare {
+  border-color: #7a5d13;
+}
+
+.edge-card.edge-legendary {
+  border-color: #6b4f00;
+  box-shadow: 3px 4px 0 var(--shadow), 0 0 0 2px #e6b800 inset;
+}
+
+.edge-card.edge-legendary .edge-rarity {
+  background: var(--ink);
+  color: var(--yellow);
+}
+
+.edge-name {
+  margin-top: 2px;
+  font-size: clamp(14px, 1.7vw, 19px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.edge-effect {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.edge-flavor {
+  margin-top: auto;
+  padding-top: 5px;
+  font: italic 400 13px var(--hand);
+  line-height: 1.1;
+  opacity: 0.72;
+}
+
+/* failure note: what happened to the run, in plain words */
+.run-note {
+  margin-top: 9px;
+  padding: 5px 8px 4px;
+  border: 2px dashed var(--blue);
+  color: var(--blue);
+  font: 800 10px var(--type);
+  letter-spacing: 0.11em;
+  text-align: center;
+  transform: rotate(-0.5deg);
+}
+
+.run-note.run-ended {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(229, 56, 59, 0.06);
+}
+
+@media (max-width: 760px) {
+  .edge-cards {
+    grid-template-columns: 1fr;
+  }
+  .edge-card {
+    min-height: 0;
+  }
 }
 
 /* room picker: a rack of key tags */
@@ -3028,6 +3197,25 @@ body.touch #game {
     padding: 22px 16px 18px;
     gap: 6px;
   }
+  .victory-card.has-edges {
+    width: min(100%, 460px);
+  }
+  .edge-cards {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .edge-card {
+    min-height: 0;
+    padding: 8px 10px;
+    transform: none;
+  }
+  .edge-card:nth-child(2),
+  .edge-card:nth-child(3) {
+    transform: none;
+  }
+  .edge-flavor {
+    padding-top: 2px;
+  }
   .victory-best {
     width: 44px;
     height: 44px;
@@ -3152,6 +3340,8 @@ body.touch #game {
 .high-contrast .victory-next,
 .high-contrast .victory-offer,
 .high-contrast .vticket,
+.high-contrast .edge-card,
+.high-contrast .run-note,
 .high-contrast .hanger,
 .high-contrast .controls-note,
 .high-contrast .evidence,
@@ -3169,7 +3359,9 @@ body.touch #game {
 
 .high-contrast .sticky,
 .high-contrast .controls-note,
-.high-contrast .menu-note {
+.high-contrast .menu-note,
+.high-contrast .edge-card,
+.high-contrast .run-note {
   background: #fff;
 }
 

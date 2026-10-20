@@ -105,13 +105,19 @@ export class UI implements GameUi {
     this.show(
       buildResults(summary, {
         next: () => void game.nextRoom(),
-        retry: () => (summary.cleared ? game.restartRoom() : void game.retryAfterFail()),
+        retry: () => (summary.cleared
+          ? (summary.daily ? game.restartRoom() : game.replayRoom())
+          : void game.retryAfterFail()),
         continueWithReward: () =>
           void game.continueWithReward().then((revived) => {
             // No ad came back: say so, and take the offer away rather than leave a dead button.
             if (!revived && game.state === 'failed') this.showSummary({ ...summary, canContinue: false, adMissed: true });
           }),
-        home: () => game.toMenu(),
+        pickEdge: (id) => {
+          if (!game.chooseEdge(id)) return;
+          void game.nextRoom();
+        },
+        home: () => (summary.runEnded ? game.abandonRun() : game.toMenu()),
         buy: (id) => game.buyAbility(id),
         stamped: () => game.audio.play('stamp', 1),
       }),
@@ -123,7 +129,7 @@ export class UI implements GameUi {
     this.screens.classList.toggle('active', screen !== null);
     if (screen) {
       this.screens.append(screen);
-      screen.querySelector<HTMLButtonElement>('button.primary')?.focus({ preventScroll: true });
+      screen.querySelector<HTMLButtonElement>('button.primary, button.edge-card')?.focus({ preventScroll: true });
     }
   }
 

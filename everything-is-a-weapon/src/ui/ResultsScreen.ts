@@ -1,6 +1,7 @@
 import type { RoomSummary } from '../core/Game';
 import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import type { AbilityId } from '../gameplay/Abilities';
+import type { EdgeId } from '../gameplay/Edges';
 import { button, el, formatScore } from './dom';
 
 export interface ResultsActions {
@@ -8,6 +9,8 @@ export interface ResultsActions {
   retry(): void;
   continueWithReward(): void;
   home(): void;
+  /** Picks a run-long Edge and continues to the next floor. */
+  pickEdge(id: EdgeId): void;
   /** Buys an ability with scrap. Returns '' or the reason it failed. */
   buy(id: AbilityId): string;
   /** Called at the moment the rubber stamp hits the page. */
@@ -62,6 +65,7 @@ function countUp(node: HTMLElement, target: number): void {
 function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElement {
   const screen = el('div', 'screen results cleared victory');
   const card = el('div', 'victory-card');
+  if (summary.edgeOffer.length > 0) card.classList.add('has-edges');
 
   // Ribbon banner: the visual payoff. The slam still fires the sound.
   const sealWrap = el('div', 'victory-seal-wrap');
@@ -87,6 +91,11 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   tag.title = summary.daily ? 'Daily challenge' : `Room ${summary.roomNumber}`;
   where.append(el('span', 'victory-ring'), tag, el('span', 'victory-room', summary.roomName.toLowerCase()));
   card.append(where);
+  if (!summary.daily && (summary.runFloor > 0 || summary.runStreak > 0)) {
+    const run = el('div', 'victory-run', `RUN · FLOOR ${summary.runFloor + 1} · STREAK ${summary.runStreak}`);
+    run.title = 'Your current run. A new floor keeps every Edge you picked.';
+    card.append(run);
+  }
   // Campaign: stars for this room.
   if (!summary.daily) {
     const stars = el('div', 'victory-stars');
@@ -121,7 +130,7 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   if (summary.bestChain > 0) ticket('bolt', `×${summary.bestChain}`, 'Best chain', 'hot');
   ticket('crate', String(summary.objectsUsed), 'Objects used');
   if (summary.newDiscoveries > 0) ticket('loupe', String(summary.newDiscoveries), 'New discoveries');
-  if (summary.challengeText && summary.cleared && summary.challengePassed)
+  if (summary.challengeText && summary.cleared && summary.challengePassed && summary.challengeBonus > 0)
     ticket('star', `+${formatScore(summary.challengeBonus)}`, summary.challengeText, 'gold');
   if (summary.firstClearBonus > 0 && summary.cleared) ticket('cog', `+${summary.firstClearBonus}`, 'First clear scrap bonus', 'scrap');
   // A fresh best already wears the crown; the old record only shows when it survived.
@@ -147,6 +156,35 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     card.append(line);
   }
 
+  // The run reward: three cards, one from each trade. Picking one is the next action.
+  if (!summary.daily && summary.edgeOffer.length > 0) {
+    const choice = el('div', 'edge-choice');
+    choice.append(el('div', 'edge-heading', 'CHOOSE ONE · IT STACKS FOR THE RUN'));
+    const cards = el('div', 'edge-cards');
+    let picked = false;
+    for (const edge of summary.edgeOffer) {
+      const cardButton = el('button', `edge-card edge-${edge.category} edge-${edge.rarity}`);
+      cardButton.type = 'button';
+      cardButton.append(
+        el('span', 'edge-kicker', edge.category.toUpperCase()),
+        el('span', 'edge-rarity', edge.rarity.toUpperCase()),
+        el('span', 'edge-name', edge.name),
+        el('span', 'edge-effect', edge.effect),
+        el('span', 'edge-flavor', edge.flavor),
+      );
+      cardButton.setAttribute('aria-label', `${edge.name}: ${edge.effect} ${edge.flavor}`);
+      cardButton.addEventListener('click', () => {
+        if (picked) return;
+        picked = true;
+        for (const other of cards.querySelectorAll('button')) other.disabled = true;
+        actions.pickEdge(edge.id);
+      });
+      cards.append(cardButton);
+    }
+    choice.append(cards);
+    card.append(choice);
+  }
+
   // Next room: whoever waits there + an arrow + its key tag + its name.
   const next = summary.next;
   if (next) {
@@ -166,7 +204,13 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   screen.append(card);
 
   const buttons = el('div', 'menu-buttons row');
-  buttons.append(button(summary.daily ? 'DONE' : 'NEXT →', 'primary', actions.next), button('↻ REPLAY', '', actions.retry));
+  if (summary.daily) {
+    buttons.append(button('DONE', 'primary', actions.next));
+  } else if (summary.edgeOffer.length === 0) {
+    // Only legacy/failed paths get a NEXT button; an Edge card is the next action.
+    buttons.append(button('NEXT →', 'primary', actions.next));
+  }
+  buttons.append(button('↻ REPLAY', '', actions.retry));
   buttons.append(button('⌂ HOME', '', actions.home));
   screen.append(buttons);
   if (summary.adMissed) screen.append(el('p', 'ad-note', 'no ad right now'));
@@ -206,6 +250,13 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   sheet.append(head, where, fields);
 
   // Failed runs never carry challenge/first-clear bonuses, offers, or next-room teasers.
+  if (!summary.daily) {
+    sheet.append(el(
+      'div',
+      summary.runEnded ? 'run-note run-ended' : 'run-note edges-kept',
+      summary.runEnded ? 'RUN ENDED · EDGES LOST' : 'EDGES KEPT · RUN STREAK RESET',
+    ));
+  }
   const stamp = el('div', 'stamp-mark', 'EVICTED');
   sheet.append(stamp);
   window.setTimeout(() => {
