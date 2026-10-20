@@ -221,6 +221,7 @@ export class RoomManager {
         room.incidentEnemy = enemy;
         game.hud.incoming(spec.incident.kind.toUpperCase(), spec.incident.name, spec.incident.line, spec.type);
         game.audio.bossRoar(spec.type, enemy.type.voice);
+        game.audio.setBossMusic(true);
         game.camera.addShake(spec.incident.kind === 'headliner' ? 0.5 : 0.3);
       }
       room.entranceOpen = 1;
@@ -233,6 +234,7 @@ export class RoomManager {
       const bossType = ENEMY_TYPES[spec.type];
       if (!spec.incident && bossType.boss) {
         game.audio.bossRoar(spec.type, enemy.type.voice);
+        game.audio.setBossMusic(true);
         game.hud.banner(bossType.bossBanner ?? bossType.name.toUpperCase(), '', 2.4);
         game.camera.addShake(0.5);
       }

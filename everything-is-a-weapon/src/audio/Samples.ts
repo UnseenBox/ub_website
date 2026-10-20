@@ -65,7 +65,7 @@ export type SampleName =
   | 'giant1' | 'giant2' | 'giant4'
   | 'ogre1' | 'ogre2' | 'ogre5'
   | 'mnstr1' | 'mnstr7' | 'mnstr14' | 'wolfman'
-  | 'music-night';
+  | 'music-night' | 'boss-bg-music';
 
 /** Every sample that is prefetched at boot. */
 export const SAMPLE_FILES: readonly SampleName[] = [
@@ -85,7 +85,7 @@ export const SAMPLE_FILES: readonly SampleName[] = [
   'giant1', 'giant2', 'giant4',
   'ogre1', 'ogre2', 'ogre5',
   'mnstr1', 'mnstr7', 'mnstr14', 'wolfman',
-  'music-night',
+  'music-night', 'boss-bg-music',
 ];
 
 export interface SampleOptions {

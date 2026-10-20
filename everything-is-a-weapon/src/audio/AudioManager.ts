@@ -128,6 +128,7 @@ export class AudioManager {
   private sfxOut: GainNode | null = null;
   private bank: SampleBank | null = null;
   private sampleMusic: { source: AudioBufferSourceNode; trim: GainNode } | null = null;
+  private currentMusicName: SampleName = 'music-night';
   private musicLevel = 0;
 
   /**
@@ -270,13 +271,21 @@ export class AudioManager {
   }
 
   /** Starts the recorded music loop once its buffer arrives (replaces the score). */
-  private startSampleMusic(): void {
+  private startSampleMusic(name?: SampleName): void {
+    const track = name ?? this.currentMusicName;
     const ctx = this.ctx;
     const bank = this.bank;
     const musicBus = this.musicBus;
-    if (!ctx || !bank || !musicBus || this.sampleMusic || !bank.has('music-night')) return;
+    if (!ctx || !bank || !musicBus || !bank.has(track)) return;
+    // Stop any track already playing before starting the new one.
+    if (this.sampleMusic) {
+      try { this.sampleMusic.source.stop(); } catch { /* already stopped */ }
+      try { this.sampleMusic.source.disconnect(); } catch { /* ignore */ }
+      try { this.sampleMusic.trim.disconnect(); } catch { /* ignore */ }
+      this.sampleMusic = null;
+    }
     try {
-      const buffer = bank.get('music-night');
+      const buffer = bank.get(track);
       if (!buffer) return;
       const source = ctx.createBufferSource();
       source.buffer = buffer;
@@ -287,10 +296,25 @@ export class AudioManager {
       trim.connect(musicBus);
       source.start();
       this.sampleMusic = { source, trim };
+      this.currentMusicName = track;
       this.setMusicIntensity(this.musicLevel);
     } catch {
       this.sampleMusic = null;
     }
+  }
+
+  /** Switches the looping background track (e.g. normal score vs boss theme). */
+  setMusicTrack(name: SampleName): void {
+    if (name === this.currentMusicName && this.sampleMusic) return;
+    this.currentMusicName = name;
+    if (this.ctx && this.bank && this.musicBus) {
+      this.startSampleMusic(name);
+    }
+  }
+
+  /** Convenience: true plays the boss theme, false returns to the normal score. */
+  setBossMusic(active: boolean): void {
+    this.setMusicTrack(active ? 'boss-bg-music' : 'music-night');
   }
 
   private applyVolume(): void {

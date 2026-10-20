@@ -390,6 +390,7 @@ export class Game {
     this.interactions.reset();
     this.time = 0;
     this.tickCount = 0;
+    this.audio.setBossMusic(false);
     this.hitStopLeft = 0;
     this.slowLeft = 0;
     this.revived = false;
@@ -791,6 +792,7 @@ export class Game {
     const bonus = this.challenges.resolve();
     this.score.score += bonus;
     this.consecutiveFailures = 0;
+    this.audio.setBossMusic(false);
     this.audio.play('roomClear', 1);
     this.bus.emit({ type: 'ROOM_COMPLETE', room: this.room.index });
     this.analytics.track('room_complete', {
@@ -819,6 +821,7 @@ export class Game {
 
   private failRoom(): void {
     this.consecutiveFailures++;
+    this.audio.setBossMusic(false);
     this.audio.play('fail', 1);
     this.bus.emit({ type: 'ROOM_FAIL', room: this.room.index });
     this.analytics.track('room_fail', { room: this.room.index + 1, failures: this.consecutiveFailures });
