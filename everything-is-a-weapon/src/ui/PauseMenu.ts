@@ -96,14 +96,17 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
     shop.append(row);
   }
 
-  // Room 1's lessons again, folded away until wanted.
+  // Room 1's lessons again, folded away until wanted. A replay deliberately
+  // starts a fresh run, so warn when the player would lose their current Edges.
+  const runActive = game.save.data.runActive;
   const replay = el('details', 'fold-box');
-  replay.append(el('summary', 'fold-head', 'REPLAY TUTORIAL'));
+  replay.append(el('summary', 'fold-head', runActive ? 'REPLAY TUTORIAL · ENDS RUN' : 'REPLAY TUTORIAL'));
   const lessons = el('div', 'lesson-row');
   for (const id of LESSONS) {
     const again = el('button', 'ability-buy', id === 'free' ? 'BRAWL' : id.toUpperCase());
     again.type = 'button';
-    again.setAttribute('aria-label', `Replay the ${id} tutorial in room 1`);
+    again.title = runActive ? 'Starts a fresh run from room 1 and clears your Edges' : '';
+    again.setAttribute('aria-label', `Replay the ${id} tutorial in room 1${runActive ? ', ending the current run' : ''}`);
     again.addEventListener('click', () => actions.lesson(id));
     lessons.append(again);
   }

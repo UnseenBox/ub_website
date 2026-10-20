@@ -113,6 +113,7 @@ export class Tutorial {
   /** "I know all this": everyone still outside comes in, and the room is just a room. */
   skip(): void {
     if (!this.step) return;
+    this.game.markTutorialSkipped();
     this.grantPower(false);
     const room = this.game.room;
     let n = 0;
