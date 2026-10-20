@@ -2,7 +2,7 @@ import { ABILITY_IDS } from '../gameplay/Abilities';
 import { isHeroId, type HeroId } from '../core/Hero';
 import type { PortalStorage } from '../platform/Portal';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 const STORAGE_KEY = 'everything-is-a-weapon/save';
 
 /** Best run on one room, for the level-select wall and replay bragging rights. */
@@ -49,6 +49,26 @@ export interface SaveData {
   dailyStreak: number;
   /** Deepest room cleared, 1-based (new in version 4). */
   deepest: number;
+  /** A campaign/Depths run is paused, not ended (new in version 5). */
+  runActive: boolean;
+  /** 0-based floor the active run resumes from (new in version 5). */
+  runFloor: number;
+  /** Consecutive non-daily rooms cleared in the active run (new in version 5). */
+  runStreak: number;
+  /** Run-long Edge ids; duplicates are stacks (new in version 5). */
+  runBoosts: string[];
+  /** Score carried into the active run's next floor (new in version 5). */
+  runScore: number;
+  /** FINE PRINT's once-per-run charge has been spent (new in version 5). */
+  runInsuranceUsed: boolean;
+  /** Ledger milestone ids already paid (new in version 5). */
+  starRewardsClaimed: string[];
+  /** Historical: the player has used SKIP at least once (new in version 5). */
+  tutorialSkipped: boolean;
+  /** Day 7 of the daily streak grants a rare Edge on the next offer (new in version 5). */
+  dailyRareEdge: boolean;
+  /** Non-campaign mini-bosses defeated (new in version 5). */
+  enforcersBeaten: number;
   hero: HeroId;
   /** Room 1's lesson plan: '' not started, a lesson id part-way through, 'done' after. */
   tutorial: string;
@@ -76,6 +96,16 @@ function defaults(): SaveData {
     lastDaily: '',
     dailyStreak: 0,
     deepest: 0,
+    runActive: false,
+    runFloor: 0,
+    runStreak: 0,
+    runBoosts: [],
+    runScore: 0,
+    runInsuranceUsed: false,
+    starRewardsClaimed: [],
+    tutorialSkipped: false,
+    dailyRareEdge: false,
+    enforcersBeaten: 0,
     hero: 'tenant',
     tutorial: '',
     settings: { volume: 0.7, muted: false, music: true, reducedShake: false, highContrast: false },
@@ -124,6 +154,20 @@ function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     // Version 4 tracks the deepest room cleared for the post-game.
     raw.deepest = 0;
     version = 4;
+  }
+  if (version < 5) {
+    // Version 5 adds the active run, Star Ledger, and daily Edge hook.
+    raw.runActive = false;
+    raw.runFloor = 0;
+    raw.runStreak = 0;
+    raw.runBoosts = [];
+    raw.runScore = 0;
+    raw.runInsuranceUsed = false;
+    raw.starRewardsClaimed = [];
+    raw.tutorialSkipped = false;
+    raw.dailyRareEdge = false;
+    raw.enforcersBeaten = 0;
+    version = 5;
   }
   return raw;
 }
@@ -176,6 +220,17 @@ function sanitize(raw: unknown): SaveData {
     lastDaily: typeof data.lastDaily === 'string' ? data.lastDaily : '',
     dailyStreak: Math.max(0, Math.floor(finite(data.dailyStreak, 0))),
     deepest: Math.max(0, Math.floor(finite(data.deepest, 0))),
+    runActive: data.runActive === true,
+    runFloor: Math.max(0, Math.floor(finite(data.runFloor, 0))),
+    runStreak: Math.max(0, Math.floor(finite(data.runStreak, 0))),
+    // Duplicates are deliberate: each copy of an Edge stacks.
+    runBoosts: stringArray(data.runBoosts),
+    runScore: Math.max(0, Math.floor(finite(data.runScore, 0))),
+    runInsuranceUsed: data.runInsuranceUsed === true,
+    starRewardsClaimed: [...new Set(stringArray(data.starRewardsClaimed))],
+    tutorialSkipped: data.tutorialSkipped === true,
+    dailyRareEdge: data.dailyRareEdge === true,
+    enforcersBeaten: Math.max(0, Math.floor(finite(data.enforcersBeaten, 0))),
     hero: isHeroId(data.hero) ? data.hero : base.hero,
     // Saves from before the lesson plan: anyone past room 1 has nothing left to be taught.
     tutorial: typeof data.tutorial === 'string' ? data.tutorial : finite(data.unlockedRoom, 0) > 0 ? 'done' : '',
