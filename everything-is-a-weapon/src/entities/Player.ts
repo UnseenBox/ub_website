@@ -133,7 +133,7 @@ export class Player {
       my /= ml;
     }
 
-    let speed = MOVE_SPEED;
+    let speed = MOVE_SPEED * game.edges.moveSpeedMultiplier();
     if (this.rage > 0) speed *= RAGE_SPEED;
     const held = this.held;
     if (held) speed *= held.def.throwable ? 1 / (1 + held.body.mass / 55) : 0.5;
@@ -157,8 +157,8 @@ export class Player {
 
     if (this.dashTime > 0) {
       this.dashTime -= dt;
-      b.vx = this.dashX * DASH_SPEED;
-      b.vy = this.dashY * DASH_SPEED;
+      b.vx = this.dashX * DASH_SPEED * game.edges.dashSpeedMultiplier();
+      b.vy = this.dashY * DASH_SPEED * game.edges.dashSpeedMultiplier();
     } else {
       // Low traction on wet floor: you keep sliding the way you were going.
       const k = Math.min(1, (this.slip > 0 ? 1.6 : 16) * dt);
@@ -411,6 +411,10 @@ export class Player {
   hurt(game: Game, amount: number, cause: string): boolean {
     if (!this.alive || this.invulnerable > 0 || this.dashTime > 0) return false;
     if (absorbHit(game)) return false;
+    if (game.edges.consumeGlassCannon()) {
+      amount *= 2;
+      game.popup('GLASS CANNON', this.body.x, this.body.y - 70, '#ff9f1c', 18);
+    }
     this.hp -= amount;
     this.invulnerable = 1.1;
     this.hurtFlash = 1;
@@ -423,6 +427,15 @@ export class Player {
     game.hitStop(0.07);
     game.bus.emit({ type: 'PLAYER_HIT', cause });
     if (this.hp <= 0) {
+      if (game.edges.consumeInsurance()) {
+        this.hp = 1;
+        this.armor = 1;
+        game.audio.play('stamp', 1);
+        game.fx.burst('INSURANCE', this.body.x, this.body.y - 74, 1.05, '#ffd23f', true);
+        game.particles.burst('star', this.body.x, this.body.y - 20, 12, 220);
+        game.save.write();
+        return false;
+      }
       this.hp = 0;
       this.alive = false;
       this.release();

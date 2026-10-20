@@ -106,7 +106,7 @@ export class ScoreSystem {
   }
 
   private award(points: number, x: number, y: number, color = '#fff3d6'): number {
-    const total = Math.round(points * this.combo);
+    const total = Math.round(points * this.combo * this.game.edges.scoreMultiplier(this.game.save.data.runStreak));
     this.score += total;
     this.game.popup(`+${total}`, x, y, color, 20 + Math.min(14, total / 150));
     return total;
@@ -158,7 +158,8 @@ export class ScoreSystem {
     stats.kills++;
     if (enemy.type.id === 'heavy') stats.heavyKills++;
     // Every kill salvages scrap for the ability shop; bosses pay out big.
-    stats.scrap += enemy.type.boss ? 150 : 12 + Math.round(enemy.type.scoreBonus / 10);
+    const baseScrap = enemy.type.boss ? 150 : 12 + Math.round(enemy.type.scoreBonus / 10);
+    stats.scrap += Math.round(baseScrap * game.edges.scrapMultiplier());
 
     let points = 100 + enemy.type.scoreBonus;
     let color = '#fff3d6';

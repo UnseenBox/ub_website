@@ -1238,6 +1238,8 @@ export class Enemy {
       }
     }
 
+    damage *= game.edges.impactDamageMultiplier(chain ? chain.steps.length : 0);
+
     const stagger = clamp(impulse / 4200, 0.45, 1.5) * this.type.staggerFactor;
     this.stun = Math.max(this.stun, stagger);
     const kick = Math.min(impulse * b.invMass * 2.1 * this.type.staggerFactor, 850);
@@ -1275,7 +1277,16 @@ export class Enemy {
 
   damage(game: Game, amount: number, cause: DamageCause): void {
     if (this.defeated || amount <= 0) return;
-    this.hp -= amount;
+    let applied = amount;
+    if (cause.type === 'fire' || cause.type === 'explosion' || cause.type === 'glass' ||
+      cause.type === 'shock' || cause.type === 'water') {
+      applied *= game.edges.hazardDamageMultiplier();
+    }
+    const headline = this.type.boss === true ? game.edges.headlineDamageMultiplier(true) : 1;
+    applied *= headline;
+    if (applied <= 0) return;
+    this.hp -= applied;
+    if (headline > 1) game.edges.markHeadlineHit();
     this.hitFlash = 1;
     this.aware = true;
     this.applyPhases(game);
@@ -1283,7 +1294,7 @@ export class Enemy {
       this.lured = false;
       this.setState('chase', 0);
     }
-    game.bus.emit({ type: 'ENEMY_HIT', enemy: this, damage: amount, cause });
+    game.bus.emit({ type: 'ENEMY_HIT', enemy: this, damage: applied, cause });
     if (this.hp <= 0) this.defeat(game, cause);
   }
 

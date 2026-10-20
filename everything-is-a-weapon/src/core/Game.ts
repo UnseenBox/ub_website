@@ -11,6 +11,8 @@ import { actFor, briefingFor, CONTRACTS, starsFor, todayKey, yesterdayKey } from
 import { extendChain, freshChain } from '../gameplay/Chain';
 import { ABILITIES, AbilitySystem, type AbilityDefinition, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
+import { isEdgeId, type EdgeId } from '../gameplay/Edges';
+import { EdgeSystem } from '../gameplay/EdgeSystem';
 import { ImpactSystem } from '../gameplay/ImpactSystem';
 import { NavField } from '../gameplay/Navigation';
 import { placePickups, updateRage } from '../gameplay/Pickups';
@@ -136,6 +138,7 @@ export class Game {
   readonly audio = new AudioManager();
   readonly camera = new Camera();
   readonly save: SaveManager;
+  readonly edges: EdgeSystem;
   readonly analytics = new AnalyticsManager();
   readonly ads: AdManager;
   readonly replay = new ReplayRecorder();
@@ -194,12 +197,14 @@ export class Game {
   private funnelThrow = false;
   private funnelHit = false;
   private funnelClear = false;
+  private devEdges: EdgeId[] = [];
 
   constructor(
     readonly canvas: HTMLCanvasElement,
     readonly portal: Portal = new WebPortal(),
   ) {
     this.save = new SaveManager(portal.storage);
+    this.edges = new EdgeSystem(this.save.data);
     this.ads = new AdManager(portal.ads);
     this.input = new InputManager(canvas);
     this.input.addSource(new KeyboardMouseInput());
@@ -270,6 +275,10 @@ export class Game {
 
   start(): void {
     this.save.load();
+    if (import.meta.env.DEV) {
+      const edges = new URLSearchParams(location.search).get('edges');
+      if (edges) this.devEdges = edges.split(',').filter(isEdgeId);
+    }
     this.applySettings();
     void this.ads.initialize();
     this.reportProgress();
@@ -332,7 +341,13 @@ export class Game {
     this.slowLeft = 0;
     this.revived = false;
     this.rng.reseed(def.seed);
+    this.edges.setActive(!daily);
+    if (import.meta.env.DEV && this.devEdges.length > 0 && !daily) {
+      this.save.data.runBoosts = [...this.devEdges];
+    }
+    this.edges.beginFloor();
     this.player = new Player(def.playerStart.x, def.playerStart.y);
+    this.player.armor = this.edges.armorAtFloorStart();
     this.room = this.rooms.build(this, def, index, daily);
     this.pet = createPet(this.hero, def.playerStart.x - 34, def.playerStart.y + 12);
     placePickups(this);

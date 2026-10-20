@@ -130,7 +130,9 @@ export class Cat {
     this.prevX = this.x;
     this.prevY = this.y;
     this.prevZ = this.z;
-    this.swipeCooldown -= dt;
+    // Cat Frenzy doubles the tuna-time attack rate; duplicate cards only stack damage.
+    const frenzyRate = this.frenzy > 0 && game.edges.stacks('cat_frenzy') > 0 ? 2 : 1;
+    this.swipeCooldown -= dt * frenzyRate;
     this.idle += dt;
 
     let threats = 0;
@@ -257,7 +259,7 @@ export class Cat {
             const word = FIGHT_WORDS[Math.floor(Math.random() * FIGHT_WORDS.length)]!;
             game.fx.burst(word, tb.x + Math.cos(a) * 26, tb.y - ride - 14 + Math.sin(a) * 12, 0.62, '#fff3d6');
           }
-          target.damage(game, SCRATCH_DAMAGE, { type: 'impact', source: null, chain: null, label: 'BISCUIT', dirX: Math.cos(a), dirY: Math.sin(a) });
+          target.damage(game, SCRATCH_DAMAGE * game.edges.petFrenzyMultiplier(), { type: 'impact', source: null, chain: null, label: 'BISCUIT', dirX: Math.cos(a), dirY: Math.sin(a) });
         }
         this.timer -= dt;
         if (this.timer <= 0 && this.state === 'maul') this.leapOff();
@@ -456,7 +458,7 @@ export class Cat {
     enemy.stun = Math.max(enemy.stun, 0.45 * enemy.type.staggerFactor);
     enemy.body.vx += (dx / d) * 190 * enemy.type.staggerFactor;
     enemy.body.vy += (dy / d) * 190 * enemy.type.staggerFactor;
-    enemy.damage(game, SWIPE_DAMAGE, { type: 'impact', source: null, chain: null, label: 'BISCUIT', dirX: dx / d, dirY: dy / d });
+    enemy.damage(game, SWIPE_DAMAGE * game.edges.petFrenzyMultiplier(), { type: 'impact', source: null, chain: null, label: 'BISCUIT', dirX: dx / d, dirY: dy / d });
     game.discoveries.unlock('scaredy_cat');
     if (enemy.defeated) game.discoveries.unlock('cat_burglar');
   }
