@@ -558,7 +558,8 @@ export class HUD {
           chip.title = a.name;
           chip.append(el('span', 'power-icon'), el('span', 'power-sweep'));
           const left = game.abilities.remaining(a.id);
-          const t = a.cooldown > 0 ? Math.max(0, Math.min(1, left / a.cooldown)) : 0;
+          const cool = game.abilities.cooldownFor(a);
+          const t = cool > 0 ? Math.max(0, Math.min(1, left / cool)) : 0;
           chip.style.setProperty('--cool', t.toFixed(3));
           chip.classList.toggle('cool', t > 0);
           this.powerChips.set(a.id, chip);
@@ -571,7 +572,8 @@ export class HUD {
       const chip = this.powerChips.get(a.id);
       if (!chip) continue;
       const left = game.abilities.remaining(a.id);
-      const t = a.cooldown > 0 ? Math.max(0, Math.min(1, left / a.cooldown)) : 0;
+      const cool = game.abilities.cooldownFor(a);
+      const t = cool > 0 ? Math.max(0, Math.min(1, left / cool)) : 0;
       const was = this.powerCool.get(a.id) ?? 0;
       chip.style.setProperty('--cool', t.toFixed(3));
       chip.classList.toggle('cool', t > 0);

@@ -208,7 +208,10 @@ export const CONTRACTS: readonly Contract[] = [
 ];
 
 export function totalStars(roomStars: Record<string, number>): number {
-  return Object.values(roomStars).reduce((sum, n) => sum + n, 0);
+  return Object.values(roomStars).reduce((sum, n) => {
+    if (!Number.isFinite(n)) return sum;
+    return sum + Math.max(0, Math.min(3, n));
+  }, 0);
 }
 
 /** Whole-campaign progress for the portal + menu header. */

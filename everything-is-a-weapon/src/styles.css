@@ -1995,6 +1995,24 @@ body.cinema .hud-top {
   width: min(100%, 780px);
 }
 
+/* Star Ledger milestones: one stamped line each */
+.victory-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  margin-top: 1px;
+}
+
+.victory-ledger-line {
+  padding: 3px 8px;
+  background: var(--grain), var(--kraft);
+  border-left: 4px solid var(--yellow);
+  font: 800 10px var(--type);
+  letter-spacing: 0.04em;
+  text-align: left;
+}
+
 .victory-score {
   font: 800 clamp(44px, 13vw, 58px)/1 var(--font);
   font-variant-numeric: tabular-nums;
@@ -3341,6 +3359,7 @@ body.touch #game {
 .high-contrast .victory-offer,
 .high-contrast .vticket,
 .high-contrast .edge-card,
+.high-contrast .victory-ledger-line,
 .high-contrast .run-note,
 .high-contrast .hanger,
 .high-contrast .controls-note,
@@ -3361,6 +3380,7 @@ body.touch #game {
 .high-contrast .controls-note,
 .high-contrast .menu-note,
 .high-contrast .edge-card,
+.high-contrast .victory-ledger-line,
 .high-contrast .run-note {
   background: #fff;
 }

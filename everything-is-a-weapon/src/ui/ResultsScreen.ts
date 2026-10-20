@@ -138,6 +138,15 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     ticket('crown', formatScore(summary.roomBest), 'Your best here');
   card.append(tickets);
 
+  // Star Ledger: permanent milestones crossed by this clear. Scrap is already in the purse.
+  if (summary.ledgerClaims.length > 0) {
+    const ledger = el('div', 'victory-ledger');
+    for (const claim of summary.ledgerClaims) {
+      ledger.append(el('div', 'victory-ledger-line', `★ LEDGER · ${claim.name} · ${claim.reward}`));
+    }
+    card.append(ledger);
+  }
+
   // Power offer: one compact ticket, name + buy button.
   const offer = summary.offer;
   if (offer) {

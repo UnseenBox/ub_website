@@ -1,6 +1,7 @@
 import { rageStart, snoozeChime } from '../audio/CompanionSounds';
 import type { Game } from '../core/Game';
 import { startChain } from './Chain';
+import { ledgerCooldownMultiplier } from './StarLedger';
 
 export type AbilityId = 'blast' | 'overdrive' | 'freeze';
 
@@ -74,6 +75,11 @@ export class AbilitySystem {
     return this.owned(id) && !this.cool.has(id);
   }
 
+  /** Effective cooldown after the Star Ledger's Quick Hands badge. */
+  cooldownFor(def: AbilityDefinition): number {
+    return def.cooldown * ledgerCooldownMultiplier(this.game.save.data);
+  }
+
   firstReady(): AbilityDefinition | null {
     return ABILITIES.find((a) => this.ready(a.id)) ?? null;
   }
@@ -84,7 +90,7 @@ export class AbilitySystem {
     if (game.state !== 'playing' || !game.player.alive) return false;
     const def = slot === -1 ? this.firstReady() : ABILITIES[slot - 1];
     if (!def || !this.ready(def.id)) return false;
-    this.cool.set(def.id, def.cooldown);
+    this.cool.set(def.id, this.cooldownFor(def));
     if (def.id === 'blast') this.blast();
     else if (def.id === 'overdrive') this.overdrive();
     else this.freeze();

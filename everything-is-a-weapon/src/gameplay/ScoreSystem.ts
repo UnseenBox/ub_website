@@ -2,6 +2,7 @@ import type { Game } from '../core/Game';
 import type { DamageCause } from '../core/types';
 import type { Enemy } from '../entities/Enemy';
 import { DISCOVERY_SCORE } from './DiscoverySystem';
+import { ledgerScoreMultiplier, ledgerScrapMultiplier } from './StarLedger';
 
 export interface RoomStats {
   kills: number;
@@ -106,7 +107,12 @@ export class ScoreSystem {
   }
 
   private award(points: number, x: number, y: number, color = '#fff3d6'): number {
-    const total = Math.round(points * this.combo * this.game.edges.scoreMultiplier(this.game.save.data.runStreak));
+    const total = Math.round(
+      points
+        * this.combo
+        * this.game.edges.scoreMultiplier(this.game.save.data.runStreak)
+        * ledgerScoreMultiplier(this.game.save.data),
+    );
     this.score += total;
     this.game.popup(`+${total}`, x, y, color, 20 + Math.min(14, total / 150));
     return total;
@@ -159,7 +165,7 @@ export class ScoreSystem {
     if (enemy.type.id === 'heavy') stats.heavyKills++;
     // Every kill salvages scrap for the ability shop; bosses pay out big.
     const baseScrap = enemy.type.boss ? 150 : 12 + Math.round(enemy.type.scoreBonus / 10);
-    stats.scrap += Math.round(baseScrap * game.edges.scrapMultiplier());
+    stats.scrap += Math.round(baseScrap * game.edges.scrapMultiplier() * ledgerScrapMultiplier(game.save.data));
 
     let points = 100 + enemy.type.scoreBonus;
     let color = '#fff3d6';

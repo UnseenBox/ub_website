@@ -11,7 +11,7 @@ import { actFor, briefingFor, CONTRACTS, starsFor, todayKey, yesterdayKey } from
 import { extendChain, freshChain } from '../gameplay/Chain';
 import { ABILITIES, AbilitySystem, type AbilityDefinition, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
-import { isEdgeId, offerEdges, type EdgeDefinition, type EdgeId } from '../gameplay/Edges';
+import { isEdgeId, offerEdges, startingEdge, type EdgeDefinition, type EdgeId } from '../gameplay/Edges';
 import { EdgeSystem } from '../gameplay/EdgeSystem';
 import { HeatSystem, type HeatEvent } from '../gameplay/Heat';
 import { enforcerSpec, headlinerSpec, releaseIncident, rushRegulars, type IncidentSpec } from '../gameplay/Incidents';
@@ -19,9 +19,13 @@ import { ImpactSystem } from '../gameplay/ImpactSystem';
 import { NavField } from '../gameplay/Navigation';
 import { placePickups, updateRage } from '../gameplay/Pickups';
 import type { RoomDefinition } from '../gameplay/Room';
+import { HANDCRAFTED_ROOMS } from '../gameplay/RoomDefinitions';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
 import { RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
 import { chooseEdge as applyEdge, endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
+import {
+  claimLedger, descendStart, ledgerBonus, startingEdgeRarity, type LedgerMilestone,
+} from '../gameplay/StarLedger';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
@@ -98,6 +102,8 @@ export interface RoomSummary {
   runEnded: boolean;
   /** Three run-long cards to choose from after a non-daily clear. */
   edgeOffer: EdgeDefinition[];
+  /** Star Ledger rewards crossed by this clear. */
+  ledgerClaims: LedgerMilestone[];
 }
 
 /** What the simulation needs from the UI layer. Keeps Game free of DOM details. */
@@ -299,11 +305,33 @@ export class Game {
     this.save.load();
     // load() installs a fresh object; point the Edge stack at the persisted one.
     this.edges = new EdgeSystem(this.save.data);
-    sanitizeRun(this.save.data, this.save.data.unlockedRoom, this.save.data.deepest);
     if (import.meta.env.DEV) {
-      const edges = new URLSearchParams(location.search).get('edges');
+      const params = new URLSearchParams(location.search);
+      const edges = params.get('edges');
       if (edges) this.devEdges = edges.split(',').filter(isEdgeId);
+      // Dev-only star shortcut, e.g. ?stars=27, so the Ledger is testable without a full run.
+      const target = Number(params.get('stars'));
+      if (Number.isFinite(target) && target > 0) {
+        let left = Math.min(this.rooms.handcraftedCount * 3, Math.floor(target));
+        for (const def of HANDCRAFTED_ROOMS) {
+          const take = Math.min(3, left);
+          if (take <= 0) break;
+          this.save.data.roomStars[def.id] = Math.max(this.save.data.roomStars[def.id] ?? 0, take);
+          left -= take;
+        }
+        const unlocked = Math.min(this.rooms.handcraftedCount, Math.ceil(Math.min(target, this.rooms.handcraftedCount * 3) / 3));
+        this.save.data.unlockedRoom = Math.max(this.save.data.unlockedRoom, unlocked);
+        this.save.data.deepest = Math.max(this.save.data.deepest, unlocked);
+        claimLedger(this.save.data);
+      }
     }
+    const masterKey = ledgerBonus(this.save.data, 'master_key') ? 18 : 0;
+    sanitizeRun(
+      this.save.data,
+      this.save.data.unlockedRoom,
+      this.save.data.deepest,
+      Math.max(this.save.data.unlockedRoom, this.save.data.deepest + 1, masterKey),
+    );
     this.applySettings();
     void this.ads.initialize();
     this.reportProgress();
@@ -399,6 +427,8 @@ export class Game {
   /** Starts a fresh run from the given room (0-based). */
   playFrom(index: number): void {
     startRun(this.save.data, index);
+    const rarity = startingEdgeRarity(this.save.data);
+    if (rarity) this.save.data.runBoosts.push(startingEdge(this.rng, rarity).id);
     this.pendingEdgeOffer = [];
     this.tutorialSkippedThisRoom = false;
     this.scoreAtRoomStart = 0;
@@ -424,9 +454,9 @@ export class Game {
     else this.playFrom(index);
   }
 
-  /** Starts a fresh run at the first unlocked Depths floor. */
+  /** Starts a fresh run at the first unlocked Depths floor (or floor 19 with the Master Key). */
   descend(): void {
-    this.playFrom(Math.max(this.rooms.handcraftedCount, this.save.data.deepest));
+    this.playFrom(descendStart(this.save.data, this.save.data.deepest));
   }
 
   /** Replays one of room 1's lessons (and everything after it) from the pause menu. */
@@ -716,6 +746,8 @@ export class Game {
         }
       }
     }
+    // Star Ledger: newly crossed milestones pay their scrap at the same desk.
+    const ledgerClaims = cleared && !this.room.daily ? claimLedger(save) : [];
     this.save.write();
     const briefing = briefingFor(this.room.def.id, this.room.index);
     return {
@@ -751,6 +783,7 @@ export class Game {
       runFloor: save.runFloor,
       runEnded,
       edgeOffer: this.pendingEdgeOffer,
+      ledgerClaims,
     };
   }
 
