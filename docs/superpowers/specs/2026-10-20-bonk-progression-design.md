@@ -106,12 +106,17 @@ The campaign stays nine handcrafted rooms. No new rooms, boss art, enemy types, 
 5. **Payout.** Victory card with score, stars, scrap, and streak. Then three Edge cards. Pick one to continue.
 6. **Next.** The next floor loads. Its boss is already named on the heat meter.
 
-### Run
+### Run lifecycle
 
-- A **run** starts when the player presses PLAY on a floor. It continues through `nextRoom()` until they fail or return to menu and start a different floor.
-- Edges persist across floors in the run.
-- On fail, the run's Edges stay for the retry, but the clear streak resets. This keeps failure from wiping the fun.
-- Returning to menu pauses the run. The menu shows **CONTINUE RUN**.
+- A **run** starts when the player presses PLAY on a floor. `playFrom(index)` clears `runBoosts`, sets `runFloor = index`, `runStreak = 0`, `runScore = 0`, `runActive = true`.
+- `nextRoom()` advances `runFloor` **when the room is cleared**, before the Edge pick. The Edge pick only adds to `runBoosts`.
+- **Campaign fail:** `runActive` stays true, `runBoosts` stay, `runStreak = 0`. RETRY continues the same run. HOME then CONTINUE returns to the failed floor with the same Edges.
+- **Depths fail:** the run ends. `runActive = false`, `runBoosts = []`, `runScore = 0`. `deepest` records the deepest floor **cleared**. DESCEND starts a new run at the next unbeaten floor (`deepest + 1`) with no Edges.
+- **REPLAY on a win:** starts a new run at that floor, clearing Edges. This is the "master this floor" action, kept separate from the continue loop.
+- **PLAY from the menu:** if the selected floor equals `runFloor` and `runActive`, it continues the run. Any other floor starts a new run. The button says CONTINUE RUN or NEW RUN accordingly.
+- **Returning to menu** keeps `runActive` true and the current `runScore`. CONTINUE resumes at `runFloor`.
+- **Campaign → Depths:** after room 9, the Edge pick calls `nextRoom()` into the first Depths floor with the same run and Edges. DESCEND from the menu is a separate new Depths run at `deepest + 1`.
+- **Daily** is a separate one-room mode. It does not touch the active run.
 - The Depths is the same run structure, with `runFloor` beyond the handcrafted count.
 
 ### Why this should be more addictive
@@ -152,7 +157,8 @@ Heat is owned by a new `HeatSystem` (`src/gameplay/Heat.ts`), reset per room.
 - Heat never decreases.
 - If all regular enemies are dead before 100, heat accelerates at **+20/s** until 100, so the boss always gets its entrance.
 - If the room passes **90 seconds**, passive gain becomes **+5/s** until 100. The landlord gets impatient; the floor cannot stall forever.
-- Target: an active player reaches 100 in **55–85 seconds**. A passive player reaches it by about **110 seconds**.
+- Target floor length: **60–120 seconds**. Regular phase 20–50 seconds; boss phase 30–60 seconds. Rooms 2–9 have only 2–4 regular enemies, so object destruction and chains are the main heat sources, not raw kill count.
+- An active player reaches 100 in **40–70 seconds**. A passive player reaches it by about **110 seconds**.
 
 ### Thresholds
 
@@ -208,11 +214,14 @@ The existing boss sounds fire (`bossWalk`, `knock`, `bossRoar`), plus:
 - On defeat: 0.35s slow-mo, confetti, stamp, boss title banner, exit door opens.
 - Boss HP is unchanged for campaign bosses. The fight is made readable, not longer.
 
-### Non-boss rooms
+### Headliner vs Enforcer
 
-- **Room 1 (tutorial):** no boss. The tutorial already ends with the BIG RED BUTTON and confetti. The first Edge choice is the bridge into room 2. Do not add a boss to the tutorial in phase 1. If playtest shows the bridge is still weak, add a scripted Foreman in phase 2.
-- **Depths:** every third room keeps its existing boss. Other depths rooms get an **Enforcer** at heat 100: a scaled elite regular with a custom name and a crown badge. Use a boss type only in depths/daily where the player is strong and has Edges.
-- **Daily:** a generated room. If it has a boss, use it; otherwise add an Enforcer. The daily should feel like a full incident.
+- **Headliner** = a handcrafted campaign boss (rooms 2–9). Uses boss art, phases, the boss health bar, and the INCOMING card. Counts as a boss: `hasBoss = true`, `bossesBeaten++`, 100-scrap first clear, RENT COLLECTOR progress, and the next-floor mug.
+- **Enforcer** = a non-campaign mini-boss. A scaled elite regular (`heavy`, `shield`, `hurler`, etc.) with a custom name, 2.5× HP, 1.15× speed, a crown badge, a single-segment health bar, and the INCOMING card. It uses the boss entrance sounds. It does **not** count as a boss: `hasBoss = false`, `hasEnforcer = true`, no `bossesBeaten`, no 100-scrap bonus, no RENT COLLECTOR progress.
+- **Room 1 (tutorial):** no boss or Enforcer in phase 1. The tutorial already ends with the BIG RED BUTTON and confetti. The first Edge choice is the bridge into room 2. A scripted Foreman is a phase-2 idea.
+- **Depths:** every third room keeps its existing Headliner. Other kill-all Depths rooms get an Enforcer at heat 100.
+- **Daily:** a generated room. If it has a Headliner, use it; otherwise add an Enforcer. The daily should feel like a full incident.
+- **Survival rooms:** generated rooms with a `survive` objective keep their timer and do **not** spawn a Headliner or Enforcer. At heat 100 they get a final hazard surge (the same themed event) and the timer still wins. This preserves the existing objective and avoids a timer that auto-kills the boss.
 
 ---
 
@@ -236,7 +245,7 @@ Pick one to continue. Edges last for the run and stack. Rarity: **common 65%, ra
 | HEAVY | CHAIN GANG | rare | Chains deal +35% damage and grant +25% more heat. |
 | HEAVY | DEMOLITION | rare | Hazard damage +50%. |
 | HEAVY | THROWN AWAY | legendary | The first object you throw each floor explodes on impact (40 damage, small radius). |
-| SLICK | SECOND WIND | common | Heal 1 HP at the start of each floor. |
+| SLICK | SECOND WIND | common | Start each floor with 1 bubble-wrap armour. |
 | SLICK | QUICK FEET | common | +12% move speed, +10% dash distance. |
 | SLICK | INSURANCE | rare | Survive one fatal hit per run at 2 HP. |
 | SLICK | BEST FRIEND | rare | Pet frenzy lasts 50% longer. |
@@ -271,15 +280,18 @@ runActive: boolean;
 runFloor: number;        // next floor to play
 runStreak: number;       // consecutive clears without a retry
 runBoosts: string[];     // Edge ids
+runScore: number;        // score carried across floors
+dailyRareEdge: boolean;  // day-7 daily reward: next Edge offer has a rare+
 ```
 
-- `playFrom(index)` starts a new run: clears `runBoosts`, sets `runFloor = index`, `runStreak = 0`, `runActive = true`.
+- `playFrom(index)` starts a new run: clears `runBoosts`, sets `runFloor = index`, `runStreak = 0`, `runScore = 0`, `runActive = true`.
 - `nextRoom()` increments `runFloor` and records the picked Edge.
-- `summarize(cleared)` on a clear increments `runStreak`; on a fail resets it to 0 but keeps `runBoosts`.
-- `toMenu()` keeps `runActive` true. The menu shows CONTINUE RUN at `runFloor`.
+- `summarize(cleared)` on a clear increments `runStreak` and stores `runScore = score.score`; on a fail resets `runStreak` to 0 but keeps `runBoosts` and the score at the start of the failed floor.
+- `toMenu()` keeps `runActive` true and keeps `runScore`. The menu shows CONTINUE RUN at `runFloor`.
 - Selecting a different floor from the menu starts a new run from that floor. The PLAY button says `NEW RUN` in that case.
 - If `runActive` and `runFloor > unlockedRoom`, clamp to `unlockedRoom`.
 - If the tab closes after a clear but before the Edge pick, the run continues at the next floor with the old Edges; the unclaimed Edge is lost. Acceptable.
+- Other v5 fields: `starRewardsClaimed: string[]`, `tutorialSkipped: boolean`, `dailyRareEdge: boolean`, `enforcersBeaten: number`.
 
 ---
 
@@ -324,7 +336,7 @@ Total stars 0–27. Milestones auto-claim when reached; a toast/card appears on 
 | Stars | Reward |
 |---:|---|
 | 3 | 100 scrap |
-| 6 | +1 starting armour (bubble wrap) each floor |
+| 6 | +15% score |
 | 9 | Start each run with a random common Edge |
 | 12 | 200 scrap |
 | 15 | +20% scrap from kills |
@@ -338,6 +350,12 @@ Total stars 0–27. Milestones auto-claim when reached; a toast/card appears on 
 - Effects are read by `Game`/`ScoreSystem`/`Abilities`; no new currency.
 - Stars never gate the critical path. The Ledger is optional power and bragging rights.
 - The Ledger is visible on the menu as a strip of tickets with the next reward highlighted.
+
+**Star eligibility**
+
+- Only the nine handcrafted rooms write `roomStars`; Depths and daily clears do not. This guarantees the Ledger total is 0–27.
+- Room 1 has no `challenge`, so it gets a special third star: **finish the lesson plan without pressing SKIP**. Add `tutorialSkipped` to save v5 (reset on a tutorial replay). The challenge star text is `FINISH THE LESSON PLAN`; it pays no scrap, just the star.
+- `campaignProgress` continues to use the nine rooms and 27 stars.
 
 **Why these rewards:** they reward replaying floors for 3 stars, they are easy to explain, and none of them removes the need to play well.
 
@@ -370,6 +388,8 @@ Surface the existing `dailyChallenge()`.
 | 8+ | wraps to day 1 reward; the streak count keeps going for bragging |
 
 - The daily uses the heat/boss system. It should feel like a full incident, not a side mode.
+- **The daily is independent of the active run.** `playDaily()` does not modify `runActive`, `runBoosts`, or `runScore`. It does not use the run's Edges; it is tuned as a standalone challenge with a weaker Enforcer (or no Enforcer in survival rooms).
+- **Day-7 reward:** set `dailyRareEdge = true`. The next Edge offer from any campaign or Depths run has a guaranteed rare-or-better card. The flag is consumed when that offer is generated. It is not applied to the daily itself.
 - Fix the current exploit: the daily bonus is awarded **once per day**. Replaying the daily can still chase a high score, but it does not pay the daily bonus again.
 - Keep the existing ad policy; do not add ads to the daily results.
 
@@ -379,9 +399,9 @@ Surface the existing `dailyChallenge()`.
 
 - Keep the existing generated endless mode; surface it.
 - After room 9, a `THE DEPTHS` card on the menu with `DEEPEST FLOOR` and `DESCEND`.
-- Every floor uses heat. Every third floor has a boss. Other floors get an Enforcer at heat 100.
-- Edges persist across the descent. Death ends the run; `deepest` is recorded.
-- The 27★ Master Key starts the descent at floor 10.
+- Every floor uses heat. Every third floor has a Headliner. Other kill-all floors get an Enforcer at heat 100.
+- Edges persist across the descent. Death ends the run and clears Edges; `deepest` records the deepest floor **cleared**. DESCEND starts a new run at `deepest + 1` with no Edges.
+- The 27★ Master Key starts DESCEND at **Depths depth 10** (floor 19), skipping the first nine depths floors.
 - This is the "play as long as possible" mode. No new content required; it reuses the generator and bosses.
 
 ---
@@ -427,7 +447,7 @@ Surface the existing `dailyChallenge()`.
 ## 13. Exact behaviours and numbers
 
 - Heat passive: 0.6/s. After 90s: 5/s. All regulars dead before 100: 20/s.
-- Heat sources: kill +7, chain +10, hazard kill +12, multi-kill +8, player damage +5.
+- Heat sources: kill +7, chain +10, hazard kill +12, multi-kill +8, player damage +5, object broken +2, hard object impact +0.5 (capped at +4/s).
 - Tier thresholds: 34, 67, 100.
 - Tier 1: all pending regular enemies get `delay = min(delay, elapsed + 2)`.
 - Tier 2: one themed hazard event, 1s telegraph.
@@ -503,24 +523,31 @@ Phase 2 after playtest: scripted tutorial Foreman, more Edges, floor mastery/con
 
 ## 18. My calls (builder can proceed)
 
-- Reuse existing campaign bosses as headliners. Do not add a second boss to rooms 2–9.
-- Do not add a boss to the tutorial in phase 1. The first Edge choice is the bridge to room 2.
+- Reuse existing campaign bosses as Headliners. Do not add a second boss to rooms 2–9.
+- Do not add a boss or Enforcer to the tutorial in phase 1. The first Edge choice is the bridge to room 2.
+- Enforcers are scaled elite regulars. They do not count as bosses, do not trigger `bossesBeaten` or the 100-scrap bonus, and use a single-segment health bar.
+- Survival rooms keep their timer and do not spawn a Headliner or Enforcer. Heat 100 is a final hazard surge.
 - Edges are run-only; no permanent Edge tree.
 - The Edge choice is required to continue; no skip.
-- Stars never gate the critical path.
+- Stars never gate the critical path. Only the nine handcrafted rooms write stars.
+- Room 1's third star is `FINISH THE LESSON PLAN` (no SKIP).
+- Campaign fail keeps Edges on retry. Depths fail ends the run and clears Edges.
+- REPLAY on a win starts a new run at that floor.
+- Daily is independent of the active run, uses no run Edges, and does not touch run state. Day-7 reward is a `dailyRareEdge` flag consumed by the next Edge offer.
 - Keep the existing ad policy; do not add ad pressure.
 - Daily streak uses the existing `dailyStreak`; no new currency.
 - Ledger rewards are permanent but small; no new art.
-- Run state persists in save v5; returning to menu pauses the run.
+- Run state and run score persist in save v5; returning to menu pauses the run.
+- The 27★ Master Key starts DESCEND at Depths depth 10 (floor 19), not campaign floor 10.
 - The main screen focuses on the next floor; the full building is an overlay.
 
 ## 19. Needs your approval
 
-- The overall direction and scope of this document.
-- The Edge names, tone, and the specific v1 list.
-- Permanent Ledger power (scrap, armour, starting Edges, cooldowns) versus cosmetic-only.
-- The daily as a menu card rather than a separate mode.
-- Keeping the current ad frequency (the design does not increase it).
+1. **Depths death rule.** Recommended: campaign retry keeps Edges; a Depths death ends the run and clears Edges, then DESCEND starts at the next unbeaten floor. Alternative: all retries keep Edges, which is friendlier but removes the Depths' stakes.
+2. **Ledger power.** Recommended: small permanent power (scrap, score, starting armour/Edge, cooldown). Alternative: cosmetic-only, which is purer but a weaker reason to chase 3 stars.
+3. **Ad frequency.** Recommended: keep the current policy; do not add an interstitial before the Edge choice or on retry. Alternative: reduce interstitials to protect the "one more floor" flow.
+
+Everything else in this document is my call and is written into the design.
 
 ---
 
