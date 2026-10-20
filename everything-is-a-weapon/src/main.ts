@@ -2,7 +2,6 @@ import './styles.css';
 import './ui-kit/legacy/bonk-cartoon-ui.css';
 import './ui-kit/legacy/bonk-overlay-ui.css';
 import './ui-kit/bonk-ui-kit.css';
-import './ui-kit/cursor.css';
 import './ui-kit/diagnostics.css';
 import { Game } from './core/Game';
 import { detectKeyLabels } from './input/KeyLabels';

@@ -1,7 +1,4 @@
 import menuSceneUrl from '../assets/menu-scene.svg?url';
-import cursorHandUrl from '../ui-kit/cursor/hand.svg?url';
-import cursorGrabUrl from '../ui-kit/cursor/grab.svg?url';
-import cursorThrowUrl from '../ui-kit/cursor/throw.svg?url';
 import panUrl from '../ui-kit/bonk-ui/shop/pan.svg?url';
 import slipperUrl from '../ui-kit/bonk-ui/shop/slipper.svg?url';
 import pillowUrl from '../ui-kit/bonk-ui/shop/pillow.svg?url';
@@ -118,149 +115,6 @@ function installMenuScene(screens: HTMLElement): void {
       requestAnimationFrame(tick);
     }
   }, { passive: true });
-}
-
-type CursorState = 'open' | 'grab' | 'throw';
-
-/** A hand cursor for the playspace; menus and touch devices keep the native cursor. */
-function installCursor(): void {
-  if (window.matchMedia && !window.matchMedia('(pointer: fine)').matches) return;
-
-  const cursor = document.getElementById('game-cursor');
-  const image = document.getElementById('game-cursor-img');
-  if (!cursor || !(image instanceof HTMLImageElement)) return;
-
-  const sources: Record<CursorState, string> = {
-    open: cursorHandUrl,
-    grab: cursorGrabUrl,
-    throw: cursorThrowUrl,
-  };
-
-  const HOT_X = 32;
-  const HOT_Y = 30;
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-
-  let state: CursorState = 'open';
-  let tx = 0;
-  let ty = 0;
-  let x = 0;
-  let y = 0;
-  let lastX = 0;
-  let tilt = 0;
-  let tiltTarget = 0;
-  let scale = 1;
-  let scaleTarget = 1;
-  let holding = false;
-  let holdStart = 0;
-  let shown = false;
-  let overUi = false;
-
-  image.src = sources.open;
-
-  const setState = (next: CursorState): void => {
-    if (state === next) return;
-    state = next;
-    image.src = sources[next];
-  };
-
-  const inGame = (): boolean => document.body.classList.contains('playing');
-
-  const show = (): void => {
-    if (!inGame() || shown) return;
-    shown = true;
-    cursor.classList.add('is-visible');
-  };
-
-  const hide = (): void => {
-    if (!shown) return;
-    shown = false;
-    cursor.classList.remove('is-visible');
-  };
-
-  const onUi = (target: EventTarget | null): boolean =>
-    target instanceof Element &&
-    !!target.closest('button, a, input, select, textarea, label, summary, .btn, .hud-pause, .mk-gear');
-
-  document.addEventListener('mousemove', (event) => {
-    tx = event.clientX;
-    ty = event.clientY;
-    overUi = onUi(event.target);
-    if (!shown) {
-      x = tx;
-      y = ty;
-    }
-    if (overUi || !inGame()) hide();
-    else show();
-  }, { passive: true, capture: true });
-
-  document.addEventListener('pointerdown', (event) => {
-    if (onUi(event.target)) return;
-    holding = true;
-    holdStart = performance.now();
-    setState('grab');
-    scaleTarget = 0.9;
-    cursor.classList.remove('is-charging');
-    window.setTimeout(() => {
-      if (holding) scaleTarget = 1;
-    }, 120);
-  }, true);
-
-  document.addEventListener('pointerup', () => {
-    if (!holding) return;
-    holding = false;
-    const held = (performance.now() - holdStart) / 1000;
-    cursor.classList.remove('is-charging');
-    setState('throw');
-    scaleTarget = 1.12;
-    window.setTimeout(() => {
-      setState('open');
-      scaleTarget = 1;
-    }, held > 0.25 ? 260 : 175);
-  }, true);
-
-  document.addEventListener('mouseleave', hide);
-  window.addEventListener('blur', hide);
-
-  const frame = (now: number): void => {
-    const t = now / 1000;
-    const ease = reduce ? 1 : 0.34;
-    x += (tx - x) * ease;
-    y += (ty - y) * ease;
-
-    const vx = tx - lastX;
-    lastX = tx;
-    const lean = Math.max(-12, Math.min(12, vx * 0.5));
-    tiltTarget += (lean - tiltTarget) * 0.14;
-    tilt = tiltTarget;
-
-    scale += (scaleTarget - scale) * 0.28;
-    let s = scale;
-    if (!reduce) {
-      if (holding) {
-        const dt = (now - holdStart) / 1000;
-        s *= 1 + Math.sin(dt * 13) * 0.035;
-        if (dt > 0.16) cursor.classList.add('is-charging');
-      } else {
-        s *= 1 + Math.sin(t * 2.2) * 0.012;
-      }
-    }
-
-    if (!inGame()) {
-      if (holding) {
-        holding = false;
-        cursor.classList.remove('is-charging');
-        setState('open');
-        scaleTarget = 1;
-      }
-      if (shown) hide();
-    }
-
-    cursor.style.transform = `translate3d(${x - HOT_X}px,${y - HOT_Y}px,0)`;
-    image.style.transform = `rotate(${tilt.toFixed(2)}deg) scale(${s.toFixed(3)})`;
-
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
 }
 
 /** The menu's play-style row, the settings tabs and the six-card arsenal. */
@@ -458,7 +312,6 @@ function installKitWiring(screens: HTMLElement): void {
 export function installBonkUi(screens: HTMLElement): void {
   installCredits();
   installMenuScene(screens);
-  installCursor();
   installCandy(screens);
   installKitWiring(screens);
 }
