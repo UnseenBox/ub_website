@@ -1,0 +1,1 @@
+export { buildSettings } from './pause';

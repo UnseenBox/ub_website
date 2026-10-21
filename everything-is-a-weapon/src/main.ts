@@ -2,11 +2,12 @@ import './styles.css';
 import './ui-kit/legacy/bonk-cartoon-ui.css';
 import './ui-kit/legacy/bonk-overlay-ui.css';
 import './ui-kit/bonk-ui-kit.css';
+import './ui-kit/bonk2/theme.css';
 import './ui-kit/diagnostics.css';
 import { Game } from './core/Game';
 import { detectKeyLabels } from './input/KeyLabels';
 import { createPortal } from './platform';
-import { installBonkUi } from './ui/bonkKit';
+import { installCredits } from './ui/screens/credits';
 import { UI } from './ui/UI';
 
 function required<T extends HTMLElement>(id: string): T {
@@ -65,7 +66,7 @@ async function boot(): Promise<void> {
   const game = new Game(canvas, portal);
   const screens = required<HTMLElement>('screens');
   game.hud = new UI(game, required('hud'), screens);
-  installBonkUi(screens);
+  installCredits();
 
   // Browsers only allow audio after a gesture; the first click or key press unlocks it.
   const unlock = (): void => game.audio.unlock();

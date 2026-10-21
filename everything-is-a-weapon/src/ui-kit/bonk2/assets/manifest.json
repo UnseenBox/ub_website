@@ -1,0 +1,922 @@
+[
+  {
+    "id": "main-menu",
+    "name": "Bonk — the main event",
+    "category": "menus",
+    "width": 1600,
+    "height": 900,
+    "scale": 2
+  },
+  {
+    "id": "main-menu-mobile",
+    "name": "Bonk — the night-shift lobby",
+    "category": "menus",
+    "width": 880,
+    "height": 1440,
+    "scale": 2
+  },
+  {
+    "id": "menu-defender",
+    "name": "Dressed for a very bad night",
+    "category": "icons",
+    "width": 760,
+    "height": 640,
+    "scale": 2
+  },
+  {
+    "id": "character-violet",
+    "name": "VIOLET ROBE — character and companion",
+    "category": "icons",
+    "width": 720,
+    "height": 640,
+    "scale": 2
+  },
+  {
+    "id": "character-teal",
+    "name": "TEAL ROBE — character and companion",
+    "category": "icons",
+    "width": 720,
+    "height": 640,
+    "scale": 2
+  },
+  {
+    "id": "character-rose",
+    "name": "ROSE ROBE — character and companion",
+    "category": "icons",
+    "width": 720,
+    "height": 640,
+    "scale": 2
+  },
+  {
+    "id": "character-lime",
+    "name": "LIME ROBE — character and companion",
+    "category": "icons",
+    "width": 720,
+    "height": 640,
+    "scale": 2
+  },
+  {
+    "id": "bonk-cast",
+    "name": "The night shift — full cast",
+    "category": "banners",
+    "width": 1560,
+    "height": 720,
+    "scale": 2
+  },
+  {
+    "id": "character-select-mobile",
+    "name": "The night shift — portrait roster",
+    "category": "menus",
+    "width": 880,
+    "height": 1240,
+    "scale": 2
+  },
+  {
+    "id": "menu-progress-rooms",
+    "name": "Rooms — lobby progress",
+    "category": "hud",
+    "width": 460,
+    "height": 180,
+    "scale": 2
+  },
+  {
+    "id": "menu-progress-ideas",
+    "name": "Bad ideas — lobby progress",
+    "category": "hud",
+    "width": 460,
+    "height": 180,
+    "scale": 2
+  },
+  {
+    "id": "menu-scrap",
+    "name": "Scrap — lobby counter",
+    "category": "hud",
+    "width": 380,
+    "height": 160,
+    "scale": 2
+  },
+  {
+    "id": "menu-night",
+    "name": "Night shift — lobby status",
+    "category": "hud",
+    "width": 380,
+    "height": 160,
+    "scale": 2
+  },
+  {
+    "id": "menu-navigation",
+    "name": "Your home — lobby navigation",
+    "category": "buttons",
+    "width": 1648,
+    "height": 134,
+    "scale": 2
+  },
+  {
+    "id": "menu-settings-shortcut",
+    "name": "Settings — lobby shortcut",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "menu-achievements",
+    "name": "TROPHIES — lobby shortcut",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "menu-challenge",
+    "name": "TONIGHT — lobby shortcut",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "menu-reward",
+    "name": "REWARD — lobby shortcut",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "menu-inventory",
+    "name": "JUNK DRAWER — lobby shortcut",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "bonk-logo",
+    "name": "Bonk! — the title treatment",
+    "category": "banners",
+    "width": 880,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "menu-rooms",
+    "name": "Rooms — menu icon",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "menu-characters",
+    "name": "Characters — menu icon",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "menu-store",
+    "name": "Store — menu icon",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "menu-settings",
+    "name": "Settings — menu icon",
+    "category": "buttons",
+    "width": 320,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "bonk-play",
+    "name": "Bonk — make a mess",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "bonk-menu-tile",
+    "name": "Bonk — battleground tile",
+    "category": "buttons",
+    "width": 400,
+    "height": 160,
+    "scale": 2
+  },
+  {
+    "id": "level-select",
+    "name": "Choose your room",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "character-select",
+    "name": "The four main characters",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "difficulty",
+    "name": "How bad could it get?",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "inventory",
+    "name": "The junk drawer",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "health",
+    "name": "Not dead yet",
+    "category": "hud",
+    "width": 880,
+    "height": 260,
+    "scale": 2
+  },
+  {
+    "id": "play",
+    "name": "Make a mess",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "victory",
+    "name": "Still my home!",
+    "category": "banners",
+    "width": 880,
+    "height": 480,
+    "scale": 2
+  },
+  {
+    "id": "toaster",
+    "name": "The humble toaster",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "timer",
+    "name": "The witching hour",
+    "category": "hud",
+    "width": 640,
+    "height": 260,
+    "scale": 2
+  },
+  {
+    "id": "pause",
+    "name": "A little breather",
+    "category": "menus",
+    "width": 840,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "combo",
+    "name": "Chaos multiplier",
+    "category": "hud",
+    "width": 800,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "box",
+    "name": "Meet the movers",
+    "category": "icons",
+    "width": 480,
+    "height": 500,
+    "scale": 2
+  },
+  {
+    "id": "gameplay",
+    "name": "The full chaos HUD",
+    "category": "menus",
+    "width": 1600,
+    "height": 900,
+    "scale": 2
+  },
+  {
+    "id": "resume",
+    "name": "Back to the chaos",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "retry",
+    "name": "One more bad idea",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "discovery",
+    "name": "Bad idea, discovered",
+    "category": "banners",
+    "width": 920,
+    "height": 420,
+    "scale": 2
+  },
+  {
+    "id": "lamp",
+    "name": "Shocking taste",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "pan",
+    "name": "Non-stick justice",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "coins",
+    "name": "Scrap counter",
+    "category": "hud",
+    "width": 700,
+    "height": 260,
+    "scale": 2
+  },
+  {
+    "id": "wave",
+    "name": "Special delivery",
+    "category": "hud",
+    "width": 800,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "item-slot",
+    "name": "Pocket-sized problem",
+    "category": "hud",
+    "width": 460,
+    "height": 460,
+    "scale": 2
+  },
+  {
+    "id": "settings-button",
+    "name": "Under the hood",
+    "category": "buttons",
+    "width": 300,
+    "height": 300,
+    "scale": 2
+  },
+  {
+    "id": "close-button",
+    "name": "Nope",
+    "category": "buttons",
+    "width": 300,
+    "height": 300,
+    "scale": 2
+  },
+  {
+    "id": "home-button",
+    "name": "Home, sweet home",
+    "category": "buttons",
+    "width": 300,
+    "height": 300,
+    "scale": 2
+  },
+  {
+    "id": "share-button",
+    "name": "Tell the group chat",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "locked-button",
+    "name": "Not your box yet",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "heart",
+    "name": "One more life",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "coin",
+    "name": "Scrap happens",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "bolt",
+    "name": "A bright idea",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "key",
+    "name": "Keys to the chaos",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "coffee",
+    "name": "Liquid courage",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "tape",
+    "name": "Emotional support tape",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "trophy",
+    "name": "Landlord of the year",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "slipper",
+    "name": "Sole survivor",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "pizza",
+    "name": "Cold, hard justice",
+    "category": "icons",
+    "width": 360,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "defeat",
+    "name": "Out of the box.",
+    "category": "banners",
+    "width": 880,
+    "height": 480,
+    "scale": 2
+  },
+  {
+    "id": "new-best",
+    "name": "Personal worst. Best?",
+    "category": "banners",
+    "width": 880,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "wave-clear",
+    "name": "Return to sender",
+    "category": "banners",
+    "width": 880,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "warning",
+    "name": "They’re at the door",
+    "category": "banners",
+    "width": 880,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "settings",
+    "name": "Adjust the chaos",
+    "category": "menus",
+    "width": 840,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "game-over",
+    "name": "The movers won",
+    "category": "menus",
+    "width": 840,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "results",
+    "name": "Damage report",
+    "category": "menus",
+    "width": 840,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "shop",
+    "name": "The Bonk store — pet skins",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "shop-powers",
+    "name": "The Bonk store — character powers",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "shop-mobile",
+    "name": "The Bonk store — portrait",
+    "category": "menus",
+    "width": 880,
+    "height": 1240,
+    "scale": 2
+  },
+  {
+    "id": "room-keys-mobile",
+    "name": "The key wall — portrait",
+    "category": "menus",
+    "width": 880,
+    "height": 1240,
+    "scale": 2
+  },
+  {
+    "id": "room-key-living",
+    "name": "LIVING ROOM — hanging key",
+    "category": "buttons",
+    "width": 360,
+    "height": 420,
+    "scale": 2
+  },
+  {
+    "id": "room-key-kitchen",
+    "name": "KITCHEN — hanging key",
+    "category": "buttons",
+    "width": 360,
+    "height": 420,
+    "scale": 2
+  },
+  {
+    "id": "room-key-bedroom",
+    "name": "BEDROOM — hanging key",
+    "category": "buttons",
+    "width": 360,
+    "height": 420,
+    "scale": 2
+  },
+  {
+    "id": "pet-dachshund",
+    "name": "RED COLLAR — pet skin",
+    "category": "icons",
+    "width": 380,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "pet-ginger",
+    "name": "GINGER STRIPES — pet skin",
+    "category": "icons",
+    "width": 380,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "pet-parrot",
+    "name": "SCARLET WINGS — pet skin",
+    "category": "icons",
+    "width": 380,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "pet-hamster",
+    "name": "AQUA ORBIT — pet skin",
+    "category": "icons",
+    "width": 380,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "power-slam",
+    "name": "PANIC SLAM — character power",
+    "category": "icons",
+    "width": 380,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "power-dash",
+    "name": "MIDNIGHT DASH — character power",
+    "category": "icons",
+    "width": 380,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "power-static",
+    "name": "STATIC BURST — character power",
+    "category": "icons",
+    "width": 380,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "power-fort",
+    "name": "PILLOW FORT — character power",
+    "category": "icons",
+    "width": 380,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "collection",
+    "name": "The bad ideas book",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "how-to-play",
+    "name": "Your survival guide",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "controls",
+    "name": "A handle on things",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "achievements",
+    "name": "Questionable accomplishments",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "challenge",
+    "name": "Tonight’s terrible idea",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "discovery-detail",
+    "name": "A toast to your demise",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "best-runs",
+    "name": "The wall of shame",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "accessibility",
+    "name": "Chaos for everyone",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "video-settings",
+    "name": "Make it look expensive",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "quit-confirm",
+    "name": "Leaving so soon?",
+    "category": "menus",
+    "width": 840,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "restart-confirm",
+    "name": "Rewind the disaster",
+    "category": "menus",
+    "width": 840,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "reward",
+    "name": "Something for the trouble",
+    "category": "menus",
+    "width": 840,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "loading",
+    "name": "Unpacking the chaos",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "credits",
+    "name": "The people to blame",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "share-result",
+    "name": "The group chat needs this",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "language",
+    "name": "Chaos is universal",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "welcome",
+    "name": "A very rude awakening",
+    "category": "menus",
+    "width": 1240,
+    "height": 880,
+    "scale": 2
+  },
+  {
+    "id": "start-night",
+    "name": "Let the night begin",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "equip",
+    "name": "Armed and domestic",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "claim",
+    "name": "Mine, all mine",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "back",
+    "name": "Back to the chaos",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "confirm",
+    "name": "Commit to the bit",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "cancel",
+    "name": "Actually, never mind",
+    "category": "buttons",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "noise-meter",
+    "name": "The neighbors noticed",
+    "category": "hud",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "objective",
+    "name": "One job. Many objects.",
+    "category": "hud",
+    "width": 880,
+    "height": 340,
+    "scale": 2
+  },
+  {
+    "id": "countdown",
+    "name": "Ready or absolutely not",
+    "category": "hud",
+    "width": 440,
+    "height": 440,
+    "scale": 2
+  },
+  {
+    "id": "pickup-prompt",
+    "name": "Grab a bad idea",
+    "category": "hud",
+    "width": 880,
+    "height": 280,
+    "scale": 2
+  },
+  {
+    "id": "boss-health",
+    "name": "The big delivery",
+    "category": "hud",
+    "width": 1000,
+    "height": 320,
+    "scale": 2
+  },
+  {
+    "id": "achievement-banner",
+    "name": "A very bad influence",
+    "category": "banners",
+    "width": 920,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "low-health",
+    "name": "Your last good nerve",
+    "category": "banners",
+    "width": 920,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "night-survived",
+    "name": "Rent is still due",
+    "category": "banners",
+    "width": 920,
+    "height": 360,
+    "scale": 2
+  },
+  {
+    "id": "boss-warning",
+    "name": "Oversized delivery",
+    "category": "banners",
+    "width": 920,
+    "height": 360,
+    "scale": 2
+  }
+]
