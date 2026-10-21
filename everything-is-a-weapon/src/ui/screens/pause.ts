@@ -150,8 +150,13 @@ function toggle(labelText: string, value: boolean, onChange: (value: boolean) =>
 }
 
 /** Settings: a typed sheet with boxes ticked in pen. */
-export function buildSettings(game: Game, onBack: () => void): HTMLElement {
+export function buildSettings(
+  game: Game,
+  onBack: () => void,
+  initialTab: 'settings' | 'shop' = 'settings',
+): HTMLElement {
   const screen = el('div', 'screen settings');
+  screen.dataset.tab = initialTab;
   const sheet = el('div', 'sheet rules-sheet');
   const head = el('div', 'sheet-head');
   head.append(el('span', 'sheet-title', 'SETTINGS'), el('span', 'sheet-no', 'tick'));

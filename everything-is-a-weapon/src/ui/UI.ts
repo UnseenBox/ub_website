@@ -142,7 +142,7 @@ export class UI implements GameUi {
           goFullscreenOnPhones(game);
           game.playFrom(index);
         },
-        settings: () => this.show(buildSettings(game, () => this.showMenu())),
+        settings: (tab) => this.show(buildSettings(game, () => this.showMenu(), tab)),
         hero: (id) => game.setHero(id),
       }),
     );

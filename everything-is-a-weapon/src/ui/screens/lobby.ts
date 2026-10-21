@@ -6,7 +6,8 @@ import { buildRoomsPane } from './rooms';
 
 export interface MenuActions {
   play(roomIndex: number): void;
-  settings(): void;
+  /** STORE opens the same sheet with the shop tab selected. */
+  settings(tab?: 'settings' | 'shop'): void;
   hero(id: HeroId): void;
 }
 
@@ -71,7 +72,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   gear.setAttribute('aria-label', 'Settings');
   gear.innerHTML =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6 1.7.7 2.2-1.5 2.4 2.4-1.5 2.2.7 1.7 2.6.5v3.4l-2.6.5-.7 1.7 1.5 2.2-2.4 2.4-2.2-1.5-1.7.7-.5 2.6h-3.4l-.5-2.6-1.7-.7-2.2 1.5-2.4-2.4 1.5-2.2-.7-1.7L2 13.7v-3.4l2.6-.5.7-1.7-1.5-2.2 2.4-2.4 2.2 1.5 1.7-.7zM12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/></svg>';
-  gear.addEventListener('click', actions.settings);
+  gear.addEventListener('click', () => actions.settings());
   head.append(logo, tagline, gear);
   screen.append(head);
 
