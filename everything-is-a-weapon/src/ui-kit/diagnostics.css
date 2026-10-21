@@ -1,59 +1,108 @@
-/* Last-resort runtime error panel. It sits above every game screen. */
+/* Last-resort runtime error panel. It sits above every game screen and must
+   never depend on an image asset having loaded. */
 .fatal {
+  position: fixed;
+  inset: 0;
   z-index: 999999;
-  color: var(--paper);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(23, 19, 54, 0.9);
+  backdrop-filter: blur(3px);
+  color: var(--b2-white);
 }
 
 .fatal-box {
-  background: #2a2118;
-  border: 3px solid #20150d;
-  border-radius: 18px;
-  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.35), 0 20px 44px rgba(0, 0, 0, 0.45);
-  max-width: min(94vw, 620px);
-  padding: 24px 24px 20px;
+  position: relative;
+  width: min(100%, 620px);
+  max-width: 94vw;
+  padding: 22px 24px 20px;
+  background: var(--b2-panel);
+  border: var(--b2-outline) solid var(--b2-ink);
+  clip-path: polygon(
+    18px 0, calc(100% - 18px) 0, 100% 18px,
+    100% calc(100% - 12px), calc(100% - 12px) 100%,
+    12px 100%, 0 calc(100% - 12px), 0 18px
+  );
+  filter: drop-shadow(0 8px 0 rgba(0, 0, 0, 0.45));
   text-align: left;
-  width: 100%;
 }
 
 .fatal-box h2 {
-  color: var(--kit-gold, #ffd12e);
-  font: 900 clamp(26px, 5vmin, 40px)/1 var(--kit-display, Impact, sans-serif);
-  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 0 0 10px;
+  color: var(--b2-white);
+  font-family: var(--b2-display);
+  font-size: clamp(24px, 4.5vmin, 36px);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
   text-transform: uppercase;
+  text-shadow:
+    0 2px 0 var(--b2-ink), 2px 0 0 var(--b2-ink), -2px 0 0 var(--b2-ink),
+    0 -2px 0 var(--b2-ink), 2px 2px 0 var(--b2-ink), -2px -2px 0 var(--b2-ink);
+}
+
+.fatal-box h2::before {
+  content: '!';
+  display: grid;
+  place-content: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  background: var(--b2-red);
+  border: 3px solid var(--b2-ink);
+  color: var(--b2-white);
+  font-family: var(--b2-display);
+  font-size: 22px;
+  line-height: 1;
+  clip-path: polygon(50% 0, 100% 22%, 100% 78%, 50% 100%, 0 78%, 0 22%);
+  text-shadow: none;
 }
 
 .fatal-box p {
-  color: #fff2c9;
-  font: 600 15px/1.5 var(--font, sans-serif);
   margin: 0 0 12px;
+  color: rgba(255, 255, 255, 0.86);
+  font-family: var(--b2-body);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .fatal-box pre {
-  background: #17110c;
-  border: 2px solid #4a3322;
-  border-radius: 10px;
-  color: #ffd7a1;
-  font: 600 12px/1.5 'Courier New', monospace;
   margin: 0 0 16px;
   max-height: 180px;
   overflow: auto;
   padding: 10px 12px;
+  background: var(--b2-ink);
+  border: 3px solid rgba(0, 0, 0, 0.45);
+  color: var(--b2-cream);
+  font: 600 12px/1.5 'Courier New', monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .fatal-reload {
-  background: linear-gradient(180deg, #a4e631 0%, var(--kit-green, #3f9e04) 42%, var(--kit-green-2, #1e6200) 100%);
-  border: 3px solid #291b12;
-  border-radius: 999px;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.45);
-  color: #fff7dc;
+  min-height: 46px;
+  padding: 0 26px;
+  background: var(--b2-lime);
+  border: var(--b2-outline-sm) solid var(--b2-ink);
+  clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
+  color: var(--b2-white);
   cursor: pointer;
-  font: 900 15px var(--kit-display, Impact, sans-serif);
-  letter-spacing: 0.08em;
-  padding: 10px 26px;
+  font-family: var(--b2-display);
+  font-size: 17px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  text-shadow:
+    0 2px 0 var(--b2-ink), 2px 0 0 var(--b2-ink), -2px 0 0 var(--b2-ink),
+    0 -2px 0 var(--b2-ink);
+  filter: drop-shadow(0 5px 0 var(--b2-ink));
+  transition: transform var(--b2-dur) var(--b2-ease);
 }
-.fatal-reload:hover { filter: brightness(1.07); transform: translateY(-1px); }
-.fatal-reload:active { transform: translateY(1px); }
+
+.fatal-reload:hover { transform: translateY(-2px); }
+.fatal-reload:active { transform: translateY(2px); }
+.fatal-reload:focus-visible { outline: 3px solid var(--b2-white); outline-offset: 3px; }
