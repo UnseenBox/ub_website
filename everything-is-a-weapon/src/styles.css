@@ -1381,7 +1381,7 @@ body.cinema .hud-top {
   margin-top: 7px;
 }
 
-.powers {
+.hud .powers {
   display: flex;
   gap: 5px;
 }
@@ -2858,7 +2858,7 @@ body.touch.playing .touch-ui {
   display: none;
 }
 
-body.powers .touch-btn.power {
+body.has-powers .touch-btn.power {
   display: block;
 }
 

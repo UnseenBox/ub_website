@@ -774,7 +774,7 @@
 .hud-pause span { background: #fff; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25); }
 
 /* bottom ability chips */
-.powers {
+.hud .powers {
   bottom: clamp(10px, 2.4vh, 26px);
   gap: 10px;
   left: 50%;

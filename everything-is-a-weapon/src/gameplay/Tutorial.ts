@@ -352,7 +352,7 @@ export class Tutorial {
     if (game.abilities.owned('blast')) return;
     game.save.data.abilities.push('blast');
     game.save.write();
-    document.body.classList.add('powers');
+    document.body.classList.add('has-powers');
     if (!announce) return;
     const pb = game.player.body;
     game.hud.unlock('NEW POWER', 'BIG RED BUTTON', 'boom where you point');

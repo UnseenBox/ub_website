@@ -356,7 +356,7 @@ export class Game {
     this.audio.setMusicEnabled(settings.music);
     this.camera.shakeScale = settings.reducedShake ? 0.2 : 1;
     document.body.classList.toggle('high-contrast', settings.highContrast);
-    document.body.classList.toggle('powers', this.abilities.hasAny());
+    document.body.classList.toggle('has-powers', this.abilities.hasAny());
   }
 
   // ───────────── state & room flow ─────────────
@@ -626,7 +626,7 @@ export class Game {
     save.scrap -= def.cost;
     save.abilities.push(id);
     this.save.write();
-    document.body.classList.toggle('powers', this.abilities.hasAny());
+    document.body.classList.toggle('has-powers', this.abilities.hasAny());
     return '';
   }
 
