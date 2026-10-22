@@ -55,13 +55,14 @@
 }
 
 /* --------------------------------------------------------------------------
-   Main row: progress, cast, shortcuts
+   Main row: progress and cast
+   The empty third track keeps the logo and cast optically centred.
    -------------------------------------------------------------------------- */
 
 .b2-lobby__main {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: minmax(0, 200px) minmax(0, 1fr) minmax(0, 158px);
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr) minmax(0, 200px);
   align-items: center;
   gap: clamp(10px, 2vw, 26px);
   width: 100%;
@@ -185,129 +186,16 @@
   filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.22));
 }
 
-/* ── shortcuts ──────────────────────────────────────────────────────────── */
-
-.b2-lobby__right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: clamp(8px, 1.6vh, 16px);
-  min-width: 0;
-}
-
-.b2-lobby__shortcut {
-  display: block;
-  width: 100%;
-  max-width: 158px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  filter: drop-shadow(0 5px 0 rgba(0, 0, 0, 0.3));
-  transition: transform var(--b2-dur) var(--b2-ease), filter var(--b2-dur) var(--b2-ease);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.b2-lobby__shortcut:hover {
-  transform: translateY(-3px) rotate(-1deg);
-  filter: drop-shadow(0 8px 0 rgba(0, 0, 0, 0.3));
-}
-
-.b2-lobby__shortcut:focus-visible {
-  outline: 3px solid var(--b2-white);
-  outline-offset: 4px;
-}
-
-.b2-lobby__shortcutimg {
-  display: block;
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-}
-
 /* --------------------------------------------------------------------------
-   Room strip + PLAY
+   PLAY
    -------------------------------------------------------------------------- */
 
 .b2-lobby__play {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(6px, 1vh, 10px);
   width: 100%;
   flex: none;
-}
-
-.b2-lobby__strip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: min(100%, 440px);
-  min-height: clamp(40px, 6vh, 50px);
-  padding: 5px 12px 5px 6px;
-  background: var(--b2-panel-dark);
-  border: var(--b2-outline-sm) solid var(--b2-ink);
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  color: var(--b2-white);
-  cursor: pointer;
-  text-align: left;
-  transition: background var(--b2-dur) var(--b2-ease), transform var(--b2-dur) var(--b2-ease);
-}
-
-.b2-lobby__strip:hover {
-  background: var(--b2-panel);
-  transform: translateY(-1px);
-}
-
-.b2-lobby__strip:focus-visible {
-  outline: 3px solid var(--b2-white);
-  outline-offset: 3px;
-}
-
-.b2-lobby__stripbadge {
-  flex: none;
-  min-width: 34px;
-  height: 30px;
-  font-size: 15px;
-  background: var(--b2-blue);
-  clip-path: polygon(50% 0, 100% 22%, 100% 78%, 50% 100%, 0 78%, 0 22%);
-  border: 0;
-}
-
-.b2-lobby__stripcopy {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.b2-lobby__striproom {
-  color: var(--b2-cream);
-  font-family: var(--b2-body);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.b2-lobby__stripname {
-  color: var(--b2-white);
-  font-family: var(--b2-display);
-  font-size: clamp(16px, 2.2vh, 20px);
-  line-height: 1;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.b2-lobby__stripchev {
-  margin-left: auto;
-  color: var(--b2-lime);
-  font-family: var(--b2-body);
-  font-size: 26px;
-  font-weight: 900;
-  line-height: 1;
 }
 
 .b2-lobby__playbtn {
@@ -476,11 +364,8 @@
 
 @media (max-width: 1120px) {
   .b2-lobby__main {
-    grid-template-columns: minmax(0, 176px) minmax(0, 1fr) minmax(0, 136px);
+    grid-template-columns: minmax(0, 176px) minmax(0, 1fr) minmax(0, 176px);
     gap: clamp(8px, 1.6vw, 18px);
-  }
-  .b2-lobby__shortcut {
-    max-width: 136px;
   }
 }
 
@@ -495,9 +380,6 @@
   }
   .b2-lobby__stat {
     flex: 1 1 0;
-  }
-  .b2-lobby__right {
-    display: none;
   }
   .b2-lobby__logo {
     max-height: min(15vh, 140px);
@@ -556,9 +438,6 @@
     max-height: 26vh;
   }
   .b2-lobby__left {
-    display: none;
-  }
-  .b2-lobby__strip {
     display: none;
   }
   .b2-lobby__playbtn {

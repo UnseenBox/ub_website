@@ -7,8 +7,6 @@ import { buildRoomsPane } from './rooms';
 
 import logoUrl from '../../ui-kit/bonk2/assets/banners/bonk-logo@2x.png?url';
 import castUrl from '../../ui-kit/bonk2/assets/banners/bonk-cast@2x.png?url';
-import settingsTileUrl from '../../ui-kit/bonk2/assets/buttons/menu-settings-shortcut@2x.png?url';
-import storeTileUrl from '../../ui-kit/bonk2/assets/buttons/menu-store@2x.png?url';
 import coinUrl from '../../ui-kit/bonk2/assets/icons/coin@2x.png?url';
 import keyUrl from '../../ui-kit/bonk2/assets/icons/key@2x.png?url';
 import lampUrl from '../../ui-kit/bonk2/assets/icons/lamp@2x.png?url';
@@ -27,9 +25,6 @@ let lastRoomPick: number | null = null;
 
 const roomLabel = (index: number): string =>
   index < HANDCRAFTED_ROOMS.length ? `ROOM ${index + 1}` : `DEPTHS ${index + 1}`;
-
-const roomName = (index: number): string =>
-  HANDCRAFTED_ROOMS[index]?.name.toLowerCase() ?? 'the depths';
 
 function svg(path: string): SVGSVGElement {
   const node = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -136,44 +131,10 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   cast.draggable = false;
   center.append(logo, tagline, cast);
 
-  // ── right column: the two shortcuts that go somewhere ───────────────────
-  const right = el('aside', 'b2-lobby__right');
-  const shortcut = (src: string, label: string, onClick: () => void): HTMLButtonElement => {
-    const node = el('button', 'b2-lobby__shortcut');
-    node.type = 'button';
-    node.setAttribute('aria-label', label);
-    const img = el('img', 'b2-lobby__shortcutimg');
-    img.src = src;
-    img.alt = '';
-    img.decoding = 'async';
-    img.draggable = false;
-    node.append(img);
-    node.addEventListener('click', onClick);
-    return node;
-  };
-  right.append(
-    shortcut(settingsTileUrl, 'Settings', () => actions.settings()),
-    shortcut(storeTileUrl, 'Store', () => actions.settings('shop')),
-  );
-
   const main = el('div', 'b2-lobby__main');
-  main.append(left, center, right);
+  main.append(left, center);
 
-  // ── the room strip and PLAY ─────────────────────────────────────────────
-  const strip = el('button', 'b2-lobby__strip');
-  strip.type = 'button';
-  strip.setAttribute('aria-haspopup', 'dialog');
-  strip.setAttribute('aria-controls', 'bonk-mode');
-  strip.setAttribute('aria-label', 'Change room or hero');
-  const stripBadge = el('span', 'b2-lobby__stripbadge b2-badge', '01');
-  const stripCopy = el('span', 'b2-lobby__stripcopy');
-  const stripRoom = el('strong', 'b2-lobby__striproom', '');
-  const stripName = el('span', 'b2-lobby__stripname', '');
-  stripCopy.append(stripRoom, stripName);
-  const stripChev = el('span', 'b2-lobby__stripchev', '›');
-  stripChev.setAttribute('aria-hidden', 'true');
-  strip.append(stripBadge, stripCopy, stripChev);
-
+  // ── PLAY ────────────────────────────────────────────────────────────────
   const playRow = el('div', 'b2-lobby__play');
   const playBtn = el('button', 'b2-btn b2-btn--lime b2-btn--lg b2-lobby__playbtn primary');
   playBtn.type = 'button';
@@ -183,7 +144,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   playIcon.querySelector('path')?.setAttribute('fill', 'currentColor');
   playIcon.querySelector('path')?.setAttribute('stroke', 'none');
   playBtn.append(playIcon, el('span', 'b2-lobby__playlabel', 'PLAY'));
-  playRow.append(strip, playBtn);
+  playRow.append(playBtn);
 
   // ── navigation ──────────────────────────────────────────────────────────
   const nav = el('nav', 'b2-nav b2-lobby__nav');
@@ -283,26 +244,20 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   panel.append(modeHead, modeTabs, modeBody);
   mode.append(backdrop, panel);
 
-  // ── selection state, shared by the strip and the sheet ─────────────────
+  // ── selection state, shared by PLAY and the sheet ──────────────────────
   let selected = Math.max(0, save.unlockedRoom);
-  let selectedName = roomName(selected);
 
-  const paintSelection = (index: number, name: string): void => {
+  const paintSelection = (index: number): void => {
     selected = index;
     lastRoomPick = index;
-    selectedName = name;
     const label = roomLabel(index);
     nightNum.textContent = String(index + 1).padStart(2, '0');
     nightSub.textContent = `${label.toLowerCase()} · ${heroPair(game.hero).toLowerCase()}`;
-    stripBadge.textContent = String(index + 1).padStart(2, '0');
-    stripRoom.textContent = label;
-    stripName.textContent = name;
-    strip.setAttribute('aria-label', `Change room or hero. Selected ${label}, ${name}.`);
   };
 
   const roomsPane = buildRoomsPane(game, {
     initial: lastRoomPick,
-    onSelect: (choice) => paintSelection(choice.index, choice.name),
+    onSelect: (choice) => paintSelection(choice.index),
     onEnter: () => closeMode(),
   });
   paneRooms.append(roomsPane.root);
@@ -319,7 +274,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   );
 
   // Initial paint, in case no card fired onSelect during the build.
-  paintSelection(selected, selectedName);
+  paintSelection(selected);
 
   const setModeTab = (tab: 'rooms' | 'characters'): void => {
     const onRooms = tab === 'rooms';
@@ -343,7 +298,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   function closeMode(): void {
     if (mode.hidden) return;
     mode.hidden = true;
-    strip.focus();
+    playBtn.focus();
   }
 
   tabRooms.addEventListener('click', () => setModeTab('rooms'));
@@ -363,7 +318,6 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     }
   });
 
-  strip.addEventListener('click', () => openMode('rooms'));
   setModeTab('rooms');
 
   screen.append(top, main, playRow, nav);
