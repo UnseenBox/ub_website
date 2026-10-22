@@ -2,7 +2,19 @@ import type { RoomSummary } from '../../core/Game';
 import { ENEMY_TYPES } from '../../entities/EnemyTypes';
 import type { AbilityId } from '../../gameplay/Abilities';
 import type { EdgeId } from '../../gameplay/Edges';
-import { button, el, formatScore } from '../dom';
+import { el, formatScore } from '../dom';
+
+import defeatBanner from '../../ui-kit/bonk2/assets/banners/defeat@2x.png';
+import newBestBanner from '../../ui-kit/bonk2/assets/banners/new-best@2x.png';
+import victoryBanner from '../../ui-kit/bonk2/assets/banners/victory@2x.png';
+import boltIcon from '../../ui-kit/bonk2/assets/icons/bolt@2x.png';
+import boxIcon from '../../ui-kit/bonk2/assets/icons/box@2x.png';
+import coffeeIcon from '../../ui-kit/bonk2/assets/icons/coffee@2x.png';
+import coinIcon from '../../ui-kit/bonk2/assets/icons/coin@2x.png';
+import trophyIcon from '../../ui-kit/bonk2/assets/icons/trophy@2x.png';
+import dashPowerIcon from '../../ui-kit/bonk2/assets/icons/power-dash@2x.png';
+import slamPowerIcon from '../../ui-kit/bonk2/assets/icons/power-slam@2x.png';
+import staticPowerIcon from '../../ui-kit/bonk2/assets/icons/power-static@2x.png';
 
 export interface ResultsActions {
   next(): void;
@@ -17,33 +29,26 @@ export interface ResultsActions {
   stamped(): void;
 }
 
-function field(labelText: string, value: string): { row: HTMLElement; value: HTMLElement } {
-  const row = el('div', 'field');
-  const valueNode = el('span', 'field-value', value);
-  row.append(el('span', 'field-label', labelText), el('span', 'field-dots'), valueNode);
-  return { row, value: valueNode };
-}
-
-/** Hand-drawn SVG icons for the victory tickets. Ink strokes, flat fills, no emoji. */
-const ICONS: Record<string, string> = {
-  bolt: '<path d="M13 2.5 4.5 14H11l-1.2 7.5L18.5 10H12z"/>',
-  crate: '<path d="M12 3l8.5 4.3v9.4L12 21l-8.5-4.3V7.3z"/><path class="nofill" d="M3.5 7.3 12 11.7l8.5-4.4M12 11.7V21"/>',
-  loupe: '<circle cx="10.5" cy="10.5" r="6"/><path class="nofill" d="M15.3 15.3 20.5 20.5"/>',
-  cog: '<circle cx="12" cy="12" r="5.4"/><circle class="hub" cx="12" cy="12" r="1.8"/><path class="nofill" d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8"/>',
-  crown: '<path d="M3.5 8.5 5.5 17.5h13l2-9-4.7 3.2L12 5.5l-3.8 6.2z"/>',
-  star: '<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/>',
+const POWER_ICONS: Record<AbilityId, string> = {
+  blast: slamPowerIcon,
+  overdrive: dashPowerIcon,
+  freeze: staticPowerIcon,
 };
 
-function icon(name: string): SVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('class', `vicon vicon-${name}`);
-  svg.setAttribute('aria-hidden', 'true');
-  svg.innerHTML = ICONS[name] ?? '';
-  return svg;
+/** Kit image: always decorative, the live text beside it carries the meaning. */
+function art(src: string, className = ''): HTMLImageElement {
+  const img = el('img', className);
+  img.src = src;
+  img.alt = '';
+  img.setAttribute('aria-hidden', 'true');
+  img.draggable = false;
+  return img;
 }
 
-/** Counts a number up over about a second, like someone totting up a bill. */
+/**
+ * Counts a number up over about a second, like someone totting up a bill.
+ * The final value always lands even when frames are throttled.
+ */
 function countUp(node: HTMLElement, target: number): void {
   const start = performance.now();
   const duration = 900;
@@ -55,131 +60,207 @@ function countUp(node: HTMLElement, target: number): void {
     if (t < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
-  // If frames are throttled the final value must still land.
   window.setTimeout(() => {
     if (node.isConnected) node.textContent = formatScore(target);
   }, duration + 200);
 }
 
-/** The winning screen: a trophy card. Starburst seal, one big number, icon tickets, almost no words. */
+/** Ribbon banners are decorative; the panel header says what happened. */
+function banner(src: string, extra = ''): HTMLElement {
+  const wrap = el('div', `b2-ribbon b2-results__ribbon${extra ? ` ${extra}` : ''}`);
+  wrap.append(art(src));
+  return wrap;
+}
+
+function actionButton(
+  label: string,
+  variant: 'lime' | 'lavender' | 'blue' | 'yellow',
+  onClick: () => void,
+  primary = false,
+): HTMLButtonElement {
+  const node = el('button', `b2-btn b2-btn--${variant} b2-results__action${primary ? ' primary' : ''}`);
+  node.type = 'button';
+  node.append(el('span', 'b2-results__actionlabel', label));
+  node.addEventListener('click', onClick);
+  return node;
+}
+
+function chevron(node: HTMLButtonElement): void {
+  const mark = el('span', 'b2-btn__chev', '›');
+  mark.setAttribute('aria-hidden', 'true');
+  node.append(mark);
+}
+
+function ticket(src: string, value: string, label: string, extra = ''): HTMLElement {
+  const chip = el('div', `b2-chip b2-report__ticket${extra ? ` ${extra}` : ''}`);
+  chip.title = `${label}: ${value}`;
+  chip.setAttribute('aria-label', `${label}: ${value}`);
+  const text = el('span', 'b2-chip__text');
+  text.append(el('span', 'b2-chip__value', value), el('span', 'b2-chip__label', label));
+  chip.append(art(src, 'b2-chip__icon'), text);
+  return chip;
+}
+
+function noteLine(kind: string, text: string, variant: string): HTMLElement {
+  const row = el('div', `b2-report__line b2-report__line--${variant}`);
+  row.append(el('span', 'b2-report__linekind', kind), el('span', 'b2-report__linetext', text));
+  return row;
+}
+
+/** The winning screen: a damage report with one huge live number at the top. */
 function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElement {
-  const screen = el('div', 'screen results cleared victory');
-  const card = el('div', 'victory-card');
-  if (summary.edgeOffer.length > 0) card.classList.add('has-edges');
+  const screen = el('div', 'screen results cleared victory b2-stage b2-stage--navy b2-results b2-results--victory');
+  const shell = el('div', 'b2-results__shell');
 
-  // Ribbon banner: the visual payoff. The slam still fires the sound.
-  const sealWrap = el('div', 'victory-seal-wrap');
-  if (summary.isHighScore && summary.score > 0) {
-    const best = el('div', 'victory-best');
-    best.title = 'New best';
-    best.setAttribute('aria-label', 'New best score');
-    best.append(icon('crown'));
-    sealWrap.append(best);
-  }
-  const ribbon = el('div', 'victory-ribbon', 'CLEARED');
-  sealWrap.append(ribbon);
-  card.append(sealWrap);
-  window.setTimeout(() => {
-    if (!ribbon.isConnected) return;
-    ribbon.classList.add('show');
-    actions.stamped();
-  }, 420);
+  const ribbon = banner(victoryBanner);
+  shell.append(ribbon);
 
-  // Where: a keyring tag with the room number + the room name, nothing else.
-  const where = el('div', 'victory-where');
-  const tag = el('span', 'victory-keytag', summary.daily ? 'D' : String(summary.roomNumber));
-  tag.title = summary.daily ? 'Daily challenge' : `Room ${summary.roomNumber}`;
-  where.append(el('span', 'victory-ring'), tag, el('span', 'victory-room', summary.roomName.toLowerCase()));
-  card.append(where);
+  const panel = el('section', 'b2-panel b2-report');
+  const titleId = 'b2-damage-report-title';
+  panel.setAttribute('aria-labelledby', titleId);
+
+  const head = el('div', 'b2-panel__head b2-report__head');
+  const title = el('h2', 'b2-panel__title', 'DAMAGE REPORT');
+  title.id = titleId;
+  head.append(title);
+  panel.append(head);
+
+  const body = el('div', 'b2-panel__body b2-report__body');
+
+  // ── where: room badge, room name, and the run this clear belongs to ──
+  const meta = el('div', 'b2-report__meta');
+  const roomTag = el('span', 'b2-badge b2-report__roomtag', summary.daily ? 'D' : String(summary.roomNumber));
+  roomTag.title = summary.daily ? 'Daily challenge' : `Room ${summary.roomNumber}`;
+  meta.append(roomTag, el('span', 'b2-report__roomname', summary.roomName.toLowerCase()));
   if (!summary.daily && (summary.runFloor > 0 || summary.runStreak > 0)) {
-    const run = el('div', 'victory-run', `RUN · FLOOR ${summary.runFloor + 1} · STREAK ${summary.runStreak}`);
+    const run = el('span', 'b2-report__run', `RUN · FLOOR ${summary.runFloor + 1} · STREAK ${summary.runStreak}`);
     run.title = 'Your current run. A new floor keeps every Edge you picked.';
-    card.append(run);
+    meta.append(run);
   }
-  // Campaign: stars for this room.
+
+  // ── the score: the one number the whole screen is about ──
+  const hero = el('div', 'b2-report__hero');
+  if (summary.isHighScore && summary.score > 0) {
+    const best = el('span', 'b2-chip b2-report__best');
+    best.setAttribute('aria-label', 'New best score');
+    const text = el('span', 'b2-chip__text');
+    text.append(el('span', 'b2-chip__value', 'NEW BEST'), el('span', 'b2-chip__label', 'PERSONAL RECORD'));
+    best.append(art(trophyIcon, 'b2-chip__icon'), text);
+    hero.append(best);
+  }
+  const score = el('div', 'b2-report__score b2-outlined b2-num', '0');
+  score.setAttribute('aria-label', `${formatScore(summary.score)} chaos points`);
+  hero.append(score, el('div', 'b2-label b2-report__scorelabel', 'CHAOS POINTS'));
+  countUp(score, summary.score);
+
+  // ── campaign marks: stars, objective, contracts, daily bonus, finale ──
+  const marks = el('div', 'b2-report__marks');
   if (!summary.daily) {
-    const stars = el('div', 'victory-stars');
+    const stars = el('div', 'b2-report__stars');
     stars.title = `Clear ★ · bonus ${summary.challengePassed ? '★' : '☆'} · style ${summary.stars >= (summary.challengePassed ? 3 : 2) ? '★' : '☆'}`;
     stars.setAttribute('aria-label', `Stars: ${summary.stars} of 3`);
-    stars.textContent = `${'★'.repeat(summary.stars)}${'☆'.repeat(Math.max(0, 3 - summary.stars))}${summary.isNewBestStars ? ' · new!' : ''}`;
-    card.append(stars);
+    stars.append(el(
+      'span',
+      'b2-report__starline b2-outlined',
+      `${'★'.repeat(summary.stars)}${'☆'.repeat(Math.max(0, 3 - summary.stars))}`,
+    ));
+    if (summary.isNewBestStars) stars.append(el('span', 'b2-chip b2-report__newstars', 'NEW!'));
+    marks.append(stars);
   }
-  if (summary.objective && summary.daily) card.append(el('div', 'victory-objective', `◎ ${summary.objective.toLowerCase()}`));
+
+  const notes = el('div', 'b2-report__notes');
+  if (summary.objective && summary.daily) {
+    notes.append(noteLine('OBJECTIVE', summary.objective.toLowerCase(), 'objective'));
+  }
   for (const contract of summary.contractsNew) {
-    card.append(el('div', 'victory-contract', `✚ ${contract.name.toLowerCase()} +${contract.reward}`));
+    notes.append(noteLine('CONTRACT', `${contract.name} · +${contract.reward} SCRAP`, 'contract'));
   }
-  if (summary.dailyBonus > 0) card.append(el('div', 'victory-contract', `🔥 +${summary.dailyBonus}`));
-  if (summary.finale) card.append(el('div', 'victory-contract', '★ lease reclaimed ★'));
+  if (summary.dailyBonus > 0) {
+    notes.append(noteLine('DAILY BONUS', `+${summary.dailyBonus} SCRAP`, 'daily'));
+  }
+  if (summary.finale) {
+    notes.append(noteLine('FINALE', '★ LEASE RECLAIMED ★', 'finale'));
+  }
+  if (notes.childElementCount > 0) marks.append(notes);
 
-  const score = el('div', 'victory-score', '0');
-  card.append(score);
-  countUp(score, summary.score);
-  card.append(el('div', 'victory-perforation'));
+  // ── stat tickets: icon + live value + a plain label ──
+  const stats = el('div', 'b2-report__stats');
+  const tickets = el('div', 'b2-report__tickets');
+  if (summary.bestChain > 0) tickets.append(ticket(boltIcon, `×${summary.bestChain}`, 'BEST CHAIN', 'is-hot'));
+  tickets.append(ticket(boxIcon, String(summary.objectsUsed), 'OBJECTS USED'));
+  if (summary.newDiscoveries > 0) tickets.append(ticket(coffeeIcon, String(summary.newDiscoveries), 'NEW DISCOVERIES'));
+  if (summary.challengeText && summary.cleared && summary.challengePassed && summary.challengeBonus > 0) {
+    tickets.append(ticket(trophyIcon, `+${formatScore(summary.challengeBonus)}`, 'CHALLENGE', 'is-gold'));
+  }
+  if (summary.firstClearBonus > 0 && summary.cleared) {
+    tickets.append(ticket(coinIcon, `+${summary.firstClearBonus}`, 'FIRST CLEAR', 'is-scrap'));
+  }
+  if (summary.roomBest > 0 && !summary.daily && !summary.isHighScore) {
+    tickets.append(ticket(trophyIcon, formatScore(summary.roomBest), 'YOUR BEST HERE'));
+  }
+  if (tickets.childElementCount > 0) stats.append(tickets);
 
-  // Perforated stat tickets: icon + number, no words. Full text lives in tooltips.
-  const tickets = el('div', 'victory-tickets');
-  const ticket = (iconName: string, value: string, label: string, extra = ''): void => {
-    const stub = el('span', `vticket${extra ? ` ${extra}` : ''}`);
-    stub.title = label;
-    stub.setAttribute('aria-label', `${label}: ${value}`);
-    const badge = el('span', 'vticket-icon');
-    badge.append(icon(iconName));
-    stub.append(badge, el('span', 'vticket-value', value));
-    tickets.append(stub);
-  };
-  if (summary.bestChain > 0) ticket('bolt', `×${summary.bestChain}`, 'Best chain', 'hot');
-  ticket('crate', String(summary.objectsUsed), 'Objects used');
-  if (summary.newDiscoveries > 0) ticket('loupe', String(summary.newDiscoveries), 'New discoveries');
-  if (summary.challengeText && summary.cleared && summary.challengePassed && summary.challengeBonus > 0)
-    ticket('star', `+${formatScore(summary.challengeBonus)}`, summary.challengeText, 'gold');
-  if (summary.firstClearBonus > 0 && summary.cleared) ticket('cog', `+${summary.firstClearBonus}`, 'First clear scrap bonus', 'scrap');
-  // A fresh best already wears the crown; the old record only shows when it survived.
-  if (summary.roomBest > 0 && !summary.daily && !summary.isHighScore)
-    ticket('crown', formatScore(summary.roomBest), 'Your best here');
-  card.append(tickets);
-
-  // Star Ledger: permanent milestones crossed by this clear. Scrap is already in the purse.
+  // ── Star Ledger: permanent milestones crossed by this clear ──
   if (summary.ledgerClaims.length > 0) {
-    const ledger = el('div', 'victory-ledger');
+    const ledger = el('div', 'b2-report__ledger');
+    ledger.append(el('div', 'b2-label b2-report__sectionlabel', 'STAR LEDGER'));
     for (const claim of summary.ledgerClaims) {
-      ledger.append(el('div', 'victory-ledger-line', `★ LEDGER · ${claim.name} · ${claim.reward}`));
+      const line = el('div', 'victory-ledger-line b2-report__ledgerline');
+      line.append(
+        el('span', 'b2-report__ledgerstar', '★'),
+        el('span', 'b2-report__ledgername', claim.name),
+        el('span', 'b2-report__ledgerreward', claim.reward),
+      );
+      ledger.append(line);
     }
-    card.append(ledger);
+    stats.append(ledger);
   }
 
-  // Power offer: one compact ticket, name + buy button.
+  // ── run reward: one power offer, then three Edge cards ──
+  const side = el('div', 'b2-report__side');
   const offer = summary.offer;
   if (offer) {
-    const line = el('div', 'victory-offer');
-    const buy = el('button', 'ability-buy', `BUY · ${offer.cost}`);
+    const line = el('div', 'b2-report__offer');
+    line.title = offer.blurb;
+    const text = el('div', 'b2-report__offertext');
+    text.append(
+      el('span', 'b2-label', 'POWER AVAILABLE'),
+      el('span', 'b2-report__offername', offer.name),
+      el('span', 'b2-report__offerblurb', offer.blurb),
+    );
+    const buy = el('button', 'b2-btn b2-btn--yellow b2-btn--sm b2-report__buy', `BUY · ${offer.cost}`);
     buy.type = 'button';
     buy.title = `${offer.cost} scrap`;
+    buy.setAttribute('aria-label', `Buy ${offer.name} for ${offer.cost} scrap`);
     buy.addEventListener('click', () => {
       if (actions.buy(offer.id)) return;
-      buy.replaceWith(el('span', 'ability-owned', 'YOURS'));
+      buy.replaceWith(el('span', 'b2-chip b2-report__owned', 'YOURS'));
     });
-    const badge = el('span', 'vticket-icon');
-    badge.append(icon('bolt'));
-    line.append(badge, el('span', 'victory-offer-name', offer.name.toLowerCase()), el('span', 'scrap-dot'), buy);
-    line.title = offer.blurb;
-    card.append(line);
+    line.append(art(POWER_ICONS[offer.id], 'b2-icon b2-report__offericon'), text, buy);
+    side.append(line);
   }
 
-  // The run reward: three cards, one from each trade. Picking one is the next action.
   if (!summary.daily && summary.edgeOffer.length > 0) {
-    const choice = el('div', 'edge-choice');
-    choice.append(el('div', 'edge-heading', 'CHOOSE ONE · IT STACKS FOR THE RUN'));
-    const cards = el('div', 'edge-cards');
+    const choice = el('div', 'b2-report__edges');
+    choice.append(el('div', 'b2-label b2-report__sectionlabel', 'CHOOSE ONE · IT STACKS FOR THE RUN'));
+    const cards = el('div', 'b2-report__edgegrid');
     let picked = false;
     for (const edge of summary.edgeOffer) {
-      const cardButton = el('button', `edge-card edge-${edge.category} edge-${edge.rarity}`);
+      const cardButton = el(
+        'button',
+        `edge-card edge-${edge.category} edge-${edge.rarity} b2-edge b2-edge--${edge.category} b2-edge--${edge.rarity}`,
+      );
       cardButton.type = 'button';
+      const top = el('span', 'b2-edge__top');
+      top.append(
+        el('span', 'b2-edge__kicker', edge.category),
+        el('span', 'b2-edge__rarity', edge.rarity),
+      );
       cardButton.append(
-        el('span', 'edge-kicker', edge.category.toUpperCase()),
-        el('span', 'edge-rarity', edge.rarity.toUpperCase()),
-        el('span', 'edge-name', edge.name),
-        el('span', 'edge-effect', edge.effect),
-        el('span', 'edge-flavor', edge.flavor),
+        top,
+        el('span', 'b2-edge__name', edge.name),
+        el('span', 'b2-edge__effect', edge.effect),
+        el('span', 'b2-edge__flavor', edge.flavor),
       );
       cardButton.setAttribute('aria-label', `${edge.name}: ${edge.effect} ${edge.flavor}`);
       cardButton.addEventListener('click', () => {
@@ -191,101 +272,174 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
       cards.append(cardButton);
     }
     choice.append(cards);
-    card.append(choice);
+    side.append(choice);
   }
 
-  // Next room: whoever waits there + an arrow + its key tag + its name.
+  // ── next room: whoever waits there + its key tag + its name ──
   const next = summary.next;
   if (next) {
-    const door = el('div', next.isNew ? 'victory-next new' : 'victory-next');
+    const door = el('div', next.isNew ? 'b2-report__next is-new' : 'b2-report__next');
+    door.title = next.teaser;
+    door.setAttribute('aria-label', `Next room ${next.number}: ${next.name}. ${next.teaser}`);
     const mover = ENEMY_TYPES[next.mover];
+    const mugWrap = el('span', 'b2-badge b2-report__mug');
     const mug = el('span', `mug mug-${next.mover}`);
     mug.style.setProperty('--mug', mover.color);
     mug.title = mover.name;
     mug.append(el('span', 'mug-face'));
-    const ntag = el('span', `victory-keytag sm${next.isNew ? ' fresh' : ''}`, String(next.number));
-    ntag.title = next.isNew ? `New key: room ${next.number}` : `Next: room ${next.number}`;
-    door.append(mug, el('span', 'victory-arrow', '→'), ntag, el('span', 'victory-next-name', next.name.toLowerCase()));
-    door.title = next.teaser;
-    card.append(door);
+    mugWrap.append(mug);
+    const info = el('div', 'b2-report__nextinfo');
+    info.append(
+      el('span', 'b2-label', next.isNew ? 'NEW ROOM NEXT' : 'NEXT ROOM'),
+      el('span', 'b2-report__nextname', next.name.toLowerCase()),
+    );
+    const key = el('span', 'b2-badge b2-report__keytag', String(next.number));
+    key.title = next.isNew ? `New key: room ${next.number}` : `Next: room ${next.number}`;
+    door.append(mugWrap, info, key);
+    side.append(door);
   }
 
-  screen.append(card);
+  body.append(meta, hero, marks, side, stats);
+  panel.append(body);
+  shell.append(panel);
 
-  const buttons = el('div', 'menu-buttons row');
+  const actionsRow = el('div', 'b2-results__actions');
   if (summary.daily) {
-    buttons.append(button('DONE', 'primary', actions.next));
+    actionsRow.append(actionButton('DONE', 'lime', actions.next, true));
   } else if (summary.edgeOffer.length === 0) {
-    // Only legacy/failed paths get a NEXT button; an Edge card is the next action.
-    buttons.append(button('NEXT →', 'primary', actions.next));
+    // An Edge card is the next action; NEXT only exists when there is no offer.
+    const nextButton = actionButton('NEXT', 'lime', actions.next, true);
+    chevron(nextButton);
+    actionsRow.append(nextButton);
   }
-  buttons.append(button('↻ REPLAY', '', actions.retry));
-  buttons.append(button('⌂ HOME', '', actions.home));
-  screen.append(buttons);
-  if (summary.adMissed) screen.append(el('p', 'ad-note', 'no ad right now'));
-  return screen;
-}
-
-/** The end-of-room screen: a victory card on a win, an incident report on a fail. */
-export function buildResults(summary: RoomSummary, actions: ResultsActions): HTMLElement {
-  if (summary.cleared) return buildVictory(summary, actions);
-  const screen = el('div', 'screen results failed');
-  const clipboard = el('div', 'clipboard');
-  const sheet = el('div', 'sheet');
-
-  const head = el('div', 'sheet-head');
-  head.append(
-    el('span', 'sheet-title', 'INCIDENT REPORT'),
-    el('span', 'sheet-no', summary.daily ? 'DAILY' : `No. ${String(summary.roomNumber).padStart(3, '0')}`),
+  actionsRow.append(
+    actionButton('REPLAY', 'blue', actions.retry),
+    actionButton('HOME', 'lavender', actions.home),
   );
-  const where = el('div', 'sheet-where');
-  where.append(
-    el('span', 'field-label', 'LOCATION'),
-    el('span', 'handwritten', `${summary.daily ? 'daily challenge' : `room ${summary.roomNumber}`} — ${summary.roomName.toLowerCase()}`),
-  );
+  shell.append(actionsRow);
+  if (summary.adMissed) shell.append(el('p', 'b2-results__adnote', 'no ad right now'));
 
-  const fields = el('div', 'fields');
-  const score = field('BILL', '0');
-  fields.append(
-    score.row,
-    field('CHAIN', summary.bestChain > 0 ? `x${summary.bestChain}` : '—').row,
-    field('OBJECTS', String(summary.objectsUsed)).row,
-    field('NEW', String(summary.newDiscoveries)).row,
-  );
-  // Something to beat on a replay.
-  if (summary.roomBest > 0 && !summary.daily) fields.append(field('BEST', formatScore(summary.roomBest)).row);
-  countUp(score.value, summary.score);
+  screen.append(shell);
 
-  sheet.append(head, where, fields);
-
-  // Failed runs never carry challenge/first-clear bonuses, offers, or next-room teasers.
-  if (!summary.daily) {
-    sheet.append(el(
-      'div',
-      summary.runEnded ? 'run-note run-ended' : 'run-note edges-kept',
-      summary.runEnded ? 'RUN ENDED · EDGES LOST' : 'EDGES KEPT · RUN STREAK RESET',
-    ));
-  }
-  const stamp = el('div', 'stamp-mark', 'EVICTED');
-  sheet.append(stamp);
+  // The victory banner drops in a beat after the panel, with the stamp sound.
   window.setTimeout(() => {
-    if (!stamp.isConnected) return;
-    stamp.classList.add('show');
+    if (!ribbon.isConnected) return;
+    ribbon.classList.add('is-shown');
     actions.stamped();
   }, 420);
 
-  if (summary.isHighScore && summary.score > 0) sheet.append(el('div', 'best-sticker', 'NEW BEST'));
+  return screen;
+}
 
-  clipboard.append(el('div', 'clip'), sheet);
-  screen.append(clipboard);
+function fieldRow(label: string, value: string | HTMLElement): HTMLElement {
+  const row = el('div', 'b2-report__field');
+  row.append(el('span', 'b2-report__fieldlabel', label), el('span', 'b2-report__leader'));
+  const valueNode = typeof value === 'string' ? el('span', 'b2-report__fieldvalue b2-num', value) : value;
+  row.append(valueNode);
+  return row;
+}
 
-  const buttons = el('div', 'menu-buttons row');
-  buttons.append(button('RETRY', 'primary', actions.retry));
+/** The end-of-room screen: a damage report on a win, an incident report on a fail. */
+export function buildResults(summary: RoomSummary, actions: ResultsActions): HTMLElement {
+  if (summary.cleared) return buildVictory(summary, actions);
+
+  const screen = el('div', 'screen results failed b2-stage b2-stage--navy b2-results b2-results--failed');
+  const shell = el('div', 'b2-results__shell');
+
+  const ribbon = banner(defeatBanner);
+  shell.append(ribbon);
+
+  const panel = el('section', 'b2-panel b2-report b2-report--failed');
+  const titleId = 'b2-incident-report-title';
+  panel.setAttribute('aria-labelledby', titleId);
+
+  const head = el('div', 'b2-panel__head b2-panel__head--red b2-report__head');
+  const title = el('h2', 'b2-panel__title', 'INCIDENT REPORT');
+  title.id = titleId;
+  head.append(title);
+  panel.append(head);
+
+  const body = el('div', 'b2-panel__body b2-report__body');
+
+  // ── where and which report this is ──
+  const meta = el('div', 'b2-report__meta');
+  const location = el('span', 'b2-report__location');
+  location.append(
+    el('span', 'b2-label', 'LOCATION'),
+    el('span', 'b2-report__roomname', `${summary.daily ? 'daily challenge' : `room ${summary.roomNumber}`} — ${summary.roomName.toLowerCase()}`),
+  );
+  meta.append(location);
+  meta.append(el('span', 'b2-chip b2-report__sheetno', summary.daily ? 'DAILY' : `No. ${String(summary.roomNumber).padStart(3, '0')}`));
+
+  // ── the bill: the huge live number, the stamp, the new-best plate ──
+  const hero = el('div', 'b2-report__hero b2-report__hero--failed');
+  const scoreWrap = el('div', 'b2-report__scorewrap');
+  const score = el('div', 'b2-report__score b2-outlined b2-num', '0');
+  score.setAttribute('aria-label', `${formatScore(summary.score)} chaos points, the final bill`);
+  scoreWrap.append(score, el('div', 'b2-label b2-report__scorelabel', 'BILL · CHAOS POINTS'));
+  countUp(score, summary.score);
+
+  const stamp = el('div', 'b2-report__stamp', 'EVICTED');
+  stamp.setAttribute('aria-label', 'Evicted');
+  hero.append(scoreWrap, stamp);
+
+  const summaryBody = el('div', 'b2-report__bodycopy');
+  summaryBody.append(hero);
+  if (summary.isHighScore && summary.score > 0) {
+    const best = el('div', 'b2-ribbon b2-results__best');
+    const img = art(newBestBanner);
+    img.alt = 'New personal best';
+    img.removeAttribute('aria-hidden');
+    best.append(img);
+    summaryBody.append(best);
+  }
+
+  // ── the rest of the incident: chain, objects, discoveries, old best ──
+  const fields = el('div', 'b2-report__fields');
+  fields.append(
+    fieldRow('CHAIN', summary.bestChain > 0 ? `×${summary.bestChain}` : '—'),
+    fieldRow('OBJECTS', String(summary.objectsUsed)),
+    fieldRow('NEW', String(summary.newDiscoveries)),
+  );
+  if (summary.roomBest > 0 && !summary.daily) fields.append(fieldRow('BEST', formatScore(summary.roomBest)));
+  summaryBody.append(fields);
+
+  // Failed runs never carry challenge/first-clear bonuses, offers, or next-room teasers.
+  if (!summary.daily) {
+    summaryBody.append(el(
+      'div',
+      summary.runEnded
+        ? 'b2-report__runnote b2-report__runnote--ended'
+        : 'b2-report__runnote b2-report__runnote--kept',
+      summary.runEnded ? 'RUN ENDED · EDGES LOST' : 'EDGES KEPT · RUN STREAK RESET',
+    ));
+  }
+
+  body.append(meta, summaryBody);
+  panel.append(body);
+  shell.append(panel);
+
+  const actionsRow = el('div', 'b2-results__actions');
+  actionsRow.append(actionButton('RETRY', 'lime', actions.retry, true));
   // Only offered when a rewarded ad is genuinely available; never forced.
-  // The label says plainly that it costs an advert; RETRY beside it is the same size and free.
-  if (summary.canContinue) buttons.append(button('▶ CONTINUE', 'ad-offer', actions.continueWithReward));
-  buttons.append(button('HOME', '', actions.home));
-  screen.append(buttons);
-  if (summary.adMissed) screen.append(el('p', 'ad-note', 'no ad right now'));
+  // The label says plainly that it costs an advert; RETRY beside it is free.
+  if (summary.canContinue) {
+    const continueButton = actionButton('CONTINUE', 'yellow', actions.continueWithReward);
+    continueButton.title = 'Watch an advert to keep this run alive';
+    actionsRow.append(continueButton);
+  }
+  actionsRow.append(actionButton('HOME', 'lavender', actions.home));
+  shell.append(actionsRow);
+  if (summary.adMissed) shell.append(el('p', 'b2-results__adnote', 'no ad right now'));
+
+  screen.append(shell);
+
+  // The stamp hits the page a beat after the report is laid down.
+  window.setTimeout(() => {
+    if (!stamp.isConnected) return;
+    stamp.classList.add('is-shown');
+    actions.stamped();
+  }, 420);
+
   return screen;
 }

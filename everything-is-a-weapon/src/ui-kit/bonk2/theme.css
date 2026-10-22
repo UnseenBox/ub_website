@@ -65,6 +65,11 @@
   overflow: hidden;
 }
 
+/* The pause sheet is a dim layer: the HUD stays visible (and is dimmed) behind it. */
+#screens:has(> .b2-stage--dim) {
+  background: transparent;
+}
+
 .b2-stage {
   position: absolute;
   inset: 0;
@@ -85,6 +90,20 @@
   overflow: auto;
   overscroll-behavior: contain;
   animation: b2-stage-in 220ms var(--b2-ease) both;
+}
+
+/* Older screens in styles.css size themselves as centred cards. A b2 stage
+   always owns the viewport, even when it reuses one of those class names. */
+#screens > .screen.b2-stage {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  gap: var(--b2-gap);
 }
 
 .b2-stage--blue {
@@ -129,7 +148,11 @@
 }
 
 .b2-outlined,
-.b2-panel__title {
+.b2-panel__title,
+.b2-btn,
+.b2-tab,
+.b2-nav__item,
+.b2-badge {
   text-shadow:
     0 2px 0 var(--b2-ink), 2px 0 0 var(--b2-ink), -2px 0 0 var(--b2-ink),
     0 -2px 0 var(--b2-ink), 2px 2px 0 var(--b2-ink), -2px -2px 0 var(--b2-ink),

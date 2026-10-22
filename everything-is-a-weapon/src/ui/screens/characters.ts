@@ -1,35 +1,29 @@
 import type { Game } from '../../core/Game';
 import { HEROES, type HeroId } from '../../core/Hero';
-import { Player } from '../../entities/Player';
-import { drawPlayer } from '../../rendering/PlayerArt';
 import { el } from '../dom';
+import characterLime from '../../ui-kit/bonk2/assets/icons/character-lime@2x.png';
+import characterRose from '../../ui-kit/bonk2/assets/icons/character-rose@2x.png';
+import characterTeal from '../../ui-kit/bonk2/assets/icons/character-teal@2x.png';
+import characterViolet from '../../ui-kit/bonk2/assets/icons/character-violet@2x.png';
+import petDachshund from '../../ui-kit/bonk2/assets/icons/pet-dachshund@2x.png';
+import petGinger from '../../ui-kit/bonk2/assets/icons/pet-ginger@2x.png';
+import petHamster from '../../ui-kit/bonk2/assets/icons/pet-hamster@2x.png';
+import petParrot from '../../ui-kit/bonk2/assets/icons/pet-parrot@2x.png';
 
-/**
- * The card portrait: the hero drawn by the very same code that draws them in the room,
- * on a throwaway Player posed facing the reader, so a new look never needs a second asset.
- */
-function heroPortrait(hero: HeroId): HTMLCanvasElement {
-  const canvas = el('canvas', 'hero-portrait');
-  const w = 112;
-  const h = 140;
-  canvas.width = w * 2;
-  canvas.height = h * 2;
-  canvas.setAttribute('role', 'img');
-  canvas.setAttribute('aria-label', hero);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-  const pose = new Player(0, 0);
-  pose.aimX = 0.26;
-  pose.aimY = 0.96;
-  pose.walkPhase = 1.1;
-  ctx.scale(2, 2);
-  ctx.save();
-  ctx.translate(w / 2, h - 26);
-  ctx.scale(2.1, 2.1);
-  drawPlayer(ctx, pose, 0, 0, 0, hero);
-  ctx.restore();
-  return canvas;
+interface RosterArt {
+  readonly portrait: string;
+  readonly pet: string;
+  /** Matches a `.b2-hero[data-accent]` rule in rooms.css. */
+  readonly accent: 'violet' | 'teal' | 'rose' | 'lime';
 }
+
+/** The kit's four robes, paired with the pet each hero actually brings. */
+const ROSTER: Record<HeroId, RosterArt> = {
+  tenant: { portrait: characterViolet, pet: petDachshund, accent: 'violet' },
+  flatmate: { portrait: characterTeal, pet: petGinger, accent: 'teal' },
+  gran: { portrait: characterRose, pet: petParrot, accent: 'rose' },
+  kid: { portrait: characterLime, pet: petHamster, accent: 'lime' },
+};
 
 /** 'the tenant & waffle' for the summary line. */
 export function heroPair(heroId: HeroId): string {
@@ -45,36 +39,75 @@ export interface CharactersPaneOptions {
 
 /** The four heroes in a strip, picked one wears the crown. */
 export function buildCharactersPane(game: Game, options: CharactersPaneOptions = {}): HTMLElement {
-  const section = el('section', 'rm-heroes');
+  const section = el('section', 'b2-roster');
   section.setAttribute('aria-label', 'Character selection');
-  section.append(el('div', 'tape-label', 'CHARACTER'));
 
-  const cast = el('div', 'rm-cast');
+  const head = el('header', 'b2-roster__head');
+  head.append(
+    el('h3', 'b2-roster__title b2-display b2-outlined', 'THE NIGHT SHIFT'),
+    el('p', 'b2-roster__sub', 'FOUR SLEEPY HEROES. FOUR LOYAL SIDEKICKS.'),
+  );
+
+  const current = el('strong', 'b2-roster__current b2-display', heroPair(game.hero));
+  current.setAttribute('aria-live', 'polite');
+  const foot = el('footer', 'b2-roster__foot');
+  foot.append(current, el('span', 'b2-roster__hint', 'PICK A CARD — IT SAVES RIGHT AWAY.'));
+
+  const cast = el('div', 'b2-roster__cast');
   cast.setAttribute('role', 'radiogroup');
   cast.setAttribute('aria-label', 'Heroes. Pick a card to choose a hero.');
 
-  const crown = el('span', 'mm-crown');
   const cards = new Map<HeroId, HTMLButtonElement>();
 
   const paint = (id: HeroId): void => {
     for (const [otherId, card] of cards) {
       const on = otherId === id;
-      card.classList.toggle('picked', on);
+      card.classList.toggle('is-selected', on);
       card.setAttribute('aria-checked', String(on));
-      if (on && card.firstElementChild !== crown) card.prepend(crown);
+      const plate = card.querySelector<HTMLElement>('.b2-hero__plate');
+      if (plate) plate.textContent = on ? 'SELECTED' : 'CHOOSE';
+      const crown = card.querySelector<HTMLElement>('.b2-hero__crown');
+      if (crown) crown.hidden = !on;
     }
+    current.textContent = heroPair(id);
   };
 
-  for (const info of HEROES) {
-    const card = el('button', 'rm-hero') as HTMLButtonElement;
+  HEROES.forEach((info, index) => {
+    const art = ROSTER[info.id];
+    const card = el('button', 'b2-hero');
     card.type = 'button';
     card.setAttribute('role', 'radio');
     card.setAttribute('aria-checked', 'false');
     card.setAttribute('aria-label', `Play as ${info.name}, ${info.note}`);
+    card.title = `${info.name} ${info.note}`;
+    card.dataset.hero = info.id;
+    card.dataset.accent = art.accent;
 
-    const frame = el('div', 'hero-blank');
-    frame.append(heroPortrait(info.id));
-    card.append(frame, el('span', 'mm-card-name', info.name), el('span', 'mm-card-note', info.note));
+    card.append(el('span', 'b2-hero__num b2-display b2-num', String(index + 1).padStart(2, '0')));
+
+    const stage = el('span', 'b2-hero__stage');
+    const portrait = el('img', 'b2-hero__portrait');
+    portrait.src = art.portrait;
+    portrait.alt = '';
+    portrait.decoding = 'async';
+    portrait.draggable = false;
+    const pet = el('img', 'b2-hero__pet');
+    pet.src = art.pet;
+    pet.alt = '';
+    pet.decoding = 'async';
+    pet.draggable = false;
+    const crown = el('span', 'b2-hero__crown');
+    crown.hidden = true;
+    crown.setAttribute('aria-hidden', 'true');
+    crown.innerHTML =
+      '<svg viewBox="0 0 32 26" focusable="false"><path d="M3 21 4.6 7.2 11.6 13 16 3l4.4 10 7-5.8L29 21Z"/><path d="M4 21h24v3H4z"/></svg>';
+    stage.append(portrait, pet, crown);
+
+    const name = el('span', 'b2-hero__name b2-display', info.name);
+    const note = el('span', 'b2-hero__note', info.note);
+    const plate = el('span', 'b2-hero__plate b2-display', 'CHOOSE');
+
+    card.append(stage, name, note, plate);
     card.addEventListener('click', () => {
       paint(info.id);
       if (info.id === game.hero) return;
@@ -83,9 +116,9 @@ export function buildCharactersPane(game: Game, options: CharactersPaneOptions =
 
     cast.append(card);
     cards.set(info.id, card);
-  }
+  });
 
   paint(game.hero);
-  section.append(cast);
+  section.append(head, cast, foot);
   return section;
 }

@@ -5,9 +5,17 @@ import { ENEMY_TYPES, type EnemyTypeId } from '../../entities/EnemyTypes';
 import type { Enemy } from '../../entities/Enemy';
 import type { IncidentKind } from '../../gameplay/Incidents';
 import type { GuideIcon } from '../../gameplay/Tutorial';
+import type { AbilityId } from '../../gameplay/Abilities';
 import { DISCOVERY_BY_ID } from '../../gameplay/Discoveries';
 import { COMBO_WINDOW } from '../../gameplay/ScoreSystem';
 import { el, formatScore, ransom } from '../dom';
+
+import discoveryBanner from '../../ui-kit/bonk2/assets/banners/discovery@2x.png?url';
+import heartIcon from '../../ui-kit/bonk2/assets/icons/heart@2x.png?url';
+import coinIcon from '../../ui-kit/bonk2/assets/icons/coin@2x.png?url';
+import blastIcon from '../../ui-kit/bonk2/assets/icons/power-slam@2x.png?url';
+import dashIcon from '../../ui-kit/bonk2/assets/icons/power-dash@2x.png?url';
+import staticIcon from '../../ui-kit/bonk2/assets/icons/power-static@2x.png?url';
 
 interface Mug {
   node: HTMLElement;
@@ -16,11 +24,16 @@ interface Mug {
   out: boolean;
 }
 
+const POWER_ART: Record<AbilityId, string> = {
+  blast: blastIcon,
+  overdrive: dashIcon,
+  freeze: staticIcon,
+};
+
 /**
- * The in-game overlay, built as things lying around the flat rather than a status bar:
- * a luggage tag for the room, a liquid health bar for the player, a police-style
- * line-up of the intruders, a sticky note for the bonus, and a till receipt for the
- * damage bill. DOM writes only happen when a value actually changes.
+ * The in-game overlay: a cream health plate, a police line-up of the intruders,
+ * a coin score chip, ability slots and the room's boss bar. DOM writes only
+ * happen when a value actually changes.
  */
 export class HUD {
   private readonly root: HTMLElement;
@@ -28,6 +41,9 @@ export class HUD {
   private readonly healthBar: HTMLElement;
   private readonly healthFill: HTMLElement;
   private readonly healthGhost: HTMLElement;
+  private readonly healthHp: HTMLElement;
+  private readonly hearts: HTMLImageElement[] = [];
+  private heartMax = 0;
   private healthTimer = 0;
   private readonly heatBox: HTMLElement;
   private readonly heatFill: HTMLElement;
@@ -74,34 +90,40 @@ export class HUD {
   private readonly toastQueue: string[] = [];
 
   constructor(private readonly game: Game, parent: HTMLElement, onPause: () => void) {
-    this.root = el('div', 'hud hidden');
-    const top = el('div', 'hud-top');
+    this.root = el('div', 'hud b2-hud hidden');
+    const top = el('div', 'b2-hud__top');
 
-    // ── left: room tag + health bar ──
-    const left = el('div', 'hud-left');
-    const tag = el('div', 'room-tag');
+    // ── left: health plate + heat ──
+    const left = el('div', 'b2-hud__left');
+
+    const healthWrap = el('div', 'b2-hud__health');
+    const tag = el('div', 'b2-hud__room');
     tag.setAttribute('aria-label', 'Room');
-    tag.append(el('span', 'room-tag-hole'), (this.roomNum = el('span', 'room-tag-num', '1')));
-    const bar = el('div', 'healthbar');
+    tag.append((this.roomNum = el('span', 'b2-hud__roomnum', '1')));
+
+    const bar = el('div', 'healthbar b2-hud__plate');
     bar.setAttribute('role', 'progressbar');
     bar.setAttribute('aria-label', 'Health');
     bar.setAttribute('aria-valuemin', '0');
     bar.setAttribute('aria-valuemax', String(game.player.maxHp));
+
+    const plateRow = el('div', 'b2-hud__platerow');
+    const hearts = el('span', 'b2-hud__hearts');
+    this.healthHp = el('span', 'b2-hud__hp b2-num', `${game.player.hp} / ${game.player.maxHp}`);
+    plateRow.append(hearts, this.healthHp);
+
+    const track = el('span', 'b2-hud__track');
     this.healthGhost = el('span', 'health-ghost');
     this.healthFill = el('span', 'health-fill');
     this.healthFill.append(el('span', 'health-shine'));
-    const ticks = el('span', 'health-ticks');
-    for (let i = 1; i < game.player.maxHp; i++) {
-      const tick = el('span', 'health-tick');
-      tick.style.left = `${(i / game.player.maxHp) * 100}%`;
-      ticks.append(tick);
-    }
-    bar.append(this.healthGhost, this.healthFill, ticks);
+    track.append(this.healthGhost, this.healthFill);
+
+    bar.append(plateRow, track);
     this.healthBar = bar;
+    healthWrap.append(tag, bar);
     this.updateHealth(game.player.hp, game.player.maxHp, true);
 
-    // Heat is a torn meter under the room tag: it fills as the player makes a mess.
-    this.heatBox = el('div', 'hud-heat hidden');
+    this.heatBox = el('div', 'hud-heat b2-hud__heat hidden');
     this.heatFill = el('span', 'heat-fill');
     this.heatPct = el('span', 'heat-pct', '0%');
     this.heatName = el('span', 'heat-name', '');
@@ -117,68 +139,100 @@ export class HUD {
     const heatHead = el('div', 'heat-head');
     heatHead.append(el('span', 'heat-label', 'HEAT'), this.heatPct, this.heatTier);
     this.heatBox.append(heatHead, this.heatName, heatTrack);
-    left.append(tag, this.heatBox, bar);
+    left.append(healthWrap, this.heatBox);
 
-    // ── centre: the line-up + bonus note ──
-    const center = el('div', 'hud-center');
-    this.lineup = el('div', 'lineup');
-    this.sticky = el('div', 'sticky hidden');
-    this.stickyText = el('span', 'sticky-text');
-    this.sticky.append(el('span', 'sticky-box'), this.stickyText);
+    // ── centre: the line-up + the room's objective ──
+    const center = el('div', 'b2-hud__center');
+    this.lineup = el('div', 'lineup b2-hud__lineup');
+    this.lineup.setAttribute('role', 'list');
+    this.lineup.setAttribute('aria-label', 'Intruders');
+    this.sticky = el('div', 'sticky b2-hud__sticky hidden');
+    this.stickyText = el('span', 'sticky-text b2-hud__stickytext');
+    this.sticky.append(el('span', 'sticky-box b2-hud__stickytab'), this.stickyText);
     center.append(this.lineup, this.sticky);
 
-    // ── right: receipt + combo sticker + pause ──
-    const right = el('div', 'hud-right');
-    this.combo = el('div', 'combo-sticker');
-    this.comboValue = el('span', 'combo-value');
-    this.combo.append(el('span', 'combo-ring'), this.comboValue);
-    const receipt = el('div', 'receipt');
-    receipt.setAttribute('aria-label', 'Damage');
-    receipt.append((this.score = el('span', 'receipt-total', '0')));
-    // The sticker rides on the bill, but outside it: the receipt's zigzag clip would cut it.
-    const bill = el('div', 'bill');
-    bill.append(receipt, this.combo);
-    this.powers = el('div', 'powers');
-    this.scrapSlip = el('span', 'scrap-slip', '');
-    const tools = el('div', 'tools');
-    tools.append(this.scrapSlip, this.powers);
-    const pause = el('button', 'hud-pause');
+    // ── right: score, scrap, combo, pause ──
+    const right = el('div', 'b2-hud__right');
+    const chips = el('div', 'b2-hud__chips');
+
+    const scoreChip = el('div', 'b2-hud__score');
+    scoreChip.setAttribute('aria-label', 'Score');
+    const scoreIcon = el('img', 'b2-hud__scoreicon');
+    scoreIcon.src = coinIcon;
+    scoreIcon.alt = '';
+    scoreIcon.decoding = 'async';
+    const scoreCopy = el('span', 'b2-hud__scorecopy');
+    this.score = el('span', 'b2-hud__scorevalue b2-num receipt-total', '0');
+    scoreCopy.append(this.score, el('span', 'b2-hud__scorelabel', 'SCORE'));
+    scoreChip.append(scoreIcon, scoreCopy);
+
+    this.scrapSlip = el('span', 'scrap-slip b2-hud__scrap', '');
+
+    const pause = el('button', 'hud-pause b2-hud__pause');
     pause.type = 'button';
     pause.setAttribute('aria-label', 'Pause');
     pause.append(el('span'), el('span'));
     pause.addEventListener('click', onPause);
-    right.append(bill, tools, pause);
+
+    chips.append(scoreChip, this.scrapSlip, pause);
+
+    this.combo = el('div', 'combo-sticker b2-hud__combo');
+    this.comboValue = el('span', 'combo-value b2-hud__combovalue');
+    this.combo.append(el('span', 'combo-ring b2-hud__comboring'), this.comboValue);
+    right.append(chips, this.combo);
 
     top.append(left, center, right);
 
-    this.bannerBox = el('div', 'hud-banner');
-    this.incomingBox = el('div', 'hud-incoming');
-    this.bossBox = el('div', 'hud-boss hidden');
-    this.bossName = el('span', 'boss-name', '');
-    this.bossTag = el('span', 'boss-tag', '');
-    this.bossFill = el('span', 'boss-fill');
-    this.bossPips = el('span', 'boss-pips');
-    const bossHead = el('div', 'boss-head');
+    // ── boss plate ──
+    this.bossBox = el('div', 'hud-boss b2-hud__boss hidden');
+    this.bossName = el('span', 'boss-name b2-hud__bossname', '');
+    this.bossTag = el('span', 'boss-tag b2-hud__bosstag', '');
+    this.bossFill = el('span', 'boss-fill b2-hud__bossfill');
+    this.bossPips = el('span', 'boss-pips b2-hud__bosspips');
+    const bossHead = el('div', 'boss-head b2-hud__bosshead');
     bossHead.append(this.bossName, this.bossTag);
-    const bossTrack = el('div', 'boss-track');
+    const bossTrack = el('div', 'boss-track b2-hud__bosstrack');
     bossTrack.append(this.bossFill, this.bossPips);
     this.bossBox.append(bossHead, bossTrack);
-    this.stampBox = el('div', 'hud-stamp');
-    this.toast = el('div', 'hud-toast');
-    this.toastTitle = el('div', 'toast-title');
-    this.toastCount = el('span', 'toast-count');
-    this.toast.append(el('span', 'pin'), this.toastCount, this.toastTitle);
 
-    // The coach shows the controls for whatever the tutorial is teaching; skip is always on offer.
-    this.coach = el('div', 'coach');
-    this.unlockBox = el('div', 'hud-unlock');
-    const skip = el('button', 'coach-skip', 'SKIP');
+    // ── powers hotbar ──
+    this.powers = el('div', 'powers b2-hud__powers');
+
+    // ── announcements ──
+    this.bannerBox = el('div', 'hud-banner b2-hud__banner');
+    this.incomingBox = el('div', 'hud-incoming b2-hud__incoming');
+    this.stampBox = el('div', 'hud-stamp b2-hud__stamp');
+
+    this.toast = el('div', 'hud-toast b2-hud__toast');
+    const ribbon = el('img', 'b2-hud__toastribbon');
+    ribbon.src = discoveryBanner;
+    ribbon.alt = 'New bad idea!';
+    ribbon.decoding = 'async';
+    const toastCard = el('div', 'b2-hud__toastcard');
+    this.toastCount = el('span', 'toast-count b2-hud__toastcount');
+    this.toastTitle = el('div', 'toast-title b2-hud__toasttitle');
+    toastCard.append(this.toastCount, this.toastTitle);
+    this.toast.append(ribbon, toastCard);
+
+    this.coach = el('div', 'coach b2-hud__coach');
+    this.unlockBox = el('div', 'hud-unlock b2-hud__unlock');
+    const skip = el('button', 'coach-skip b2-hud__skip', 'SKIP');
     skip.type = 'button';
     skip.addEventListener('click', () => game.tutorial.skip());
 
     this.root.append(
-      top, this.bannerBox, this.incomingBox, this.bossBox, this.stampBox, this.toast, this.coach, skip, this.unlockBox,
-      el('div', 'cinema-bar top'), el('div', 'cinema-bar bottom'),
+      top,
+      this.bossBox,
+      this.powers,
+      this.bannerBox,
+      this.incomingBox,
+      this.stampBox,
+      this.toast,
+      this.coach,
+      skip,
+      this.unlockBox,
+      el('div', 'cinema-bar top'),
+      el('div', 'cinema-bar bottom'),
     );
     parent.append(this.root);
 
@@ -203,9 +257,13 @@ export class HUD {
       const node = el('span', `mug mug-${spec.type}${boss} waiting`);
       node.style.setProperty('--mug', type.color);
       node.title = spec.incident?.name ?? type.name;
+      node.setAttribute('role', 'img');
+      node.setAttribute('aria-label', spec.incident?.name ?? type.name);
       node.append(el('span', 'mug-face'));
       if (incident === 'enforcer') node.append(el('span', 'mug-crown', '♛'));
-      this.lineup.append(node);
+      const slot = el('span', 'b2-hud__mugslot');
+      slot.append(node);
+      this.lineup.append(slot);
       return { node, type: spec.type, incident, out: false };
     });
     this.last.pending = -1;
@@ -276,7 +334,7 @@ export class HUD {
     this.toastQueue.push(title);
   }
 
-  /** The level-up card: a sticky note slapped on the screen for a few seconds.
+  /** The level-up card: a sticker slapped on the screen for a few seconds.
    *  Off while `ANNOUNCEMENTS_VISIBLE` is false. */
   unlock(kicker: string, title: string, sub: string): void {
     if (!ANNOUNCEMENTS_VISIBLE) return;
@@ -330,11 +388,33 @@ export class HUD {
     }
   }
 
-  /** Paints the health bar: green while healthy, orange past half, red when critical. */
+  /** Paints the health plate: hearts for every point, the number, and the thin bar. */
   private updateHealth(hp: number, max: number, snap = false): void {
     const ratio = Math.max(0, Math.min(1, hp / max));
     this.healthBar.dataset.state = ratio >= 0.6 ? 'full' : ratio > 0.3 ? 'mid' : 'low';
+    this.healthBar.classList.toggle('is-low', ratio <= 0.3);
     this.healthBar.setAttribute('aria-valuenow', String(hp));
+    this.healthHp.textContent = `${hp} / ${max}`;
+
+    if (this.heartMax !== max) {
+      this.heartMax = max;
+      const holder = this.healthBar.querySelector<HTMLElement>('.b2-hud__hearts');
+      if (holder) {
+        holder.replaceChildren();
+        this.hearts.length = 0;
+        for (let i = 0; i < max; i++) {
+          const heart = el('img', 'b2-hud__heart');
+          heart.src = heartIcon;
+          heart.alt = '';
+          heart.decoding = 'async';
+          heart.draggable = false;
+          holder.append(heart);
+          this.hearts.push(heart);
+        }
+      }
+    }
+    this.hearts.forEach((heart, i) => heart.classList.toggle('is-empty', i >= hp));
+
     this.healthFill.style.width = `${ratio * 100}%`;
     if (snap) {
       // First paint (or a revive): the trailing ghost jumps straight there, no lag.
@@ -416,7 +496,7 @@ export class HUD {
     if (boss.uid !== this.lastBossUid) {
       this.lastBossUid = boss.uid;
       const phases = boss.incident === 'headliner' ? boss.type.phases ?? [] : [];
-      this.bossPips.replaceChildren(...phases.map(() => el('span', 'boss-pip')));
+      this.bossPips.replaceChildren(...phases.map(() => el('span', 'boss-pip b2-hud__bosspip')));
     }
     const pips = this.bossPips.children;
     for (let i = 0; i < pips.length; i++) {
@@ -543,7 +623,7 @@ export class HUD {
       }
     }
 
-    // Bought abilities as icon orbs with a radial cooldown sweep, plus the scrap purse.
+    // Bought abilities as kit item slots with a radial cooldown sweep, plus the scrap purse.
     const owned = game.abilities.ownedList();
     const ownedKey = owned.map((a) => a.id).join(',');
     if (ownedKey !== last.powers) {
@@ -552,11 +632,17 @@ export class HUD {
       this.powerCool.clear();
       this.powers.replaceChildren(
         ...owned.map((a) => {
-          const chip = el('span', `power-chip power-${a.id}`);
+          const chip = el('span', `power-chip power-${a.id} b2-hud__power`);
           chip.setAttribute('role', 'img');
-          chip.setAttribute('aria-label', `${a.name}, ready`);
-          chip.title = a.name;
-          chip.append(el('span', 'power-icon'), el('span', 'power-sweep'));
+          chip.setAttribute('aria-label', `${a.name}, key ${a.key}, ready`);
+          chip.title = `${a.name} · ${a.key}`;
+          const iconWrap = el('span', 'power-icon b2-hud__powericon');
+          const icon = el('img', 'b2-hud__powerart');
+          icon.src = POWER_ART[a.id];
+          icon.alt = '';
+          icon.decoding = 'async';
+          iconWrap.append(icon);
+          chip.append(iconWrap, el('span', 'power-sweep'), el('span', 'power-key b2-hud__powerkey', a.key));
           const left = game.abilities.remaining(a.id);
           const cool = game.abilities.cooldownFor(a);
           const t = cool > 0 ? Math.max(0, Math.min(1, left / cool)) : 0;
@@ -591,6 +677,7 @@ export class HUD {
     if (scrap !== last.scrap) {
       last.scrap = scrap;
       this.scrapSlip.textContent = scrap > 0 ? String(scrap) : '';
+      this.scrapSlip.classList.toggle('is-empty', scrap <= 0);
     }
     this.updateHeat();
     this.updateBoss();

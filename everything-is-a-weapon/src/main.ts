@@ -1,7 +1,4 @@
 import './styles.css';
-import './ui-kit/legacy/bonk-cartoon-ui.css';
-import './ui-kit/legacy/bonk-overlay-ui.css';
-import './ui-kit/bonk-ui-kit.css';
 import './ui-kit/bonk2/theme.css';
 import './ui-kit/bonk2/lobby.css';
 import './ui-kit/bonk2/rooms.css';

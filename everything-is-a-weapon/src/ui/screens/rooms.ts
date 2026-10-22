@@ -4,6 +4,10 @@ import { actFor, campaignProgress, starText, totalStars } from '../../gameplay/C
 import { HANDCRAFTED_ROOMS } from '../../gameplay/RoomDefinitions';
 import { bossSpecFor, depthsBossSlots } from '../../gameplay/RoomManager';
 import { el, formatScore } from '../dom';
+import keyBedroom from '../../ui-kit/bonk2/assets/buttons/room-key-bedroom@2x.png';
+import keyKitchen from '../../ui-kit/bonk2/assets/buttons/room-key-kitchen@2x.png';
+import keyLiving from '../../ui-kit/bonk2/assets/buttons/room-key-living@2x.png';
+import keyIconArt from '../../ui-kit/bonk2/assets/icons/key@2x.png';
 
 export interface RoomEntry {
   readonly key: string;
@@ -34,6 +38,8 @@ export interface RoomsPaneOptions {
   /** Index to preselect. Falls back to the last pick, then the resume room. */
   initial?: number | null;
   onSelect?: (choice: RoomChoice) => void;
+  /** ENTER ROOM: confirm the pick and leave the sheet. */
+  onEnter?: (choice: RoomChoice) => void;
 }
 
 export interface RoomsPane {
@@ -47,6 +53,13 @@ export interface RoomsPane {
 /** The pick survives a rebuild (hero changes rebuild the whole menu). */
 let lastPick: number | null = null;
 
+/**
+ * The kit only draws three hanging keys; the wall cycles them so every room
+ * still gets a key. Their baked name plates are cropped away by the card CSS —
+ * every word on the wall is live text.
+ */
+const KEY_ART: readonly string[] = [keyLiving, keyKitchen, keyBedroom];
+
 export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): RoomsPane {
   const save = game.save.data;
   const total = HANDCRAFTED_ROOMS.length;
@@ -55,30 +68,82 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   const resumeRoom = save.unlockedRoom;
   const openThrough = tester ? total + 60 : resumeRoom;
 
-  const section = el('section', 'rm-rooms');
+  const section = el('section', 'b2-rooms');
   section.setAttribute('aria-label', 'Room selection');
 
-  const head = el('div', 'rm-rooms-head');
-  head.append(el('div', 'tape-label', tester ? 'ROOMS · TESTER' : 'ROOMS'));
-  const openCount = Math.max(0, Math.min(openThrough + 1, total));
-  const progress = el('div', 'rm-progress');
-  const bar = el('div', 'rm-bar');
-  const fill = el('span', 'rm-bar-fill');
-  fill.style.width = `${campaignProgress(total, save.roomStars)}%`;
-  bar.append(fill);
-  const deepest = save.deepest > 0 ? `deepest ${save.deepest}` : 'first visit';
-  progress.append(
-    bar,
-    el('span', 'rm-progress-text', `${openCount}/${total} open · ★${totalStars(save.roomStars)} · ${deepest}`),
+  const head = el('header', 'b2-rooms__head');
+  const heading = el('div', 'b2-rooms__heading');
+  heading.append(
+    el('h3', 'b2-rooms__title b2-display b2-outlined', 'THE KEY WALL'),
+    el('p', 'b2-rooms__sub', 'EVERY ROOM. A NEW BAD IDEA.'),
   );
-  head.append(progress);
-  section.append(head);
 
-  const rail = el('div', 'rm-map');
+  const openCount = Math.max(0, Math.min(openThrough + 1, total));
+  const stars = totalStars(save.roomStars);
+  const stats = el('div', 'b2-rooms__stats');
+
+  const openChip = el('div', 'b2-chip b2-rooms__chip');
+  const keyIcon = el('img', 'b2-chip__icon');
+  keyIcon.src = keyIconArt;
+  keyIcon.alt = '';
+  keyIcon.setAttribute('aria-hidden', 'true');
+  const openText = el('span', 'b2-chip__text');
+  openText.append(
+    el('strong', 'b2-chip__value', `${openCount}/${total}`),
+    el('span', 'b2-chip__label', 'ROOMS OPEN'),
+  );
+  openChip.append(keyIcon, openText);
+
+  const starChip = el('div', 'b2-chip b2-rooms__chip');
+  const starIcon = el('span', 'b2-chip__icon b2-rooms__star', '★');
+  starIcon.setAttribute('aria-hidden', 'true');
+  const starTextWrap = el('span', 'b2-chip__text');
+  starTextWrap.append(
+    el('strong', 'b2-chip__value b2-num', String(stars)),
+    el('span', 'b2-chip__label', 'STARS'),
+  );
+  starChip.append(starIcon, starTextWrap);
+
+  const depthChip = el('div', 'b2-chip b2-rooms__chip b2-rooms__chip--plain');
+  const depthText = el('span', 'b2-chip__text');
+  depthText.append(
+    el('strong', 'b2-chip__value b2-num', save.deepest > 0 ? String(save.deepest) : '—'),
+    el('span', 'b2-chip__label', 'DEEPEST'),
+  );
+  depthChip.append(depthText);
+
+  stats.append(openChip, starChip, depthChip);
+  head.append(heading, stats);
+
+  const progress = el('div', 'b2-meter b2-rooms__meter');
+  progress.setAttribute('role', 'progressbar');
+  progress.setAttribute('aria-label', 'Campaign stars');
+  progress.setAttribute('aria-valuemin', '0');
+  progress.setAttribute('aria-valuemax', '100');
+  progress.setAttribute('aria-valuenow', String(campaignProgress(total, save.roomStars)));
+  const progressFill = el('span', 'b2-meter__fill');
+  progressFill.style.setProperty('--b2-value', `${campaignProgress(total, save.roomStars)}%`);
+  progress.append(progressFill);
+
+  const rail = el('div', 'b2-keywall b2-panel');
   rail.id = 'room-map';
   rail.setAttribute('role', 'radiogroup');
-  rail.setAttribute('aria-label', 'Rooms. Pick a tile to choose a room.');
-  rail.hidden = true;
+  rail.setAttribute('aria-label', 'Rooms. Pick a card to choose a room.');
+
+  const foot = el('footer', 'b2-rooms__foot');
+  const pickWrap = el('div', 'b2-rooms__pick-wrap');
+  const pick = el('strong', 'b2-rooms__pick b2-display', '');
+  const hint = el('span', 'b2-rooms__hint', '');
+  hint.setAttribute('aria-live', 'polite');
+  pickWrap.append(el('span', 'b2-label', 'SELECTED'), pick, hint);
+
+  const enter = el('button', 'b2-btn b2-btn--yellow b2-rooms__enter');
+  enter.type = 'button';
+  enter.append(document.createTextNode('ENTER ROOM'));
+  const chev = el('span', 'b2-btn__chev', '›');
+  chev.setAttribute('aria-hidden', 'true');
+  enter.append(chev);
+  foot.append(pickWrap, enter);
 
   const roomLabel = (index: number): string =>
     index < total ? `ROOM ${index + 1}` : `DEPTHS ${index + 1}`;
@@ -90,13 +155,18 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
     selected = lastPick;
   }
 
-  const cardNodes = new Map<string, HTMLButtonElement>();
-  const entries: Array<{ entry: RoomEntry; node: HTMLButtonElement }> = [];
-  let mapPickEl: HTMLElement | null = null;
+  const cards: Array<{ entry: RoomEntry; node: HTMLButtonElement }> = [];
+
+  const hintFor = (entry: RoomEntry): string => {
+    if (entry.depths) return 'THE BUILDING GOES DOWN FOREVER.';
+    if (openThrough >= total - 1) return 'EVERY KEY ON THE WALL IS YOURS.';
+    return `CLEAR ${roomLabel(openThrough)} TO EARN THE NEXT KEY.`;
+  };
 
   const describe = (entry: RoomEntry): void => {
     const label = `${roomLabel(entry.index)} · ${entry.name}`;
-    if (mapPickEl) mapPickEl.textContent = label;
+    pick.textContent = label;
+    hint.textContent = hintFor(entry);
     options.onSelect?.({
       index: entry.index,
       label,
@@ -108,20 +178,32 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   const select = (entry: RoomEntry, node: HTMLButtonElement): void => {
     selected = entry.index;
     lastPick = entry.index;
-    for (const other of cardNodes.values()) {
-      other.classList.remove('picked');
-      other.setAttribute('aria-checked', 'false');
+    for (const other of cards) {
+      other.node.classList.remove('is-selected');
+      other.node.setAttribute('aria-checked', 'false');
     }
-    node.classList.add('picked');
+    node.classList.add('is-selected');
     node.setAttribute('aria-checked', 'true');
     describe(entry);
+  };
+
+  const addDivider = (name: string, tagline: string): void => {
+    const divider = el('div', 'b2-keywall__act');
+    divider.title = tagline;
+    divider.append(
+      el('span', 'b2-keywall__act-name', name),
+      el('span', 'b2-keywall__act-tag', tagline),
+    );
+    rail.append(divider);
   };
 
   const addCard = (entry: RoomEntry): void => {
     const node = el(
       'button',
-      `rm-tile${entry.locked ? ' locked' : ''}${entry.depths ? ' depths' : ''}`,
-    ) as HTMLButtonElement;
+      `b2-keycard${entry.locked ? ' is-locked' : ''}${entry.depths ? ' is-depths' : ''}${
+        !entry.locked && entry.index === save.unlockedRoom ? ' is-next' : ''
+      }`,
+    );
     node.type = 'button';
     node.setAttribute('role', 'radio');
     node.setAttribute('aria-checked', 'false');
@@ -133,25 +215,62 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
         }${entry.best !== null ? `, best ${entry.best}` : ''}`;
     node.setAttribute('aria-label', label);
     node.title = label;
-    node.append(el('span', 'rm-tile-num', entry.locked ? '🔒' : entry.num));
-    node.append(el('span', 'rm-tile-name', entry.locked ? '???' : entry.name));
-    const meta = el('span', 'rm-tile-meta');
-    if (entry.boss && !entry.locked) meta.append(el('span', 'rm-boss', 'BOSS'));
-    if (entry.stars > 0) meta.append(el('span', 'rm-stars', starText(entry.stars)));
-    else if (!entry.locked && entry.best !== null) {
-      meta.append(el('span', 'rm-tile-best', `★ ${formatScore(entry.best)}`));
+
+    node.append(el('span', 'b2-keycard__num b2-badge b2-num', entry.num));
+
+    const key = el('span', 'b2-keycard__key');
+    const keyImg = el('img', 'b2-keycard__key-img');
+    keyImg.src = KEY_ART[entry.index % KEY_ART.length]!;
+    keyImg.alt = '';
+    keyImg.decoding = 'async';
+    keyImg.draggable = false;
+    key.append(keyImg);
+    if (entry.locked) {
+      const lock = el('span', 'b2-keycard__lock');
+      lock.setAttribute('aria-hidden', 'true');
+      lock.innerHTML =
+        '<svg viewBox="0 0 24 24" focusable="false"><path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="1.5" fill="currentColor"/></svg>';
+      key.append(lock);
     }
-    if (meta.childElementCount > 0) node.append(meta);
+    node.append(key);
+
+    node.append(
+      el(
+        'span',
+        'b2-keycard__plate',
+        entry.locked ? '???' : entry.name,
+      ),
+    );
+
+    const meta = el('span', 'b2-keycard__meta');
+    if (!entry.locked) {
+      const starRow = el('span', 'b2-keycard__stars');
+      starRow.setAttribute('aria-hidden', 'true');
+      for (let i = 0; i < 3; i++) {
+        starRow.append(
+          el('span', `b2-keycard__star${i < entry.stars ? ' is-on' : ''}`, '★'),
+        );
+      }
+      meta.append(starRow);
+      if (entry.boss) meta.append(el('span', 'b2-badge b2-keycard__tag', 'BOSS'));
+    }
+    const best = entry.locked || entry.best === null ? '—' : formatScore(entry.best);
+    meta.append(el('span', 'b2-keycard__best b2-num', `BEST ${best}`));
+    node.append(meta);
+
+    const tick = el('span', 'b2-keycard__tick');
+    tick.setAttribute('aria-hidden', 'true');
+    node.append(tick);
+
     if (entry.locked) {
       node.setAttribute('aria-disabled', 'true');
     } else {
       node.addEventListener('click', () => select(entry, node));
     }
     rail.append(node);
-    cardNodes.set(entry.key, node);
-    entries.push({ entry, node });
+    cards.push({ entry, node });
     if (entry.index === selected) {
-      node.classList.add('picked');
+      node.classList.add('is-selected');
       node.setAttribute('aria-checked', 'true');
       describe(entry);
     }
@@ -162,32 +281,32 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
     const act = actFor(i);
     if (act.id !== lastAct) {
       lastAct = act.id;
-      const divider = el('div', 'rm-map-act', act.name.toLowerCase());
-      divider.title = act.tagline;
-      rail.append(divider);
+      addDivider(act.name, act.tagline);
     }
     const locked = i > openThrough;
-    const stars = save.roomStars[def.id] ?? 0;
+    const roomStars = save.roomStars[def.id] ?? 0;
     const best = save.roomBests[def.id];
     addCard({
       key: `room-${i}`,
       index: i,
-      num: String(i + 1),
+      num: String(i + 1).padStart(2, '0'),
       name: def.name.toLowerCase(),
       boss: !!def.boss,
       locked,
       depths: false,
-      stars,
+      stars: roomStars,
       best: best ? best.score : null,
     });
   });
-  rail.append(el('div', 'rm-map-act', actFor(total).name.toLowerCase()));
+
+  const depthAct = actFor(total);
+  addDivider(depthAct.name, depthAct.tagline);
   if (tester) {
     for (const { type, index } of depthsBossSlots()) {
       addCard({
         key: `depth-${index}`,
         index,
-        num: String(index + 1),
+        num: String(index + 1).padStart(2, '0'),
         name: ENEMY_TYPES[type].name.toLowerCase(),
         boss: true,
         locked: false,
@@ -201,7 +320,7 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
     addCard({
       key: 'endless',
       index: resumeRoom,
-      num: String(resumeRoom + 1),
+      num: String(resumeRoom + 1).padStart(2, '0'),
       name: 'the depths',
       boss: !!spec,
       locked: false,
@@ -213,7 +332,7 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
     addCard({
       key: 'endless-locked',
       index: total,
-      num: String(total + 1),
+      num: String(total + 1).padStart(2, '0'),
       name: 'the depths',
       boss: true,
       locked: true,
@@ -223,62 +342,42 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
     });
   }
 
-  // The signpost: the picked room, and the control that opens the full map.
-  const mapBtn = el('button', 'rm-mapbtn') as HTMLButtonElement;
-  mapBtn.type = 'button';
-  mapBtn.setAttribute('aria-expanded', 'false');
-  mapBtn.setAttribute('aria-controls', 'room-map');
-  mapBtn.innerHTML =
-    '<svg class="rm-mapicon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 12.5h6.5M13.5 12.5H20" stroke="currentColor" stroke-width="2"/><path d="M12 4v5.5M12 14.5V20" stroke="currentColor" stroke-width="2"/><rect x="5.5" y="5.5" width="5" height="5" fill="#e5383b"/></svg>';
-  const mapBtnWords = el('span', 'rm-mapbtn-words');
-  const mapPick = el('span', 'rm-mapbtn-room', '');
-  mapPickEl = mapPick;
-  mapBtnWords.append(mapPick, el('span', 'rm-mapbtn-hint', 'tap for the map'));
-  mapBtn.append(mapBtnWords);
-
-  const mapHead = el('div', 'rm-map-head');
-  mapHead.append(el('div', 'tape-label', 'MAP'));
-  const mapClose = el('button', 'rm-map-close', '✕ CLOSE') as HTMLButtonElement;
-  mapClose.type = 'button';
-  mapClose.setAttribute('aria-label', 'Close the map');
-  mapHead.append(mapClose);
-  mapHead.hidden = true;
-
-  let mapOpen = false;
-  const setMap = (open: boolean): void => {
-    mapOpen = open;
-    rail.hidden = !open;
-    mapHead.hidden = !open;
-    mapBtn.setAttribute('aria-expanded', String(open));
-    const hint = mapBtnWords.querySelector('.rm-mapbtn-hint');
-    if (hint) hint.textContent = open ? 'tap to close' : 'tap for the map';
-    if (open) {
-      rail.querySelector<HTMLElement>('.rm-tile.picked')?.scrollIntoView({ block: 'nearest' });
-    }
-  };
-  mapBtn.addEventListener('click', () => setMap(!mapOpen));
-  mapClose.addEventListener('click', () => setMap(false));
-
-  // The signpost shows the same label the lobby summary does.
-  const pickedEntry = entries.find(({ entry }) => entry.index === selected)?.entry;
-  if (pickedEntry) {
-    mapPick.textContent = `${roomLabel(pickedEntry.index)} · ${pickedEntry.name}`;
-  }
-
-  section.append(mapBtn, mapHead, rail);
-
-  // Fallback if nothing was pre-selected: land on the first open tile.
-  if (![...cardNodes.values()].some((node) => node.classList.contains('picked'))) {
-    const firstOpen = entries.find(({ node }) => node.getAttribute('aria-disabled') !== 'true');
+  // Fallback if nothing was pre-selected: land on the first open card.
+  if (!cards.some(({ node }) => node.classList.contains('is-selected'))) {
+    const firstOpen = cards.find(({ node }) => node.getAttribute('aria-disabled') !== 'true');
     if (firstOpen) select(firstOpen.entry, firstOpen.node);
   }
+
+  enter.addEventListener('click', () => {
+    const picked = cards.find(({ entry }) => entry.index === selected);
+    if (!picked) return;
+    select(picked.entry, picked.node);
+    options.onEnter?.({
+      index: picked.entry.index,
+      label: `${roomLabel(picked.entry.index)} · ${picked.entry.name}`,
+      shortLabel: roomLabel(picked.entry.index),
+      name: picked.entry.name,
+    });
+  });
+
+  section.append(head, progress, rail, foot);
 
   return {
     root: section,
     selected: () => selected,
-    showMap: setMap,
+    showMap: (open: boolean) => {
+      if (!open) return;
+      const card = rail.querySelector<HTMLElement>('.b2-keycard.is-selected');
+      if (!card) return;
+      // Keep the board at the top when the current key is already mostly
+      // visible; only chase it when it is genuinely off-screen.
+      const wall = rail.getBoundingClientRect();
+      const box = card.getBoundingClientRect();
+      const visible = Math.min(box.bottom, wall.bottom) - Math.max(box.top, wall.top);
+      if (visible < box.height * 0.5) card.scrollIntoView({ block: 'nearest' });
+    },
     focusSelected: () => {
-      rail.querySelector<HTMLElement>('.rm-tile.picked')?.focus();
+      rail.querySelector<HTMLElement>('.b2-keycard.is-selected')?.focus();
     },
   };
 }

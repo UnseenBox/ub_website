@@ -2,8 +2,11 @@ import { moveKeysLabel } from '../../input/KeyLabels';
 import { ABILITIES, type AbilityId } from '../../gameplay/Abilities';
 import { LESSONS, type Lesson } from '../../gameplay/Tutorial';
 import type { Game } from '../../core/Game';
-import type { Settings } from '../../save/SaveManager';
-import { button, el } from '../dom';
+import { el } from '../dom';
+import coinUrl from '../../ui-kit/bonk2/assets/icons/coin@2x.png?url';
+import powerDashUrl from '../../ui-kit/bonk2/assets/icons/power-dash@2x.png?url';
+import powerSlamUrl from '../../ui-kit/bonk2/assets/icons/power-slam@2x.png?url';
+import powerStaticUrl from '../../ui-kit/bonk2/assets/icons/power-static@2x.png?url';
 
 export interface PauseActions {
   resume(): void;
@@ -15,6 +18,12 @@ export interface PauseActions {
   /** Back to room 1, starting at that lesson. */
   lesson(id: Lesson): void;
 }
+
+const ABILITY_ICONS: Record<AbilityId, string> = {
+  blast: powerSlamUrl,
+  overdrive: powerDashUrl,
+  freeze: powerStaticUrl,
+};
 
 const controls = (): ReadonlyArray<readonly [string, string]> => [
   [`${moveKeysLabel()} / arrows`, 'move'],
@@ -40,70 +49,155 @@ export function controlRows(touch: boolean): ReadonlyArray<readonly [string, str
   return touch ? TOUCH_CONTROLS : controls();
 }
 
-/** Pause is a hotel door hanger; the controls are a note someone left next to it. */
+function kitButton(label: string, variant: string, onClick: () => void): HTMLButtonElement {
+  const node = el('button', `b2-btn b2-btn--${variant}`);
+  node.type = 'button';
+  node.append(el('span', 'b2-btn__label', label));
+  const chevron = el('span', 'b2-btn__chev', '\u203a');
+  chevron.setAttribute('aria-hidden', 'true');
+  node.append(chevron);
+  node.addEventListener('click', onClick);
+  return node;
+}
+
+function icon(src: string, className = 'b2-icon'): HTMLImageElement {
+  const node = el('img', className);
+  node.src = src;
+  node.alt = '';
+  node.decoding = 'async';
+  return node;
+}
+
+function textRows(rows: ReadonlyArray<readonly [string, string]>, className: string): HTMLElement {
+  const list = el('div', className);
+  for (const [key, action] of rows) {
+    const row = el('div', 'b2-pause__control');
+    row.append(el('span', 'b2-pause__key', key), el('span', 'b2-pause__action', action));
+    list.append(row);
+  }
+  return list;
+}
+
+function ownedBadge(): HTMLElement {
+  const badge = el('span', 'b2-shop-card__owned', 'OWNED');
+  badge.setAttribute('aria-label', 'Owned');
+  return badge;
+}
+
+/** Pause is the kit's door-hanger card: a breath, the powers, and the manual. */
 export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions): HTMLElement {
-  const screen = el('div', 'screen pause');
+  const screen = el('div', 'screen pause b2-stage b2-stage--dim b2-pause');
 
-  const hanger = el('div', 'hanger');
-  const sign = el('div', 'hanger-sign');
-  sign.append(el('span', 'hanger-big', 'PAUSED'));
-  const buttons = el('div', 'menu-buttons');
+  const panel = el('section', 'b2-panel b2-pause__panel');
+  panel.setAttribute('aria-labelledby', 'b2-pause-title');
+  const head = el('div', 'b2-panel__head b2-panel__head--lavender');
+  const title = el('h1', 'b2-panel__title', 'HOLD THAT THOUGHT.');
+  title.id = 'b2-pause-title';
+  head.append(title);
+
+  const body = el('div', 'b2-panel__body b2-pause__body');
+  body.append(el('p', 'b2-panel__note b2-pause__subtitle', 'EVEN CHAOS NEEDS A TEA BREAK.'));
+
+  const buttons = el('div', 'b2-pause__actions');
+  const keepGoing = kitButton('KEEP GOING', 'lime', actions.resume);
+  keepGoing.classList.add('primary', 'b2-pause__keep');
   buttons.append(
-    button('RESUME', 'primary', actions.resume),
-    button('RESTART', '', actions.restart),
-    button('SETTINGS', '', actions.settings),
-    button('HOME', '', actions.home),
+    keepGoing,
+    kitButton('RESTART', 'blue', actions.restart),
+    kitButton('SETTINGS', 'lavender', actions.settings),
+    kitButton('BACK TO MAIN MENU', 'lavender', actions.home),
   );
-  hanger.append(el('span', 'hanger-hole'), sign, buttons);
+  body.append(buttons);
 
-  // Scrap buys permanent powers: key, name and price on one line. What each
-  // power does lives in the tooltip, so the list stays scannable.
-  const shop = el('div', 'ability-shop');
-  const shopHead = el('div', 'shop-head');
-  shopHead.append(el('div', 'note-title', 'POWERS'));
-  const scrapCount = el('span', 'scrap-count', `${game.save.data.scrap} SCRAP`);
-  shopHead.append(scrapCount);
+  // ── powers: permanent unlocks bought with scrap ──────────────────────────
+  const shop = el('section', 'b2-pause__shop');
+  shop.setAttribute('aria-labelledby', 'b2-pause-powers');
+  const shopHead = el('div', 'b2-pause__shop-head');
+  const shopTitle = el('h2', 'b2-pause__section-title', 'POWERS');
+  shopTitle.id = 'b2-pause-powers';
+
+  const scrapChip = el('div', 'b2-chip b2-pause__scrap');
+  const scrapText = el('span', 'b2-chip__text');
+  const scrapValue = el('span', 'b2-chip__value b2-num', String(game.save.data.scrap));
+  scrapValue.setAttribute('aria-live', 'polite');
+  scrapText.append(scrapValue, el('span', 'b2-chip__label', 'SCRAP'));
+  scrapChip.append(icon(coinUrl, 'b2-chip__icon'), scrapText);
+  scrapChip.setAttribute('aria-label', `${game.save.data.scrap} scrap`);
+  scrapChip.setAttribute('role', 'status');
+  shopHead.append(shopTitle, scrapChip);
   shop.append(shopHead);
+
+  const grid = el('div', 'b2-pause__grid');
   for (const def of ABILITIES) {
-    const row = el('div', 'ability-row');
-    row.title = def.blurb;
-    row.append(el('span', 'key', touch ? 'POWER' : def.key), el('span', 'ability-name', def.name));
-    if (game.abilities.owned(def.id)) {
-      row.append(el('span', 'ability-owned', 'OWNED'));
+    const card = el('article', 'b2-shop-card');
+    card.title = def.blurb;
+    const owned = game.abilities.owned(def.id);
+    card.classList.toggle('is-owned', owned);
+
+    const iconWrap = el('div', 'b2-shop-card__icon-wrap');
+    iconWrap.append(icon(ABILITY_ICONS[def.id], 'b2-icon b2-shop-card__icon'));
+
+    const copy = el('div', 'b2-shop-card__copy');
+    const nameRow = el('div', 'b2-shop-card__name-row');
+    const name = el('h3', 'b2-shop-card__name', def.name);
+    const key = el('span', 'b2-pause__key b2-shop-card__key', touch ? 'POWER' : def.key);
+    key.title = touch ? 'Use the POWER button' : `Key ${def.key}`;
+    nameRow.append(name, key);
+    copy.append(nameRow, el('p', 'b2-shop-card__blurb', def.blurb));
+
+    const meta = el('div', 'b2-shop-card__meta');
+    if (owned) {
+      meta.append(ownedBadge());
     } else {
-      const buy = el('button', 'ability-buy');
+      const cost = el('span', 'b2-shop-card__cost');
+      cost.append(icon(coinUrl, 'b2-icon b2-shop-card__coin'), el('span', 'b2-num', String(def.cost)));
+      const buy = el('button', 'b2-btn b2-btn--lime b2-btn--sm b2-shop-card__buy');
       buy.type = 'button';
-      buy.textContent = `${def.cost} SCRAP`;
-      buy.setAttribute('aria-label', `Unlock ${def.name} for ${def.cost} scrap: ${def.blurb}`);
+      const accessible = `Buy ${def.name} for ${def.cost} scrap: ${def.blurb}`;
+      buy.setAttribute('aria-label', accessible);
+      buy.textContent = 'BUY';
       buy.addEventListener('click', () => {
         const failed = actions.buyAbility(def.id);
         if (!failed) {
-          scrapCount.textContent = `${game.save.data.scrap} SCRAP`;
-          buy.replaceWith(el('span', 'ability-owned', 'OWNED'));
-        } else {
-          const label = buy.textContent;
-          buy.textContent = failed.toUpperCase();
-          buy.disabled = true;
-          window.setTimeout(() => {
-            if (!buy.isConnected) return;
-            buy.textContent = label;
-            buy.disabled = false;
-          }, 1100);
+          scrapValue.textContent = String(game.save.data.scrap);
+          scrapChip.setAttribute('aria-label', `${game.save.data.scrap} scrap`);
+          card.classList.add('is-owned');
+          buy.replaceWith(ownedBadge());
+          return;
         }
+        const recover = accessible;
+        buy.textContent = failed.toUpperCase();
+        buy.setAttribute('aria-label', failed);
+        buy.disabled = true;
+        window.setTimeout(() => {
+          if (!buy.isConnected) return;
+          buy.textContent = 'BUY';
+          buy.setAttribute('aria-label', recover);
+          buy.disabled = false;
+        }, 1100);
       });
-      row.append(buy);
+      meta.append(cost, buy);
     }
-    shop.append(row);
+    copy.append(meta);
+
+    card.append(iconWrap, copy);
+    grid.append(card);
   }
+  shop.append(grid);
 
   // Room 1's lessons again, folded away until wanted. A replay deliberately
   // starts a fresh run, so warn when the player would lose their current Edges.
   const runActive = game.save.data.runActive;
-  const replay = el('details', 'fold-box');
-  replay.append(el('summary', 'fold-head', runActive ? 'REPLAY TUTORIAL · ENDS RUN' : 'REPLAY TUTORIAL'));
-  const lessons = el('div', 'lesson-row');
+  const replay = el('details', 'b2-fold b2-pause__replay');
+  replay.append(el('summary', 'b2-fold__head', runActive ? 'REPLAY TUTORIAL \u00b7 ENDS RUN' : 'REPLAY TUTORIAL'));
+  if (runActive) {
+    replay.append(
+      el('p', 'b2-pause__warn', 'Starts a fresh run from room 1. Your current Edges and run score are lost.'),
+    );
+  }
+  const lessons = el('div', 'b2-pause__lessons');
   for (const id of LESSONS) {
-    const again = el('button', 'ability-buy', id === 'free' ? 'BRAWL' : id.toUpperCase());
+    const again = el('button', 'b2-btn b2-btn--sm b2-btn--lavender', id === 'free' ? 'BRAWL' : id.toUpperCase());
     again.type = 'button';
     again.title = runActive ? 'Starts a fresh run from room 1 and clears your Edges' : '';
     again.setAttribute('aria-label', `Replay the ${id} tutorial in room 1${runActive ? ', ending the current run' : ''}`);
@@ -112,93 +206,26 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
   }
   replay.append(lessons);
   shop.append(replay);
+  body.append(shop);
 
-  // The essentials up front, the rest one tap away. Owned powers already show
-  // in the shop above, so the note does not list them twice.
-  const note = el('div', 'controls-note');
-  note.append(el('div', 'note-title', 'CONTROLS'));
+  // ── controls: the essentials up front, the rest one tap away ─────────────
+  const note = el('section', 'b2-pause__note');
+  note.append(el('h2', 'b2-pause__section-title', 'CONTROLS'));
   const rows: ReadonlyArray<readonly [string, string]> = touch ? TOUCH_CONTROLS : controls();
   const shown = rows.slice(0, touch ? 3 : 4);
-  for (const [key, action] of shown) {
-    const row = el('div', 'control-row');
-    row.append(el('span', 'key', key), el('span', '', action));
-    note.append(row);
-  }
+  note.append(textRows(shown, 'b2-pause__controls'));
   const rest = rows.slice(touch ? 3 : 4);
   if (rest.length > 0) {
-    const more = el('details', 'fold-box');
-    more.append(el('summary', 'fold-head', 'MORE'));
-    for (const [key, action] of rest) {
-      const row = el('div', 'control-row');
-      row.append(el('span', 'key', key), el('span', '', action));
-      more.append(row);
-    }
+    const more = el('details', 'b2-fold');
+    more.append(el('summary', 'b2-fold__head', 'MORE'));
+    more.append(textRows(rest, 'b2-pause__controls b2-pause__controls--more'));
     note.append(more);
   }
-  screen.append(hanger, shop, note);
+  body.append(note);
+
+  panel.append(head, body);
+  screen.append(panel);
   return screen;
 }
 
-function toggle(labelText: string, value: boolean, onChange: (value: boolean) => void): HTMLElement {
-  const row = el('label', 'rule');
-  const input = el('input');
-  input.type = 'checkbox';
-  input.checked = value;
-  input.addEventListener('change', () => onChange(input.checked));
-  row.append(input, el('span', 'rule-box'), el('span', 'rule-text', labelText));
-  return row;
-}
-
-/** Settings: a typed sheet with boxes ticked in pen. */
-export function buildSettings(
-  game: Game,
-  onBack: () => void,
-  initialTab: 'settings' | 'shop' = 'settings',
-): HTMLElement {
-  const screen = el('div', 'screen settings');
-  screen.dataset.tab = initialTab;
-  const sheet = el('div', 'sheet rules-sheet');
-  const head = el('div', 'sheet-head');
-  head.append(el('span', 'sheet-title', 'SETTINGS'), el('span', 'sheet-no', 'tick'));
-  sheet.append(head);
-
-  const settings = game.save.data.settings;
-  const change = (apply: (s: Settings) => void): void => {
-    apply(settings);
-    game.save.write();
-    game.applySettings();
-  };
-
-  const volumeRow = el('label', 'rule volume');
-  const slider = el('input');
-  slider.type = 'range';
-  slider.min = '0';
-  slider.max = '100';
-  slider.value = String(Math.round(settings.volume * 100));
-  slider.addEventListener('input', () => change((s) => (s.volume = Number(slider.value) / 100)));
-  slider.addEventListener('change', () => game.audio.impact('wood', 0.7, 9));
-  volumeRow.append(el('span', 'rule-text', 'volume'), slider);
-
-  sheet.append(
-    volumeRow,
-    toggle('music', settings.music, (v) => change((s) => (s.music = v))),
-    toggle('mute everything', settings.muted, (v) => change((s) => (s.muted = v))),
-    toggle('less screen shake', settings.reducedShake, (v) => change((s) => (s.reducedShake = v))),
-    toggle('high contrast menus', settings.highContrast, (v) => change((s) => (s.highContrast = v))),
-  );
-
-  let armed = false;
-  const reset = button('SHRED SAVE', 'danger', () => {
-    if (!armed) {
-      armed = true;
-      reset.querySelector('.btn-label')!.textContent = 'SURE? AGAIN';
-      return;
-    }
-    game.save.clear();
-    game.applySettings();
-    onBack();
-  });
-
-  screen.append(sheet, button('BACK', 'primary', onBack), reset);
-  return screen;
-}
+export { buildSettings } from './settings';
