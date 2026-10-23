@@ -383,14 +383,6 @@ loads, from room 2 on, so the hand-made rooms have them too):
 (splits into two Smalls), *Kaboom* (explodes when beaten: beat it next to its colleagues) and
 *Trolley* (slow to turn, then charges the length of the room).
 
-**Cutscenes** (`rendering/Cutscene.ts`): a few seconds of cinema between the last blow and
-the results clipboard, drawn with the game's own character art and skippable with a tap.
-Each of the four scenes is cut into three shots — an establishing beat, a close-up and a
-button — staged as a bright comic: bold flat colour, thick ink outlines, halftone dots and
-paper grain, closed with a torn-paper title card. Two for a win (the hallway throw and the
-quiet morning after) and two for a loss (the doorstep and the new tenants), alternating.
-`cutscene-preview.html` renders any frame for review.
-
 **Objects (77):** every one has a trait of its own, written on the tag that appears when you can
 pick it up.
 
@@ -423,11 +415,13 @@ which soaks hits and then flies off as a throwable); Bailiff (hides behind an ev
 turns slowly); Tangle (a box of fairy lights: immune to shocks, electrifies puddles, hurt by
 water). Cardboard and paper burn faster than timber.
 
-**Rooms:** 8 handcrafted across six kinds of room, each with its own floor, walls and fixtures —
-bedroom (throwing) → home office (object collisions) → bathroom (water + electricity) → living
-room (fire) → kitchen (slippery, flammable, explosive) → open plan (everything) → garage → break
-room. From room 9 on, rooms are generated with a random theme and that theme's furniture and
-clutter. Plus a date-seeded Daily Challenge and 11 bonus challenges.
+**Rooms:** a 50-room campaign in five 10-room acts. The first act opens with nine handcrafted
+rooms across six kinds of room, each with its own floor, walls and fixtures — bedroom (throwing) →
+home office (object collisions) → bathroom (water + electricity) → living room (fire) → kitchen
+(slippery, flammable, explosive) → open plan (everything) → garage → break room. The remaining 41
+rooms are deterministic generated campaign rooms with varied themes, furniture and clutter, ending
+at a fixed garage showdown behind the last door. All 20 bosses appear exactly once, with late bosses
+scheduled through the generated acts. Plus a date-seeded Daily Challenge and 11 bonus challenges.
 
 **Chain reactions and interactions (all emergent from the rules):**
 
@@ -479,11 +473,10 @@ clutter. Plus a date-seeded Daily Challenge and 11 bonus challenges.
 
 ## Testing performed
 
+- `npm test`: 69 tests, including the 50-room schedule (all 20 bosses exactly once), deterministic
+  generated layouts, the final door, the simple victory actions, and the production bundle's
+  tutorial → results → next-room flow.
 - `npm run test:physics`: all checks pass at 30/60/120/240 Hz.
-- Scripted play-throughs in the browser (via the dev-only `window.__t` hooks, which feed the same
-  raw input the keyboard/mouse adapter writes): all 6 handcrafted rooms, generated rooms up to 13
-  and the daily challenge reach a cleared or failed result with no console errors and no body
-  leaving the room.
 - Verified individually: movement, grab, charge, throw, drop and dodge through real DOM
   keyboard/pointer events; enemy hit and defeat; lamp topple; electrical hazard; electrified
   puddle; multi-step chain; room clear; restart; fail and retry; pause/resume; mute and volume;

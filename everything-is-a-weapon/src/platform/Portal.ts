@@ -29,7 +29,7 @@ export interface Portal {
   loadingStop(): void;
   /** The player is in control of the hero. */
   gameplayStart(): void;
-  /** Menu, pause, cutscene, results. */
+  /** Menu, pause, results. */
   gameplayStop(): void;
   /** A rare, real achievement: the portal may throw confetti. */
   celebrate(): void;

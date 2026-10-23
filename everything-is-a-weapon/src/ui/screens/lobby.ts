@@ -1,6 +1,5 @@
 import type { Game } from '../../core/Game';
 import type { HeroId } from '../../core/Hero';
-import { HANDCRAFTED_ROOMS } from '../../gameplay/RoomDefinitions';
 import { el } from '../dom';
 import { buildCharactersPane, heroPair } from './characters';
 import { buildRoomsPane } from './rooms';
@@ -23,8 +22,7 @@ let reopenMode: 'rooms' | 'characters' | null = null;
 /** The room picked in MODE, kept across the hero-pick rebuild. */
 let lastRoomPick: number | null = null;
 
-const roomLabel = (index: number): string =>
-  index < HANDCRAFTED_ROOMS.length ? `ROOM ${index + 1}` : `DEPTHS ${index + 1}`;
+const roomLabel = (index: number): string => `ROOM ${index + 1}`;
 
 function svg(path: string): SVGSVGElement {
   const node = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -49,7 +47,7 @@ function svg(path: string): SVGSVGElement {
  */
 export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const save = game.save.data;
-  const total = HANDCRAFTED_ROOMS.length;
+  const total = game.rooms.roomCount;
   const screen = el('div', 'screen b2-stage b2-stage--blue b2-lobby');
 
   // ── status: room, shift, scrap ──────────────────────────────────────────
@@ -245,7 +243,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   mode.append(backdrop, panel);
 
   // ── selection state, shared by PLAY and the sheet ──────────────────────
-  let selected = Math.max(0, save.unlockedRoom);
+  let selected = Math.min(Math.max(0, save.unlockedRoom), total - 1);
 
   const paintSelection = (index: number): void => {
     selected = index;

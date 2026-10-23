@@ -185,7 +185,6 @@ export class Renderer {
       ctx.fillRect(0, 0, w, h);
       ctx.globalAlpha = 1;
     }
-    game.cutscene.draw(ctx, w, h);
   }
 
   /** Shockwaves, drawn flat on the floor under everything standing on it. */

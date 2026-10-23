@@ -7,11 +7,11 @@ import { ENEMY_TYPES, type EnemyType, type EnemyTypeId } from '../entities/Enemy
 import type { PhysicsObject } from '../entities/PhysicsObject';
 import { Player } from '../entities/Player';
 import { ChallengeSystem } from '../gameplay/ChallengeSystem';
-import { actFor, briefingFor, CONTRACTS, starsFor, todayKey, yesterdayKey } from '../gameplay/Campaign';
+import { actFor, briefingFor, CAMPAIGN_ROOMS, CONTRACTS, FINAL_ROOM_INDEX, starsFor, todayKey, yesterdayKey } from '../gameplay/Campaign';
 import { extendChain, freshChain } from '../gameplay/Chain';
-import { ABILITIES, AbilitySystem, type AbilityDefinition, type AbilityId } from '../gameplay/Abilities';
+import { ABILITIES, AbilitySystem, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
-import { isEdgeId, offerEdges, startingEdge, type EdgeDefinition, type EdgeId } from '../gameplay/Edges';
+import { isEdgeId, startingEdge, type EdgeId } from '../gameplay/Edges';
 import { EdgeSystem } from '../gameplay/EdgeSystem';
 import { HeatSystem, type HeatEvent } from '../gameplay/Heat';
 import { enforcerSpec, headlinerSpec, releaseIncident, rushRegulars, type IncidentSpec } from '../gameplay/Incidents';
@@ -19,10 +19,9 @@ import { ImpactSystem } from '../gameplay/ImpactSystem';
 import { NavField } from '../gameplay/Navigation';
 import { placePickups, updateRage } from '../gameplay/Pickups';
 import type { RoomDefinition } from '../gameplay/Room';
-import { HANDCRAFTED_ROOMS } from '../gameplay/RoomDefinitions';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
-import { RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
-import { chooseEdge as applyEdge, endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
+import { campaignBossType, RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
+import { endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
 import {
   claimLedger, descendStart, ledgerBonus, startingEdgeRarity, type LedgerMilestone,
 } from '../gameplay/StarLedger';
@@ -43,7 +42,6 @@ import { ParticleSystem } from '../particles/ParticleSystem';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import { WebPortal, type Portal } from '../platform/Portal';
 import { Camera } from '../rendering/Camera';
-import { Cutscene, type CutsceneKind } from '../rendering/Cutscene';
 import { Fx, impactWord } from '../rendering/Fx';
 import { Renderer } from '../rendering/Renderer';
 import { ReplayRecorder } from '../replay/ReplayRecorder';
@@ -58,7 +56,7 @@ import type { Chain, Thing } from './types';
 /** What a blast is made of: flames, scalding steam, or a firework going off. */
 export type BlastStyle = 'fire' | 'steam' | 'sparkle';
 
-export type GameState = 'menu' | 'playing' | 'paused' | 'cutscene' | 'cleared' | 'failed';
+export type GameState = 'menu' | 'playing' | 'paused' | 'cleared' | 'failed';
 
 export interface RoomSummary {
   cleared: boolean;
@@ -78,10 +76,6 @@ export interface RoomSummary {
   firstClearBonus: number;
   /** Best score on this room before this run (0 the first time). */
   roomBest: number;
-  /** What is behind the next door (null after a fail or the daily). */
-  next: { number: number; name: string; teaser: string; mover: EnemyTypeId; isNew: boolean } | null;
-  /** An ability the scrap purse can pay for right now. */
-  offer: AbilityDefinition | null;
   canContinue: boolean;
   /** Campaign layer: stars, contracts, story. */
   stars: number;
@@ -91,17 +85,12 @@ export interface RoomSummary {
   actName: string;
   objective: string;
   story: string;
-  /** True when the final handcrafted room was just cleared. */
+  /** True when the final room of the campaign was just cleared. */
   finale: boolean;
   /** The player asked for the rewarded ad and none could be shown. */
   adMissed?: boolean;
-  /** Active run progress after this room (daily leaves it untouched). */
-  runStreak: number;
-  runFloor: number;
-  /** This failure ended a Depths run (state stays intact until the result action). */
+  /** This failure ended a run (state stays intact until the result action). */
   runEnded: boolean;
-  /** Three run-long cards to choose from after a non-daily clear. */
-  edgeOffer: EdgeDefinition[];
   /** Star Ledger rewards crossed by this clear. */
   ledgerClaims: LedgerMilestone[];
 }
@@ -166,7 +155,6 @@ export class Game {
   readonly replay = new ReplayRecorder();
   readonly nav = new NavField();
   readonly rooms = new RoomManager();
-  readonly cutscene = new Cutscene();
   readonly input: InputManager;
   readonly renderer: Renderer;
   readonly loop: GameLoop;
@@ -202,7 +190,6 @@ export class Game {
   private slowScale = 1;
   private revived = false;
   private consecutiveFailures = 0;
-  private afterCutscene: (() => void) | null = null;
   /** Lesson the next entry into room 1 starts from (a replay, or a restart mid-lesson). */
   private lessonFrom: Lesson | null = null;
   private inGameplay = false;
@@ -222,7 +209,6 @@ export class Game {
   private devEdges: EdgeId[] = [];
   private objectHeatWindow = 0;
   private objectHeatTimer = 0;
-  private pendingEdgeOffer: EdgeDefinition[] = [];
   /** Set by SKIP in this attempt only; the save flag is historical. */
   tutorialSkippedThisRoom = false;
 
@@ -293,9 +279,6 @@ export class Game {
       },
     });
     portal.onMuteChange((muted) => this.audio.setPortalMuted(muted));
-    const skip = (): void => this.cutscene.skip();
-    window.addEventListener('pointerdown', skip);
-    window.addEventListener('keydown', skip);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && this.state === 'playing') this.togglePause();
     });
@@ -312,16 +295,19 @@ export class Game {
       // Dev-only star shortcut, e.g. ?stars=27, so the Ledger is testable without a full run.
       const target = Number(params.get('stars'));
       if (Number.isFinite(target) && target > 0) {
-        let left = Math.min(this.rooms.handcraftedCount * 3, Math.floor(target));
-        for (const def of HANDCRAFTED_ROOMS) {
+        const totalRooms = this.rooms.roomCount;
+        let left = Math.min(totalRooms * 3, Math.floor(target));
+        for (let index = 0; index < totalRooms; index++) {
+          const def = this.rooms.definition(index);
           const take = Math.min(3, left);
           if (take <= 0) break;
           this.save.data.roomStars[def.id] = Math.max(this.save.data.roomStars[def.id] ?? 0, take);
           left -= take;
         }
-        const unlocked = Math.min(this.rooms.handcraftedCount, Math.ceil(Math.min(target, this.rooms.handcraftedCount * 3) / 3));
+        const cleared = Math.ceil(Math.min(target, totalRooms * 3) / 3);
+        const unlocked = Math.min(FINAL_ROOM_INDEX, cleared);
         this.save.data.unlockedRoom = Math.max(this.save.data.unlockedRoom, unlocked);
-        this.save.data.deepest = Math.max(this.save.data.deepest, unlocked);
+        this.save.data.deepest = Math.max(this.save.data.deepest, Math.min(CAMPAIGN_ROOMS, cleared));
         claimLedger(this.save.data);
       }
     }
@@ -385,8 +371,6 @@ export class Game {
     this.particles.clear();
     this.fx.clear();
     this.cinema = 0;
-    this.cutscene.active = false;
-    this.afterCutscene = null;
     this.interactions.reset();
     this.time = 0;
     this.tickCount = 0;
@@ -427,23 +411,22 @@ export class Game {
 
   /** Starts a fresh run from the given room (0-based). */
   playFrom(index: number): void {
-    startRun(this.save.data, index);
+    const start = Math.max(0, Math.min(FINAL_ROOM_INDEX, Math.floor(index)));
+    startRun(this.save.data, start);
     const rarity = startingEdgeRarity(this.save.data);
     if (rarity) this.save.data.runBoosts.push(startingEdge(this.rng, rarity).id);
-    this.pendingEdgeOffer = [];
     this.tutorialSkippedThisRoom = false;
     this.scoreAtRoomStart = 0;
     this.consecutiveFailures = 0;
     this.save.write();
-    this.enterRoom(this.rooms.definition(index), index, false);
+    this.enterRoom(this.rooms.definition(start), start, false);
   }
 
   /** Picks up the paused run at its current floor. */
   continueRun(): void {
     const save = this.save.data;
-    if (!save.runActive) return;
+    if (!save.runActive || save.runFloor > FINAL_ROOM_INDEX) return;
     this.scoreAtRoomStart = save.runScore;
-    this.pendingEdgeOffer = [];
     this.consecutiveFailures = 0;
     this.enterRoom(this.rooms.definition(save.runFloor), save.runFloor, false);
   }
@@ -468,7 +451,6 @@ export class Game {
 
   playDaily(): void {
     this.scoreAtRoomStart = 0;
-    this.pendingEdgeOffer = [];
     this.tutorialSkippedThisRoom = false;
     this.consecutiveFailures = 0;
     this.enterRoom(dailyChallenge(new Date()).room, 0, true);
@@ -477,8 +459,9 @@ export class Game {
   /** One incident per non-tutorial room; survival rooms get only the heat surge. */
   private incidentFor(def: RoomDefinition, index: number, daily: boolean): IncidentSpec | null {
     if (daily) return def.objective?.kind === 'survive' ? null : enforcerSpec(0);
-    if (index < this.rooms.handcraftedCount) return def.boss ? headlinerSpec(def.boss) : null;
-    if (def.boss) return headlinerSpec(def.boss);
+    const boss = campaignBossType(index, def);
+    if (boss) return headlinerSpec(boss);
+    if (index < this.rooms.handcraftedCount) return null;
     return def.objective?.kind === 'survive' ? null : enforcerSpec(index);
   }
 
@@ -491,7 +474,7 @@ export class Game {
     const saved = this.save.data.tutorial;
     const lesson = this.lessonFrom ?? (saved === 'done' ? null : LESSONS.find((l) => l === saved) ?? 'move');
     this.lessonFrom = null;
-    const firstVisit = !daily && this.save.data.unlockedRoom <= index;
+    const firstVisit = !daily && this.save.data.deepest <= index;
     if (def.tutorial && !daily) this.tutorial.begin(lesson);
     else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight);
     this.portal.setContext({ room: daily ? 'daily' : index + 1, hero: this.hero });
@@ -504,7 +487,7 @@ export class Game {
     // the clock. Replays just show the room name.
     const briefing = briefingFor(def.id, index);
     const act = actFor(index);
-    if (firstVisit && !def.tutorial && (index === 3 || index === 6)) {
+    if (firstVisit && !def.tutorial && index > 0 && act.from === index) {
       this.hud.banner(act.name, act.tagline, 3.2);
     } else if (firstVisit && !def.tutorial) {
       const goal = def.objective?.kind === 'survive' ? `survive ${def.objective.seconds}s` : briefing.objective;
@@ -543,33 +526,26 @@ export class Game {
   async nextRoom(): Promise<void> {
     if (this.waitingForAd) return;
     await this.ads.onRoomComplete();
-    if (this.room.daily) {
+    if (this.room.daily || this.room.index >= FINAL_ROOM_INDEX) {
       this.toMenu();
       return;
     }
     this.scoreAtRoomStart = this.score.score;
-    const next = this.save.data.runFloor;
-    this.pendingEdgeOffer = [];
+    // A clear records the next floor; never walk past the last door.
+    const next = Math.min(
+      FINAL_ROOM_INDEX,
+      Math.max(this.room.index + 1, this.save.data.runFloor),
+    );
     this.enterRoom(this.rooms.definition(next), next, false);
   }
 
-  /** Leaves a failed Depths run and returns to the menu. */
+  /** Leaves a failed run and returns to the menu. */
   abandonRun(): void {
     if (this.save.data.runActive) {
       endRun(this.save.data);
       this.save.write();
     }
     this.toMenu();
-  }
-
-  /** Picks a run-long Edge and continues to the next floor. */
-  chooseEdge(id: EdgeId): boolean {
-    if (!this.pendingEdgeOffer.some((edge) => edge.id === id)) return false;
-    applyEdge(this.save.data, id);
-    this.save.data.dailyRareEdge = false;
-    this.pendingEdgeOffer = [];
-    this.save.write();
-    return true;
   }
 
   /** SKIP was pressed during this attempt (the save keeps the historical flag too). */
@@ -593,9 +569,9 @@ export class Game {
     return true;
   }
 
-  /** How far through the hand-made rooms this player has got, for the portal. */
+  /** How far through the 50-room campaign this player has got, for the portal. */
   private reportProgress(): void {
-    this.portal.reportProgress((this.save.data.unlockedRoom / this.rooms.handcraftedCount) * 100);
+    this.portal.reportProgress((this.save.data.deepest / this.rooms.roomCount) * 100);
   }
 
   toMenu(): void {
@@ -638,8 +614,6 @@ export class Game {
     save.scrap += this.score.stats.scrap;
 
     const challenge = this.challenges.current;
-    const isHandcrafted = !this.room.daily && this.room.index < this.rooms.handcraftedCount;
-    const wasUnlocked = save.unlockedRoom;
     const wasDeepest = save.deepest;
     const roomBest = save.roomBests[this.room.def.id]?.score ?? 0;
     let firstClearBonus = 0;
@@ -649,7 +623,6 @@ export class Game {
     let isNewBestStars = false;
     let challengeText = challenge?.text ?? null;
     let challengePassed = challengeBonus > 0;
-    let next: RoomSummary['next'] = null;
 
     if (cleared && !this.room.daily) {
       const index = this.room.index;
@@ -663,24 +636,24 @@ export class Game {
       if (this.room.hasBoss) save.bossesBeaten++;
       if (this.room.hasEnforcer) save.enforcersBeaten++;
 
-      const firstClear = isHandcrafted ? wasUnlocked <= index : wasDeepest <= index;
-      if (isHandcrafted && index === 0) {
+      const firstClear = wasDeepest <= index;
+      if (index === 0) {
         challengeText = 'finish the lesson plan';
         challengePassed = !this.tutorialSkippedThisRoom;
       }
       const starResult = starsFor(this.score.stats, challengePassed);
       stars = starResult.stars;
       const prevStars = save.roomStars[id] ?? 0;
-      isNewBestStars = isHandcrafted && stars > prevStars;
-      if (isHandcrafted && (isNewBestStars || (save.roomStars[id] === undefined && stars > 0))) {
+      isNewBestStars = stars > prevStars;
+      if (isNewBestStars || (save.roomStars[id] === undefined && stars > 0)) {
         save.roomStars[id] = stars;
       }
       if (firstClear) {
         firstClearBonus = this.room.hasBoss ? 100 : 40;
         save.scrap += firstClearBonus;
       }
-      if (isHandcrafted) save.unlockedRoom = Math.max(save.unlockedRoom, index + 1);
-      save.deepest = Math.max(save.deepest, index + 1);
+      save.unlockedRoom = Math.max(save.unlockedRoom, Math.min(FINAL_ROOM_INDEX, index + 1));
+      save.deepest = Math.max(save.deepest, Math.min(CAMPAIGN_ROOMS, index + 1));
       // Per-room bests for the level-select wall and replay bragging rights.
       const prev = save.roomBests[id];
       if (!prev || this.score.score > prev.score) {
@@ -690,21 +663,10 @@ export class Game {
         };
       }
 
-      this.pendingEdgeOffer = offerEdges(this.rng, save.dailyRareEdge);
-
-      const nextIndex = index + 1;
-      const nextDef = this.rooms.definition(nextIndex);
-      const nextBriefing = briefingFor(nextDef.id, nextIndex);
-      next = {
-        number: nextIndex + 1,
-        name: nextDef.name,
-        teaser: nextBriefing.story,
-        mover: nextDef.boss
-          ?? (nextIndex >= this.rooms.handcraftedCount && nextDef.objective?.kind !== 'survive'
-            ? enforcerSpec(nextIndex).baseType
-            : nextDef.enemies[nextDef.enemies.length - 1]?.type ?? 'basic'),
-        isNew: isHandcrafted ? wasUnlocked < nextIndex : wasDeepest <= nextIndex,
-      };
+      if (index === FINAL_ROOM_INDEX) {
+        endRun(save);
+        runEnded = true;
+      }
     } else if (cleared && this.room.daily) {
       // Daily streak: consecutive calendar days pay escalating scrap.
       const today = todayKey();
@@ -718,9 +680,7 @@ export class Game {
       save.totalKills += this.score.stats.kills;
       save.totalChains += this.score.stats.chainEvents;
       save.totalHazardKills += this.score.stats.hazardKills;
-      this.pendingEdgeOffer = [];
     } else {
-      this.pendingEdgeOffer = [];
       if (!this.room.daily) {
         const failed = recordFail(save, this.room.index, this.scoreAtRoomStart, this.rooms.handcraftedCount);
         runEnded = failed.ended;
@@ -767,10 +727,6 @@ export class Game {
       challengeBonus,
       firstClearBonus,
       roomBest,
-      next,
-      offer: cleared
-        ? ABILITIES.filter((a) => !save.abilities.includes(a.id) && save.scrap >= a.cost).sort((a, b) => a.cost - b.cost)[0] ?? null
-        : null,
       canContinue: !cleared && !this.revived && this.ads.isAvailable('rewarded'),
       stars,
       isNewBestStars,
@@ -779,11 +735,8 @@ export class Game {
       actName: actFor(this.room.index).name,
       objective: briefing.objective,
       story: briefing.story,
-      finale: cleared && !this.room.daily && this.room.index === this.rooms.handcraftedCount - 1,
-      runStreak: save.runStreak,
-      runFloor: save.runFloor,
+      finale: cleared && !this.room.daily && this.room.index === FINAL_ROOM_INDEX,
       runEnded,
-      edgeOffer: this.pendingEdgeOffer,
       ledgerClaims,
     };
   }
@@ -805,9 +758,9 @@ export class Game {
       this.funnelClear = true;
       this.analytics.track('first_clear', { ms: Math.round(performance.now() - this.funnelT0) });
     }
-    // Finishing the last hand-made room for the first time is the one moment worth confetti.
-    const lastRoom = !this.room.daily && this.room.index === this.rooms.handcraftedCount - 1;
-    const firstTime = this.save.data.unlockedRoom <= this.room.index;
+    // Finishing the last door for the first time is the one moment worth confetti.
+    const lastRoom = !this.room.daily && this.room.index === FINAL_ROOM_INDEX;
+    const firstTime = this.save.data.deepest <= this.room.index;
     const summary = this.summarize(true, bonus);
     this.reportProgress();
     if (lastRoom && firstTime) this.portal.celebrate();
@@ -906,7 +859,7 @@ export class Game {
     const room = this.room;
     if (!this.player.alive) {
       room.failTimer += dt;
-      if (room.failTimer >= FAIL_DELAY) this.playCutscene('lose', () => this.failRoom());
+      if (room.failTimer >= FAIL_DELAY) this.failRoom();
       return;
     }
     if (!room.cleared && this.enemiesRemaining === 0) {
@@ -931,15 +884,8 @@ export class Game {
     if (room.cleared) {
       room.clearTimer += dt;
       room.exitOpen = Math.min(1, room.exitOpen + dt * 2);
-      if (room.clearTimer >= CLEAR_DELAY) this.playCutscene('win', () => this.completeRoom());
+      if (room.clearTimer >= CLEAR_DELAY) this.completeRoom();
     }
-  }
-
-  /** Freezes the room and plays a few seconds of theatre before the results come up. */
-  private playCutscene(kind: CutsceneKind, then: () => void): void {
-    this.afterCutscene = then;
-    this.cutscene.start(this, kind);
-    this.setState('cutscene');
   }
 
   private sweep(): void {
@@ -982,11 +928,6 @@ export class Game {
       this.popups.length = write;
     }
     this.renderer.render(alpha, frameDt);
-    if (this.cutscene.update(this, frameDt)) {
-      const then = this.afterCutscene;
-      this.afterCutscene = null;
-      then?.();
-    }
     this.hud.frame(frameDt);
   }
 

@@ -12,32 +12,41 @@
 <div id="screens" class="active"></div>
 <script type="module">
   import '/src/styles.css';
+  import '/src/ui-kit/bonk2/theme.css';
+  import '/src/ui-kit/bonk2/results.css';
   import { buildResults } from '/src/ui/ResultsScreen.ts';
 
-  // Sample data mirroring a real room-10 clear.
+  // Sample data mirroring the final room clear.
   const summary = {
     cleared: true,
-    roomNumber: 10,
-    roomName: 'Copy Room',
+    roomNumber: 50,
+    roomName: 'the last door',
     daily: false,
     score: 17610,
-    highScore: 0,
-    isHighScore: false,
+    highScore: 17610,
+    isHighScore: true,
     bestChain: 3,
     objectsUsed: 8,
     newDiscoveries: 1,
-    challengeText: 'Kill everyone using one object',
-    challengePassed: false,
-    challengeBonus: 0,
-    firstClearBonus: 40,
+    challengeText: 'evict the king',
+    challengePassed: true,
+    challengeBonus: 500,
+    firstClearBonus: 100,
     roomBest: 15020,
-    next: { number: 11, name: 'Storage Unit', teaser: 'Nobody has tidied in here', mover: 'basic', isNew: true },
-    offer: { id: 'overdrive', name: 'SUGAR RUSH', key: '2', blurb: 'eight seconds of blind rage', cost: 120, cooldown: 30 },
     canContinue: false,
+    stars: 3,
+    isNewBestStars: true,
+    contractsNew: [],
+    dailyBonus: 0,
+    actName: 'ACT V · THE FINAL NOTICE',
+    objective: 'evict the king',
+    story: 'the last door',
+    finale: true,
+    runEnded: true,
+    ledgerClaims: [],
   };
   const actions = {
-    next() {}, retry() {}, continueWithReward() {}, home() {},
-    buy() { return ''; }, stamped() {},
+    next() {}, retry() {}, continueWithReward() {}, home() {}, stamped() {},
   };
   document.getElementById('screens')?.append(buildResults(summary, actions));
 </script>

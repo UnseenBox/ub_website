@@ -77,6 +77,25 @@
 .b2-report__side { grid-area: side; }
 .b2-report__stats { grid-area: stats; }
 
+/* The campaign victory is deliberately smaller: no cards, no side bar. */
+.b2-report--simple .b2-report__body {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'meta'
+    'hero'
+    'marks';
+  justify-items: stretch;
+}
+
+.b2-report--simple .b2-report__hero {
+  justify-self: center;
+}
+
+.b2-report--simple .b2-report__marks {
+  justify-self: center;
+  width: min(100%, 620px);
+}
+
 /* ── where ─────────────────────────────────────────────────────────────── */
 
 .b2-report__meta {

@@ -9,7 +9,7 @@ import { expect, it, vi } from 'vitest';
  * the REAL production bundle (dist/assets/index-*.js) is imported into a happy-dom
  * window, with its real index.html markup, a no-op 2D canvas context, and real
  * requestAnimationFrame timing. Everything else — boot, HUD, save writes, the
- * tutorial, the flood, deaths, cutscenes, results and retry — is the shipped code.
+ * tutorial, the flood, deaths, results and retry — is the shipped code.
  *
  * Driven with synthesized clicks the same way players drive it: SKIP chip first,
  * then the flow runs itself.
@@ -103,13 +103,10 @@ it('prod bundle: boot → tutorial → skip → flood → defeat results → ret
   expect(skipChip, 'the tutorial shows its SKIP chip').toBeTruthy();
   skipChip!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-  // The idle, unprotected player loses the flood: hp runs out, the lose cutscene
-  // plays (clicked through), and the results screen must actually exist.
+  // The idle, unprotected player loses the flood: hp runs out and the results
+  // screen must actually exist.
   const resultsDeadline = Date.now() + 70_000;
   while (Date.now() < resultsDeadline) {
-    // Pointerdowns double as the cutscene skip anything-on-screen provides.
-    const canvas = document.querySelector('#game');
-    if (canvas) canvas.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
     if (document.querySelector('.screen.results')) break;
     await sleep(500);
   }

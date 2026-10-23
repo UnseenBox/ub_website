@@ -1260,15 +1260,15 @@ function drawHero(ctx: Ctx, p: Player, x: number, y: number, time: number): void
   const trail = clamp(-b.vx * 0.012, -3, 3);
 
   if (DINO) {
-    // hood crest behind everything on the head: tall teal spikes, clear of the bed hair
+    // Hood crest behind everything on the head: three short teal spikes, clear of the bed hair.
     ctx.fillStyle = tone(SPINE);
     ctx.strokeStyle = INK;
     ctx.lineWidth = 2.2;
     ctx.lineJoin = 'round';
-    for (let k = -2; k <= 2; k++) {
-      const a = -Math.PI / 2 + k * 0.36 - ax * 0.3;
+    for (let k = -1; k <= 1; k++) {
+      const a = -Math.PI / 2 + k * 0.34 - ax * 0.3;
       const base = HEAD_R + 2;
-      const len = HEAD_R + 20 + (k % 2 === 0 ? 2 : 0) + moving * 2;
+      const len = HEAD_R + 11 + (k === 0 ? 2 : 0) + moving * 2;
       ctx.beginPath();
       ctx.moveTo(hx + Math.cos(a - 0.11) * base, hy + Math.sin(a - 0.11) * base);
       ctx.lineTo(hx + Math.cos(a) * len, hy + Math.sin(a) * len);

@@ -75,11 +75,6 @@ export function campaignBossSlots(): ReadonlyArray<{ type: RoomEnemySpec['type']
   return slots;
 }
 
-/** Temporary adapter for the old tester wall; removed when the room wall shows the campaign. */
-export function depthsBossSlots(): ReadonlyArray<{ type: RoomEnemySpec['type']; index: number }> {
-  return campaignBossSlots().filter(({ index }) => index >= HANDCRAFTED_ROOMS.length);
-}
-
 /**
  * When the boss walks in: after the regular crew has arrived. Returns null for
  * non-boss rooms and the daily challenge.

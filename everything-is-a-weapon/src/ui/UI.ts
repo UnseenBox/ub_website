@@ -90,9 +90,6 @@ export class UI implements GameUi {
       case 'paused':
         this.showPause();
         break;
-      case 'cutscene':
-        this.hud.setVisible(false);
-        break;
       case 'cleared':
       case 'failed':
         // The summary screen arrives through showSummary().
@@ -113,12 +110,7 @@ export class UI implements GameUi {
             // No ad came back: say so, and take the offer away rather than leave a dead button.
             if (!revived && game.state === 'failed') this.showSummary({ ...summary, canContinue: false, adMissed: true });
           }),
-        pickEdge: (id) => {
-          if (!game.chooseEdge(id)) return;
-          void game.nextRoom();
-        },
         home: () => (summary.runEnded ? game.abandonRun() : game.toMenu()),
-        buy: (id) => game.buyAbility(id),
         stamped: () => game.audio.play('stamp', 1),
       }),
     );
@@ -129,7 +121,7 @@ export class UI implements GameUi {
     this.screens.classList.toggle('active', screen !== null);
     if (screen) {
       this.screens.append(screen);
-      screen.querySelector<HTMLButtonElement>('button.primary, button.edge-card')?.focus({ preventScroll: true });
+      screen.querySelector<HTMLButtonElement>('button.primary')?.focus({ preventScroll: true });
     }
   }
 

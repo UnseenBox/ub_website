@@ -1,8 +1,6 @@
 import type { Game } from '../../core/Game';
-import { ENEMY_TYPES } from '../../entities/EnemyTypes';
 import { actFor, campaignProgress, starText, totalStars } from '../../gameplay/Campaign';
-import { HANDCRAFTED_ROOMS } from '../../gameplay/RoomDefinitions';
-import { bossSpecFor, depthsBossSlots } from '../../gameplay/RoomManager';
+import { campaignBossType } from '../../gameplay/RoomManager';
 import { el, formatScore } from '../dom';
 import keyBedroom from '../../ui-kit/bonk2/assets/buttons/room-key-bedroom@2x.png';
 import keyKitchen from '../../ui-kit/bonk2/assets/buttons/room-key-kitchen@2x.png';
@@ -15,11 +13,10 @@ export interface RoomEntry {
   readonly index: number;
   /** Number on the card. */
   readonly num: string;
-  /** Room name, boss name, or 'the depths'. */
+  /** Room name or boss name. */
   readonly name: string;
   readonly boss: boolean;
   readonly locked: boolean;
-  readonly depths: boolean;
   readonly stars: number;
   readonly best: number | null;
 }
@@ -62,11 +59,11 @@ const KEY_ART: readonly string[] = [keyLiving, keyKitchen, keyBedroom];
 
 export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): RoomsPane {
   const save = game.save.data;
-  const total = HANDCRAFTED_ROOMS.length;
+  const total = game.rooms.roomCount;
   const tester =
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('unlock');
-  const resumeRoom = save.unlockedRoom;
-  const openThrough = tester ? total + 60 : resumeRoom;
+  const resumeRoom = Math.min(Math.max(0, save.unlockedRoom), total - 1);
+  const openThrough = tester ? total - 1 : resumeRoom;
 
   const section = el('section', 'b2-rooms');
   section.setAttribute('aria-label', 'Room selection');
@@ -75,10 +72,12 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   const heading = el('div', 'b2-rooms__heading');
   heading.append(
     el('h3', 'b2-rooms__title b2-display b2-outlined', 'THE KEY WALL'),
-    el('p', 'b2-rooms__sub', 'EVERY ROOM. A NEW BAD IDEA.'),
+    el('p', 'b2-rooms__sub', 'FIFTY ROOMS. A NEW BAD IDEA EVERY TIME.'),
   );
 
-  const openCount = Math.max(0, Math.min(openThrough + 1, total));
+  const openCount = tester
+    ? total
+    : Math.max(0, Math.min(save.unlockedRoom + 1, total));
   const stars = totalStars(save.roomStars);
   const stats = el('div', 'b2-rooms__stats');
 
@@ -107,7 +106,7 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   const depthChip = el('div', 'b2-chip b2-rooms__chip b2-rooms__chip--plain');
   const depthText = el('span', 'b2-chip__text');
   depthText.append(
-    el('strong', 'b2-chip__value b2-num', save.deepest > 0 ? String(save.deepest) : '—'),
+    el('strong', 'b2-chip__value b2-num', save.deepest > 0 ? String(Math.min(save.deepest, total)) : '—'),
     el('span', 'b2-chip__label', 'DEEPEST'),
   );
   depthChip.append(depthText);
@@ -145,12 +144,11 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   enter.append(chev);
   foot.append(pickWrap, enter);
 
-  const roomLabel = (index: number): string =>
-    index < total ? `ROOM ${index + 1}` : `DEPTHS ${index + 1}`;
+  const roomLabel = (index: number): string => `ROOM ${index + 1}`;
 
-  let selected = Math.max(0, resumeRoom);
+  let selected = Math.min(resumeRoom, openThrough);
   if (typeof options.initial === 'number') {
-    selected = Math.max(0, options.initial);
+    selected = Math.max(0, Math.min(options.initial, openThrough));
   } else if (lastPick !== null && lastPick >= 0 && lastPick <= openThrough) {
     selected = lastPick;
   }
@@ -158,7 +156,8 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   const cards: Array<{ entry: RoomEntry; node: HTMLButtonElement }> = [];
 
   const hintFor = (entry: RoomEntry): string => {
-    if (entry.depths) return 'THE BUILDING GOES DOWN FOREVER.';
+    // A locked card at index N opens after room N (1-based) is cleared.
+    if (entry.locked) return `CLEAR ROOM ${entry.index} TO EARN THIS KEY.`;
     if (openThrough >= total - 1) return 'EVERY KEY ON THE WALL IS YOURS.';
     return `CLEAR ${roomLabel(openThrough)} TO EARN THE NEXT KEY.`;
   };
@@ -200,7 +199,7 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   const addCard = (entry: RoomEntry): void => {
     const node = el(
       'button',
-      `b2-keycard${entry.locked ? ' is-locked' : ''}${entry.depths ? ' is-depths' : ''}${
+      `b2-keycard${entry.locked ? ' is-locked' : ''}${
         !entry.locked && entry.index === save.unlockedRoom ? ' is-next' : ''
       }`,
     );
@@ -277,68 +276,25 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   };
 
   let lastAct = '';
-  HANDCRAFTED_ROOMS.forEach((def, i) => {
-    const act = actFor(i);
+  for (let index = 0; index < total; index++) {
+    const def = game.rooms.definition(index);
+    const act = actFor(index);
     if (act.id !== lastAct) {
       lastAct = act.id;
       addDivider(act.name, act.tagline);
     }
-    const locked = i > openThrough;
+    const locked = index > openThrough;
     const roomStars = save.roomStars[def.id] ?? 0;
     const best = save.roomBests[def.id];
     addCard({
-      key: `room-${i}`,
-      index: i,
-      num: String(i + 1).padStart(2, '0'),
+      key: `room-${index}`,
+      index,
+      num: String(index + 1).padStart(2, '0'),
       name: def.name.toLowerCase(),
-      boss: !!def.boss,
+      boss: campaignBossType(index, def) !== null,
       locked,
-      depths: false,
       stars: roomStars,
       best: best ? best.score : null,
-    });
-  });
-
-  const depthAct = actFor(total);
-  addDivider(depthAct.name, depthAct.tagline);
-  if (tester) {
-    for (const { type, index } of depthsBossSlots()) {
-      addCard({
-        key: `depth-${index}`,
-        index,
-        num: String(index + 1).padStart(2, '0'),
-        name: ENEMY_TYPES[type].name.toLowerCase(),
-        boss: true,
-        locked: false,
-        depths: true,
-        stars: 0,
-        best: null,
-      });
-    }
-  } else if (resumeRoom >= total) {
-    const spec = bossSpecFor(resumeRoom, false, game.rooms.definition(resumeRoom));
-    addCard({
-      key: 'endless',
-      index: resumeRoom,
-      num: String(resumeRoom + 1).padStart(2, '0'),
-      name: 'the depths',
-      boss: !!spec,
-      locked: false,
-      depths: true,
-      stars: 0,
-      best: null,
-    });
-  } else {
-    addCard({
-      key: 'endless-locked',
-      index: total,
-      num: String(total + 1).padStart(2, '0'),
-      name: 'the depths',
-      boss: true,
-      locked: true,
-      depths: true,
-      stars: 0,
-      best: null,
     });
   }
 

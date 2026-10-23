@@ -8,8 +8,7 @@ import type { DamageCause } from './types';
  * Headless run-through of room 1: the very flow the crash report described —
  * "the game is crashing after the tutorial room is finished". Builds the real
  * Game (stub canvas, happy-dom document), advances the fixed-step simulation
- * the same way the loop and the cutscene hand-off do, and walks it through the
- * clear → win cutscene → results → Star Ledger → Edge pick → next room.
+ * the same way the loop does, and walks it through clear → results → next room.
  */
 const W = 960;
 const H = 640;
@@ -62,7 +61,7 @@ const PUSH: DamageCause = {
   dirY: 0,
 };
 
-/** Drive the sim + the frame path together, like the real rAF loop and the cutscene hand-off. */
+/** Drive the sim + the frame path together, like the real rAF loop. */
 function advance(game: Game, seconds: number): void {
   const steps = Math.round(seconds / FIXED_DT);
   const frame = frameOf(game);
@@ -83,14 +82,9 @@ function waitFor(game: Game, goal: () => boolean, cap = 30): void {
   expect(goal(), `condition not reached within ${cap}s of sim time`).toBe(true);
 }
 
-/** Game.frame drives the display-frame path (cutscene hand-off, hud, renderer). */
+/** Game.frame drives the display-frame path (hud + renderer). */
 function frameOf(game: Game): (alpha: number, frameDt: number) => void {
   return (game as unknown as { frame(alpha: number, frameDt: number): void }).frame.bind(game);
-}
-
-/** The private pending-edge offer after a clear. */
-function offersOf(game: Game): Array<{ id: import('../gameplay/Edges').EdgeId }> {
-  return (game as unknown as { pendingEdgeOffer: Array<{ id: import('../gameplay/Edges').EdgeId }> }).pendingEdgeOffer;
 }
 
 /** Kills every live enemy the honest way (through the damage pipeline). */
@@ -130,7 +124,7 @@ it('boot → first visit → tutorial room lives and advances lessons honestly',
   expect(game.tutorial.step).toBe('power');
 });
 
-it('tutorial → clear → win cutscene → results with ledger claim → edge pick → room 2', async () => {
+it('tutorial → clear → results with ledger claim → room 2', async () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
@@ -164,10 +158,6 @@ it('tutorial → clear → win cutscene → results with ledger claim → edge p
   const claims = game.save.data.starRewardsClaimed;
   expect(claims, 'the clear must claim its ledger milestone').toContain('scrap_3');
 
-  const offer = [...offersOf(game)];
-  expect(offer.length, 'a cleared room offers run Edges').toBeGreaterThan(0);
-  expect(game.chooseEdge(offer[0]!.id)).toBe(true);
-
   await game.nextRoom();
   expect(game.state).toBe('playing');
   expect(game.room.index).toBe(1);
@@ -176,13 +166,13 @@ it('tutorial → clear → win cutscene → results with ledger claim → edge p
   advance(game, 2);
   expect(game.state).toBe('playing');
   advance(game, 3);
-  expect(['playing', 'cutscene', 'failed']).toContain(game.state);
+  expect(['playing', 'failed']).toContain(game.state);
 }, 40000);
 
-it('results screen builds the victory DOM with the ledger chip and wires the Edge pick', async () => {
+it('results screen builds the simple victory DOM and wires NEXT ROOM', async () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
-  // The real UI must be attached before the cutscene completes, so that
+  // The real UI must be attached before the clear completes, so that
   // completeRoom()'s showSummary() lands in the happy-dom document.
   const { UI } = await import('../ui/UI');
   const hudRoot = document.getElementById('hud')!;
@@ -206,16 +196,19 @@ it('results screen builds the victory DOM with the ledger chip and wires the Edg
   waitFor(game, () => game.state === 'cleared', 10);
   expect(game.state).toBe('cleared');
 
-  // The real results screen (the exact UI the player sees after the win cutscene).
+  // The real results screen: simple, and no clickable cards to the next room.
   expect(document.querySelector('.screen.results.victory'), 'victory card').toBeTruthy();
-  expect(document.querySelector('.victory-ledger-line'), 'ledger chip rendered').toBeTruthy();
-  expect(document.querySelectorAll('button.edge-card').length, 'three Edge cards').toBe(3);
+  expect(document.querySelector('button.edge-card'), 'no Edge cards').toBeNull();
+  expect(document.querySelector('.b2-report__offer'), 'no power offer').toBeNull();
+  expect(document.querySelector('.b2-report__next'), 'no clickable next-room card').toBeNull();
+  const labels = [...document.querySelectorAll<HTMLElement>('.b2-results__actionlabel')]
+    .map((node) => node.textContent);
+  expect(labels, 'only the three simple actions').toEqual(['NEXT ROOM', 'REPLAY ROOM', 'HOME']);
 
-  const card = document.querySelector<HTMLButtonElement>('button.edge-card')!;
-  card.click();
-  await awaitFlush();
-  expect(game.save.data.runBoosts.length, 'the picked Edge stacks for the run').toBeGreaterThan(0);
-  expect(game.state, 'the pick advances to the next floor').toBe('playing');
+  const nextButton = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
+  nextButton.click();
+  await awaitFlush(50);
+  expect(game.state, 'NEXT ROOM advances to the next floor').toBe('playing');
   expect(game.room.index).toBe(1);
 }, 40000);
 

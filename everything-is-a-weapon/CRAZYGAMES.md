@@ -9,9 +9,9 @@ Everything needed for the submission is in this folder:
 | Portrait cover, 800x1200 | `covers/cover-portrait-800x1200.png` |
 | Square cover, 800x800 | `covers/cover-square-800x800.png` |
 
-The game is one self-contained file of about 420 KB (limit: 50 MB): the code and styles are
-inside `index.html`, so there is no assets folder to upload or to go missing. The only thing
-it fetches is CrazyGames' own SDK script.
+The game is one self-contained file of about 5.0 MB (limit: 50 MB): the code, styles and UI
+art are inside `index.html`, so there is no assets folder to upload or to go missing. The only
+thing it fetches is CrazyGames' own SDK script.
 
 ## How ads work on CrazyGames (read this first)
 
@@ -98,11 +98,11 @@ All of it lives in `src/platform/` and is only compiled into this build
 - **While an ad is being fetched** the results buttons cannot be pressed. Audio is muted only
   when an ad actually starts, and restored when it ends.
 - **Gameplay start/stop** is reported every time the player gains or gives up control
-  (room start, pause, cutscene, results, menu). Loading start/stop is reported at boot.
+  (room start, pause, results, menu). Loading start/stop is reported at boot.
 - **CrazyGames' mute switch** silences the game and cannot be overridden by the in-game setting.
 - **Saves** go through the SDK's data module, so progress follows a logged-in player between devices.
-- **Progress percentage** (hand-made rooms unlocked, out of 8) is reported at start and after each room.
-- **Confetti** (`happytime`) once: the first time the eighth room is cleared.
+- **Progress percentage** (campaign rooms cleared, out of 50) is reported at start and after each room.
+- **Confetti** (`happytime`) once: the first time room 50 is cleared.
 - **Game context** (room number and hero) is attached for player feedback.
 - **No custom fullscreen** in this build, no links out of the game, no other ad network.
 
@@ -119,8 +119,8 @@ Checked against https://docs.crazygames.com/requirements/quality/ and the Basic 
 | Avoid Escape as the only way to do something | P pauses as well as Esc (Esc also leaves fullscreen in a browser). |
 | Readable at their frame sizes | Checked at 821x462 and 907x510: no text under 11px, nothing outside the frame on the HUD, menu, pause, settings and results screens. |
 | Same physics at any refresh rate | Fixed 120 Hz simulation step, independent of the display. |
-| Clear goals, progression, a reason to return | Clear the room; 8 hand-made rooms then endless generated ones; 131 discoveries on an evidence board; 4 heroes; a daily challenge; progress saved to the CrazyGames account. |
-| Fast to load | About 0.4 MB in total; no loading screen. |
+| Clear goals, progression, a reason to return | Clear the room; a 50-room campaign in five acts with all 20 bosses; 131 discoveries on an evidence board; 4 heroes; a daily challenge; progress saved to the CrazyGames account. |
+| Fast to load | About 5.0 MB in total (3.4 MB zipped); no loading screen. |
 | No ads before the player has played | No mid-game ad in the first 75 seconds of a visit, on top of CrazyGames' own spacing. |
 | Buttons honest about ads | "WATCH AD: CONTINUE" is the same size as RETRY, labelled as an advert, and never delayed or pre-selected. |
 | Safe areas in the CrazyGames app | HUD and touch buttons are padded with the device safe-area insets. |
@@ -131,7 +131,7 @@ Two things in their guidelines cannot be settled from here:
 
 - **Audio quality.** All sound is synthesised and has not been listened to by a person on
   good speakers. Play it with sound on before submitting.
-- **Difficulty.** Balance comes from scripted play. If rooms 5 to 8 feel unfair to a human,
+- **Difficulty.** Balance comes from scripted play. If the later acts feel unfair to a human,
   say so and the numbers can be eased; average play time and next-day return are the two
   metrics CrazyGames uses to decide on Full Launch.
 
