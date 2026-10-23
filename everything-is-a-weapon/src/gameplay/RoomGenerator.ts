@@ -137,10 +137,17 @@ export function depthFor(index: number): number {
   return Math.max(1, index - 7);
 }
 
-export function generateRoom(index: number, seed: number, challengeOverride?: string): RoomDefinition {
+export function generateRoom(
+  index: number,
+  seed: number,
+  challengeOverride?: string,
+  themeOverride?: RoomTheme,
+): RoomDefinition {
   const rng = new Rng(seed);
   const depth = depthFor(index);
-  const theme = rng.pick(THEMES);
+  // The roll is consumed either way, so a theme override keeps the rest of the layout stable.
+  const rolledTheme = rng.pick(THEMES);
+  const theme = themeOverride ?? rolledTheme;
   const kit = KITS[theme];
   // ── dimensions: verandahs run long, cells run small, pools run grand ──
   let width = 40 * rng.int(24, 27);

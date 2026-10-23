@@ -1,13 +1,17 @@
 import type { RoomStats } from './ScoreSystem';
 
+/** The campaign is a finite tour: 1 tutorial, 9 handcrafted rooms, then generated rooms. */
+export const CAMPAIGN_ROOMS = 50;
+export const FINAL_ROOM_INDEX = CAMPAIGN_ROOMS - 1;
+
 /** Which chapter of the eviction saga a room belongs to. */
 export interface Act {
   readonly id: string;
   readonly name: string;
   readonly tagline: string;
-  /** Inclusive 0-based room indices. The Depths act starts at 8 and never ends. */
+  /** Inclusive 0-based room indices. */
   readonly from: number;
-  readonly to: number | null;
+  readonly to: number;
   readonly blurb: string;
 }
 
@@ -17,38 +21,46 @@ export const ACTS: readonly Act[] = [
     name: 'ACT I · EVICTION NOTICE',
     tagline: 'they came with boxes',
     from: 0,
-    to: 2,
+    to: 9,
     blurb: 'MOVERS & CO. slipped a notice under your door. Keep the flat room by room.',
   },
   {
     id: 'pushback',
     name: 'ACT II · THE FLAT FIGHTS BACK',
     tagline: 'the rooms are the weapons',
-    from: 3,
-    to: 5,
+    from: 10,
+    to: 19,
     blurb: 'Fire, water, grease. Learn what each room does — then aim it at them.',
   },
   {
     id: 'landlord',
     name: 'ACT III · THE LANDLORD',
     tagline: 'he wants the keys back',
-    from: 6,
-    to: 8,
+    from: 20,
+    to: 29,
     blurb: 'The compactor, the penthouse, then the lease itself. End it where the rent gets collected.',
   },
   {
     id: 'depths',
-    name: 'THE DEPTHS',
-    tagline: 'the building goes down forever',
-    from: 9,
-    to: null,
-    blurb: 'Lease reclaimed. The basement keeps going for sport: new rooms, old bosses, daily work.',
+    name: 'ACT IV · THE DEPTHS',
+    tagline: 'the building goes down',
+    from: 30,
+    to: 39,
+    blurb: 'Below the flat the building keeps going: boiler rooms, bad wiring, and older bosses.',
+  },
+  {
+    id: 'finale',
+    name: 'ACT V · THE FINAL NOTICE',
+    tagline: 'the last door is cardboard',
+    from: 40,
+    to: 49,
+    blurb: 'Every key on the wall. One last door. The King of Cardboard is standing on it.',
   },
 ];
 
 export function actFor(index: number): Act {
   for (const act of ACTS) {
-    if (index >= act.from && (act.to === null || index <= act.to)) return act;
+    if (index >= act.from && index <= act.to) return act;
   }
   return ACTS[ACTS.length - 1]!;
 }
@@ -115,9 +127,9 @@ export const BRIEFINGS: Readonly<Record<string, Briefing>> = {
     par: 210,
   },
   'room-9': {
-    story: 'Mom retreated upstairs — and the building itself stood up. The lease is nailed to that office door.',
+    story: 'Mom retreated upstairs — and the building itself stood up. Break the house, then the lease.',
     objective: 'evict the house itself',
-    landlord: '“FINAL NOTICE. — THE LANDLORD”',
+    landlord: '“THE LEASE IS NOT OVER. — THE LANDLORD”',
     par: 220,
   },
   'pool-11': {
@@ -149,6 +161,12 @@ export const BRIEFINGS: Readonly<Record<string, Briefing>> = {
     objective: 'let the room do it',
     landlord: '“Mind the boiler. — M.”',
     par: 180,
+  },
+  'final-49': {
+    story: 'The last door is flat-packed, the building is out of floors, and the King of Cardboard is standing on it.',
+    objective: 'evict the king · reclaim the lease',
+    landlord: '“FINAL NOTICE. — THE LANDLORD”',
+    par: 240,
   },
 };
 
@@ -214,10 +232,10 @@ export function totalStars(roomStars: Record<string, number>): number {
   }, 0);
 }
 
-/** Whole-campaign progress for the portal + menu header. */
-export function campaignProgress(handcraftedCount: number, roomStars: Record<string, number>): number {
-  if (handcraftedCount <= 0) return 0;
-  return Math.min(100, Math.round((totalStars(roomStars) / (handcraftedCount * 3)) * 100));
+/** Whole-campaign progress for the portal + menu header (50 rooms × 3 stars). */
+export function campaignProgress(roomCount: number, roomStars: Record<string, number>): number {
+  if (roomCount <= 0) return 0;
+  return Math.min(100, Math.round((totalStars(roomStars) / (roomCount * 3)) * 100));
 }
 
 export function todayKey(date = new Date()): string {

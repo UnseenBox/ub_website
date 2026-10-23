@@ -1,11 +1,13 @@
 import { WALL } from '../core/constants';
 import type { Game } from '../core/Game';
+import { hashString } from '../core/Random';
 import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import { Layer, RigidBody } from '../physics/RigidBody';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import type { PhysicsObject } from '../entities/PhysicsObject';
 import type { Enemy } from '../entities/Enemy';
-import { doorPosition, type RoomDefinition, type RoomEnemySpec } from './Room';
+import { CAMPAIGN_ROOMS, FINAL_ROOM_INDEX } from './Campaign';
+import { doorPosition, type RoomDefinition, type RoomEnemySpec, type RoomTheme } from './Room';
 import { ANCHOR_ROOMS, HANDCRAFTED_ROOMS } from './RoomDefinitions';
 import { depthFor, generateRoom } from './RoomGenerator';
 import { INCIDENT_WALK_LEAD, type IncidentSpec, type PendingEnemy } from './Incidents';
@@ -45,58 +47,102 @@ export interface RoomRuntime {
 }
 
 /**
- * Every third room ends with the Landlord himself, a while after the regular
- * crew has arrived. Returns null for other rooms and the daily challenge.
+ * The generated half of the campaign. The eight handcrafted bosses already
+ * occupy rooms 2-9; these eleven unique bosses fill the late tour, and the
+ * King of Cardboard waits behind the last door.
  */
-/** The generated depths rotate through the full boss roster every third room. */
-const DEPTH_BOSSES: ReadonlyArray<RoomEnemySpec['type']> = [
-  'chairman', 'flusher', 'kraken', 'fridgezilla', 'piano', 'mower',
-  'vacuumasaurus', 'hydra', 'fan', 'popcorn', 'cables', 'cooker', 'train',
-  'junk', 'house', 'clock', 'toybox', 'dishwasher', 'cardboard',
+const LATE_BOSS_SLOTS: readonly number[] = [11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41];
+const LATE_BOSSES: ReadonlyArray<RoomEnemySpec['type']> = [
+  'vacuumasaurus', 'hydra', 'fan', 'popcorn', 'cables',
+  'cooker', 'train', 'junk', 'clock', 'toybox', 'dishwasher',
 ];
 
-export function bossSpecFor(index: number, daily: boolean, def: RoomDefinition): RoomEnemySpec | null {
-  if (daily || (index + 1) % 3 !== 0) return null;
-  const latest = def.enemies.reduce((max, spec) => Math.max(max, spec.delay), 0);
-  const type = DEPTH_BOSSES[Math.floor(index / 3) % DEPTH_BOSSES.length]!;
-  return { type, delay: latest + 5 };
+/** The boss in a room, if it has one. Handcrafted/final definitions win over the schedule. */
+export function campaignBossType(index: number, def?: RoomDefinition): RoomEnemySpec['type'] | null {
+  if (def?.boss) return def.boss;
+  const slot = LATE_BOSS_SLOTS.indexOf(index);
+  return slot >= 0 ? LATE_BOSSES[slot]! : null;
+}
+
+/** Every boss room in the campaign, in play order. Exactly one slot per boss. */
+export function campaignBossSlots(): ReadonlyArray<{ type: RoomEnemySpec['type']; index: number }> {
+  const slots: Array<{ type: RoomEnemySpec['type']; index: number }> = [];
+  HANDCRAFTED_ROOMS.forEach((def, index) => {
+    if (def.boss) slots.push({ type: def.boss, index });
+  });
+  LATE_BOSS_SLOTS.forEach((index, k) => slots.push({ type: LATE_BOSSES[k]!, index }));
+  slots.push({ type: 'cardboard', index: FINAL_ROOM_INDEX });
+  return slots;
+}
+
+/** Temporary adapter for the old tester wall; removed when the room wall shows the campaign. */
+export function depthsBossSlots(): ReadonlyArray<{ type: RoomEnemySpec['type']; index: number }> {
+  return campaignBossSlots().filter(({ index }) => index >= HANDCRAFTED_ROOMS.length);
 }
 
 /**
- * Every depths boss with the generated room index it haunts, for the tester
- * wall. Roster slot k surfaces at index 3k+2 (the (index+1)%3===0 rule above),
- * skipping slots that fall inside the handmade tour.
+ * When the boss walks in: after the regular crew has arrived. Returns null for
+ * non-boss rooms and the daily challenge.
  */
-export function depthsBossSlots(): ReadonlyArray<{ type: RoomEnemySpec['type']; index: number }> {
-  return DEPTH_BOSSES.map((type, k) => ({ type, index: 3 * k + 2 }))
-    .filter(({ index }) => index >= HANDCRAFTED_ROOMS.length);
+export function bossSpecFor(index: number, daily: boolean, def: RoomDefinition): RoomEnemySpec | null {
+  if (daily) return null;
+  const type = campaignBossType(index, def);
+  if (!type) return null;
+  const latest = def.enemies.reduce((max, spec) => Math.max(max, spec.delay), 0);
+  return { type, delay: latest + 5 };
 }
+
+/** Campaign rooms cycle through every theme so the tour keeps changing shape. */
+const CAMPAIGN_THEMES: readonly RoomTheme[] = [
+  'living', 'kitchen', 'bathroom', 'bedroom', 'office', 'garage',
+  'basement', 'garden', 'pool', 'jail', 'porch',
+];
 
 /** Resolves room indices to definitions and builds the physical room from data. */
 export class RoomManager {
-  private readonly generatedSeeds = new Map<number, number>();
+  private readonly generated = new Map<number, RoomDefinition>();
 
   get handcraftedCount(): number {
     return HANDCRAFTED_ROOMS.length;
   }
 
+  get roomCount(): number {
+    return CAMPAIGN_ROOMS;
+  }
+
   definition(index: number): RoomDefinition {
-    const handcrafted = HANDCRAFTED_ROOMS[index];
+    const campaignIndex = Math.max(0, Math.min(FINAL_ROOM_INDEX, Math.floor(index)));
+    const handcrafted = HANDCRAFTED_ROOMS[campaignIndex];
     if (handcrafted) return handcrafted;
-    // Pinned signature rooms keep the endless floors dealing surprises.
-    const anchor = ANCHOR_ROOMS[index];
+    // Pinned signature rooms punctuate the generated campaign floors.
+    const anchor = ANCHOR_ROOMS[campaignIndex];
     if (anchor) return anchor;
-    // A generated room keeps its seed for the session, so Retry gives the same layout.
-    let seed = this.generatedSeeds.get(index);
-    if (seed === undefined) {
-      seed = Math.floor(Math.random() * 0xffffffff);
-      this.generatedSeeds.set(index, seed);
+    const cached = this.generated.get(campaignIndex);
+    if (cached) return cached;
+
+    // A stable seed means the 50-room campaign is the same tour every session.
+    const seed = hashString(`bonk-campaign-room-${campaignIndex}`);
+    const theme = campaignIndex === FINAL_ROOM_INDEX
+      ? 'garage'
+      : CAMPAIGN_THEMES[(campaignIndex - HANDCRAFTED_ROOMS.length) % CAMPAIGN_THEMES.length]!;
+    let room = generateRoom(campaignIndex, seed, undefined, theme);
+    if (campaignIndex === FINAL_ROOM_INDEX) {
+      room = {
+        ...room,
+        id: 'final-49',
+        name: 'THE LAST DOOR',
+        boss: 'cardboard',
+        objective: undefined,
+        challenge: 'environment_only',
+        teaser: 'the lease ends here',
+      };
     }
-    return generateRoom(index, seed);
+    this.generated.set(campaignIndex, room);
+    return room;
   }
 
   forgetGenerated(index: number): void {
-    this.generatedSeeds.delete(index);
+    this.generated.delete(index);
   }
 
   build(
