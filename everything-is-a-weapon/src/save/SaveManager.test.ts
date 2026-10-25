@@ -19,7 +19,7 @@ function loadRaw(raw: Record<string, unknown>): SaveData {
   return manager.data;
 }
 
-describe('SaveManager v5', () => {
+describe('SaveManager v6', () => {
   it('migrates a v4 save without losing progress', () => {
     const save = loadRaw({
       version: 4,
@@ -31,7 +31,9 @@ describe('SaveManager v5', () => {
       tutorial: 'done',
     });
 
-    expect(SAVE_VERSION).toBe(5);
+    expect(SAVE_VERSION).toBe(6);
+    expect(save.upgrades).toEqual({});
+    expect(save.runOffer).toEqual([]);
     expect(save.unlockedRoom).toBe(5);
     expect(save.deepest).toBe(6);
     expect(save.scrap).toBe(420);
@@ -50,9 +52,11 @@ describe('SaveManager v5', () => {
     expect(save.enforcersBeaten).toBe(0);
   });
 
-  it('starts a fresh save with v5 run defaults', () => {
+  it('starts a fresh save with v6 run and progression defaults', () => {
     const save = new SaveManager(new MemoryStorage()).data;
 
+    expect(save.upgrades).toEqual({});
+    expect(save.runOffer).toEqual([]);
     expect(save.runActive).toBe(false);
     expect(save.runFloor).toBe(0);
     expect(save.runStreak).toBe(0);
@@ -108,5 +112,59 @@ describe('SaveManager v5', () => {
     expect(save.runFloor).toBe(0);
     expect(save.runStreak).toBe(0);
     expect(save.runScore).toBe(0);
+  });
+
+  it('migrates a v5 save and resets only the cumulative room bests', () => {
+    const save = loadRaw({
+      version: 5,
+      scrap: 900, highScore: 5000, discoveries: ['blunt_force'],
+      roomStars: { 'room-1': 3 }, roomBests: { 'room-1': { score: 4200, chain: 6 } },
+      runActive: true, runFloor: 4, runStreak: 2, runScore: 4200,
+      runBoosts: ['quick_feet'], runOffer: ['heavy_hands'],
+    });
+    expect(SAVE_VERSION).toBe(6);
+    expect(save.upgrades).toEqual({});
+    expect(save.runOffer).toEqual([]);
+    expect(save.roomBests).toEqual({});
+    expect(save.roomStars).toEqual({ 'room-1': 3 });
+    expect(save.scrap).toBe(900);
+    expect(save.highScore).toBe(5000);
+    expect(save.runBoosts).toEqual(['quick_feet']);
+    expect(save.runActive).toBe(true);
+  });
+
+  it('round-trips v6 upgrade levels and a pending offer', () => {
+    const save = loadRaw({
+      version: 6, upgrades: { door: 2, scrap: 3 }, runActive: true,
+      runOffer: ['heavy_hands', 'quick_feet'],
+    });
+    expect(save.upgrades).toEqual({ door: 2, scrap: 3 });
+    expect(save.runOffer).toEqual(['heavy_hands', 'quick_feet']);
+  });
+
+  it('clamps/drops upgrade values and stores only positive known levels', () => {
+    const save = loadRaw({
+      version: 6,
+      upgrades: { door: 99, scrap: -2, cooldown: 2.9, score: '3', pet: 4, nope: 2 },
+    });
+    expect(save.upgrades).toEqual({ door: 2, cooldown: 2, pet: 4 });
+  });
+
+  it('caps duplicate run Edges and drops unknown ids', () => {
+    const save = loadRaw({
+      version: 6, runActive: true,
+      runBoosts: ['quick_feet', 'nope', 'quick_feet', 'quick_feet', 'quick_feet', 'heavy_hands'],
+    });
+    expect(save.runBoosts).toEqual(['quick_feet', 'quick_feet', 'quick_feet', 'heavy_hands']);
+  });
+
+  it('sanitizes runOffer to three known unique ids and clears it without a run', () => {
+    const active = loadRaw({
+      version: 6, runActive: true,
+      runOffer: ['heavy_hands', 'heavy_hands', 'nope', 'quick_feet', 'scrap_luck', 'magnate'],
+    });
+    expect(active.runOffer).toEqual(['heavy_hands', 'quick_feet', 'scrap_luck']);
+    const idle = loadRaw({ version: 6, runActive: false, runOffer: ['heavy_hands'] });
+    expect(idle.runOffer).toEqual([]);
   });
 });

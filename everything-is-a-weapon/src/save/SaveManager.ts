@@ -1,8 +1,10 @@
 import { ABILITY_IDS } from '../gameplay/Abilities';
+import { EDGE_STACK_CAP, isEdgeId } from '../gameplay/Edges';
+import { UPGRADES } from '../gameplay/Upgrades';
 import { isHeroId, type HeroId } from '../core/Hero';
 import type { PortalStorage } from '../platform/Portal';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 const STORAGE_KEY = 'everything-is-a-weapon/save';
 
 /** Best run on one room, for the level-select wall and replay bragging rights. */
@@ -61,7 +63,9 @@ export interface SaveData {
   runScore: number;
   /** FINE PRINT's once-per-run charge has been spent (new in version 5). */
   runInsuranceUsed: boolean;
-  /** Offered Edge ids while a draft is pending (new in version 6). */
+  /** Permanent home-upgrade levels by id (new in version 6). */
+  upgrades: Record<string, number>;
+  /** Up to three offered Edge ids while a draft is pending (new in version 6). */
   runOffer: string[];
   /** Ledger milestone ids already paid (new in version 5). */
   starRewardsClaimed: string[];
@@ -104,6 +108,7 @@ function defaults(): SaveData {
     runBoosts: [],
     runScore: 0,
     runInsuranceUsed: false,
+    upgrades: {},
     runOffer: [],
     starRewardsClaimed: [],
     tutorialSkipped: false,
@@ -172,6 +177,14 @@ function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     raw.enforcersBeaten = 0;
     version = 5;
   }
+  if (version < 6) {
+    // Version 6 adds permanent home upgrades and pending Edge offers. Old
+    // room bests were cumulative run scores, not room scores.
+    raw.upgrades = {};
+    raw.runOffer = [];
+    raw.roomBests = {};
+    version = 6;
+  }
   return raw;
 }
 
@@ -198,11 +211,48 @@ function starMap(value: unknown): Record<string, number> {
   return out;
 }
 
+function upgradeLevels(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!isRecord(value)) return out;
+  for (const def of UPGRADES) {
+    const raw = value[def.id];
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) continue;
+    const level = Math.min(def.maxLevel, Math.floor(raw));
+    if (level > 0) out[def.id] = level;
+  }
+  return out;
+}
+
+function runEdges(value: unknown): string[] {
+  const out: string[] = [];
+  const counts = new Map<string, number>();
+  for (const id of stringArray(value)) {
+    if (!isEdgeId(id)) continue;
+    const count = counts.get(id) ?? 0;
+    if (count >= EDGE_STACK_CAP) continue;
+    counts.set(id, count + 1);
+    out.push(id);
+  }
+  return out;
+}
+
+function runOffer(value: unknown, active: boolean): string[] {
+  if (!active) return [];
+  const out: string[] = [];
+  for (const id of stringArray(value)) {
+    if (!isEdgeId(id) || out.includes(id)) continue;
+    out.push(id);
+    if (out.length === 3) break;
+  }
+  return out;
+}
+
 function sanitize(raw: unknown): SaveData {
   const base = defaults();
   if (!isRecord(raw)) return base;
   const data = migrate(raw);
   const settings = isRecord(data.settings) ? data.settings : {};
+  const runActive = data.runActive === true;
   return {
     version: SAVE_VERSION,
     discoveries: [...new Set(stringArray(data.discoveries))],
@@ -223,14 +273,15 @@ function sanitize(raw: unknown): SaveData {
     lastDaily: typeof data.lastDaily === 'string' ? data.lastDaily : '',
     dailyStreak: Math.max(0, Math.floor(finite(data.dailyStreak, 0))),
     deepest: Math.max(0, Math.floor(finite(data.deepest, 0))),
-    runActive: data.runActive === true,
+    runActive,
     runFloor: Math.max(0, Math.floor(finite(data.runFloor, 0))),
     runStreak: Math.max(0, Math.floor(finite(data.runStreak, 0))),
-    // Duplicates are deliberate: each copy of an Edge stacks.
-    runBoosts: stringArray(data.runBoosts),
+    // Duplicates are deliberate: each copy of an Edge stacks, up to the cap.
+    runBoosts: runEdges(data.runBoosts),
     runScore: Math.max(0, Math.floor(finite(data.runScore, 0))),
     runInsuranceUsed: data.runInsuranceUsed === true,
-    runOffer: [],
+    upgrades: upgradeLevels(data.upgrades),
+    runOffer: runOffer(data.runOffer, runActive),
     starRewardsClaimed: [...new Set(stringArray(data.starRewardsClaimed))],
     tutorialSkipped: data.tutorialSkipped === true,
     dailyRareEdge: data.dailyRareEdge === true,
