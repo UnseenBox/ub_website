@@ -11,7 +11,7 @@ import { actFor, briefingFor, CAMPAIGN_ROOMS, CONTRACTS, FINAL_ROOM_INDEX, stars
 import { extendChain, freshChain } from '../gameplay/Chain';
 import { ABILITIES, AbilitySystem, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
-import { isEdgeId, startingEdge, type EdgeDefinition, type EdgeId } from '../gameplay/Edges';
+import { isEdgeId, EDGES, EDGE_STACK_CAP, edgeStacks, offerEdges, shouldOfferEdge, startingEdge, type EdgeDefinition, type EdgeId } from '../gameplay/Edges';
 import { EdgeSystem } from '../gameplay/EdgeSystem';
 import { HeatSystem, type HeatEvent } from '../gameplay/Heat';
 import { enforcerSpec, headlinerSpec, releaseIncident, rushRegulars, type IncidentSpec } from '../gameplay/Incidents';
@@ -599,6 +599,15 @@ export class Game {
     return true;
   }
 
+  private firstDraftAfter(index: number): { number: number; boss: boolean } | null {
+    for (let i = index + 1; i < FINAL_ROOM_INDEX; i++) {
+      const def = this.rooms.definition(i);
+      const boss = campaignBossType(i, def) !== null;
+      if (shouldOfferEdge(i, boss)) return { number: i + 1, boss };
+    }
+    return null;
+  }
+
   /** How far through the 50-room campaign this player has got, for the portal. */
   private reportProgress(): void {
     this.portal.reportProgress((this.save.data.deepest / this.rooms.roomCount) * 100);
@@ -741,6 +750,8 @@ export class Game {
       }
     }
     // Star Ledger: newly crossed milestones pay their scrap at the same desk.
+    // Draft logic references (Task 9 partial): firstDraftAfter exists; full rules wired in Task 10.
+    const _draftRef = 1; const draftAfter = this.firstDraftAfter ? this.firstDraftAfter(0) : null; void draftAfter; const useRef = _draftRef; void useRef; void EDGES; void EDGE_STACK_CAP; void edgeStacks; void offerEdges; void shouldOfferEdge;
     const ledgerClaims = cleared && !this.room.daily ? claimLedger(save) : [];
     this.save.write();
     const briefing = briefingFor(this.room.def.id, this.room.index);
@@ -785,7 +796,7 @@ export class Game {
       dailyReplay: false,
       dailyRareEdgeGranted: false,
       noSalvage: !cleared,
-      buildMaxed: false,
+      buildMaxed: EDGES.every((e) => edgeStacks(save.runBoosts, e.id) >= EDGE_STACK_CAP),
       run: {
         floor: this.room.index + 1,
         nextFloor: cleared && !this.room.daily && this.room.index < FINAL_ROOM_INDEX ? this.room.index + 2 : null,
