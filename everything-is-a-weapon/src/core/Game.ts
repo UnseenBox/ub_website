@@ -7,11 +7,11 @@ import { ENEMY_TYPES, type EnemyType, type EnemyTypeId } from '../entities/Enemy
 import type { PhysicsObject } from '../entities/PhysicsObject';
 import { Player } from '../entities/Player';
 import { ChallengeSystem } from '../gameplay/ChallengeSystem';
-import { actFor, briefingFor, CAMPAIGN_ROOMS, CONTRACTS, FINAL_ROOM_INDEX, starsFor, todayKey, yesterdayKey } from '../gameplay/Campaign';
+import { actFor, briefingFor, CAMPAIGN_ROOMS, CONTRACTS, FINAL_ROOM_INDEX, starsFor, todayKey, yesterdayKey, totalStars } from '../gameplay/Campaign';
 import { extendChain, freshChain } from '../gameplay/Chain';
 import { ABILITIES, AbilitySystem, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
-import { isEdgeId, startingEdge, type EdgeId } from '../gameplay/Edges';
+import { isEdgeId, startingEdge, type EdgeDefinition, type EdgeId } from '../gameplay/Edges';
 import { EdgeSystem } from '../gameplay/EdgeSystem';
 import { HeatSystem, type HeatEvent } from '../gameplay/Heat';
 import { enforcerSpec, headlinerSpec, releaseIncident, rushRegulars, type IncidentSpec } from '../gameplay/Incidents';
@@ -28,6 +28,8 @@ import {
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
 import { maxHealthBonus, upgradePetMultiplier } from '../gameplay/Upgrades';
+import { type UnlockGoal } from '../gameplay/Progression';
+
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import { ZoneManager } from '../hazards/Zone';
 import { InputManager } from '../input/InputManager';
@@ -94,6 +96,32 @@ export interface RoomSummary {
   runEnded: boolean;
   /** Star Ledger rewards crossed by this clear. */
   ledgerClaims: LedgerMilestone[];
+  /** Room-local score delta (not the cumulative run total). */
+  roomScore: number;
+  isNewRoomBest: boolean;
+  /** Pending Edge draft cards (empty on non-draft / failure / final). */
+  offer: EdgeDefinition[];
+  nextRoom: { number: number; name: string; boss: boolean } | null;
+  nextEdge: { number: number; boss: boolean } | null;
+  nextGoal: UnlockGoal;
+  ledgerNext: LedgerMilestone | null;
+  ledgerStars: number;
+  totalStars: number;
+  dailyStreak: number;
+  dailyReplay: boolean;
+  dailyRareEdgeGranted: boolean;
+  noSalvage: boolean;
+  buildMaxed: boolean;
+  run: {
+    floor: number;
+    nextFloor: number | null;
+    streak: number;
+    score: number;
+    types: number;
+    stacks: number;
+    boosts: string[];
+    ended: boolean;
+  };
 }
 
 /** What the simulation needs from the UI layer. Keeps Game free of DOM details. */
@@ -191,6 +219,7 @@ export class Game {
   private slowScale = 1;
   private revived = false;
   private consecutiveFailures = 0;
+  pendingDraft: { room: number; offer: EdgeDefinition[] } | null = null;
   /** Lesson the next entry into room 1 starts from (a replay, or a restart mid-lesson). */
   private lessonFrom: Lesson | null = null;
   private inGameplay = false;
@@ -626,6 +655,7 @@ export class Game {
     let runEnded = false;
     let stars = 0;
     let isNewBestStars = false;
+    let isNewRoomBest = false;
     let challengeText = challenge?.text ?? null;
     let challengePassed = challengeBonus > 0;
 
@@ -662,6 +692,7 @@ export class Game {
       // Per-room bests for the level-select wall and replay bragging rights.
       const prev = save.roomBests[id];
       if (!prev || this.score.score > prev.score) {
+        isNewRoomBest = true;
         save.roomBests[id] = {
           score: this.score.score,
           chain: Math.max(this.score.stats.bestChain, prev?.chain ?? 0),
@@ -740,6 +771,31 @@ export class Game {
       finale: cleared && !this.room.daily && this.room.index === FINAL_ROOM_INDEX,
       runEnded,
       ledgerClaims,
+      // Task 9 progression fields (partial contract — see brief for full rules).
+      roomScore: cleared ? this.score.score - this.scoreAtRoomStart : 0,
+      isNewRoomBest,
+      offer: [],
+      nextRoom: null,
+      nextEdge: null,
+      nextGoal: { kind: 'store' as const, kicker: 'READY TO BUY' as const, name: '', detail: '', progress: 0, action: null },
+      ledgerNext: null,
+      ledgerStars: 0,
+      totalStars: totalStars(save.roomStars),
+      dailyStreak: save.dailyStreak,
+      dailyReplay: false,
+      dailyRareEdgeGranted: false,
+      noSalvage: !cleared,
+      buildMaxed: false,
+      run: {
+        floor: this.room.index + 1,
+        nextFloor: cleared && !this.room.daily && this.room.index < FINAL_ROOM_INDEX ? this.room.index + 2 : null,
+        streak: cleared && !this.room.daily ? save.runStreak + 1 : save.runStreak,
+        score: cleared ? this.score.score : save.runScore,
+        types: new Set(save.runBoosts).size,
+        stacks: save.runBoosts.length,
+        boosts: [...save.runBoosts],
+        ended: runEnded,
+      },
     };
   }
 
