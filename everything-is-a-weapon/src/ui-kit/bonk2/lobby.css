@@ -176,9 +176,9 @@
   text-transform: uppercase;
 }
 
-.b2-lobby__cast {
-  width: min(100%, 660px);
-  max-height: min(36vh, 360px);
+.b2-lobby__hero {
+  width: min(74%, 360px);
+  max-height: min(46vh, 430px);
   min-height: 0;
   flex: 1 1 auto;
   object-fit: contain;
@@ -384,8 +384,9 @@
   .b2-lobby__logo {
     max-height: min(15vh, 140px);
   }
-  .b2-lobby__cast {
-    max-height: min(34vh, 330px);
+  .b2-lobby__hero {
+    width: min(70%, 340px);
+    max-height: min(42vh, 390px);
   }
 }
 
@@ -406,8 +407,9 @@
   .b2-lobby__tagline {
     font-size: 10px;
   }
-  .b2-lobby__cast {
-    max-height: 31vh;
+  .b2-lobby__hero {
+    width: min(66%, 280px);
+    max-height: min(38vh, 330px);
   }
   .b2-lobby__nav .b2-nav__label {
     font-size: 9px;
@@ -434,8 +436,9 @@
   .b2-lobby__logo {
     max-height: 14vh;
   }
-  .b2-lobby__cast {
-    max-height: 26vh;
+  .b2-lobby__hero {
+    width: min(52%, 220px);
+    max-height: 34vh;
   }
   .b2-lobby__left {
     display: none;

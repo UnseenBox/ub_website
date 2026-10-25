@@ -5,25 +5,25 @@ import characterLime from '../../ui-kit/bonk2/assets/icons/character-lime@2x.png
 import characterRose from '../../ui-kit/bonk2/assets/icons/character-rose@2x.png';
 import characterTeal from '../../ui-kit/bonk2/assets/icons/character-teal@2x.png';
 import characterViolet from '../../ui-kit/bonk2/assets/icons/character-violet@2x.png';
-import petDachshund from '../../ui-kit/bonk2/assets/icons/pet-dachshund@2x.png';
-import petGinger from '../../ui-kit/bonk2/assets/icons/pet-ginger@2x.png';
-import petHamster from '../../ui-kit/bonk2/assets/icons/pet-hamster@2x.png';
-import petParrot from '../../ui-kit/bonk2/assets/icons/pet-parrot@2x.png';
 
 interface RosterArt {
   readonly portrait: string;
-  readonly pet: string;
   /** Matches a `.b2-hero[data-accent]` rule in rooms.css. */
   readonly accent: 'violet' | 'teal' | 'rose' | 'lime';
 }
 
-/** The kit's four robes, paired with the pet each hero actually brings. */
+/** The kit's four robes. Each illustration already includes the hero's pet. */
 const ROSTER: Record<HeroId, RosterArt> = {
-  tenant: { portrait: characterViolet, pet: petDachshund, accent: 'violet' },
-  flatmate: { portrait: characterTeal, pet: petGinger, accent: 'teal' },
-  gran: { portrait: characterRose, pet: petParrot, accent: 'rose' },
-  kid: { portrait: characterLime, pet: petHamster, accent: 'lime' },
+  tenant: { portrait: characterViolet, accent: 'violet' },
+  flatmate: { portrait: characterTeal, accent: 'teal' },
+  gran: { portrait: characterRose, accent: 'rose' },
+  kid: { portrait: characterLime, accent: 'lime' },
 };
+
+/** The selected hero's card art, shared by the roster and the main menu. */
+export function heroPortrait(heroId: HeroId): string {
+  return ROSTER[heroId].portrait;
+}
 
 /** 'the tenant & waffle' for the summary line. */
 export function heroPair(heroId: HeroId): string {
@@ -91,17 +91,12 @@ export function buildCharactersPane(game: Game, options: CharactersPaneOptions =
     portrait.alt = '';
     portrait.decoding = 'async';
     portrait.draggable = false;
-    const pet = el('img', 'b2-hero__pet');
-    pet.src = art.pet;
-    pet.alt = '';
-    pet.decoding = 'async';
-    pet.draggable = false;
     const crown = el('span', 'b2-hero__crown');
     crown.hidden = true;
     crown.setAttribute('aria-hidden', 'true');
     crown.innerHTML =
       '<svg viewBox="0 0 32 26" focusable="false"><path d="M3 21 4.6 7.2 11.6 13 16 3l4.4 10 7-5.8L29 21Z"/><path d="M4 21h24v3H4z"/></svg>';
-    stage.append(portrait, pet, crown);
+    stage.append(portrait, crown);
 
     const name = el('span', 'b2-hero__name b2-display', info.name);
     const note = el('span', 'b2-hero__note', info.note);

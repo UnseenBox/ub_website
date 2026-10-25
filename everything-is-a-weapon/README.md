@@ -7,9 +7,9 @@ You are trapped in a small room. You have no weapon. Good — use the room.
 A 2D physics action sandbox for the browser. Chairs get thrown, lamps topple, bottles spill,
 puddles carry current, and intruders walk into all of it. Built on native web technology only:
 **TypeScript + Canvas 2D + Web Audio**, with a custom physics engine. No game engine, no physics
-library, no audio files, no image assets.
+library, no audio files. Gameplay art is drawn procedurally; the UI uses a small set of PNG illustrations.
 
-- Production bundle: ~160 KB JS (≈53 KB gzipped), zero runtime dependencies.
+- Production bundle: ~620 KB JS (≈183 KB gzipped), zero runtime dependencies.
 - Dev dependencies: `vite`, `typescript`, `esbuild` (build tooling only).
 
 ---
@@ -473,8 +473,9 @@ scheduled through the generated acts. Plus a date-seeded Daily Challenge and 11 
 
 ## Testing performed
 
-- `npm test`: 69 tests, including the 50-room schedule (all 20 bosses exactly once), deterministic
-  generated layouts, the final door, the simple victory actions, and the production bundle's
+- `npm test`: 74 tests, including the 50-room schedule (all 20 bosses exactly once), deterministic
+  generated layouts, the final door, the simple victory actions, the main menu's selected-hero
+  portrait, the roster's four hero-and-pet illustrations, and the production bundle's
   tutorial → results → next-room flow.
 - `npm run test:physics`: all checks pass at 30/60/120/240 Hz.
 - Verified individually: movement, grab, charge, throw, drop and dodge through real DOM

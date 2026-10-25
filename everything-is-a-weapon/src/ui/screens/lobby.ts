@@ -1,11 +1,10 @@
 import type { Game } from '../../core/Game';
 import type { HeroId } from '../../core/Hero';
 import { el } from '../dom';
-import { buildCharactersPane, heroPair } from './characters';
+import { buildCharactersPane, heroPair, heroPortrait } from './characters';
 import { buildRoomsPane } from './rooms';
 
 import logoUrl from '../../ui-kit/bonk2/assets/banners/bonk-logo@2x.png?url';
-import castUrl from '../../ui-kit/bonk2/assets/banners/bonk-cast@2x.png?url';
 import coinUrl from '../../ui-kit/bonk2/assets/icons/coin@2x.png?url';
 import keyUrl from '../../ui-kit/bonk2/assets/icons/key@2x.png?url';
 import lampUrl from '../../ui-kit/bonk2/assets/icons/lamp@2x.png?url';
@@ -42,8 +41,9 @@ function svg(path: string): SVGSVGElement {
 }
 
 /**
- * The home screen: the kit's night-shift composition. Status on top, the cast in
- * the middle, PLAY at the bottom, and one navigation bar to everything else.
+ * The home screen: the kit's night-shift composition. Status on top, the
+ * selected hero in the middle, PLAY at the bottom, and one navigation bar to
+ * everything else.
  */
 export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const save = game.save.data;
@@ -113,7 +113,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   left.append(roomsStat, ideasStat);
 
-  // ── centre: wordmark, tagline, cast ─────────────────────────────────────
+  // ── centre: wordmark, tagline, selected hero ────────────────────────────
   const center = el('section', 'b2-lobby__center');
   center.setAttribute('aria-label', 'BONK! Everything is a weapon');
   const logo = el('img', 'b2-lobby__logo');
@@ -122,12 +122,12 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   logo.decoding = 'async';
   logo.draggable = false;
   const tagline = el('p', 'b2-lobby__tagline', 'YOUR HOME. YOUR RULES.');
-  const cast = el('img', 'b2-lobby__cast');
-  cast.src = castUrl;
-  cast.alt = '';
-  cast.decoding = 'async';
-  cast.draggable = false;
-  center.append(logo, tagline, cast);
+  const portrait = el('img', 'b2-lobby__hero');
+  portrait.src = heroPortrait(game.hero);
+  portrait.alt = '';
+  portrait.decoding = 'async';
+  portrait.draggable = false;
+  center.append(logo, tagline, portrait);
 
   const main = el('div', 'b2-lobby__main');
   main.append(left, center);

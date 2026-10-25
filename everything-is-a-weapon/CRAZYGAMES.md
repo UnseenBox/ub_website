@@ -9,7 +9,7 @@ Everything needed for the submission is in this folder:
 | Portrait cover, 800x1200 | `covers/cover-portrait-800x1200.png` |
 | Square cover, 800x800 | `covers/cover-square-800x800.png` |
 
-The game is one self-contained file of about 5.0 MB (limit: 50 MB): the code, styles and UI
+The game is one self-contained file of about 2.2 MB (limit: 50 MB): the code, styles and UI
 art are inside `index.html`, so there is no assets folder to upload or to go missing. The only
 thing it fetches is CrazyGames' own SDK script.
 
@@ -120,7 +120,7 @@ Checked against https://docs.crazygames.com/requirements/quality/ and the Basic 
 | Readable at their frame sizes | Checked at 821x462 and 907x510: no text under 11px, nothing outside the frame on the HUD, menu, pause, settings and results screens. |
 | Same physics at any refresh rate | Fixed 120 Hz simulation step, independent of the display. |
 | Clear goals, progression, a reason to return | Clear the room; a 50-room campaign in five acts with all 20 bosses; 131 discoveries on an evidence board; 4 heroes; a daily challenge; progress saved to the CrazyGames account. |
-| Fast to load | About 5.0 MB in total (3.4 MB zipped); no loading screen. |
+| Fast to load | About 2.2 MB in total (1.3 MB zipped); no loading screen. |
 | No ads before the player has played | No mid-game ad in the first 75 seconds of a visit, on top of CrazyGames' own spacing. |
 | Buttons honest about ads | "WATCH AD: CONTINUE" is the same size as RETRY, labelled as an advert, and never delayed or pre-selected. |
 | Safe areas in the CrazyGames app | HUD and touch buttons are padded with the device safe-area insets. |
