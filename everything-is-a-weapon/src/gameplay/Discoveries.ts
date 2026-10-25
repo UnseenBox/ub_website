@@ -135,7 +135,7 @@ export const DISCOVERIES: readonly DiscoveryDefinition[] = [
   { id: 'air_raid', title: 'AIR RAID', recipe: ['THE PARROT', 'SOMETHING FROM ABOVE', 'CONFUSED INTRUDER'], group: 'style' },
   { id: 'dive_bomber', title: 'DIVE BOMBER', recipe: ['CRACKER', 'THE PARROT', 'BEAK FIRST'], group: 'style' },
   { id: 'pieces_of_crate', title: 'PIECES OF CRATE', recipe: ['THE PARROT', 'DEFEATED INTRUDER'], group: 'style' },
-  { id: 'trip_hazard', title: 'TRIP HAZARD', recipe: ['INTRUDER', 'STEPS ON THE HAMSTER BALL', 'FLAT ON ITS LID'], group: 'style' },
+  { id: 'hamster_trip', title: 'HAMSTER TRIP', recipe: ['INTRUDER', 'STEPS ON THE HAMSTER BALL', 'FLAT ON ITS LID'], group: 'style' },
   { id: 'bowling_night', title: 'BOWLING NIGHT', recipe: ['SUNFLOWER SEEDS', 'A MUCH BIGGER BALL', 'STRIKE'], group: 'style' },
   { id: 'ten_pin', title: 'TEN PIN', recipe: ['THE HAMSTER', 'DEFEATED INTRUDER'], group: 'style' },
   { id: 'shoe_kill', title: 'DEATH BY SHOE', recipe: ['SHOE', 'DEFEATED INTRUDER'], group: 'style' },

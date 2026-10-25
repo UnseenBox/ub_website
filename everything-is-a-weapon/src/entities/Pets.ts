@@ -492,7 +492,7 @@ export class Hamster extends Critter {
       this.vx = (dx / d) * 420;
       this.vy = (dy / d) * 420;
       hamsterSqueak(game.audio, true);
-      game.discoveries.unlock('trip_hazard');
+      game.discoveries.unlock('hamster_trip');
     }
   }
 
