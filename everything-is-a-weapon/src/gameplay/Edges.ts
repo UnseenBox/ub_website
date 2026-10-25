@@ -1,4 +1,5 @@
 import type { Rng } from '../core/Random';
+import { FINAL_ROOM_INDEX } from './Campaign';
 
 export type EdgeCategory = 'heavy' | 'slick' | 'greed';
 export type EdgeRarity = 'common' | 'rare' | 'legendary';
@@ -74,8 +75,8 @@ export const EDGES: readonly EdgeDefinition[] = [
   },
   {
     id: 'cat_frenzy', category: 'greed', rarity: 'rare',
-    name: 'CAT FRENZY',
-    effect: 'The cat attacks twice as fast and hits 50% harder.',
+    name: 'PET FRENZY',
+    effect: 'Your pet hits 50% harder.',
     flavor: '“The cat has opinions.”',
   },
   {
@@ -98,28 +99,75 @@ export function isEdgeId(value: string): value is EdgeId {
 
 const CATEGORIES: readonly EdgeCategory[] = ['heavy', 'slick', 'greed'];
 
-/**
- * One card from each category, so every choice is a real trade. A forced rare
- * offer upgrades the first category that has one, then fills the rest normally.
- */
-export function offerEdges(rng: Rng, forceRare: boolean): EdgeDefinition[] {
-  const offer: EdgeDefinition[] = [];
-  let forced = false;
+/** No Edge may be taken more than this many times in one run. */
+export const EDGE_STACK_CAP = 3;
 
+/** Room 1, every 0-based even index after it, every boss before the final. */
+export function shouldOfferEdge(index: number, boss: boolean): boolean {
+  if (index < 0 || index >= FINAL_ROOM_INDEX) return false;
+  return index === 0 || boss || index % 2 === 0;
+}
+
+/**
+ * One card from each category that still has an eligible card, so every choice
+ * is a real trade. A boss premium upgrades a random eligible category, and a
+ * forced daily legendary takes its own category first so the two never collide.
+ */
+export function offerEdges(
+  rng: Rng,
+  forceRare: boolean,
+  forceLegendary: boolean,
+  owned: readonly string[],
+): EdgeDefinition[] {
+  const pools = new Map<EdgeCategory, EdgeDefinition[]>();
   for (const category of CATEGORIES) {
-    const pool = EDGES.filter((edge) => edge.category === category);
-    if (forceRare && !forced) {
-      const premium = pool.filter((edge) => edge.rarity !== 'common');
-      if (premium.length > 0) {
-        offer.push(premium[rng.int(0, premium.length - 1)] as EdgeDefinition);
-        forced = true;
-        continue;
-      }
-    }
-    offer.push(pool[rng.int(0, pool.length - 1)] as EdgeDefinition);
+    const pool = EDGES.filter(
+      (edge) => edge.category === category && edgeStacks(owned, edge.id) < EDGE_STACK_CAP,
+    );
+    if (pool.length > 0) pools.set(category, pool);
   }
 
-  return offer;
+  const categories = [...pools.keys()];
+  if (categories.length === 0) return [];
+
+  const picks = new Map<EdgeCategory, EdgeDefinition>();
+  const pickFrom = (pool: readonly EdgeDefinition[]): EdgeDefinition =>
+    pool[rng.int(0, pool.length - 1)] as EdgeDefinition;
+  const randomCategory = (eligible: readonly EdgeCategory[]): EdgeCategory =>
+    eligible[rng.int(0, eligible.length - 1)] as EdgeCategory;
+
+  let legendaryCategory: EdgeCategory | undefined;
+  if (forceLegendary) {
+    const eligible = categories.filter((category) =>
+      pools.get(category)!.some((edge) => edge.rarity === 'legendary'),
+    );
+    if (eligible.length > 0) {
+      const category = randomCategory(eligible);
+      legendaryCategory = category;
+      picks.set(
+        category,
+        pickFrom(pools.get(category)!.filter((edge) => edge.rarity === 'legendary')),
+      );
+    }
+  }
+
+  if (forceRare) {
+    const eligible = categories.filter((category) => category !== legendaryCategory);
+    if (eligible.length > 0) {
+      const category = randomCategory(eligible);
+      const pool = pools.get(category)!;
+      const premium = pool.filter((edge) => edge.rarity !== 'common');
+      const rares = premium.filter((edge) => edge.rarity === 'rare');
+      picks.set(category, pickFrom(rares.length > 0 ? rares : premium.length > 0 ? premium : pool));
+    }
+  }
+
+  for (const category of categories) {
+    if (picks.has(category)) continue;
+    picks.set(category, pickFrom(pools.get(category)!));
+  }
+
+  return categories.map((category) => picks.get(category)!);
 }
 
 export function startingEdge(rng: Rng, rarity: EdgeRarity): EdgeDefinition {

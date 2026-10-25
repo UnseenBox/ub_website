@@ -3,9 +3,12 @@ import { Rng } from '../core/Random';
 import {
   EDGE_BY_ID,
   EDGE_IDS,
+  EDGE_STACK_CAP,
+  EDGES,
   edgeStacks,
   isEdgeId,
   offerEdges,
+  shouldOfferEdge,
   startingEdge,
 } from './Edges';
 
@@ -25,21 +28,55 @@ describe('Edges', () => {
     ]));
   });
 
-  it('offers exactly one heavy, one slick, one greed, with no duplicates', () => {
-    for (let seed = 0; seed < 50; seed++) {
-      const offer = offerEdges(new Rng(seed), false);
-      expect(offer).toHaveLength(3);
-      expect(offer.map((edge) => edge.category).sort()).toEqual(['greed', 'heavy', 'slick']);
-      expect(new Set(offer.map((edge) => edge.id)).size).toBe(3);
-    }
+  it('caps stacks at three', () => {
+    expect(EDGE_STACK_CAP).toBe(3);
   });
 
-  it('forceRare puts at least one rare or legendary in the offer', () => {
-    for (let seed = 0; seed < 50; seed++) {
-      const offer = offerEdges(new Rng(seed), true);
-      expect(offer.some((edge) => edge.rarity !== 'common')).toBe(true);
-      expect(new Set(offer.map((edge) => edge.category)).size).toBe(3);
+  it.each([
+    [0, false, true], [1, true, true], [2, false, true], [3, false, false],
+    [9, false, false], [11, true, true], [48, false, true], [49, true, false],
+  ])('shouldOfferEdge(%i, boss=%s) is %s', (index, boss, expected) => {
+    expect(shouldOfferEdge(index, boss)).toBe(expected);
+  });
+
+  it('excludes a maxed category and omits it from the offer', () => {
+    const owned = ['heavy_hands', 'heavy_hands', 'heavy_hands',
+      'chain_reaction', 'chain_reaction', 'chain_reaction',
+      'headline_act', 'headline_act', 'headline_act'];
+    const offer = offerEdges(new Rng(7), false, false, owned);
+    expect(offer).toHaveLength(2);
+    expect(offer.every((edge) => edge.category !== 'heavy')).toBe(true);
+  });
+
+  it('returns no offer when every Edge is maxed', () => {
+    const owned = EDGES.flatMap((edge) => [edge.id, edge.id, edge.id]);
+    expect(offerEdges(new Rng(7), false, false, owned)).toEqual([]);
+  });
+
+  it('gives a boss premium card a category that varies with the seed', () => {
+    const categories = new Set<string>();
+    for (let seed = 1; seed <= 24; seed++) {
+      const offer = offerEdges(new Rng(seed), true, false, []);
+      const premium = offer.find((edge) => edge.rarity !== 'common');
+      expect(premium).toBeDefined();
+      categories.add(premium!.category);
     }
+    expect(categories.size).toBeGreaterThan(1);
+  });
+
+  it('keeps a boss rare and a daily legendary in different categories', () => {
+    const offer = offerEdges(new Rng(3), true, true, []);
+    const rare = offer.filter((edge) => edge.rarity === 'rare');
+    const legendary = offer.filter((edge) => edge.rarity === 'legendary');
+    expect(rare.length).toBeGreaterThanOrEqual(1);
+    expect(legendary.length).toBeGreaterThanOrEqual(1);
+    expect(rare[0]!.category).not.toBe(legendary[0]!.category);
+  });
+
+  it('renames cat_frenzy to PET FRENZY without changing its id', () => {
+    const edge = EDGES.find((e) => e.id === 'cat_frenzy')!;
+    expect(edge.name).toBe('PET FRENZY');
+    expect(edge.effect).toBe('Your pet hits 50% harder.');
   });
 
   it('startingEdge returns the requested rarity', () => {

@@ -61,7 +61,7 @@ export class EdgeSystem {
     const crowdMultiplier = crowd === 0
       ? 1
       : Math.min(3, 1 + crowd * (0.25 + 0.10 * Math.min(5, Math.max(0, streak))));
-    return crowdMultiplier * (1 - 0.10 * this.stacks('magnate'));
+    return Math.max(0.25, crowdMultiplier * (1 - 0.10 * this.stacks('magnate')));
   }
 
   scrapMultiplier(): number {
