@@ -735,6 +735,34 @@
   .b2-report__buy {
     width: 100%;
   }
+  /* Mobile simplification: hide crowded sections, scale settings buttons, keep health visible. */
+  .b2-report__notes,
+  .b2-report__fields,
+  .b2-report__offer,
+  .b2-report__run,
+  .b2-report__ledger,
+  .b2-report__evidence,
+  .b2-report__plan,
+  .b2-report__side,
+  .b2-report__marks,
+  .b2-report__stats,
+  .b2-report__hero--failed,
+  .b2-ribbon {
+    display: none !important;
+  }
+  .b2-report__meta .b2-report__roomtag,
+  .b2-report__meta .b2-report__roomname {
+    font-size: 10px;
+  }
+  .b2-results__action,
+  .b2-results__action.primary {
+    font-size: 10px;
+    padding: 4px 8px;
+    min-height: 28px;
+  }
+  .b2-report__score {
+    font-size: 28px;
+  }
 }
 
 @media (max-height: 700px) {
