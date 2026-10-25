@@ -1416,7 +1416,7 @@ Implementation order inside `summarize`:
    - stars and `isNewBestStars`;
    - first-clear bonus 40/100 when `wasDeepest <= index` (`100` for a boss);
    - `unlockedRoom`, `deepest`;
-   - room best from `roomScore`: `if (prev === undefined || roomScore > prev.score) save.roomBests[id] = { score: roomScore, chain: Math.max(this.score.stats.bestChain, prev?.chain ?? 0) };` otherwise keep the old entry untouched;
+   - room best from `roomScore`: capture `const prev = save.roomBests[id];` and, when `prev === undefined || roomScore > prev.score`, set `isNewRoomBest = true` and write `save.roomBests[id] = { score: roomScore, chain: Math.max(this.score.stats.bestChain, prev?.chain ?? 0) };` otherwise keep the old entry untouched. Declare `let isNewRoomBest = false;` with the other summary locals before the branch chain;
    - `if (index === FINAL_ROOM_INDEX) { endRun(save); }`.
 9. Daily clear branch: `else if (cleared && daily) { ... }` (a daily never advances the campaign run).
    - `if (!dailyReplay)`: advance `lastDaily`/`dailyStreak` exactly as today; `dailyBonus = Math.min(50, 10 + save.dailyStreak * 10); save.scrap += dailyBonus;` then `dailyRareEdgeGranted = save.dailyStreak % 7 === 0; if (dailyRareEdgeGranted) save.dailyRareEdge = true;`.
