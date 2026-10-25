@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { EDGE_STACK_CAP } from './Edges';
 import {
   chooseEdge,
   endRun,
   recordClear,
   recordFail,
+  runSnapshot,
   sanitizeRun,
   startRun,
   type RunState,
@@ -17,6 +19,7 @@ function state(overrides: Partial<RunState> = {}): RunState {
     runBoosts: [],
     runScore: 0,
     runInsuranceUsed: false,
+    runOffer: [],
     ...overrides,
   };
 }
@@ -49,24 +52,59 @@ describe('Run', () => {
     expect(save.runScore).toBe(500);
   });
 
-  it('recordFail keeps the run and Edges for a campaign room', () => {
-    const save = state({ runActive: true, runFloor: 3, runStreak: 4, runBoosts: ['quick_feet'], runScore: 1200 });
-    const result = recordFail(save, 3, 700, 9);
-    expect(result.ended).toBe(false);
+  it('keeps the run and build on failure, resetting only streak and score', () => {
+    const save = state({
+      runActive: true, runFloor: 5, runStreak: 4,
+      runBoosts: ['quick_feet', 'quick_feet'], runScore: 1200,
+    });
+    recordFail(save, 900);
     expect(save.runActive).toBe(true);
-    expect(save.runBoosts).toEqual(['quick_feet']);
+    expect(save.runFloor).toBe(5);
     expect(save.runStreak).toBe(0);
-    expect(save.runScore).toBe(700);
+    expect(save.runScore).toBe(900);
+    expect(save.runBoosts).toEqual(['quick_feet', 'quick_feet']);
   });
 
-  it('recordFail marks a Depths room as ended but does not clear state', () => {
-    const save = state({ runActive: true, runFloor: 10, runStreak: 5, runBoosts: ['heavy_hands'], runScore: 1500 });
-    const result = recordFail(save, 10, 800, 9);
-    expect(result.ended).toBe(true);
-    expect(save.runActive).toBe(true);
-    expect(save.runBoosts).toEqual(['heavy_hands']);
-    expect(save.runFloor).toBe(10);
-    expect(save.runScore).toBe(800);
+  it('starts and ends a run with no pending offer', () => {
+    const save = state({ runOffer: ['heavy_hands'], runActive: true });
+    startRun(save, 4);
+    expect(save.runOffer).toEqual([]);
+    save.runOffer = ['heavy_hands'];
+    endRun(save);
+    expect(save.runOffer).toEqual([]);
+  });
+
+  it('caps a chosen Edge at three stacks', () => {
+    const save = state({ runActive: true, runBoosts: ['quick_feet', 'quick_feet'] });
+    expect(chooseEdge(save, 'quick_feet')).toBe(true);
+    expect(chooseEdge(save, 'quick_feet')).toBe(false);
+    expect(save.runBoosts.filter((id) => id === 'quick_feet')).toHaveLength(EDGE_STACK_CAP);
+  });
+
+  it('sanitizes unknown ids and caps duplicates', () => {
+    const save = state({
+      runBoosts: ['quick_feet', 'nope', 'quick_feet', 'quick_feet', 'quick_feet'],
+    });
+    sanitizeRun(save, 50, 10, 50);
+    expect(save.runBoosts).toEqual(['quick_feet', 'quick_feet', 'quick_feet']);
+  });
+
+  it('summarizes types, stacks and the 1-based floor for the UI', () => {
+    const snap = runSnapshot(state({
+      runActive: true, runFloor: 11, runStreak: 4, runScore: 12400,
+      runBoosts: ['quick_feet', 'quick_feet', 'heavy_hands'],
+    }));
+    expect(snap).toEqual({
+      floor: 12, streak: 4, score: 12400, types: 2, stacks: 3,
+      boosts: ['quick_feet', 'quick_feet', 'heavy_hands'],
+    });
+  });
+
+  it('drops a pending offer when sanitizing ends the run', () => {
+    const save = state({ runActive: true, runFloor: 99, runOffer: ['heavy_hands'] });
+    sanitizeRun(save, 0, 0, 1);
+    expect(save.runActive).toBe(false);
+    expect(save.runOffer).toEqual([]);
   });
 
   it('chooseEdge allows duplicates', () => {

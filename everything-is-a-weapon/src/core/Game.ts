@@ -681,10 +681,7 @@ export class Game {
       save.totalChains += this.score.stats.chainEvents;
       save.totalHazardKills += this.score.stats.hazardKills;
     } else {
-      if (!this.room.daily) {
-        const failed = recordFail(save, this.room.index, this.scoreAtRoomStart, this.rooms.handcraftedCount);
-        runEnded = failed.ended;
-      }
+      if (!this.room.daily) recordFail(save, this.scoreAtRoomStart);
     }
 
     // Contracts: newly met goals pay out once, right here.

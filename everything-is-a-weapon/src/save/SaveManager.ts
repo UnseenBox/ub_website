@@ -61,6 +61,8 @@ export interface SaveData {
   runScore: number;
   /** FINE PRINT's once-per-run charge has been spent (new in version 5). */
   runInsuranceUsed: boolean;
+  /** Offered Edge ids while a draft is pending (new in version 6). */
+  runOffer: string[];
   /** Ledger milestone ids already paid (new in version 5). */
   starRewardsClaimed: string[];
   /** Historical: the player has used SKIP at least once (new in version 5). */
@@ -102,6 +104,7 @@ function defaults(): SaveData {
     runBoosts: [],
     runScore: 0,
     runInsuranceUsed: false,
+    runOffer: [],
     starRewardsClaimed: [],
     tutorialSkipped: false,
     dailyRareEdge: false,
@@ -227,6 +230,7 @@ function sanitize(raw: unknown): SaveData {
     runBoosts: stringArray(data.runBoosts),
     runScore: Math.max(0, Math.floor(finite(data.runScore, 0))),
     runInsuranceUsed: data.runInsuranceUsed === true,
+    runOffer: [],
     starRewardsClaimed: [...new Set(stringArray(data.starRewardsClaimed))],
     tutorialSkipped: data.tutorialSkipped === true,
     dailyRareEdge: data.dailyRareEdge === true,
