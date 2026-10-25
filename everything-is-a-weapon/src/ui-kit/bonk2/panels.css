@@ -682,3 +682,5 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+@ m e d i a   ( m a x - w i d t h :   5 2 0 p x )   {   . b 2 - b t n ,   . b 2 - p a u s e _ _ a c t i o n s   . b 2 - b t n ,   . b 2 - s e t t i n g s _ _ a c t i o n s   . b 2 - b t n   {   f o n t - s i z e :   9 p x ;   p a d d i n g :   4 p x   6 p x ;   m i n - h e i g h t :   2 8 p x ;   t r a n s f o r m :   s c a l e ( 0 . 8 5 ) ;   t r a n s f o r m - o r i g i n :   c e n t e r ;   }   }  
+ 
