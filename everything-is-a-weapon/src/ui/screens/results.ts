@@ -11,6 +11,7 @@ export interface ResultsActions {
   retry(): void;
   continueWithReward(): void;
   home(): void;
+  chooseEdge(edgeId: string): void;
   /** Called at the moment the rubber stamp hits the page. */
   stamped(): void;
 }
