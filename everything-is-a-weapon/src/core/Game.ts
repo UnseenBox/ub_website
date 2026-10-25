@@ -27,6 +27,7 @@ import {
 } from '../gameplay/StarLedger';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
+import { maxHealthBonus, upgradePetMultiplier } from '../gameplay/Upgrades';
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import { ZoneManager } from '../hazards/Zone';
 import { InputManager } from '../input/InputManager';
@@ -384,7 +385,7 @@ export class Game {
       this.save.data.runBoosts = [...this.devEdges];
     }
     this.edges.beginFloor();
-    this.player = new Player(def.playerStart.x, def.playerStart.y);
+    this.player = new Player(def.playerStart.x, def.playerStart.y, 5 + maxHealthBonus(this.save.data));
     this.player.armor = this.edges.armorAtFloorStart();
     this.room = this.rooms.build(this, def, index, daily, incident);
     this.pet = createPet(this.hero, def.playerStart.x - 34, def.playerStart.y + 12);
@@ -590,6 +591,10 @@ export class Game {
     let alive = this.room.pending.length;
     for (const enemy of this.enemies) if (!enemy.defeated) alive++;
     return alive;
+  }
+
+  petDamageMultiplier(): number {
+    return this.edges.petFrenzyMultiplier() * upgradePetMultiplier(this.save.data);
   }
 
   /** Buys a permanent ability with salvaged scrap. Returns '' or the reason it failed. */

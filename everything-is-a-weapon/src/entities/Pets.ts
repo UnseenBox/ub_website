@@ -284,7 +284,7 @@ export class Dog extends Critter {
       target.squash = 0.5;
       game.particles.burst('scrap', tb.x, tb.y - 8, 2, 180, { color: '#c9a070' });
       if (Math.random() < 0.4) game.fx.burst('GRRR!', this.x, this.y - 26, 0.6, '#fff3d6');
-      target.damage(game, DOG_BITE_DAMAGE, { type: 'impact', source: null, chain: null, label: 'WAFFLE', dirX: 0, dirY: 0 });
+      target.damage(game, DOG_BITE_DAMAGE * game.petDamageMultiplier(), { type: 'impact', source: null, chain: null, label: 'WAFFLE', dirX: 0, dirY: 0 });
     }
     this.timer -= dt;
     if (this.timer <= 0) {
@@ -408,7 +408,7 @@ export class Parrot extends Critter {
     game.audio.impact('wood', 0.5, 1);
     game.particles.burst('feather', tb.x, tb.y - 22, 4, 180, { color: '#e5383b' });
     game.fx.burst('PECK!', tb.x, tb.y - 44, 0.75, '#ffd23f');
-    target.damage(game, PECK_DAMAGE, { type: 'impact', source: null, chain: null, label: 'CAPTAIN', dirX: dx / dl, dirY: dy / dl });
+    target.damage(game, PECK_DAMAGE * game.petDamageMultiplier(), { type: 'impact', source: null, chain: null, label: 'CAPTAIN', dirX: dx / dl, dirY: dy / dl });
     game.discoveries.unlock('dive_bomber');
     if (target.defeated) game.discoveries.unlock('pieces_of_crate');
     this.lastTarget = target;
@@ -522,7 +522,7 @@ export class Hamster extends Critter {
       game.audio.impact('plastic', 1, 8);
       game.camera.addShake(0.2);
       game.fx.burst('STRIKE!', enemy.body.x, enemy.body.y - 46, 0.95, '#ffd23f', true);
-      enemy.damage(game, BOWL_DAMAGE, { type: 'impact', source: null, chain: null, label: 'NUGGET', dirX: this.vx / speed, dirY: this.vy / speed });
+      enemy.damage(game, BOWL_DAMAGE * game.petDamageMultiplier(), { type: 'impact', source: null, chain: null, label: 'NUGGET', dirX: this.vx / speed, dirY: this.vy / speed });
       game.discoveries.unlock('bowling_night');
       if (enemy.defeated) game.discoveries.unlock('ten_pin');
       if (enemy === target) {

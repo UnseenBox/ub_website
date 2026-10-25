@@ -32,8 +32,8 @@ export class Player {
   chain: Chain | null = null;
   chainAt = -999;
 
-  hp = 5;
-  readonly maxHp = 5;
+  hp: number;
+  readonly maxHp: number;
   alive = true;
 
   aimX = 1;
@@ -69,7 +69,9 @@ export class Player {
   private chargeNotes = 0;
   private stepTimer = 0;
 
-  constructor(x: number, y: number) {
+  constructor(x: number, y: number, maxHp = 5) {
+    this.maxHp = maxHp;
+    this.hp = maxHp;
     this.body = new RigidBody({
       shape: { kind: 'circle', r: PLAYER_RADIUS },
       x,

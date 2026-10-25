@@ -2,6 +2,7 @@ import { rageStart, snoozeChime } from '../audio/CompanionSounds';
 import type { Game } from '../core/Game';
 import { startChain } from './Chain';
 import { ledgerCooldownMultiplier } from './StarLedger';
+import { upgradeCooldownMultiplier } from './Upgrades';
 
 export type AbilityId = 'blast' | 'overdrive' | 'freeze';
 
@@ -77,7 +78,7 @@ export class AbilitySystem {
 
   /** Effective cooldown after the Star Ledger's Quick Hands badge. */
   cooldownFor(def: AbilityDefinition): number {
-    return def.cooldown * ledgerCooldownMultiplier(this.game.save.data);
+    return def.cooldown * ledgerCooldownMultiplier(this.game.save.data) * upgradeCooldownMultiplier(this.game.save.data);
   }
 
   firstReady(): AbilityDefinition | null {
