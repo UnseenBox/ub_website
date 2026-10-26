@@ -379,21 +379,10 @@
   transform: none;
   filter: none;
 }
+/* Phones: the intruder mugshot bar is pure clutter over the play field. */
 @media (max-width: 520px) {
   .b2-hud .lineup {
-    max-width: 40vw;
-    gap: 2px;
-    transform: scale(0.55);
-    transform-origin: top center;
-    position: absolute;
-    top: 4px;
-    left: 50%;
-    translate: -50% 0;
-    z-index: 10;
-  }
-  .b2-hud__mugslot {
-    width: clamp(18px, 3vh, 22px);
-    height: clamp(16px, 2.6vh, 20px);
+    display: none !important;
   }
 }
 
