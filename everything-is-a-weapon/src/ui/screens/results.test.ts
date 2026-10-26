@@ -56,6 +56,7 @@ function actions(): ResultsActions {
     retry: vi.fn(),
     continueWithReward: vi.fn(),
     home: vi.fn(),
+    chooseEdge: vi.fn(),
     stamped: vi.fn(),
   };
 }

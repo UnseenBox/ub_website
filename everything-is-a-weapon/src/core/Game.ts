@@ -21,14 +21,15 @@ import { placePickups, updateRage } from '../gameplay/Pickups';
 import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
 import { campaignBossType, RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
+import { roomOutcome } from '../gameplay/RoomOutcome';
 import { endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
 import {
-  claimLedger, descendStart, ledgerBonus, startingEdgeRarity, type LedgerMilestone,
+  claimLedger, descendStart, LEDGER, ledgerBonus, startingEdgeRarity, type LedgerMilestone,
 } from '../gameplay/StarLedger';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
 import { maxHealthBonus, upgradePetMultiplier } from '../gameplay/Upgrades';
-import { type UnlockGoal } from '../gameplay/Progression';
+import { nextUnlock, type UnlockGoal } from '../gameplay/Progression';
 
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import { ZoneManager } from '../hazards/Zone';
@@ -651,13 +652,22 @@ export class Game {
 
   private summarize(cleared: boolean, challengeBonus: number): RoomSummary {
     const save = this.save.data;
-    const isHighScore = this.score.score > save.highScore;
+    const index = this.room.index;
+    const daily = this.room.daily;
+    const wasDeepest = save.deepest;
+    const runStreak = save.runStreak;
+    const build = [...save.runBoosts];
+    const dailyReplay = daily && save.lastDaily === todayKey();
+    const outcome = roomOutcome(cleared, daily, dailyReplay);
+    const roomScore = this.score.score - this.scoreAtRoomStart;
+
+    // A failed room or a daily replay pays nothing: no score, salvage, or records.
+    const isHighScore = outcome.updatesHighScore && this.score.score > save.highScore;
     if (isHighScore) save.highScore = this.score.score;
     save.bestChain = Math.max(save.bestChain, this.score.stats.bestChain);
-    save.scrap += this.score.stats.scrap;
+    if (outcome.paysSalvage) save.scrap += this.score.stats.scrap;
 
     const challenge = this.challenges.current;
-    const wasDeepest = save.deepest;
     const roomBest = save.roomBests[this.room.def.id]?.score ?? 0;
     let firstClearBonus = 0;
     let dailyBonus = 0;
@@ -665,11 +675,11 @@ export class Game {
     let stars = 0;
     let isNewBestStars = false;
     let isNewRoomBest = false;
+    let dailyRareEdgeGranted = false;
     let challengeText = challenge?.text ?? null;
     let challengePassed = challengeBonus > 0;
 
-    if (cleared && !this.room.daily) {
-      const index = this.room.index;
+    if (outcome.advancesRun) {
       const id = this.room.def.id;
       recordClear(save, index, this.score.score);
       save.roomsCleared++;
@@ -698,40 +708,41 @@ export class Game {
       }
       save.unlockedRoom = Math.max(save.unlockedRoom, Math.min(FINAL_ROOM_INDEX, index + 1));
       save.deepest = Math.max(save.deepest, Math.min(CAMPAIGN_ROOMS, index + 1));
-      // Per-room bests for the level-select wall and replay bragging rights.
+      // Room bests are room-local: a carried run total is not a better room.
       const prev = save.roomBests[id];
-      if (!prev || this.score.score > prev.score) {
+      if (prev === undefined || roomScore > prev.score) {
         isNewRoomBest = true;
         save.roomBests[id] = {
-          score: this.score.score,
+          score: roomScore,
           chain: Math.max(this.score.stats.bestChain, prev?.chain ?? 0),
         };
       }
-
-      if (index === FINAL_ROOM_INDEX) {
-        endRun(save);
-        runEnded = true;
+    } else if (cleared && daily) {
+      // Daily streak: consecutive calendar days pay escalating scrap. A replay is practice.
+      if (!dailyReplay) {
+        const today = todayKey();
+        if (save.lastDaily !== today) {
+          save.dailyStreak = save.lastDaily === yesterdayKey() ? save.dailyStreak + 1 : 1;
+          save.lastDaily = today;
+        }
+        dailyBonus = Math.min(50, 10 + save.dailyStreak * 10);
+        save.scrap += dailyBonus;
+        dailyRareEdgeGranted = save.dailyStreak > 0 && save.dailyStreak % 7 === 0;
+        if (dailyRareEdgeGranted) save.dailyRareEdge = true;
       }
-    } else if (cleared && this.room.daily) {
-      // Daily streak: consecutive calendar days pay escalating scrap.
-      const today = todayKey();
-      if (save.lastDaily !== today) {
-        save.dailyStreak = save.lastDaily === yesterdayKey() ? save.dailyStreak + 1 : 1;
-        save.lastDaily = today;
+      if (outcome.countsCounters) {
+        save.roomsCleared++;
+        save.totalKills += this.score.stats.kills;
+        save.totalChains += this.score.stats.chainEvents;
+        save.totalHazardKills += this.score.stats.hazardKills;
       }
-      dailyBonus = Math.min(50, 10 + save.dailyStreak * 10);
-      save.scrap += dailyBonus;
-      save.roomsCleared++;
-      save.totalKills += this.score.stats.kills;
-      save.totalChains += this.score.stats.chainEvents;
-      save.totalHazardKills += this.score.stats.hazardKills;
-    } else {
-      if (!this.room.daily) recordFail(save, this.scoreAtRoomStart);
+    } else if (!daily) {
+      recordFail(save, this.scoreAtRoomStart);
     }
 
     // Contracts: newly met goals pay out once, right here.
     const contractsNew: RoomSummary['contractsNew'] = [];
-    if (cleared) {
+    if (outcome.countsCounters) {
       const totals = {
         totalKills: save.totalKills,
         totalChains: save.totalChains,
@@ -749,11 +760,43 @@ export class Game {
         }
       }
     }
+
+    const finale = cleared && !daily && index === FINAL_ROOM_INDEX;
+    runEnded = finale;
+    if (finale) endRun(save);
+
     // Star Ledger: newly crossed milestones pay their scrap at the same desk.
-    // Draft logic references (Task 9 partial): firstDraftAfter exists; full rules wired in Task 10.
-    const _draftRef = 1; const draftAfter = this.firstDraftAfter ? this.firstDraftAfter(0) : null; void draftAfter; const useRef = _draftRef; void useRef; void EDGES; void EDGE_STACK_CAP; void edgeStacks; void offerEdges; void shouldOfferEdge;
-    const ledgerClaims = cleared && !this.room.daily ? claimLedger(save) : [];
+    const ledgerClaims = outcome.awardsStars ? claimLedger(save) : [];
+
+    // Draft: campaign clears only, on the cadence in Edges.shouldOfferEdge.
+    const boss = campaignBossType(index, this.room.def) !== null;
+    const draft = outcome.advancesRun && !finale && shouldOfferEdge(index, boss);
+    const offer: EdgeDefinition[] = draft
+      ? offerEdges(this.rng, boss, save.dailyRareEdge, save.runBoosts)
+      : [];
+    if (draft && offer.length > 0) {
+      save.runOffer = offer.map((edge) => edge.id);
+      this.pendingDraft = { room: index, offer };
+      // A day-7 legendary is spent only when a draft actually offers it.
+      if (save.dailyRareEdge) save.dailyRareEdge = false;
+    } else {
+      save.runOffer = [];
+      this.pendingDraft = null;
+    }
+
     this.save.write();
+
+    const nextDef = outcome.advancesRun && !finale ? this.rooms.definition(index + 1) : null;
+    const nextRoom = nextDef
+      ? {
+          number: index + 2,
+          name: nextDef.name,
+          boss: campaignBossType(index + 1, nextDef) !== null,
+        }
+      : null;
+    const nextEdge = outcome.advancesRun && !finale ? this.firstDraftAfter(index) : null;
+    const starTotal = totalStars(save.roomStars);
+    const ledgerNext = LEDGER.find((milestone) => milestone.stars > starTotal) ?? null;
     const briefing = briefingFor(this.room.def.id, this.room.index);
     return {
       cleared,
@@ -779,32 +822,31 @@ export class Game {
       actName: actFor(this.room.index).name,
       objective: briefing.objective,
       story: briefing.story,
-      finale: cleared && !this.room.daily && this.room.index === FINAL_ROOM_INDEX,
+      finale,
       runEnded,
       ledgerClaims,
-      // Task 9 progression fields (partial contract — see brief for full rules).
-      roomScore: cleared ? this.score.score - this.scoreAtRoomStart : 0,
+      roomScore,
       isNewRoomBest,
-      offer: [],
-      nextRoom: null,
-      nextEdge: null,
-      nextGoal: { kind: 'store' as const, kicker: 'READY TO BUY' as const, name: '', detail: '', progress: 0, action: null },
-      ledgerNext: null,
-      ledgerStars: 0,
-      totalStars: totalStars(save.roomStars),
+      offer,
+      nextRoom,
+      nextEdge,
+      nextGoal: nextUnlock(save, starTotal),
+      ledgerNext,
+      ledgerStars: Math.min(27, starTotal),
+      totalStars: starTotal,
       dailyStreak: save.dailyStreak,
-      dailyReplay: false,
-      dailyRareEdgeGranted: false,
-      noSalvage: !cleared,
-      buildMaxed: EDGES.every((e) => edgeStacks(save.runBoosts, e.id) >= EDGE_STACK_CAP),
+      dailyReplay,
+      dailyRareEdgeGranted,
+      noSalvage: outcome.noSalvage,
+      buildMaxed: EDGES.every((edge) => edgeStacks(build, edge.id) >= EDGE_STACK_CAP),
       run: {
-        floor: this.room.index + 1,
-        nextFloor: cleared && !this.room.daily && this.room.index < FINAL_ROOM_INDEX ? this.room.index + 2 : null,
-        streak: cleared && !this.room.daily ? save.runStreak + 1 : save.runStreak,
-        score: cleared ? this.score.score : save.runScore,
-        types: new Set(save.runBoosts).size,
-        stacks: save.runBoosts.length,
-        boosts: [...save.runBoosts],
+        floor: index + 1,
+        nextFloor: outcome.advancesRun && !finale ? index + 2 : null,
+        streak: runStreak,
+        score: cleared && !daily ? this.score.score : save.runScore,
+        types: new Set(build).size,
+        stacks: build.length,
+        boosts: build,
         ended: runEnded,
       },
     };

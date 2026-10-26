@@ -112,6 +112,7 @@ export class UI implements GameUi {
           }),
         home: () => (summary.runEnded ? game.abandonRun() : game.toMenu()),
         stamped: () => game.audio.play('stamp', 1),
+        chooseEdge: () => {},
       }),
     );
   }

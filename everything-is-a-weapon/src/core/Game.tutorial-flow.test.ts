@@ -128,6 +128,7 @@ it('tutorial → clear → results with ledger claim → room 2', async () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
+  const shown = vi.spyOn(game.hud, 'showSummary');
 
   // Preset three stars on room 1 so this clear crosses the first ledger milestone.
   game.save.data.roomStars['room-1'] = 3;
@@ -157,6 +158,11 @@ it('tutorial → clear → results with ledger claim → room 2', async () => {
 
   const claims = game.save.data.starRewardsClaimed;
   expect(claims, 'the clear must claim its ledger milestone').toContain('scrap_3');
+
+  // Room 1 is a draft room: three cards offered, and the pending ids persisted.
+  const summary = shown.mock.calls[shown.mock.calls.length - 1]?.[0];
+  expect(summary?.offer).toHaveLength(3);
+  expect(game.save.data.runOffer).toHaveLength(3);
 
   await game.nextRoom();
   expect(game.state).toBe('playing');
