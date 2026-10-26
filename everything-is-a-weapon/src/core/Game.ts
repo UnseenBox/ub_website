@@ -22,13 +22,13 @@ import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
 import { campaignBossType, RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
 import { roomOutcome } from '../gameplay/RoomOutcome';
-import { endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
+import { chooseEdge as takeEdge, endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
 import {
   claimLedger, descendStart, LEDGER, ledgerBonus, startingEdgeRarity, type LedgerMilestone,
 } from '../gameplay/StarLedger';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
-import { maxHealthBonus, upgradePetMultiplier } from '../gameplay/Upgrades';
+import { buyUpgrade as purchaseUpgrade, maxHealthBonus, upgradePetMultiplier, type UpgradeId } from '../gameplay/Upgrades';
 import { nextUnlock, type UnlockGoal } from '../gameplay/Progression';
 
 import { SOURCE_LEVEL } from '../hazards/Electricity';
@@ -349,12 +349,19 @@ export class Game {
       this.save.data.deepest,
       Math.max(this.save.data.unlockedRoom, this.save.data.deepest + 1, masterKey),
     );
+    const save = this.save.data;
+    if (save.runActive && save.runOffer.length > 0) {
+      // Auto-resolve a draft interrupted by a reload. Take the first grantable card;
+      // an all-capped offer is discarded rather than pinned forever.
+      for (const id of save.runOffer) if (isEdgeId(id) && takeEdge(save, id)) break;
+      save.runOffer = [];
+      this.save.write();
+    }
     this.applySettings();
     void this.ads.initialize();
     this.reportProgress();
     this.analytics.track('game_start', { discoveries: this.discoveries.count });
-    const save = this.save.data;
-    if (save.roomsCleared === 0 && save.unlockedRoom === 0 && save.discoveries.length === 0) {
+    if (!save.runActive && save.roomsCleared === 0 && save.unlockedRoom === 0 && save.discoveries.length === 0) {
       // First visit: straight into the first room, which teaches by doing. The menu
       // (heroes, daily challenge, settings) is there as soon as they come out of it.
       this.playFrom(0);
@@ -442,6 +449,7 @@ export class Game {
 
   /** Starts a fresh run from the given room (0-based). */
   playFrom(index: number): void {
+    this.pendingDraft = null;
     const start = Math.max(0, Math.min(FINAL_ROOM_INDEX, Math.floor(index)));
     startRun(this.save.data, start);
     const rarity = startingEdgeRarity(this.save.data);
@@ -540,21 +548,26 @@ export class Game {
   async retryAfterFail(): Promise<void> {
     if (this.waitingForAd) return;
     await this.ads.onRetryAfterFailure();
-    if (this.room.daily) {
-      this.restartRoom();
-      return;
-    }
-    if (this.room.index >= this.rooms.handcraftedCount) {
-      const index = this.room.index;
-      endRun(this.save.data);
-      this.save.write();
-      this.playFrom(index);
-      return;
-    }
+    this.scoreAtRoomStart = this.room.daily ? 0 : this.save.data.runScore;
+    // Retry keeps the build and the pending draft: same room, same run.
     this.restartRoom();
   }
 
+  /** '' on success; otherwise the reason the pick could not be applied. */
+  chooseEdge(id: string): string {
+    const draft = this.pendingDraft;
+    if (!draft) return 'NO EDGE OFFER';
+    if (draft.room !== this.room.index) return 'EDGE OFFER EXPIRED';
+    if (!draft.offer.some((edge) => edge.id === id)) return 'EDGE NOT OFFERED';
+    if (!takeEdge(this.save.data, id as EdgeId)) return 'EDGE MAXED';
+    this.save.data.runOffer = [];
+    this.pendingDraft = null;
+    this.save.write();
+    return '';
+  }
+
   async nextRoom(): Promise<void> {
+    if (this.pendingDraft) return;
     if (this.waitingForAd) return;
     await this.ads.onRoomComplete();
     if (this.room.daily || this.room.index >= FINAL_ROOM_INDEX) {
@@ -572,6 +585,7 @@ export class Game {
 
   /** Leaves a failed run and returns to the menu. */
   abandonRun(): void {
+    this.pendingDraft = null;
     if (this.save.data.runActive) {
       endRun(this.save.data);
       this.save.write();
@@ -615,6 +629,11 @@ export class Game {
   }
 
   toMenu(): void {
+    this.pendingDraft = null;
+    if (this.save.data.runOffer.length > 0) {
+      this.save.data.runOffer = [];
+      this.save.write();
+    }
     this.portal.setContext(null);
     this.scoreAtRoomStart = 0;
     this.loadRoom(this.rooms.definition(0), 0, false);
@@ -648,6 +667,13 @@ export class Game {
     this.save.write();
     document.body.classList.toggle('has-powers', this.abilities.hasAny());
     return '';
+  }
+
+  /** Buys a permanent stat upgrade. Returns '' or the reason it failed. */
+  buyUpgrade(id: UpgradeId): string {
+    const reason = purchaseUpgrade(this.save.data, id);
+    if (reason === '') this.save.write();
+    return reason;
   }
 
   private summarize(cleared: boolean, challengeBonus: number): RoomSummary {

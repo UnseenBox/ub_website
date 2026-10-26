@@ -164,3 +164,62 @@ it('grants the day-7 legendary and consumes it on the next campaign draft', () =
   expect(draft.offer.some((edge) => edge.rarity === 'legendary')).toBe(true);
   expect(game.save.data.dailyRareEdge).toBe(false);
 });
+
+it('auto-grants the first persisted offer on load', () => {
+  const game = new Game(fakeCanvas());
+  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
+  game.start();
+  game.save.data.runActive = true;
+  game.save.data.runFloor = 3;
+  game.save.data.unlockedRoom = 3;
+  game.save.data.deepest = 2;
+  game.save.data.runOffer = ['quick_feet', 'heavy_hands'];
+  game.save.write();
+
+  const reloaded = new Game(fakeCanvas());
+  vi.spyOn(reloaded.loop, 'start').mockImplementation(() => {});
+  reloaded.start();
+  expect(reloaded.save.data.runActive).toBe(true);
+  expect(reloaded.save.data.runFloor).toBe(3);
+  expect(reloaded.save.data.runBoosts).toContain('quick_feet');
+  expect(reloaded.save.data.runOffer).toEqual([]);
+});
+
+it('HOME forfeits the pending offer without ending the run', () => {
+  const game = new Game(fakeCanvas());
+  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
+  game.start();
+  game.playFrom(0);
+  game.score.score = 100;
+  summarize(game, true);
+  expect(game.pendingDraft).not.toBeNull();
+  game.toMenu();
+  expect(game.pendingDraft).toBeNull();
+  expect(game.save.data.runOffer).toEqual([]);
+  expect(game.save.data.runActive).toBe(true);
+});
+
+it('retryAfterFail restarts the same room with the build intact', async () => {
+  const game = new Game(fakeCanvas());
+  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
+  game.start();
+  game.playFrom(9);
+  game.save.data.runBoosts = ['heavy_hands'];
+  const build = [...game.save.data.runBoosts];
+  const index = game.room.index;
+  await game.retryAfterFail();
+  expect(game.room.index).toBe(index);
+  expect(game.save.data.runBoosts).toEqual(build);
+  expect(game.state).toBe('playing');
+});
+
+it('buys a permanent upgrade and writes the save', () => {
+  const game = new Game(fakeCanvas());
+  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
+  game.start();
+  game.save.data.scrap = 1000;
+  expect(game.buyUpgrade('door')).toBe('');
+  expect(game.save.data.upgrades.door).toBe(1);
+  expect(game.save.data.scrap).toBe(600);
+  expect(game.buyUpgrade('nope' as never)).toBe('UNKNOWN UPGRADE');
+});

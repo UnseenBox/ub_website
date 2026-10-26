@@ -163,6 +163,20 @@ it('tutorial → clear → results with ledger claim → room 2', async () => {
   const summary = shown.mock.calls[shown.mock.calls.length - 1]?.[0];
   expect(summary?.offer).toHaveLength(3);
   expect(game.save.data.runOffer).toHaveLength(3);
+  expect(game.pendingDraft?.offer).toHaveLength(3);
+  expect(game.save.data.runOffer).toEqual(game.pendingDraft!.offer.map((edge) => edge.id));
+
+  // NEXT ROOM waits for the draft to be resolved.
+  await game.nextRoom();
+  expect(game.state).toBe('cleared');
+  expect(game.room.index).toBe(0);
+
+  const chosen = game.pendingDraft!.offer[0]!;
+  expect(game.chooseEdge(chosen.id)).toBe('');
+  expect(game.save.data.runBoosts).toContain(chosen.id);
+  expect(game.save.data.runOffer).toEqual([]);
+  expect(game.pendingDraft).toBeNull();
+  expect(game.chooseEdge(chosen.id)).toBe('NO EDGE OFFER');
 
   await game.nextRoom();
   expect(game.state).toBe('playing');
@@ -211,6 +225,8 @@ it('results screen builds the simple victory DOM and wires NEXT ROOM', async () 
     .map((node) => node.textContent);
   expect(labels, 'only the three simple actions').toEqual(['NEXT ROOM', 'REPLAY ROOM', 'HOME']);
 
+  // The draft is resolved from the panel in Task 11; advance directly for now.
+  expect(game.chooseEdge(game.pendingDraft!.offer[0]!.id)).toBe('');
   const nextButton = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
   nextButton.click();
   await awaitFlush(50);
