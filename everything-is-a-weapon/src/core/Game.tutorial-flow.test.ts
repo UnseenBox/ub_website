@@ -216,18 +216,24 @@ it('results screen builds the simple victory DOM and wires NEXT ROOM', async () 
   waitFor(game, () => game.state === 'cleared', 10);
   expect(game.state).toBe('cleared');
 
-  // The real results screen: simple, and no clickable cards to the next room.
+  // The real results screen: a draft, the build, and the next-room teaser.
   expect(document.querySelector('.screen.results.victory'), 'victory card').toBeTruthy();
-  expect(document.querySelector('button.edge-card'), 'no Edge cards').toBeNull();
-  expect(document.querySelector('.b2-report__offer'), 'no power offer').toBeNull();
-  expect(document.querySelector('.b2-report__next'), 'no clickable next-room card').toBeNull();
+  const cards = [...document.querySelectorAll<HTMLButtonElement>('button.b2-edge')];
+  expect(cards, 'three Edge cards').toHaveLength(3);
+  expect(document.querySelector('.b2-report__side'), 'draft side').toBeTruthy();
+  expect(document.querySelector('.b2-report__next'), 'next-room teaser').toBeTruthy();
   const labels = [...document.querySelectorAll<HTMLElement>('.b2-results__actionlabel')]
     .map((node) => node.textContent);
-  expect(labels, 'only the three simple actions').toEqual(['NEXT ROOM', 'REPLAY ROOM', 'HOME']);
+  expect(labels).toEqual(['PICK AN EDGE', 'REPLAY ROOM', 'HOME · SKIP EDGE']);
 
-  // The draft is resolved from the panel in Task 11; advance directly for now.
-  expect(game.chooseEdge(game.pendingDraft!.offer[0]!.id)).toBe('');
+  // Picking a card resolves the draft and unlocks NEXT ROOM.
+  const chosen = game.pendingDraft!.offer[0]!;
+  cards[0]!.click();
+  expect(game.save.data.runBoosts).toContain(chosen.id);
+  expect(document.querySelector('.b2-edge.is-taken'), 'taken stamp').toBeTruthy();
   const nextButton = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
+  expect(nextButton.disabled).toBe(false);
+  expect(nextButton.textContent).toContain('NEXT ROOM');
   nextButton.click();
   await awaitFlush(50);
   expect(game.state, 'NEXT ROOM advances to the next floor').toBe('playing');

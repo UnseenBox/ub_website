@@ -112,7 +112,7 @@ export class UI implements GameUi {
           }),
         home: () => (summary.runEnded ? game.abandonRun() : game.toMenu()),
         stamped: () => game.audio.play('stamp', 1),
-        chooseEdge: () => {},
+        chooseEdge: (id) => game.chooseEdge(id),
       }),
     );
   }
@@ -122,7 +122,9 @@ export class UI implements GameUi {
     this.screens.classList.toggle('active', screen !== null);
     if (screen) {
       this.screens.append(screen);
-      screen.querySelector<HTMLButtonElement>('button.primary')?.focus({ preventScroll: true });
+      const target = screen.querySelector<HTMLButtonElement>('[data-autofocus]')
+        ?? screen.querySelector<HTMLButtonElement>('button.primary:not(:disabled)');
+      target?.focus({ preventScroll: true });
     }
   }
 

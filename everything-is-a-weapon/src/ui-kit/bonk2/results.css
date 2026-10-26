@@ -323,6 +323,149 @@
   font-weight: 900;
 }
 
+/* ── new progression blocks: room score, draft, build, next Edge, failure ── */
+
+.b2-report__roomscoresub {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.b2-report__draftstatus {
+  margin: 0;
+  color: var(--b2-lime);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.b2-edge {
+  position: relative;
+}
+
+.b2-edge.is-taken {
+  border-left-color: var(--b2-lime);
+  background: rgba(155, 229, 100, 0.14);
+}
+
+.b2-edge__stack {
+  margin-top: 2px;
+  color: var(--b2-yellow);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.b2-edge__stamp {
+  align-self: flex-end;
+  margin-top: 2px;
+  padding: 2px 7px;
+  background: var(--b2-lime);
+  color: var(--b2-ink);
+  font-family: var(--b2-display);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  transform: rotate(-2deg);
+}
+
+.b2-report__build {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.24);
+  border: 2px solid var(--b2-ink);
+}
+
+.b2-report__buildline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.b2-report__buildname {
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 800;
+}
+
+.b2-report__buildstacks {
+  margin-left: auto;
+  color: var(--b2-yellow);
+  font-weight: 900;
+}
+
+.b2-report__buildempty,
+.b2-report__buildmore {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.b2-report__nextedge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 9px;
+  background: rgba(0, 0, 0, 0.28);
+  border-left: 5px solid var(--b2-blue);
+}
+
+.b2-report__nextedgekind {
+  color: var(--b2-blue);
+  font-family: var(--b2-display);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.b2-report__nextedgetext {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.b2-report__linedot {
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 900;
+}
+
+.b2-report__runreport {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 2px solid var(--b2-ink);
+}
+
+.b2-report__nosalvage {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  background: rgba(239, 75, 94, 0.18);
+  border-left: 5px solid var(--b2-red);
+}
+
+.b2-report__nosalvagekind {
+  color: var(--b2-red);
+  font-family: var(--b2-display);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+.b2-report__nosalvagetext {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 /* ── side: offer, edges, next room ─────────────────────────────────────── */
 
 .b2-report__side {
@@ -743,12 +886,22 @@
   .b2-report__ledger,
   .b2-report__evidence,
   .b2-report__plan,
-  .b2-report__side,
   .b2-report__marks,
   .b2-report__stats,
   .b2-report__hero--failed,
   .b2-ribbon {
     display: none !important;
+  }
+  /* The draft is the one choice on this screen: keep the cards, drop the extras. */
+  .b2-report__side {
+    display: flex !important;
+  }
+  .b2-report__build,
+  .b2-report__next {
+    display: none !important;
+  }
+  .b2-edge__flavor {
+    display: none;
   }
   .b2-report__meta .b2-report__roomtag,
   .b2-report__meta .b2-report__roomname {

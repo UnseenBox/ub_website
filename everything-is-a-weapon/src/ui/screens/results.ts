@@ -1,4 +1,5 @@
 import type { RoomSummary } from '../../core/Game';
+import { EDGE_BY_ID } from '../../gameplay/Edges';
 import { el, formatScore } from '../dom';
 
 import defeatBanner from '../../ui-kit/bonk2/assets/banners/defeat@2x.png';
@@ -11,7 +12,8 @@ export interface ResultsActions {
   retry(): void;
   continueWithReward(): void;
   home(): void;
-  chooseEdge(edgeId: string): void;
+  /** '' on success; otherwise the reason the pick could not be applied. */
+  chooseEdge(edgeId: string): string;
   /** Called at the moment the rubber stamp hits the page. */
   stamped(): void;
 }
@@ -74,11 +76,199 @@ function chevron(node: HTMLButtonElement): void {
 
 function noteLine(kind: string, text: string, variant: string): HTMLElement {
   const row = el('div', `b2-report__line b2-report__line--${variant}`);
-  row.append(el('span', 'b2-report__linekind', kind), el('span', 'b2-report__linetext', text));
+  row.append(
+    el('span', 'b2-report__linekind', kind),
+    el('span', 'b2-report__linedot', ' · '),
+    el('span', 'b2-report__linetext', text),
+  );
   return row;
 }
 
-/** The winning screen: the clear, the score, the stars, and three plain actions. */
+function runChip(summary: RoomSummary): HTMLElement {
+  const text = summary.finale
+    ? 'RUN COMPLETE · 50 FLOORS'
+    : `RUN · FLOOR ${summary.run.floor} · STREAK ${summary.run.streak}`;
+  return el('span', 'b2-chip b2-report__run', text);
+}
+
+function edgeStackLabel(owned: number): string {
+  return owned === 0 ? 'NEW' : `OWNED ×${owned} → ×${owned + 1}`;
+}
+
+interface ConfirmHandle {
+  /** Reverts to the original label and makes the next click non-destructive. */
+  disarm(): void;
+}
+
+function confirmAction(
+  button: HTMLButtonElement,
+  confirmLabel: string,
+  resetLabel: string,
+  run: () => void,
+): ConfirmHandle {
+  let armed = false;
+  let requireConfirm = true;
+  const label = button.querySelector<HTMLElement>('.b2-results__actionlabel')!;
+  button.addEventListener('click', () => {
+    if (requireConfirm && !armed) {
+      armed = true;
+      label.textContent = confirmLabel;
+      return;
+    }
+    run();
+  });
+  return {
+    disarm() {
+      requireConfirm = false;
+      armed = false;
+      label.textContent = resetLabel;
+    },
+  };
+}
+
+/** Aggregated build, first-seen order. */
+function buildList(summary: RoomSummary, limit = 4): HTMLElement {
+  const wrap = el('div', 'b2-report__build');
+  wrap.append(el('h3', 'b2-label', 'YOUR BUILD'));
+  const counts = new Map<string, number>();
+  for (const id of summary.run.boosts) counts.set(id, (counts.get(id) ?? 0) + 1);
+  if (counts.size === 0) {
+    wrap.append(el('p', 'b2-report__buildempty', 'NO EDGES YET.'));
+    return wrap;
+  }
+  let shown = 0;
+  for (const [id, stacks] of counts) {
+    if (shown >= limit) break;
+    const name = EDGE_BY_ID[id as keyof typeof EDGE_BY_ID]?.name ?? id.toUpperCase();
+    const row = el('div', 'b2-report__buildline');
+    row.append(
+      el('span', 'b2-report__buildname', name),
+      el('span', 'b2-report__buildstacks', `×${stacks}`),
+    );
+    wrap.append(row);
+    shown++;
+  }
+  const more = counts.size - shown;
+  if (more > 0) wrap.append(el('span', 'b2-report__buildmore', `+${more} MORE`));
+  return wrap;
+}
+
+function nextTeaser(nextRoom: NonNullable<RoomSummary['nextRoom']>): HTMLElement {
+  const card = el('div', 'b2-report__next is-new');
+  const info = el('div', 'b2-report__nextinfo');
+  info.append(
+    el('span', 'b2-label', 'NEXT'),
+    el('span', 'b2-report__nextname', `ROOM ${nextRoom.number} · ${nextRoom.name.toUpperCase()}`),
+  );
+  card.append(info);
+  if (nextRoom.boss) card.append(el('span', 'b2-report__keytag', 'BOSS'));
+  return card;
+}
+
+function nextEdgeStrip(summary: RoomSummary): HTMLElement {
+  const strip = el('div', 'b2-report__nextedge');
+  if (summary.buildMaxed) {
+    strip.append(el('span', 'b2-report__nextedgekind', 'BUILD MAXED'), el('span', 'b2-report__nextedgetext', 'EVERY EDGE IS AT THREE STACKS.'));
+  } else if (summary.nextEdge) {
+    strip.append(
+      el('span', 'b2-report__nextedgekind', summary.nextEdge.boss ? 'NEXT EDGE · BOSS' : `NEXT EDGE · ROOM ${summary.nextEdge.number}`),
+      el('span', 'b2-report__nextedgetext', 'CLEAR THE ROOM TO DRAFT.'),
+    );
+  }
+  return strip;
+}
+
+/** The draft side: three cards, the build so far, and where the run goes next. */
+function buildDraftSide(
+  summary: RoomSummary,
+  actions: ResultsActions,
+  primary: HTMLButtonElement,
+  onTaken: () => void,
+): HTMLElement {
+  const side = el('div', 'b2-report__side');
+  const edges = el('section', 'b2-report__edges');
+  edges.append(el('h3', 'b2-label', 'TAKE AN EDGE'));
+  const grid = el('div', 'b2-report__edgegrid');
+  const cards: HTMLButtonElement[] = [];
+  const status = el('p', 'b2-report__draftstatus', 'PICK ONE. THE RUN KEEPS IT.');
+  status.setAttribute('aria-live', 'polite');
+  const label = (): HTMLElement => primary.querySelector<HTMLElement>('.b2-results__actionlabel')!;
+  for (const [index, edge] of summary.offer.entries()) {
+    const owned = summary.run.boosts.filter((id) => id === edge.id).length;
+    const card = el('button', `b2-edge b2-edge--${edge.category} b2-edge--${edge.rarity}`);
+    card.type = 'button';
+    card.dataset.edge = edge.id;
+    if (index === 0) card.dataset.autofocus = 'true';
+    card.setAttribute('aria-pressed', 'false');
+    card.setAttribute('aria-label', `${edge.name}, ${edge.rarity}, ${edge.effect}, ${edgeStackLabel(owned)}`);
+    const top = el('span', 'b2-edge__top');
+    top.append(
+      el('span', 'b2-edge__kicker', edge.category.toUpperCase()),
+      el('span', 'b2-edge__rarity', edge.rarity),
+    );
+    card.append(
+      top,
+      el('strong', 'b2-edge__name', edge.name),
+      el('span', 'b2-edge__effect', edge.effect),
+      el('span', 'b2-edge__flavor', edge.flavor),
+      el('span', 'b2-edge__stack', edgeStackLabel(owned)),
+    );
+    card.addEventListener('click', () => {
+      if (cards.some((c) => c.getAttribute('aria-pressed') === 'true')) return;
+      const reason = actions.chooseEdge(edge.id);
+      if (reason) {
+        for (const other of cards) {
+          other.disabled = true;
+          other.setAttribute('aria-disabled', 'true');
+        }
+        status.textContent = reason === 'EDGE OFFER EXPIRED'
+          ? 'EDGE OFFER EXPIRED · NEXT ROOM UNLOCKED.'
+          : `EDGE OFFER EXPIRED · ${reason}`;
+        primary.disabled = false;
+        label().textContent = 'NEXT ROOM';
+        onTaken();
+        primary.focus();
+        return;
+      }
+      card.setAttribute('aria-pressed', 'true');
+      card.classList.add('is-taken');
+      card.append(el('span', 'b2-edge__stamp', 'TAKEN'));
+      for (const other of cards) {
+        other.disabled = true;
+        other.setAttribute('aria-disabled', 'true');
+      }
+      status.textContent = `${edge.name} TAKEN · NEXT ROOM UNLOCKED.`;
+      primary.disabled = false;
+      label().textContent = 'NEXT ROOM';
+      onTaken();
+      primary.focus();
+    });
+    cards.push(card);
+    grid.append(card);
+  }
+  edges.append(grid, status);
+  side.append(edges);
+  side.append(buildList(summary));
+  if (summary.nextRoom) side.append(nextTeaser(summary.nextRoom));
+  return side;
+}
+
+function ledgerStrip(summary: RoomSummary): HTMLElement {
+  const strip = el('div', 'b2-report__ledger');
+  strip.append(el('span', 'b2-report__sectionlabel', 'STAR LEDGER'));
+  for (const claim of summary.ledgerClaims) {
+    const row = el('div', 'b2-report__ledgerline');
+    row.append(
+      el('span', 'b2-report__ledgerstar', '★'),
+      el('span', 'b2-report__ledgername', claim.name),
+      el('span', 'b2-report__ledgerreward', claim.reward),
+    );
+    strip.append(row);
+  }
+  return strip;
+}
+
+/** The winning screen: the clear, the draft, the build, and three plain actions. */
 function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElement {
   const screen = el('div', 'screen results cleared victory b2-stage b2-stage--navy b2-results b2-results--victory');
   const shell = el('div', 'b2-results__shell');
@@ -86,7 +276,8 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   const ribbon = banner(victoryBanner);
   shell.append(ribbon);
 
-  const panel = el('section', 'b2-panel b2-report b2-report--simple');
+  const draft = summary.offer.length > 0;
+  const panel = el('section', `b2-panel b2-report ${draft ? 'b2-report--draft' : 'b2-report--simple'}`);
   const titleId = 'b2-results-title';
   panel.setAttribute('aria-labelledby', titleId);
 
@@ -96,13 +287,41 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   head.append(title);
   panel.append(head);
 
+  const primary = summary.daily || summary.finale
+    ? null
+    : actionButton('NEXT ROOM', 'lime', actions.next, true);
+  if (primary) {
+    chevron(primary);
+    if (draft) {
+      primary.disabled = true;
+      primary.querySelector<HTMLElement>('.b2-results__actionlabel')!.textContent = 'PICK AN EDGE';
+    }
+  }
+
+  const home = draft
+    ? actionButton('HOME · SKIP EDGE', 'lavender', () => {})
+    : actionButton('HOME', 'lavender', actions.home);
+  const skip = draft ? confirmAction(home, 'TAP AGAIN TO SKIP', 'HOME', actions.home) : null;
+
+  let replay: HTMLButtonElement | null = null;
+  if (!summary.daily) {
+    const armedReplay = summary.run.boosts.length > 0 && !summary.run.ended;
+    replay = armedReplay
+      ? actionButton('REPLAY ROOM', 'blue', () => {})
+      : actionButton('REPLAY ROOM', 'blue', actions.retry);
+    if (armedReplay) confirmAction(replay, 'TAP AGAIN · NEW RUN', 'REPLAY ROOM', actions.retry);
+  }
+
+  const side = draft && primary ? buildDraftSide(summary, actions, primary, () => skip?.disarm()) : null;
+
   const body = el('div', 'b2-panel__body b2-report__body');
 
-  // ── where: room badge and room name ──
+  // ── where: room badge, room name, run position ──
   const meta = el('div', 'b2-report__meta');
   const roomTag = el('span', 'b2-badge b2-report__roomtag', summary.daily ? 'D' : String(summary.roomNumber));
   roomTag.title = summary.daily ? 'Daily challenge' : `Room ${summary.roomNumber}`;
   meta.append(roomTag, el('span', 'b2-report__roomname', summary.roomName.toLowerCase()));
+  if (!summary.daily) meta.append(runChip(summary));
 
   // ── the score ──
   const hero = el('div', 'b2-report__hero');
@@ -114,10 +333,12 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     best.append(art(trophyIcon, 'b2-chip__icon'), text);
     hero.append(best);
   }
+  const shownScore = summary.daily ? summary.score : summary.run.score;
   const score = el('div', 'b2-report__score b2-outlined b2-num', '0');
-  score.setAttribute('aria-label', `${formatScore(summary.score)} chaos points`);
+  score.setAttribute('aria-label', `${formatScore(shownScore)} chaos points`);
   hero.append(score, el('div', 'b2-label b2-report__scorelabel', 'CHAOS POINTS'));
-  countUp(score, summary.score);
+  hero.append(el('div', 'b2-label b2-report__roomscoresub', `THIS ROOM +${formatScore(summary.roomScore)}`));
+  countUp(score, shownScore);
 
   // ── stars and the few rewards worth calling out ──
   const marks = el('div', 'b2-report__marks');
@@ -134,9 +355,11 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     marks.append(stars);
   }
 
+  if (summary.ledgerClaims.length > 0) marks.append(ledgerStrip(summary));
+
   const notes = el('div', 'b2-report__notes');
   if (summary.finale) {
-    notes.append(noteLine('FINALE', '★ ALL 50 ROOMS CLEARED · LEASE RECLAIMED ★', 'finale'));
+    notes.append(noteLine('FINALE', `50 FLOORS · ${summary.run.types} TYPES · ${summary.run.stacks} STACKS · ${formatScore(summary.run.score)} RUN SCORE`, 'finale'));
   }
   if (summary.challengePassed && summary.challengeBonus > 0) {
     notes.append(noteLine('CHALLENGE', `+${formatScore(summary.challengeBonus)}`, 'objective'));
@@ -144,18 +367,22 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   if (summary.firstClearBonus > 0) {
     notes.append(noteLine('FIRST CLEAR', `+${summary.firstClearBonus} SCRAP`, 'contract'));
   }
+  if (summary.isNewRoomBest) notes.append(noteLine('ROOM BEST', 'NEW ROOM BEST', 'contract'));
   for (const contract of summary.contractsNew) {
     notes.append(noteLine('CONTRACT', `${contract.name} · +${contract.reward} SCRAP`, 'contract'));
   }
-  for (const claim of summary.ledgerClaims) {
-    notes.append(noteLine('LEDGER', `${claim.name} · ${claim.reward}`, 'contract'));
-  }
-  if (summary.dailyBonus > 0) {
-    notes.append(noteLine('DAILY BONUS', `+${summary.dailyBonus} SCRAP`, 'daily'));
+  if (summary.daily) {
+    notes.append(noteLine('DAILY STREAK', `${summary.dailyStreak} ${summary.dailyStreak === 1 ? 'DAY' : 'DAYS'}`, 'daily'));
+    if (summary.dailyBonus > 0) notes.append(noteLine('DAILY BONUS', `+${summary.dailyBonus} SCRAP`, 'daily'));
+    if (summary.dailyRareEdgeGranted) notes.append(noteLine('LEGENDARY EDGE', 'UNLOCKED', 'daily'));
+    if (summary.dailyReplay) notes.append(noteLine('PRACTICE', 'NO REWARD', 'daily'));
   }
   if (notes.childElementCount > 0) marks.append(notes);
 
-  body.append(meta, hero, marks);
+  body.append(meta, hero);
+  if (side) body.append(side);
+  body.append(marks);
+  if (!draft && !summary.daily && !summary.finale) body.append(nextEdgeStrip(summary));
   panel.append(body);
   shell.append(panel);
 
@@ -163,18 +390,13 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   if (summary.daily) {
     actionsRow.append(actionButton('DONE', 'lime', actions.next, true));
   } else if (summary.finale) {
-    actionsRow.append(
-      actionButton('REPLAY ROOM', 'blue', actions.retry),
-      actionButton('HOME', 'lime', actions.home, true),
-    );
+    if (replay) actionsRow.append(replay);
+    home.classList.add('primary');
+    actionsRow.append(home);
   } else {
-    const nextButton = actionButton('NEXT ROOM', 'lime', actions.next, true);
-    chevron(nextButton);
-    actionsRow.append(nextButton);
-    actionsRow.append(
-      actionButton('REPLAY ROOM', 'blue', actions.retry),
-      actionButton('HOME', 'lavender', actions.home),
-    );
+    if (primary) actionsRow.append(primary);
+    if (replay) actionsRow.append(replay);
+    actionsRow.append(home);
   }
   shell.append(actionsRow);
   if (summary.adMissed) shell.append(el('p', 'b2-results__adnote', 'no ad right now'));
@@ -230,6 +452,7 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   );
   meta.append(location);
   meta.append(el('span', 'b2-chip b2-report__sheetno', summary.daily ? 'DAILY' : `No. ${String(summary.roomNumber).padStart(3, '0')}`));
+  if (!summary.daily) meta.append(runChip(summary));
 
   // ── the bill: the huge live number, the stamp, the new-best plate ──
   const hero = el('div', 'b2-report__hero b2-report__hero--failed');
@@ -264,16 +487,33 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   if (summary.roomBest > 0 && !summary.daily) fields.append(fieldRow('BEST', formatScore(summary.roomBest)));
   summaryBody.append(fields);
 
-  // Failed runs never carry challenge/first-clear bonuses, offers, or next-room teasers.
   if (!summary.daily) {
-    summaryBody.append(el(
+    const report = el('div', 'b2-report__runreport');
+    report.append(
+      fieldRow('RUN SCORE', formatScore(summary.run.score)),
+      fieldRow('EDGES', `${summary.run.types} TYPES · ${summary.run.stacks} STACKS`),
+    );
+    report.append(buildList(summary, 3));
+    report.append(fieldRow('NEXT GOAL', `${summary.nextGoal.kicker} · ${summary.nextGoal.name}`));
+    summaryBody.append(report);
+    const runNote = el(
       'div',
       summary.runEnded
         ? 'b2-report__runnote b2-report__runnote--ended'
         : 'b2-report__runnote b2-report__runnote--kept',
-      summary.runEnded ? 'RUN ENDED · EDGES LOST' : 'EDGES KEPT · RUN STREAK RESET',
-    ));
+      summary.runEnded ? 'RUN ENDED · EDGES LOST' : 'EDGES KEPT · STREAK RESET',
+    );
+    summaryBody.append(runNote);
   }
+
+  const noSalvage = el('div', 'b2-report__nosalvage');
+  noSalvage.append(el('span', 'b2-report__nosalvagekind', 'NO SALVAGE'));
+  noSalvage.append(el(
+    'span',
+    'b2-report__nosalvagetext',
+    summary.daily ? 'PRACTICE · NO REWARD.' : 'THE FAILED ROOM PAID NOTHING.',
+  ));
+  summaryBody.append(noSalvage);
 
   body.append(meta, summaryBody);
   panel.append(body);
