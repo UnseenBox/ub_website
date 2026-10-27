@@ -212,9 +212,10 @@ export class Enemy {
       return;
     }
 
-    this.hurlCooldown -= dt;
-    this.slamCooldown -= dt;
-    this.lashCooldown -= dt;
+    // Rage is not just movement speed: attack cycles tighten as phases turn.
+    this.hurlCooldown -= dt * this.rageMult;
+    this.slamCooldown -= dt * this.rageMult;
+    this.lashCooldown -= dt * this.rageMult;
     if (this.type.sucks) this.updateSuck(game, dt);
     if (this.type.dodges) this.updateDodge(game, dt);
     if (this.type.rearranges) this.updateRearrange(game, dt);
@@ -630,7 +631,7 @@ export class Enemy {
   private updateDodge(game: Game, dt: number): void {
     const spec = this.type.dodges;
     if (!spec || this.defeated) return;
-    this.dodgeCooldown -= dt;
+    this.dodgeCooldown -= dt * this.rageMult;
     const b = this.body;
     // Confiscation first: anything thrown that drifts into her hands is hers now.
     for (const object of game.objects) {
@@ -681,7 +682,7 @@ export class Enemy {
   private updateRearrange(game: Game, dt: number): void {
     const spec = this.type.rearranges;
     if (!spec || this.defeated) return;
-    this.rearrangeTimer -= dt;
+    this.rearrangeTimer -= dt * this.rageMult;
     if (this.rearrangeTimer > 0) return;
     this.rearrangeTimer = spec.cooldown;
     const def = game.room.def;
@@ -737,7 +738,7 @@ export class Enemy {
   private updateForms(game: Game, dt: number): void {
     const forms = this.type.forms;
     if (!forms || this.defeated) return;
-    this.formTimer -= dt;
+    this.formTimer -= dt * this.rageMult;
     if (this.formTimer > 0) return;
     this.formTimer = this.type.formInterval ?? 11;
     this.form = (this.form + 1) % forms.length;
@@ -754,7 +755,7 @@ export class Enemy {
   private updateTeleport(game: Game, dt: number): void {
     const spec = this.type.teleports;
     if (!spec || this.defeated) return;
-    this.teleportTimer -= dt;
+    this.teleportTimer -= dt * this.rageMult;
     if (this.teleportTimer > 0) return;
     const player = game.player;
     const b = this.body;
@@ -785,7 +786,7 @@ export class Enemy {
   private updateSeep(game: Game, dt: number): void {
     const spec = this.type.seeps;
     if (!spec || this.defeated) return;
-    this.seepTimer -= dt;
+    this.seepTimer -= dt * this.rageMult;
     if (this.seepTimer > 0) return;
     this.seepTimer = spec.interval;
     const b = this.body;
@@ -801,7 +802,7 @@ export class Enemy {
   private updateStasis(game: Game, dt: number): void {
     const spec = this.type.stasis;
     if (!spec || this.defeated) return;
-    this.stasisCooldown -= dt;
+    this.stasisCooldown -= dt * this.rageMult;
     if (this.stasisCooldown > 0) return;
     this.stasisCooldown = spec.cooldown;
     const b = this.body;
@@ -833,7 +834,7 @@ export class Enemy {
   private updateSpawner(game: Game, dt: number): void {
     const spec = this.type.spawns;
     if (!spec || this.defeated) return;
-    this.spawnTimer -= dt;
+    this.spawnTimer -= dt * this.rageMult;
     if (this.spawnTimer > 0) return;
     this.spawnTimer = spec.interval;
     let alive = 0;
@@ -869,7 +870,7 @@ export class Enemy {
   private updateZap(game: Game, dt: number): void {
     const spec = this.type.zaps;
     if (!spec || this.defeated) return;
-    this.zapTimer -= dt;
+    this.zapTimer -= dt * this.rageMult;
     if (this.zapTimer > 0) return;
     this.zapTimer = spec.interval;
     const b = this.body;
@@ -897,7 +898,7 @@ export class Enemy {
   private updateWinds(game: Game, dt: number): void {
     const spec = this.type.winds;
     if (!spec || this.defeated) return;
-    this.windTimer -= dt;
+    this.windTimer -= dt * this.rageMult;
     if (this.windTimer > 0) return;
     this.windTimer = spec.interval;
     const b = this.body;
@@ -921,7 +922,7 @@ export class Enemy {
   private updateFrost(game: Game, dt: number): void {
     const spec = this.type.frost;
     if (!spec || this.defeated) return;
-    this.frostTimer -= dt;
+    this.frostTimer -= dt * this.rageMult;
     if (this.frostTimer > 0) return;
     this.frostTimer = spec.interval;
     const b = this.body;
@@ -981,7 +982,7 @@ export class Enemy {
     }
     // Damage interrupts the appetite: getting hit knocks it out of the suck.
     if (this.stun > 0 || this.shockTimer > 0) this.sucking = false;
-    this.suckTimer -= dt;
+    this.suckTimer -= dt * this.rageMult;
     if (this.suckTimer <= 0) {
       this.sucking = !this.sucking;
       this.suckTimer = this.sucking ? 2.6 : 2.2;
