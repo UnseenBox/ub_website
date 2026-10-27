@@ -98,12 +98,12 @@
 }
 
 .b2-lobby__statlabel {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.74);
   font-family: var(--b2-body);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
-  letter-spacing: 0.1em;
-  line-height: 1.2;
+  letter-spacing: 0.09em;
+  line-height: 1.25;
   text-transform: uppercase;
 }
 
@@ -228,9 +228,9 @@
 }
 
 .b2-lobby__nav .b2-nav__item {
-  gap: 6px;
-  min-height: clamp(50px, 7vh, 60px);
-  padding: 5px 8px;
+  gap: 8px;
+  min-height: clamp(52px, 7vh, 62px);
+  padding: 6px 10px;
 }
 
 .b2-lobby__navicon {
@@ -241,8 +241,9 @@
 
 .b2-lobby__nav .b2-nav__label {
   font-family: var(--b2-display);
-  font-size: clamp(11px, 1.7vh, 14px);
+  font-size: clamp(12px, 1.8vh, 15px);
   letter-spacing: 0.04em;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
@@ -412,26 +413,30 @@
     max-height: min(38vh, 330px);
   }
   .b2-lobby__nav .b2-nav__label {
-    font-size: 9px;
-    letter-spacing: 0.01em;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+  .b2-lobby__nav .b2-lobby__navicon {
+    width: 21px;
+    height: 21px;
   }
   .b2-lobby__nav .b2-nav__item {
     flex-direction: column;
-    gap: 3px;
-    min-height: 52px;
-    padding: 4px 2px;
+    gap: 5px;
+    min-height: 58px;
+    padding: 7px 4px;
   }
   .b2-lobby__modepanel {
     padding: 8px;
   }
-  .b2-nav__btn,
-  .b2-btn,
-  .b2-lobby__nav .b2-nav__item {
-    font-size: 9px;
-    padding: 4px 6px;
-    min-height: 32px;
-    transform: scale(0.85);
-    transform-origin: center;
+  .b2-lobby .b2-btn {
+    font-size: 15px;
+    min-height: 44px;
+    padding: 4px 12px;
+  }
+  .b2-lobby__playbtn {
+    min-height: 56px;
+    font-size: clamp(20px, 4vh, 26px);
   }
 }
 

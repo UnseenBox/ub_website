@@ -70,7 +70,8 @@
 .b2-pause__actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(8px, 1.2vh, 12px);
+  gap: clamp(10px, 1.5vh, 14px);
+  margin-top: 4px;
 }
 
 .b2-pause__keep {
@@ -80,9 +81,9 @@
 .b2-pause__shop {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
-  padding-top: 14px;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 16px;
   border-top: 2px dashed rgba(255, 255, 255, 0.16);
 }
 
@@ -223,18 +224,18 @@
 
 .b2-fold {
   border-top: 2px solid rgba(0, 0, 0, 0.25);
-  padding-top: 8px;
+  padding-top: 10px;
 }
 
 .b2-fold__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 2px;
-  color: rgba(255, 255, 255, 0.8);
+  gap: 10px;
+  padding: 10px 2px;
+  color: rgba(255, 255, 255, 0.86);
   cursor: pointer;
   font-family: var(--b2-display);
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   list-style: none;
@@ -272,37 +273,38 @@
 .b2-pause__lessons {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   padding-bottom: 4px;
 }
 
 .b2-pause__controls {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 4px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 6px 18px;
 }
 
 .b2-pause__control {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 13px;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 .b2-pause__key {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 46px;
-  min-height: 24px;
-  padding: 0 8px;
+  min-width: 50px;
+  min-height: 28px;
+  padding: 0 9px;
   background: var(--b2-ink);
   border: 2px solid rgba(255, 255, 255, 0.24);
   color: var(--b2-cream);
   font-family: var(--b2-body);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -310,15 +312,15 @@
 }
 
 .b2-pause__action {
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.82);
   text-transform: lowercase;
 }
 
 .b2-pause__note {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-top: 12px;
+  gap: 6px;
+  padding-top: 14px;
   border-top: 2px dashed rgba(255, 255, 255, 0.16);
 }
 
@@ -682,5 +684,3 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@ m e d i a   ( m a x - w i d t h :   5 2 0 p x )   {   . b 2 - b t n ,   . b 2 - p a u s e _ _ a c t i o n s   . b 2 - b t n ,   . b 2 - s e t t i n g s _ _ a c t i o n s   . b 2 - b t n   {   f o n t - s i z e :   9 p x ;   p a d d i n g :   4 p x   6 p x ;   m i n - h e i g h t :   2 8 p x ;   t r a n s f o r m :   s c a l e ( 0 . 8 5 ) ;   t r a n s f o r m - o r i g i n :   c e n t e r ;   }   }  
- 
