@@ -97,13 +97,17 @@ export interface BurstOptions {
 }
 
 /** Comfortably above the busiest moments (massive hits, broken glass, a boss dying). */
-const POOL_SIZE = 1400;
+const POOL_SIZE = 900;
+/** Effects are read at a glance; trimming the count keeps the scene legible and cheap. */
+const EMIT_SCALE = 0.72;
 
 /** Fixed-size pooled particle system. Nothing is allocated after construction. */
 export class ParticleSystem {
   readonly pool: Particle[] = [];
   activeCount = 0;
   private cursor = 0;
+  /** Indices of inactive particles, so spawning never scans the pool. */
+  private readonly free: number[] = [];
 
   constructor() {
     for (let i = 0; i < POOL_SIZE; i++) {
@@ -111,12 +115,15 @@ export class ParticleSystem {
         active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 1, size: 1, rotation: 0, spin: 0,
         color: '#fff', shape: 'circle', drag: 0, gravity: 0, grow: 1, alpha: 1, delay: 0, swirl: 0, phase: 0,
       });
+      this.free.push(POOL_SIZE - 1 - i);
     }
   }
 
   clear(): void {
     for (const p of this.pool) p.active = false;
     this.activeCount = 0;
+    this.free.length = 0;
+    for (let i = POOL_SIZE - 1; i >= 0; i--) this.free.push(i);
   }
 
   burst(kind: ParticleKind, x: number, y: number, count: number, speed: number, options?: BurstOptions): void {
@@ -124,7 +131,8 @@ export class ParticleSystem {
     const cone = options?.spread !== undefined;
     const base = cone ? Math.atan2(options?.dirY ?? 0, options?.dirX ?? 1) : 0;
     const spread = options?.spread ?? Math.PI;
-    for (let i = 0; i < count; i++) {
+    const n = Math.max(1, Math.round(count * EMIT_SCALE));
+    for (let i = 0; i < n; i++) {
       const p = this.acquire();
       const angle = base + (Math.random() * 2 - 1) * spread;
       const v = speed * (0.35 + Math.random() * 0.65);
@@ -179,14 +187,8 @@ export class ParticleSystem {
 
   /** Round-robin reuse: when the pool is full the oldest particles are recycled first. */
   private acquire(): Particle {
-    for (let i = 0; i < POOL_SIZE; i++) {
-      const index = (this.cursor + i) % POOL_SIZE;
-      const p = this.pool[index]!;
-      if (!p.active) {
-        this.cursor = (index + 1) % POOL_SIZE;
-        return p;
-      }
-    }
+    const index = this.free.pop();
+    if (index !== undefined) return this.pool[index]!;
     const p = this.pool[this.cursor]!;
     this.cursor = (this.cursor + 1) % POOL_SIZE;
     return p;
@@ -206,6 +208,7 @@ export class ParticleSystem {
       p.life -= dt;
       if (p.life <= 0) {
         p.active = false;
+        this.free.push(i);
         continue;
       }
       const damping = Math.exp(-p.drag * dt);
