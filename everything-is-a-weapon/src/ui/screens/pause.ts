@@ -77,12 +77,12 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
   const panel = el('section', 'b2-panel b2-pause__panel');
   panel.setAttribute('aria-labelledby', 'b2-pause-title');
   const head = el('div', 'b2-panel__head b2-panel__head--lavender');
-  const title = el('h1', 'b2-panel__title', 'HOLD THAT THOUGHT.');
+  const title = el('h1', 'b2-panel__title', 'PAUSED.');
   title.id = 'b2-pause-title';
   head.append(title);
 
   const body = el('div', 'b2-panel__body b2-pause__body');
-  body.append(el('p', 'b2-panel__note b2-pause__subtitle', 'EVEN CHAOS NEEDS A TEA BREAK.'));
+  body.append(el('p', 'b2-panel__note b2-pause__subtitle', 'TAKE A BREATH.'));
 
   const buttons = el('div', 'b2-pause__actions');
   const keepGoing = kitButton('KEEP GOING', 'lime', actions.resume);
@@ -91,16 +91,14 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
     keepGoing,
     kitButton('RESTART', 'blue', actions.restart),
     kitButton('SETTINGS', 'lavender', actions.settings),
-    kitButton('BACK TO MAIN MENU', 'lavender', actions.home),
+    kitButton('MAIN MENU', 'lavender', actions.home),
   );
   body.append(buttons);
 
-  // ── powers: permanent unlocks bought with scrap ──────────────────────────
-  const shop = el('section', 'b2-pause__shop');
-  shop.setAttribute('aria-labelledby', 'b2-pause-powers');
-  const shopHead = el('div', 'b2-pause__shop-head');
-  const shopTitle = el('h2', 'b2-pause__section-title', 'POWERS');
-  shopTitle.id = 'b2-pause-powers';
+  // ── powers: permanent unlocks bought with scrap, folded away by default ──
+  const shop = el('details', 'b2-fold b2-pause__fold');
+  const shopHead = el('summary', 'b2-fold__head b2-pause__foldhead');
+  shopHead.append(el('span', 'b2-pause__foldtitle', 'POWERS'));
 
   const scrapChip = el('div', 'b2-chip b2-pause__scrap');
   const scrapText = el('span', 'b2-chip__text');
@@ -110,10 +108,10 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
   scrapChip.append(icon(coinUrl, 'b2-chip__icon'), scrapText);
   scrapChip.setAttribute('aria-label', `${game.save.data.scrap} scrap`);
   scrapChip.setAttribute('role', 'status');
-  shopHead.append(shopTitle, scrapChip);
+  shopHead.append(scrapChip);
   shop.append(shopHead);
 
-  const grid = el('div', 'b2-pause__grid');
+  const grid = el('div', 'b2-pause__grid b2-pause__foldbody');
   for (const def of ABILITIES) {
     grid.append(buildAbilityCard(def, {
       touch,
@@ -126,12 +124,19 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
     }));
   }
   shop.append(grid);
+  body.append(shop);
 
-  // Room 1's lessons again, folded away until wanted. A replay deliberately
-  // starts a fresh run, so warn when the player would lose their current Edges.
+  // ── controls and the optional tutorial replay, also folded ────────────────
+  const manual = el('details', 'b2-fold b2-pause__fold');
+  manual.append(el('summary', 'b2-fold__head', 'CONTROLS'));
+  const manualBody = el('div', 'b2-pause__foldbody');
+  manualBody.append(textRows(controlRows(touch), 'b2-pause__controls'));
+
+  // Room 1's lessons again. A replay deliberately starts a fresh run, so warn
+  // when the player would lose their current Edges.
   const runActive = game.save.data.runActive;
-  const replay = el('details', 'b2-fold b2-pause__replay');
-  replay.append(el('summary', 'b2-fold__head', runActive ? 'REPLAY TUTORIAL \u00b7 ENDS RUN' : 'REPLAY TUTORIAL'));
+  const replay = el('div', 'b2-pause__replay');
+  replay.append(el('h3', 'b2-pause__replaytitle', 'REPLAY TUTORIAL'));
   if (runActive) {
     replay.append(
       el('p', 'b2-pause__warn', 'Starts a fresh run from room 1. Your current Edges and run score are lost.'),
@@ -147,23 +152,9 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
     lessons.append(again);
   }
   replay.append(lessons);
-  shop.append(replay);
-  body.append(shop);
-
-  // ── controls: the essentials up front, the rest one tap away ─────────────
-  const note = el('section', 'b2-pause__note');
-  note.append(el('h2', 'b2-pause__section-title', 'CONTROLS'));
-  const rows: ReadonlyArray<readonly [string, string]> = touch ? TOUCH_CONTROLS : controls();
-  const shown = rows.slice(0, touch ? 3 : 4);
-  note.append(textRows(shown, 'b2-pause__controls'));
-  const rest = rows.slice(touch ? 3 : 4);
-  if (rest.length > 0) {
-    const more = el('details', 'b2-fold');
-    more.append(el('summary', 'b2-fold__head', 'MORE'));
-    more.append(textRows(rest, 'b2-pause__controls b2-pause__controls--more'));
-    note.append(more);
-  }
-  body.append(note);
+  manualBody.append(replay);
+  manual.append(manualBody);
+  body.append(manual);
 
   panel.append(head, body);
   screen.append(panel);

@@ -78,20 +78,42 @@
   grid-column: 1 / -1;
 }
 
-.b2-pause__shop {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
-  padding-top: 16px;
+.b2-pause__fold {
+  margin-top: 6px;
   border-top: 2px dashed rgba(255, 255, 255, 0.16);
 }
 
-.b2-pause__shop-head {
-  display: flex;
-  align-items: center;
+.b2-pause__fold > .b2-fold__head {
   justify-content: space-between;
-  gap: 12px;
+}
+
+.b2-pause__foldtitle {
+  font-family: var(--b2-display);
+  font-size: clamp(16px, 2.4vh, 20px);
+  letter-spacing: 0.06em;
+}
+
+.b2-pause__foldbody {
+  padding: 8px 0 12px;
+}
+
+.b2-pause__fold .b2-pause__scrap {
+  gap: 6px;
+  padding: 2px 9px 2px 4px;
+  filter: none;
+}
+
+.b2-pause__fold .b2-pause__scrap .b2-chip__icon {
+  width: 22px;
+  height: 22px;
+}
+
+.b2-pause__fold .b2-pause__scrap .b2-chip__value {
+  font-size: 16px;
+}
+
+.b2-pause__fold .b2-pause__scrap .b2-chip__label {
+  font-size: 8px;
 }
 
 .b2-pause__scrap {
@@ -316,12 +338,20 @@
   text-transform: lowercase;
 }
 
-.b2-pause__note {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 14px;
+.b2-pause__replay {
+  margin-top: 14px;
+  padding-top: 12px;
   border-top: 2px dashed rgba(255, 255, 255, 0.16);
+}
+
+.b2-pause__replaytitle {
+  margin: 0 0 8px;
+  color: var(--b2-white);
+  font-family: var(--b2-display);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* --------------------------------------------------------------------------
