@@ -194,6 +194,9 @@ export class HUD {
     const bossTrack = el('div', 'boss-track b2-hud__bosstrack');
     bossTrack.append(this.bossFill, this.bossPips);
     this.bossBox.append(bossHead, bossTrack);
+    // Keep the boss plate in the HUD's top stack: it sits under the line-up instead
+    // of hovering over the middle of the room where the fight happens.
+    center.append(this.bossBox);
 
     // ── powers hotbar ──
     this.powers = el('div', 'powers b2-hud__powers');
@@ -222,7 +225,6 @@ export class HUD {
 
     this.root.append(
       top,
-      this.bossBox,
       this.powers,
       this.bannerBox,
       this.incomingBox,
