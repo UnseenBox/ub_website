@@ -4,6 +4,7 @@ import { angleDiff, clamp } from '../core/math';
 import { Layer, RigidBody } from '../physics/RigidBody';
 import type { Zone } from '../hazards/Zone';
 import { extendChain, startChain } from '../gameplay/Chain';
+import { wallAvoidance } from '../gameplay/Navigation';
 import type { EnemyType } from './EnemyTypes';
 import type { PhysicsObject } from './PhysicsObject';
 
@@ -17,6 +18,7 @@ const BURN_TICK = 0.4;
 const BURN_DAMAGE = 7;
 
 const scratch = { x: 0, y: 0 };
+const wallPush = { x: 0, y: 0 };
 
 export class Enemy {
   readonly kind = 'enemy' as const;
@@ -249,7 +251,8 @@ export class Enemy {
     this.aiTimer -= dt;
     switch (this.ai) {
       case 'entering':
-        this.steer(this.targetX, this.targetY, this.type.speed * this.rageMult, dt);
+        wallAvoidance(b.x, b.y, this.type.radius, game.world.bounds, wallPush);
+        this.steer(this.targetX + wallPush.x, this.targetY + wallPush.y, this.type.speed * this.rageMult, dt);
         this.walkPhase += dt * 10;
         if (this.aiTimer <= 0) {
           // They broke in looking for you: no need to spot the player first.
@@ -270,7 +273,8 @@ export class Enemy {
         const tx = this.targetX - b.x;
         const ty = this.targetY - b.y;
         const td = Math.hypot(tx, ty) || 1;
-        this.steer(tx / td, ty / td, speed * 0.8, dt);
+        wallAvoidance(b.x, b.y, this.type.radius, game.world.bounds, wallPush);
+        this.steer(tx / td + wallPush.x, ty / td + wallPush.y, speed * 0.8, dt);
         this.turnTowards(Math.atan2(ty, tx), dt);
         this.walkPhase += dt * 9;
         if (td < 30 || this.aiTimer <= 0 || (!this.lured && dist < this.type.awareness)) {
@@ -288,10 +292,11 @@ export class Enemy {
         }
         let mx: number;
         let my: number;
+        const melee = this.type.boss ? Math.max(90, this.type.radius + 56) : 90;
         if (this.confuse > 0) {
           mx = Math.cos(this.seed + game.time * 3);
           my = Math.sin(this.seed * 2 + game.time * 2.3);
-        } else if (dist < 90 || !game.nav.direction(b.x, b.y, scratch)) {
+        } else if (dist < melee || !game.nav.direction(b.x, b.y, scratch)) {
           mx = dx / dist;
           my = dy / dist;
         } else {
@@ -315,6 +320,12 @@ export class Enemy {
             mx += (ox / od) * push;
             my += (oy / od) * push;
           }
+        }
+        // Never grind along a wall: the room's edges push back harder than the
+        // player pulls, then the heading resumes once there is space again.
+        if (wallAvoidance(b.x, b.y, this.type.radius, game.world.bounds, wallPush)) {
+          mx += wallPush.x;
+          my += wallPush.y;
         }
         const ml = Math.hypot(mx, my) || 1;
         this.steer(mx / ml, my / ml, speed, dt);

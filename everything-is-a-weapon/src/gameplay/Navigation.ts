@@ -2,6 +2,40 @@ import type { Game } from '../core/Game';
 
 const CELL = 36;
 const BLOCKED = 255;
+const WALL_CELLS = 1;
+
+export interface WallPush {
+  x: number;
+  y: number;
+}
+
+/**
+ * A soft repulsion away from the room's four walls. Big bodies steer with
+ * momentum, so without this a charging boss can pin itself to a wall and grind
+ * there instead of coming back around for the player.
+ */
+export function wallAvoidance(
+  x: number,
+  y: number,
+  radius: number,
+  bounds: { x0: number; y0: number; x1: number; y1: number },
+  out: WallPush,
+): boolean {
+  const margin = Math.max(44, radius + 34);
+  const left = margin - (x - bounds.x0);
+  const right = margin - (bounds.x1 - x);
+  const top = margin - (y - bounds.y0);
+  const bottom = margin - (bounds.y1 - y);
+  let ax = 0;
+  let ay = 0;
+  if (left > 0) ax += Math.min(1.6, left / margin * 2.1);
+  if (right > 0) ax -= Math.min(1.6, right / margin * 2.1);
+  if (top > 0) ay += Math.min(1.6, top / margin * 2.1);
+  if (bottom > 0) ay -= Math.min(1.6, bottom / margin * 2.1);
+  out.x = ax;
+  out.y = ay;
+  return ax !== 0 || ay !== 0;
+}
 const NEIGHBOURS: ReadonlyArray<readonly [number, number, number]> = [
   [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
   [1, 1, 1.42], [1, -1, 1.42], [-1, 1, 1.42], [-1, -1, 1.42],
@@ -51,6 +85,17 @@ export class NavField {
 
   private rebuild(game: Game): void {
     this.cost.fill(1);
+    // Keep the flow field off the walls themselves. Enemies still fall back to
+    // a direct heading when the player stands in the border strip, but ordinary
+    // pursuit now rounds the room instead of scraping along its edges.
+    for (let r = 0; r < this.rows; r++) {
+      const edge = r < WALL_CELLS || r >= this.rows - WALL_CELLS;
+      for (let c = 0; c < this.cols; c++) {
+        if (edge || c < WALL_CELLS || c >= this.cols - WALL_CELLS) {
+          this.cost[r * this.cols + c] = BLOCKED;
+        }
+      }
+    }
     for (const object of game.objects) {
       if (!object.alive || object.held) continue;
       const b = object.body;
