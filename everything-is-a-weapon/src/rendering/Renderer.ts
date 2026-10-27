@@ -1,6 +1,6 @@
 import { INK, PALETTE, TEXT_VISIBLE } from '../core/constants';
 import type { Game } from '../core/Game';
-import { TAU, lerp } from '../core/math';
+import { TAU, lerp, lerpAngle } from '../core/math';
 import type { Pet } from '../entities/Pets';
 import type { Enemy } from '../entities/Enemy';
 import type { PhysicsObject } from '../entities/PhysicsObject';
@@ -341,7 +341,7 @@ export class Renderer {
       const y = this.by(b);
       if (entity.kind === 'object') {
         const z = lerp(b.prevZ, b.z, this.alpha);
-        const angle = lerp(b.prevAngle, b.angle, this.alpha);
+        const angle = lerpAngle(b.prevAngle, b.angle, this.alpha);
         if (entity === player.hover) {
           drawObjectHalo(ctx, entity, x, y, z, angle, '#ffffff', 4);
         } else if (entity.held) {

@@ -16,6 +16,11 @@ export function angleDiff(a: number, b: number): number {
   return d;
 }
 
+/** Interpolates the short way round, so a snapped or wrapped angle never spins. */
+export function lerpAngle(a: number, b: number, t: number): number {
+  return a + angleDiff(a, b) * t;
+}
+
 export function approach(value: number, target: number, maxDelta: number): number {
   if (value < target) return Math.min(value + maxDelta, target);
   return Math.max(value - maxDelta, target);

@@ -363,7 +363,10 @@ export class PhysicsObject {
     if (this.held) game.player.release();
     this.rocketLeft = duration;
     this.tags.add('rocketing');
-    if (!keepHeading) this.body.angle = game.rng.range(0, Math.PI * 2);
+    if (!keepHeading) {
+      const angle = game.rng.range(0, Math.PI * 2);
+      this.body.teleport(this.body.x, this.body.y, angle);
+    }
     game.audio.play('hiss', 1);
     return true;
   }
