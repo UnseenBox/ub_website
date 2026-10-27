@@ -1,10 +1,7 @@
 import type { Game } from '../../core/Game';
-import { actFor, campaignProgress, starText, totalStars } from '../../gameplay/Campaign';
+import { actFor, starText, totalStars } from '../../gameplay/Campaign';
 import { campaignBossType } from '../../gameplay/RoomManager';
-import { el, formatScore } from '../dom';
-import keyBedroom from '../../ui-kit/bonk2/assets/buttons/room-key-bedroom@2x.png';
-import keyKitchen from '../../ui-kit/bonk2/assets/buttons/room-key-kitchen@2x.png';
-import keyLiving from '../../ui-kit/bonk2/assets/buttons/room-key-living@2x.png';
+import { el } from '../dom';
 import keyIconArt from '../../ui-kit/bonk2/assets/icons/key@2x.png';
 
 export interface RoomEntry {
@@ -50,13 +47,6 @@ export interface RoomsPane {
 /** The pick survives a rebuild (hero changes rebuild the whole menu). */
 let lastPick: number | null = null;
 
-/**
- * The kit only draws three hanging keys; the wall cycles them so every room
- * still gets a key. Their baked name plates are cropped away by the card CSS —
- * every word on the wall is live text.
- */
-const KEY_ART: readonly string[] = [keyLiving, keyKitchen, keyBedroom];
-
 export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): RoomsPane {
   const save = game.save.data;
   const total = game.rooms.roomCount;
@@ -71,8 +61,8 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   const head = el('header', 'b2-rooms__head');
   const heading = el('div', 'b2-rooms__heading');
   heading.append(
-    el('h3', 'b2-rooms__title b2-display b2-outlined', 'THE KEY WALL'),
-    el('p', 'b2-rooms__sub', 'FIFTY ROOMS. A NEW BAD IDEA EVERY TIME.'),
+    el('h3', 'b2-rooms__title b2-display b2-outlined', 'THE FLOOR PLAN'),
+    el('p', 'b2-rooms__sub', 'FIFTY ROOMS. PICK A NUMBER.'),
   );
 
   const openCount = tester
@@ -114,20 +104,10 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   stats.append(openChip, starChip, depthChip);
   head.append(heading, stats);
 
-  const progress = el('div', 'b2-meter b2-rooms__meter');
-  progress.setAttribute('role', 'progressbar');
-  progress.setAttribute('aria-label', 'Campaign stars');
-  progress.setAttribute('aria-valuemin', '0');
-  progress.setAttribute('aria-valuemax', '100');
-  progress.setAttribute('aria-valuenow', String(campaignProgress(total, save.roomStars)));
-  const progressFill = el('span', 'b2-meter__fill');
-  progressFill.style.setProperty('--b2-value', `${campaignProgress(total, save.roomStars)}%`);
-  progress.append(progressFill);
-
-  const rail = el('div', 'b2-keywall b2-panel');
+  const rail = el('div', 'b2-roomgrid b2-panel');
   rail.id = 'room-map';
   rail.setAttribute('role', 'radiogroup');
-  rail.setAttribute('aria-label', 'Rooms. Pick a card to choose a room.');
+  rail.setAttribute('aria-label', 'Rooms. Pick a numbered room.');
 
   const foot = el('footer', 'b2-rooms__foot');
   const pickWrap = el('div', 'b2-rooms__pick-wrap');
@@ -157,13 +137,13 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
 
   const hintFor = (entry: RoomEntry): string => {
     // A locked card at index N opens after room N (1-based) is cleared.
-    if (entry.locked) return `CLEAR ROOM ${entry.index} TO EARN THIS KEY.`;
-    if (openThrough >= total - 1) return 'EVERY KEY ON THE WALL IS YOURS.';
-    return `CLEAR ${roomLabel(openThrough)} TO EARN THE NEXT KEY.`;
+    if (entry.locked) return `CLEAR ROOM ${entry.index} TO UNLOCK.`;
+    if (openThrough >= total - 1) return 'EVERY ROOM IS UNLOCKED.';
+    return `CLEAR ROOM ${openThrough + 1} TO UNLOCK THE NEXT.`;
   };
 
   const describe = (entry: RoomEntry): void => {
-    const label = `${roomLabel(entry.index)} · ${entry.name}`;
+    const label = `${roomLabel(entry.index)} · ${entry.name}${entry.boss ? ' · BOSS' : ''}`;
     pick.textContent = label;
     hint.textContent = hintFor(entry);
     options.onSelect?.({
@@ -187,11 +167,11 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   };
 
   const addDivider = (name: string, tagline: string): void => {
-    const divider = el('div', 'b2-keywall__act');
+    const divider = el('div', 'b2-roomgrid__act');
     divider.title = tagline;
     divider.append(
-      el('span', 'b2-keywall__act-name', name),
-      el('span', 'b2-keywall__act-tag', tagline),
+      el('span', 'b2-roomgrid__act-name', name),
+      el('span', 'b2-roomgrid__act-tag', tagline),
     );
     rail.append(divider);
   };
@@ -199,9 +179,9 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
   const addCard = (entry: RoomEntry): void => {
     const node = el(
       'button',
-      `b2-keycard${entry.locked ? ' is-locked' : ''}${
+      `b2-roomtile${entry.locked ? ' is-locked' : ''}${
         !entry.locked && entry.index === save.unlockedRoom ? ' is-next' : ''
-      }`,
+      }${entry.boss ? ' is-boss' : ''}`,
     );
     node.type = 'button';
     node.setAttribute('role', 'radio');
@@ -215,49 +195,28 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
     node.setAttribute('aria-label', label);
     node.title = label;
 
-    node.append(el('span', 'b2-keycard__num b2-badge b2-num', entry.num));
+    node.append(el('span', 'b2-roomtile__num b2-num', entry.num));
 
-    const key = el('span', 'b2-keycard__key');
-    const keyImg = el('img', 'b2-keycard__key-img');
-    keyImg.src = KEY_ART[entry.index % KEY_ART.length]!;
-    keyImg.alt = '';
-    keyImg.decoding = 'async';
-    keyImg.draggable = false;
-    key.append(keyImg);
+    const marks = el('span', 'b2-roomtile__marks');
     if (entry.locked) {
-      const lock = el('span', 'b2-keycard__lock');
+      const lock = el('span', 'b2-roomtile__lock');
       lock.setAttribute('aria-hidden', 'true');
       lock.innerHTML =
         '<svg viewBox="0 0 24 24" focusable="false"><path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="1.5" fill="currentColor"/></svg>';
-      key.append(lock);
-    }
-    node.append(key);
-
-    node.append(
-      el(
-        'span',
-        'b2-keycard__plate',
-        entry.locked ? '???' : entry.name,
-      ),
-    );
-
-    const meta = el('span', 'b2-keycard__meta');
-    if (!entry.locked) {
-      const starRow = el('span', 'b2-keycard__stars');
+      marks.append(lock);
+    } else {
+      const starRow = el('span', 'b2-roomtile__stars');
       starRow.setAttribute('aria-hidden', 'true');
       for (let i = 0; i < 3; i++) {
         starRow.append(
-          el('span', `b2-keycard__star${i < entry.stars ? ' is-on' : ''}`, '★'),
+          el('span', `b2-roomtile__star${i < entry.stars ? ' is-on' : ''}`, '★'),
         );
       }
-      meta.append(starRow);
-      if (entry.boss) meta.append(el('span', 'b2-badge b2-keycard__tag', 'BOSS'));
+      marks.append(starRow);
     }
-    const best = entry.locked || entry.best === null ? '—' : formatScore(entry.best);
-    meta.append(el('span', 'b2-keycard__best b2-num', `BEST ${best}`));
-    node.append(meta);
+    node.append(marks);
 
-    const tick = el('span', 'b2-keycard__tick');
+    const tick = el('span', 'b2-roomtile__tick', '✓');
     tick.setAttribute('aria-hidden', 'true');
     node.append(tick);
 
@@ -316,16 +275,16 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
     });
   });
 
-  section.append(head, progress, rail, foot);
+  section.append(head, rail, foot);
 
   return {
     root: section,
     selected: () => selected,
     showMap: (open: boolean) => {
       if (!open) return;
-      const card = rail.querySelector<HTMLElement>('.b2-keycard.is-selected');
+      const card = rail.querySelector<HTMLElement>('.b2-roomtile.is-selected');
       if (!card) return;
-      // Keep the board at the top when the current key is already mostly
+      // Keep the board at the top when the current room is already mostly
       // visible; only chase it when it is genuinely off-screen.
       const wall = rail.getBoundingClientRect();
       const box = card.getBoundingClientRect();
@@ -333,7 +292,7 @@ export function buildRoomsPane(game: Game, options: RoomsPaneOptions = {}): Room
       if (visible < box.height * 0.5) card.scrollIntoView({ block: 'nearest' });
     },
     focusSelected: () => {
-      rail.querySelector<HTMLElement>('.b2-keycard.is-selected')?.focus();
+      rail.querySelector<HTMLElement>('.b2-roomtile.is-selected')?.focus();
     },
   };
 }

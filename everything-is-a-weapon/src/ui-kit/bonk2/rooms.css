@@ -71,20 +71,16 @@
   padding-left: 10px;
 }
 
-.b2-rooms__meter {
-  width: 100%;
-}
-
-/* The board itself: a panel that scrolls, with a wooden face. */
-.b2-keywall {
+/* The board: one compact numbered tile per room. */
+.b2-roomgrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   align-content: start;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
   max-width: none;
   max-height: min(48vh, 430px);
-  padding: 14px;
+  padding: 12px;
   overflow: auto;
   background-color: var(--b2-floor);
   background-image:
@@ -96,31 +92,35 @@
   scrollbar-color: var(--b2-ink) transparent;
 }
 
-.b2-keywall::-webkit-scrollbar {
+.b2-roomgrid::-webkit-scrollbar {
   width: 9px;
 }
 
-.b2-keywall::-webkit-scrollbar-thumb {
+.b2-roomgrid::-webkit-scrollbar-thumb {
   background: var(--b2-ink);
 }
 
-.b2-keywall__act {
+.b2-roomgrid__act {
   grid-column: 1 / -1;
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 2px 2px 0;
+  padding: 6px 2px 0;
   color: var(--b2-ink);
 }
 
-.b2-keywall__act-name {
+.b2-roomgrid__act:first-child {
+  padding-top: 0;
+}
+
+.b2-roomgrid__act-name {
   font-family: var(--b2-display);
   font-size: 15px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.b2-keywall__act-tag {
+.b2-roomgrid__act-tag {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -128,215 +128,119 @@
   text-transform: uppercase;
 }
 
-.b2-keycard {
+.b2-roomtile {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 3px;
   min-width: 0;
-  min-height: 184px;
-  padding: 10px 8px 9px;
+  min-height: 68px;
+  padding: 7px 4px 6px;
   background: var(--b2-cream);
-  border: 4px solid var(--b2-ink);
-  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  border: 3px solid var(--b2-ink);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
   color: var(--b2-ink);
   cursor: pointer;
-  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.3));
   transition: transform var(--b2-dur) var(--b2-ease), filter var(--b2-dur) var(--b2-ease);
   -webkit-tap-highlight-color: transparent;
 }
 
-.b2-keycard:hover {
+.b2-roomtile:hover {
   transform: translateY(-2px);
 }
 
-.b2-keycard:focus-visible {
+.b2-roomtile:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 3px var(--b2-blue);
 }
 
-.b2-keycard.is-selected {
-  background: var(--b2-lime-edge);
-  box-shadow: inset 0 0 0 3px var(--b2-lime);
+.b2-roomtile__num {
+  font-family: var(--b2-display);
+  font-size: 22px;
+  line-height: 1;
 }
 
-.b2-keycard.is-selected .b2-keycard__plate {
+.b2-roomtile.is-boss .b2-roomtile__num {
+  color: var(--b2-red);
+}
+
+.b2-roomtile.is-selected {
   background: var(--b2-lime);
-  color: var(--b2-white);
+  box-shadow: inset 0 0 0 2px var(--b2-white);
 }
 
-.b2-keycard.is-next:not(.is-selected) .b2-keycard__plate {
-  background: var(--b2-red);
-  color: var(--b2-white);
+.b2-roomtile.is-selected .b2-roomtile__num {
+  color: var(--b2-ink);
 }
 
-.b2-keycard.is-locked {
-  background: rgba(255, 241, 211, 0.55);
+.b2-roomtile.is-next:not(.is-selected) {
+  box-shadow: inset 0 0 0 2px var(--b2-red);
+}
+
+.b2-roomtile.is-locked {
+  background: rgba(255, 241, 211, 0.5);
   cursor: not-allowed;
   filter: none;
 }
 
-.b2-keycard.is-locked:hover {
+.b2-roomtile.is-locked:hover {
   transform: none;
 }
 
-.b2-keycard.is-locked .b2-keycard__num,
-.b2-keycard.is-locked .b2-keycard__plate,
-.b2-keycard.is-locked .b2-keycard__best {
-  opacity: 0.6;
+.b2-roomtile.is-locked .b2-roomtile__num {
+  opacity: 0.5;
 }
 
-.b2-keycard.is-depths {
-  background: var(--b2-panel-dark);
-  color: var(--b2-white);
-}
-
-.b2-keycard.is-depths .b2-keycard__plate {
-  background: var(--b2-white);
-  color: var(--b2-ink);
-}
-
-.b2-keycard.is-depths.is-selected .b2-keycard__plate {
-  background: var(--b2-lime);
-  color: var(--b2-white);
-}
-
-.b2-keycard__num {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  z-index: 2;
-  min-width: 26px;
-  height: 26px;
-  font-size: 14px;
-}
-
-.b2-keycard__key {
-  position: relative;
-  display: grid;
-  place-items: start center;
-  width: 100%;
-  height: 74px;
-  overflow: hidden;
-  margin-top: 6px;
-}
-
-.b2-keycard__key-img {
-  width: 62px;
-  height: auto;
-  display: block;
-  clip-path: inset(0 0 30% 0);
-  transform: rotate(-6deg);
-  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25));
-}
-
-.b2-keycard:nth-of-type(even) .b2-keycard__key-img {
-  transform: rotate(5deg);
-}
-
-.b2-keycard.is-depths .b2-keycard__key-img {
-  filter: grayscale(0.8) brightness(0.85) drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4));
-}
-
-.b2-keycard__lock {
-  position: absolute;
-  right: 18px;
-  bottom: 6px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  padding: 3px;
-  background: var(--b2-red);
-  border: 3px solid var(--b2-ink);
-  color: var(--b2-cream);
-  clip-path: polygon(50% 0, 100% 22%, 100% 78%, 50% 100%, 0 78%, 0 22%);
-}
-
-.b2-keycard__lock svg {
-  width: 100%;
-  height: 100%;
-}
-
-.b2-keycard__plate {
-  width: 100%;
-  padding: 5px 4px 4px;
-  background: var(--b2-white);
-  border: 3px solid var(--b2-ink);
-  color: var(--b2-ink);
-  font-family: var(--b2-display);
-  font-size: clamp(11px, 1.6vh, 13px);
-  letter-spacing: 0.02em;
-  line-height: 1.1;
-  text-align: center;
-  text-transform: uppercase;
-  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
-}
-
-.b2-keycard__meta {
+.b2-roomtile__marks {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  width: 100%;
-  margin-top: 3px;
+  min-height: 14px;
 }
 
-.b2-keycard__stars {
+.b2-roomtile__stars {
   display: inline-flex;
   gap: 1px;
-  font-size: 13px;
+  font-size: 10px;
   line-height: 1;
-  color: rgba(38, 33, 45, 0.28);
+  color: rgba(38, 33, 45, 0.25);
 }
 
-.b2-keycard__star.is-on {
+.b2-roomtile__star.is-on {
   color: var(--b2-yellow);
   text-shadow: 0 1px 0 var(--b2-ink);
 }
 
-.b2-keycard__tag {
-  min-width: 0;
-  height: 21px;
-  padding: 0 6px;
-  background: var(--b2-red);
-  border-width: 2px;
-  font-size: 11px;
-}
-
-.b2-keycard__best {
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  opacity: 0.8;
-}
-
-.b2-keycard__tick {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  display: none;
+.b2-roomtile__lock {
+  display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  background: var(--b2-lime);
-  border: 3px solid var(--b2-ink);
-  color: var(--b2-white);
+  width: 15px;
+  height: 15px;
+  color: rgba(38, 33, 45, 0.55);
+}
+
+.b2-roomtile__lock svg {
+  width: 100%;
+  height: 100%;
+}
+
+.b2-roomtile__tick {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  display: none;
+  color: var(--b2-ink);
   font-family: var(--b2-body);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 900;
   line-height: 1;
-  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 
-.b2-keycard__tick::after {
-  content: '✓';
-}
-
-.b2-keycard.is-selected .b2-keycard__tick {
-  display: grid;
+.b2-roomtile.is-selected .b2-roomtile__tick {
+  display: block;
 }
 
 .b2-rooms__foot {
@@ -592,20 +496,12 @@
   .b2-roster__cast {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .b2-keywall {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .b2-roomgrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     max-height: 50vh;
   }
-  /* Two acts should fit the board without the selected key hiding act one. */
-  .b2-keycard {
-    min-height: 154px;
-    padding: 8px 6px 6px;
-  }
-  .b2-keycard__key {
-    height: 54px;
-  }
-  .b2-keycard__key-img {
-    width: 50px;
+  .b2-roomtile {
+    min-height: 64px;
   }
 }
 
@@ -616,15 +512,13 @@
   .b2-rooms__stats {
     display: none;
   }
-  .b2-keywall {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .b2-roomgrid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 7px;
     padding: 10px;
   }
-  .b2-keycard {
-    min-height: 158px;
-  }
-  .b2-keycard__key {
-    height: 58px;
+  .b2-roomtile {
+    min-height: 62px;
   }
   .b2-rooms__foot {
     align-items: stretch;
@@ -639,7 +533,7 @@
 }
 
 @media (max-height: 640px) {
-  .b2-keywall {
+  .b2-roomgrid {
     max-height: 40vh;
   }
   .b2-hero__note {
