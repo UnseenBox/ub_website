@@ -4,6 +4,21 @@
   align-items: stretch;
   justify-content: flex-start;
   gap: clamp(8px, 1.6vh, 16px);
+  background-color: #111634;
+  /* The old key-art burst is still the liveliest thing in the kit; a navy
+     wash turns it into a night-shift backdrop instead of a purple poster. */
+  background-image:
+    radial-gradient(ellipse at 50% 18%, rgba(120, 160, 255, 0.24), transparent 55%),
+    linear-gradient(
+      180deg,
+      rgba(11, 15, 40, 0.5) 0%,
+      rgba(11, 15, 40, 0.68) 55%,
+      rgba(8, 10, 28, 0.9) 100%
+    ),
+    url('../../assets/menu-bg.webp');
+  background-size: auto, auto, cover;
+  background-position: center top, center, center;
+  background-repeat: no-repeat;
 }
 
 /* --------------------------------------------------------------------------
