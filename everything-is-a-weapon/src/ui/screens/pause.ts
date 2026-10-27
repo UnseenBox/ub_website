@@ -3,10 +3,8 @@ import { ABILITIES, type AbilityId } from '../../gameplay/Abilities';
 import { LESSONS, type Lesson } from '../../gameplay/Tutorial';
 import type { Game } from '../../core/Game';
 import { el } from '../dom';
+import { buildAbilityCard } from './shopCards';
 import coinUrl from '../../ui-kit/bonk2/assets/icons/coin@2x.png?url';
-import powerDashUrl from '../../ui-kit/bonk2/assets/icons/power-dash@2x.png?url';
-import powerSlamUrl from '../../ui-kit/bonk2/assets/icons/power-slam@2x.png?url';
-import powerStaticUrl from '../../ui-kit/bonk2/assets/icons/power-static@2x.png?url';
 
 export interface PauseActions {
   resume(): void;
@@ -18,12 +16,6 @@ export interface PauseActions {
   /** Back to room 1, starting at that lesson. */
   lesson(id: Lesson): void;
 }
-
-const ABILITY_ICONS: Record<AbilityId, string> = {
-  blast: powerSlamUrl,
-  overdrive: powerDashUrl,
-  freeze: powerStaticUrl,
-};
 
 const controls = (): ReadonlyArray<readonly [string, string]> => [
   [`${moveKeysLabel()} / arrows`, 'move'],
@@ -78,12 +70,6 @@ function textRows(rows: ReadonlyArray<readonly [string, string]>, className: str
   return list;
 }
 
-function ownedBadge(): HTMLElement {
-  const badge = el('span', 'b2-shop-card__owned', 'OWNED');
-  badge.setAttribute('aria-label', 'Owned');
-  return badge;
-}
-
 /** Pause is the kit's door-hanger card: a breath, the powers, and the manual. */
 export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions): HTMLElement {
   const screen = el('div', 'screen pause b2-stage b2-stage--dim b2-pause');
@@ -129,59 +115,15 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
 
   const grid = el('div', 'b2-pause__grid');
   for (const def of ABILITIES) {
-    const card = el('article', 'b2-shop-card');
-    card.title = def.blurb;
-    const owned = game.abilities.owned(def.id);
-    card.classList.toggle('is-owned', owned);
-
-    const iconWrap = el('div', 'b2-shop-card__icon-wrap');
-    iconWrap.append(icon(ABILITY_ICONS[def.id], 'b2-icon b2-shop-card__icon'));
-
-    const copy = el('div', 'b2-shop-card__copy');
-    const nameRow = el('div', 'b2-shop-card__name-row');
-    const name = el('h3', 'b2-shop-card__name', def.name);
-    const key = el('span', 'b2-pause__key b2-shop-card__key', touch ? 'POWER' : def.key);
-    key.title = touch ? 'Use the POWER button' : `Key ${def.key}`;
-    nameRow.append(name, key);
-    copy.append(nameRow, el('p', 'b2-shop-card__blurb', def.blurb));
-
-    const meta = el('div', 'b2-shop-card__meta');
-    if (owned) {
-      meta.append(ownedBadge());
-    } else {
-      const cost = el('span', 'b2-shop-card__cost');
-      cost.append(icon(coinUrl, 'b2-icon b2-shop-card__coin'), el('span', 'b2-num', String(def.cost)));
-      const buy = el('button', 'b2-btn b2-btn--lime b2-btn--sm b2-shop-card__buy');
-      buy.type = 'button';
-      const accessible = `Buy ${def.name} for ${def.cost} scrap: ${def.blurb}`;
-      buy.setAttribute('aria-label', accessible);
-      buy.textContent = 'BUY';
-      buy.addEventListener('click', () => {
-        const failed = actions.buyAbility(def.id);
-        if (!failed) {
-          scrapValue.textContent = String(game.save.data.scrap);
-          scrapChip.setAttribute('aria-label', `${game.save.data.scrap} scrap`);
-          card.classList.add('is-owned');
-          buy.replaceWith(ownedBadge());
-          return;
-        }
-        const recover = accessible;
-        buy.textContent = failed.toUpperCase();
-        buy.setAttribute('aria-label', failed);
-        buy.disabled = true;
-        window.setTimeout(() => {
-          if (!buy.isConnected) return;
-          buy.textContent = 'BUY';
-          buy.setAttribute('aria-label', recover);
-          buy.disabled = false;
-        }, 1100);
-      });
-      meta.append(cost, buy);
-    }
-    copy.append(meta);
-
-    card.append(iconWrap, copy);
-    grid.append(card);
+    grid.append(buildAbilityCard(def, {
+      touch,
+      owned: game.abilities.owned(def.id),
+      buy: actions.buyAbility,
+      onBought: () => {
+        scrapValue.textContent = String(game.save.data.scrap);
+        scrapChip.setAttribute('aria-label', `${game.save.data.scrap} scrap`);
+      },
+    }));
   }
   shop.append(grid);
 

@@ -3,6 +3,7 @@ import { HUD } from './HUD';
 import { buildMainMenu } from './MainMenu';
 import { buildPauseMenu, buildSettings } from './PauseMenu';
 import { buildResults } from './ResultsScreen';
+import { buildStore } from './screens/store';
 
 /**
  * Phones get the whole screen and, where the browser allows it, a landscape lock.
@@ -137,8 +138,30 @@ export class UI implements GameUi {
           goFullscreenOnPhones(game);
           game.playFrom(index);
         },
-        settings: (tab) => this.show(buildSettings(game, () => this.showMenu(), tab)),
+        continueRun: () => {
+          this.hud.reset();
+          goFullscreenOnPhones(game);
+          game.continueRun();
+        },
+        daily: () => {
+          this.hud.reset();
+          goFullscreenOnPhones(game);
+          game.playDaily();
+        },
+        store: () => this.showStore(),
+        settings: () => this.show(buildSettings(game, () => this.showMenu())),
         hero: (id) => game.setHero(id),
+      }),
+    );
+  }
+
+  private showStore(): void {
+    const game = this.game;
+    this.show(
+      buildStore(game, {
+        buyUpgrade: (id) => game.buyUpgrade(id),
+        buyAbility: (id) => game.buyAbility(id),
+        back: () => this.showMenu(),
       }),
     );
   }

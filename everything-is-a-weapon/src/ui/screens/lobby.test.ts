@@ -22,7 +22,14 @@ function menuFor(hero: HeroId): HTMLElement {
     rooms: new RoomManager(),
     hero,
   } as unknown as Game;
-  return buildMainMenu(game, { play() {}, settings() {}, hero() {} });
+  return buildMainMenu(game, {
+    play() {},
+    continueRun() {},
+    daily() {},
+    store() {},
+    settings() {},
+    hero() {},
+  });
 }
 
 beforeEach(() => {
