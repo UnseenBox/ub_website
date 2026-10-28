@@ -19,7 +19,7 @@ function loadRaw(raw: Record<string, unknown>): SaveData {
   return manager.data;
 }
 
-describe('SaveManager v6', () => {
+describe('SaveManager v7', () => {
   it('migrates a v4 save without losing progress', () => {
     const save = loadRaw({
       version: 4,
@@ -31,7 +31,7 @@ describe('SaveManager v6', () => {
       tutorial: 'done',
     });
 
-    expect(SAVE_VERSION).toBe(6);
+    expect(SAVE_VERSION).toBe(7);
     expect(save.upgrades).toEqual({});
     expect(save.runOffer).toEqual([]);
     expect(save.unlockedRoom).toBe(5);
@@ -122,7 +122,7 @@ describe('SaveManager v6', () => {
       runActive: true, runFloor: 4, runStreak: 2, runScore: 4200,
       runBoosts: ['quick_feet'], runOffer: ['heavy_hands'],
     });
-    expect(SAVE_VERSION).toBe(6);
+    expect(SAVE_VERSION).toBe(7);
     expect(save.upgrades).toEqual({});
     expect(save.runOffer).toEqual([]);
     expect(save.roomBests).toEqual({});
@@ -166,5 +166,33 @@ describe('SaveManager v6', () => {
     expect(active.runOffer).toEqual(['heavy_hands', 'quick_feet', 'scrap_luck']);
     const idle = loadRaw({ version: 6, runActive: false, runOffer: ['heavy_hands'] });
     expect(idle.runOffer).toEqual([]);
+  });
+
+  it('defaults to Normal and falls back from unknown difficulties', () => {
+    const fresh = new SaveManager(new MemoryStorage()).data;
+    expect(fresh.difficulty).toBe('normal');
+    const weird = loadRaw({ version: 7, difficulty: 'nightmare' });
+    expect(weird.difficulty).toBe('normal');
+    const easy = loadRaw({ version: 7, difficulty: 'easy' });
+    expect(easy.difficulty).toBe('easy');
+    const hard = loadRaw({ version: 7, difficulty: 'hard' });
+    expect(hard.difficulty).toBe('hard');
+  });
+
+  it('keeps an old save on Normal, the difficulty it was born on', () => {
+    const legacy = loadRaw({ version: 5, unlockedRoom: 9 });
+    expect(legacy.difficulty).toBe('normal');
+    expect(legacy.version).toBe(7);
+  });
+
+  it('round-trips difficulty and writes it back', () => {
+    const storage = new MemoryStorage();
+    const first = new SaveManager(storage);
+    first.data.difficulty = 'hard';
+    first.write();
+
+    const second = new SaveManager(storage);
+    second.load();
+    expect(second.data.difficulty).toBe('hard');
   });
 });

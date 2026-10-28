@@ -57,6 +57,10 @@ export class Enemy {
   phaseIndex = 0;
   /** Speed multiplier from crossed phases. */
   rageMult = 1;
+  /** Campaign-difficulty speed multiplier, set when the intruder walks in. */
+  speedMult = 1;
+  /** Campaign-difficulty damage multiplier on the hearts a touch costs. */
+  enemyDamage = 1;
   /** Furniture-throw attack state (the Chucker). */
   hurlCooldown = 2;
   hurlT = -1;
@@ -232,7 +236,7 @@ export class Enemy {
     const dx = player.body.x - b.x;
     const dy = player.body.y - b.y;
     const dist = Math.hypot(dx, dy) || 1;
-    let speed = this.type.speed * this.rageMult * this.formSpeedMult() * (this.slowTimer > 0 ? this.slowFactor : 1);
+    let speed = this.type.speed * this.rageMult * this.speedMult * this.formSpeedMult() * (this.slowTimer > 0 ? this.slowFactor : 1);
 
     if (this.burn > 0) {
       // On fire: forget the plan, run around.
@@ -253,7 +257,7 @@ export class Enemy {
     switch (this.ai) {
       case 'entering':
         wallAvoidance(b.x, b.y, this.type.radius, game.world.bounds, wallPush);
-        this.steer(this.targetX + wallPush.x, this.targetY + wallPush.y, this.type.speed * this.rageMult, dt);
+        this.steer(this.targetX + wallPush.x, this.targetY + wallPush.y, this.type.speed * this.rageMult * this.speedMult, dt);
         this.walkPhase += dt * 10;
         if (this.aiTimer <= 0) {
           // They broke in looking for you: no need to spot the player first.
