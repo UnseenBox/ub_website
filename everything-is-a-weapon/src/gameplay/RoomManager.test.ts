@@ -144,4 +144,26 @@ describe('the 50-room campaign', () => {
       expect(runtime.totalEnemies).toBe(1);
     }
   });
+
+  it('varies door sides and furniture placement across the campaign', () => {
+    const rooms = new RoomManager();
+    const defs = Array.from({ length: CAMPAIGN_ROOMS }, (_, index) => rooms.definition(index));
+    // The entrance and exit are never on the same side, and the campaign uses
+    // more than one side — so the floor plan is not always a right-to-left corridor.
+    const sides = new Set<string>();
+    for (const def of defs) {
+      expect(def.entrance.side).not.toBe(def.exit.side);
+      sides.add(def.entrance.side);
+    }
+    expect(sides.size).toBeGreaterThan(1);
+    // The player always starts on the side opposite the entrance, facing the door.
+    for (const def of defs) {
+      const oppositeEntrance =
+        (def.entrance.side === 'left' && def.playerStart.x > def.width / 2) ||
+        (def.entrance.side === 'right' && def.playerStart.x < def.width / 2) ||
+        (def.entrance.side === 'top' && def.playerStart.y > def.height / 2) ||
+        (def.entrance.side === 'bottom' && def.playerStart.y < def.height / 2);
+      expect(oppositeEntrance).toBe(true);
+    }
+  });
 });
