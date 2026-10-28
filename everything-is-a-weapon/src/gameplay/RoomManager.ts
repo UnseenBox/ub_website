@@ -186,7 +186,13 @@ export class RoomManager {
     game.player.body.teleport(def.playerStart.x, def.playerStart.y);
     world.add(game.player.body);
 
-    const pending: PendingEnemy[] = def.enemies.map((spec) => ({ type: spec.type, delay: spec.delay }));
+    const isBossRoom = incident?.kind === 'headliner' || def.boss !== undefined;
+    // Boss rooms are one-on-one: the Headliner walks in alone. The regular crew
+    // that used to warm up the door is gone, so the fight is the boss from the
+    // first knock — and the room clears when the boss falls.
+    const pending: PendingEnemy[] = isBossRoom
+      ? []
+      : def.enemies.map((spec) => ({ type: spec.type, delay: spec.delay }));
     if (incident) pending.push({ type: incident.baseType, delay: Number.POSITIVE_INFINITY, incident });
     pending.sort((a, b) => a.delay - b.delay);
 
