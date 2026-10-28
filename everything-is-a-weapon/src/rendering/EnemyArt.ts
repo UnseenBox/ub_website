@@ -2621,7 +2621,7 @@ function drawEnemyBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number): 
     }
     ctx.stroke();
   };
-  if ((id === 'shield' || id === 'bulwark') && !e.defeated && fy < -0.1) board();
+  if ((id === 'shield' || id === 'bulwark') && !e.defeated && fy < -0.1 && e.shieldHp > 0) board();
 
   // ── body ──
   const outline = (c: Ctx): void => c.rect(-hw, -hd, hw * 2, hd * 2);

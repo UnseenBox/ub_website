@@ -29,4 +29,16 @@ describe('the boss roster', () => {
     expect(ENEMY_TYPES.cardboard.hp).toBeGreaterThanOrEqual(750);
     expect(ENEMY_TYPES.mom.hp).toBeGreaterThan(ENEMY_TYPES.house.hp);
   });
+
+  it('gives shield-bearers a front board with visible durability', () => {
+    const bailiff = ENEMY_TYPES.shield;
+    const bulwark = ENEMY_TYPES.bulwark;
+    expect(bailiff.shield).toBe(true);
+    expect(bulwark.shield).toBe(true);
+    expect((bailiff.shieldHp ?? 0)).toBeGreaterThan(0);
+    expect((bulwark.shieldHp ?? 0)).toBeGreaterThan(0);
+    // Movers without a board have no durability to show.
+    expect(ENEMY_TYPES.basic.shieldHp).toBeUndefined();
+    expect(ENEMY_TYPES.fast.shieldHp).toBeUndefined();
+  });
 });

@@ -17,6 +17,7 @@ export type GameEvent =
   | { type: 'WATER_CONTACT'; target: Thing }
   | { type: 'FIRE_CONTACT'; target: Thing }
   | { type: 'ENEMY_HIT'; enemy: Enemy; damage: number; cause: DamageCause }
+  | { type: 'ENEMY_SHIELDED'; enemy: Enemy; damage: number }
   | { type: 'ENEMY_STUNNED'; enemy: Enemy }
   | { type: 'ENEMY_DEFEATED'; enemy: Enemy; cause: DamageCause }
   | { type: 'PLAYER_HIT'; cause: string }

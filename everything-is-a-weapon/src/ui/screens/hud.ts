@@ -56,6 +56,7 @@ export class HUD {
   private readonly bossTag: HTMLElement;
   private readonly bossFill: HTMLElement;
   private readonly bossPips: HTMLElement;
+  private readonly shieldFill: HTMLElement;
   private lastBoss = '';
   private lastBossUid = -1;
   private readonly lineup: HTMLElement;
@@ -193,7 +194,12 @@ export class HUD {
     bossHead.append(this.bossName, this.bossTag);
     const bossTrack = el('div', 'boss-track b2-hud__bosstrack');
     bossTrack.append(this.bossFill, this.bossPips);
-    this.bossBox.append(bossHead, bossTrack);
+    // The board: a separate durability bar under the body. A shield-bearer's front
+    // is armour, not a wall — it splinters, and the bar shows exactly how much is left.
+    const shieldTrack = el('div', 'boss-track b2-hud__shieldtrack hidden');
+    this.shieldFill = el('span', 'boss-fill b2-hud__shieldfill');
+    shieldTrack.append(this.shieldFill);
+    this.bossBox.append(bossHead, bossTrack, shieldTrack);
     // Keep the boss plate in the HUD's top stack: it sits under the line-up instead
     // of hovering over the middle of the room where the fight happens.
     center.append(this.bossBox);
@@ -487,13 +493,22 @@ export class HUD {
     }
     const maxHp = Math.max(1, boss.type.hp);
     const ratio = Math.max(0, Math.min(1, boss.hp / maxHp));
-    const key = `${boss.uid}|${Math.round(ratio * 1000)}|${boss.phaseIndex}`;
+    const shieldMax = Math.max(0, boss.type.shieldHp ?? 0);
+    const shieldRatio = shieldMax > 0 ? Math.max(0, Math.min(1, boss.shieldHp / shieldMax)) : 0;
+    const key = `${boss.uid}|${Math.round(ratio * 1000)}|${Math.round(shieldRatio * 1000)}|${boss.phaseIndex}`;
     if (key === this.lastBoss) return;
     this.lastBoss = key;
     this.bossBox.dataset.kind = boss.incident ?? 'headliner';
     this.bossName.textContent = game.room.incidentSpec?.name ?? boss.type.name;
     this.bossTag.textContent = boss.incident === 'enforcer' ? 'ENFORCER' : 'HEADLINER';
     this.bossFill.style.width = `${ratio * 100}%`;
+    const shieldTrack = this.bossBox.querySelector<HTMLElement>('.b2-hud__shieldtrack');
+    if (shieldTrack) {
+      const hasShield = shieldMax > 0;
+      shieldTrack.classList.toggle('hidden', !hasShield);
+      this.shieldFill.style.width = `${shieldRatio * 100}%`;
+      shieldTrack.setAttribute('aria-label', hasShield ? `Board ${Math.round(shieldRatio * 100)}%` : '');
+    }
     this.bossBox.classList.toggle('phase-2', boss.phaseIndex >= 1);
     if (boss.uid !== this.lastBossUid) {
       this.lastBossUid = boss.uid;
