@@ -4,7 +4,7 @@ import { UPGRADES } from '../gameplay/Upgrades';
 import { isHeroId, type HeroId } from '../core/Hero';
 import type { PortalStorage } from '../platform/Portal';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 const STORAGE_KEY = 'everything-is-a-weapon/save';
 
 /** Best run on one room, for the level-select wall and replay bragging rights. */
@@ -19,6 +19,36 @@ export interface Settings {
   music: boolean;
   reducedShake: boolean;
   highContrast: boolean;
+}
+
+/** Campaign difficulty: Easy/Normal/Hard (new in version 7). */
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+export const DIFFICULTY_LABELS: Readonly<Record<Difficulty, string>> = {
+  easy: 'EASY',
+  normal: 'NORMAL',
+  hard: 'HARD',
+};
+
+/** How much a difficulty leans on the player's own body instead of the room. */
+export interface DifficultyModifiers {
+  readonly playerHp: number;
+  readonly enemyHp: number;
+  readonly enemySpeed: number;
+  readonly enemyDamage: number;
+  readonly scrap: number;
+  readonly score: number;
+}
+
+export const DIFFICULTY_MODIFIERS: Readonly<Record<Difficulty, DifficultyModifiers>> = {
+  easy: { playerHp: 7, enemyHp: 0.82, enemySpeed: 0.9, enemyDamage: 0.8, scrap: 1.15, score: 0.9 },
+  normal: { playerHp: 5, enemyHp: 1, enemySpeed: 1, enemyDamage: 1, scrap: 1, score: 1 },
+  hard: { playerHp: 4, enemyHp: 1.25, enemySpeed: 1.12, enemyDamage: 1.25, scrap: 0.85, score: 1.25 },
+};
+
+/** Picks a difficulty from a raw save value; unknown values fall back to Normal. */
+export function difficultyFor(raw: unknown): Difficulty {
+  return raw === 'easy' || raw === 'hard' ? raw : 'normal';
 }
 
 export interface SaveData {
@@ -76,6 +106,8 @@ export interface SaveData {
   /** Non-campaign mini-bosses defeated (new in version 5). */
   enforcersBeaten: number;
   hero: HeroId;
+  /** Campaign difficulty: Easy/Normal/Hard (new in version 7). */
+  difficulty: Difficulty;
   /** Room 1's lesson plan: '' not started, a lesson id part-way through, 'done' after. */
   tutorial: string;
   settings: Settings;
@@ -115,6 +147,7 @@ function defaults(): SaveData {
     dailyRareEdge: false,
     enforcersBeaten: 0,
     hero: 'tenant',
+    difficulty: 'normal',
     tutorial: '',
     settings: { volume: 0.7, muted: false, music: true, reducedShake: false, highContrast: false },
   };
@@ -184,6 +217,12 @@ function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     raw.runOffer = [];
     raw.roomBests = {};
     version = 6;
+  }
+  if (version < 7) {
+    // Version 7 adds the campaign difficulty (Easy/Normal/Hard). Old saves
+    // were always the middle difficulty, so they keep playing as before.
+    raw.difficulty = 'normal';
+    version = 7;
   }
   return raw;
 }
@@ -287,6 +326,7 @@ function sanitize(raw: unknown): SaveData {
     dailyRareEdge: data.dailyRareEdge === true,
     enforcersBeaten: Math.max(0, Math.floor(finite(data.enforcersBeaten, 0))),
     hero: isHeroId(data.hero) ? data.hero : base.hero,
+    difficulty: difficultyFor(data.difficulty),
     // Saves from before the lesson plan: anyone past room 1 has nothing left to be taught.
     tutorial: typeof data.tutorial === 'string' ? data.tutorial : finite(data.unlockedRoom, 0) > 0 ? 'done' : '',
     settings: {

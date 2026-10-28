@@ -326,6 +326,23 @@
   gap: 2px;
 }
 
+.b2-lobby__difficulty {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.b2-lobby__diffbtn {
+  flex: 1 1 80px;
+  min-width: 72px;
+  justify-content: center;
+}
+
+.b2-lobby__diffbtn.is-active {
+  background: var(--b2-lime);
+  color: var(--b2-ink);
+}
+
 .b2-lobby__modetitle {
   margin: 0;
   color: var(--b2-white);

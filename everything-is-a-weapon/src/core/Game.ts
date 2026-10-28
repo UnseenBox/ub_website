@@ -49,7 +49,7 @@ import { Camera } from '../rendering/Camera';
 import { Fx, impactWord } from '../rendering/Fx';
 import { Renderer } from '../rendering/Renderer';
 import { ReplayRecorder } from '../replay/ReplayRecorder';
-import { SaveManager } from '../save/SaveManager';
+import { SaveManager, DIFFICULTY_MODIFIERS, type Difficulty, type DifficultyModifiers } from '../save/SaveManager';
 import { FIXED_DT, TEXT_VISIBLE } from './constants';
 import { EventBus } from './Events';
 import { GameLoop } from './GameLoop';
@@ -422,7 +422,7 @@ export class Game {
       this.save.data.runBoosts = [...this.devEdges];
     }
     this.edges.beginFloor();
-    this.player = new Player(def.playerStart.x, def.playerStart.y, 5 + maxHealthBonus(this.save.data));
+    this.player = new Player(def.playerStart.x, def.playerStart.y, this.difficultyMods.playerHp + maxHealthBonus(this.save.data));
     this.player.armor = this.edges.armorAtFloorStart();
     this.room = this.rooms.build(this, def, index, daily, incident);
     this.pet = createPet(this.hero, def.playerStart.x - 34, def.playerStart.y + 12);
@@ -437,6 +437,18 @@ export class Game {
 
   get hero(): HeroId {
     return this.save.data.hero;
+  }
+
+  /** Campaign difficulty, picked on the main menu and persisted with the save. */
+  get difficulty(): Difficulty {
+    return this.save.data.difficulty;
+  }
+  get difficultyMods(): DifficultyModifiers {
+    return DIFFICULTY_MODIFIERS[this.difficulty];
+  }
+  /** Hearts a touch costs on the current difficulty. */
+  get enemyDamage(): number {
+    return this.difficultyMods.enemyDamage;
   }
 
   /** Picked on the menu; the room behind it is rebuilt so the right pet turns up. */

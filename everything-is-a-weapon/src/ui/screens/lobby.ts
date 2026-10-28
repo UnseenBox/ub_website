@@ -1,5 +1,6 @@
 import type { Game } from '../../core/Game';
 import type { HeroId } from '../../core/Hero';
+import { DIFFICULTY_LABELS, type Difficulty } from '../../save/SaveManager';
 import { el } from '../dom';
 import { buildCharactersPane, heroPair, heroPortrait } from './characters';
 import { buildRoomsPane } from './rooms';
@@ -218,6 +219,34 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   modeClose.addEventListener('click', closeMode);
   modeHead.append(modeHeading, modeClose);
 
+  // ── difficulty: the one run-setup choice that changes the fight ──────────
+  const difficulty = el('div', 'b2-lobby__difficulty');
+  difficulty.setAttribute('role', 'group');
+  difficulty.setAttribute('aria-label', 'Campaign difficulty');
+  const diffButtons: Record<Difficulty, HTMLButtonElement> = {
+    easy: null as never,
+    normal: null as never,
+    hard: null as never,
+  };
+  const paintDifficulty = (current: Difficulty): void => {
+    (Object.keys(DIFFICULTY_LABELS) as Difficulty[]).forEach((key) => {
+      diffButtons[key].classList.toggle('is-active', key === current);
+    });
+  };
+  (Object.entries(DIFFICULTY_LABELS) as [Difficulty, string][]).forEach(([key, label]) => {
+    const btn = el('button', 'b2-btn b2-btn--ghost b2-btn--sm b2-lobby__diffbtn');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      game.save.data.difficulty = key;
+      game.save.write();
+      paintDifficulty(key);
+    });
+    diffButtons[key] = btn;
+    difficulty.append(btn);
+  });
+  paintDifficulty(game.save.data.difficulty);
+
   const modeTabs = el('div', 'b2-tabs b2-lobby__modetabs');
   modeTabs.setAttribute('role', 'tablist');
   modeTabs.setAttribute('aria-label', 'Run setup sections');
@@ -243,7 +272,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   paneChars.hidden = true;
   modeBody.append(paneRooms, paneChars);
 
-  panel.append(modeHead, modeTabs, modeBody);
+  panel.append(modeHead, difficulty, modeTabs, modeBody);
   mode.append(backdrop, panel);
 
   // ── selection state, shared by PLAY and the sheet ──────────────────────

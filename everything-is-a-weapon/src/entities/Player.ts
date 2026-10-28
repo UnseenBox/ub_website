@@ -417,6 +417,8 @@ export class Player {
       amount *= 2;
       game.popup('GLASS CANNON', this.body.x, this.body.y - 70, '#ff9f1c', 18);
     }
+    // Harder difficulties make every touch cost more; easier ones less.
+    amount *= game.enemyDamage;
     this.hp -= amount;
     this.invulnerable = 1.1;
     this.hurtFlash = 1;

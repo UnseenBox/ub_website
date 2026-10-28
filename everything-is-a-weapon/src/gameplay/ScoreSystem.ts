@@ -113,7 +113,8 @@ export class ScoreSystem {
         * this.combo
         * this.game.edges.scoreMultiplier(this.game.save.data.runStreak)
         * ledgerScoreMultiplier(this.game.save.data)
-        * upgradeScoreMultiplier(this.game.save.data),
+        * upgradeScoreMultiplier(this.game.save.data)
+        * this.game.difficultyMods.score,
     );
     this.score += total;
     this.game.popup(`+${total}`, x, y, color, 20 + Math.min(14, total / 150));
@@ -171,7 +172,8 @@ export class ScoreSystem {
       baseScrap
         * game.edges.scrapMultiplier()
         * ledgerScrapMultiplier(game.save.data)
-        * upgradeScrapMultiplier(game.save.data),
+        * upgradeScrapMultiplier(game.save.data)
+        * game.difficultyMods.scrap,
     );
 
     let points = 100 + enemy.type.scoreBonus;

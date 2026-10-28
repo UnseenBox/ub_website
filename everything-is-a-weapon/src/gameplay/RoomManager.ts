@@ -257,6 +257,11 @@ export class RoomManager {
           enemy.hp = Math.round(enemy.hp * Math.min(1.6, 1 + 0.07 * depth));
         }
       }
+      // The campaign difficulty leans on the room: tougher intruders hit harder and
+      // last longer. Bosses keep their designed HP; the bar scales with them.
+      enemy.hp = Math.round(enemy.hp * game.difficultyMods.enemyHp);
+      enemy.speedMult = game.difficultyMods.enemySpeed;
+      enemy.enemyDamage = game.difficultyMods.enemyDamage;
       if (spec.incident) {
         enemy.incident = spec.incident.kind;
         room.incidentEnemy = enemy;

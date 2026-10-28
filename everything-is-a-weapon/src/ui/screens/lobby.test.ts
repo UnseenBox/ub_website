@@ -46,3 +46,30 @@ it.each(HERO_CASES)('shows only the selected %s hero in the main menu', (hero, a
   expect(menu.querySelector('.b2-lobby__cast')).toBeNull();
   expect(menu.querySelector('img[src*="bonk-cast"]')).toBeNull();
 });
+
+it('offers Easy/Normal/Hard on the run-setup sheet and keeps the saved choice', () => {
+  const save = new SaveManager();
+  save.data.difficulty = 'hard';
+  const game = {
+    save,
+    discoveries: { total: 131, count: 0 },
+    rooms: new RoomManager(),
+    hero: 'kid',
+  } as unknown as Game;
+  const menu = buildMainMenu(game, {
+    play() {},
+    continueRun() {},
+    daily() {},
+    store() {},
+    settings() {},
+    hero() {},
+  });
+  document.body.append(menu);
+
+  const buttons = [...menu.querySelectorAll<HTMLButtonElement>('.b2-lobby__diffbtn')];
+  expect(buttons.map((b) => b.textContent)).toEqual(['EASY', 'NORMAL', 'HARD']);
+  expect(buttons.filter((b) => b.classList.contains('is-active')).map((b) => b.textContent)).toEqual(['HARD']);
+
+  buttons[0]?.click();
+  expect(save.data.difficulty).toBe('easy');
+});
