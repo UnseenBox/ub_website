@@ -2583,7 +2583,7 @@ function drawEnemyBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number): 
           [[0.25, 0.62], [0.29, 0.34], [0.22, 0.06]],
         );
       }
-      ctx.strokeStyle = 'rgba(30, 24, 34, 0.72)';
+      ctx.strokeStyle = id === 'bulwark' ? 'rgba(224, 236, 246, 0.72)' : 'rgba(30, 24, 34, 0.72)';
       ctx.lineWidth = 1.7;
       ctx.beginPath();
       for (const split of splits) {
