@@ -161,6 +161,8 @@ export interface EnemyType {
   readonly staggerFactor: number;
   readonly turnRate: number;
   readonly helmetHp?: number;
+  /** A front board: blocks frontal hits until its HP runs out. */
+  readonly shieldHp?: number;
   readonly shield?: boolean;
   readonly shockImmune?: boolean;
   readonly electric?: boolean;
@@ -253,7 +255,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   },
   shield: {
     id: 'shield', name: 'Bailiff', hp: 70, speed: 78, mass: 60, radius: 17, reaction: 0.6, awareness: 380,
-    impactFactor: 1, lightObjectFactor: 1, staggerFactor: 0.8, turnRate: 2.4, shield: true, burnFactor: 1.25,
+    impactFactor: 1, lightObjectFactor: 1, staggerFactor: 0.8, turnRate: 2.4, shield: true, shieldHp: 60, burnFactor: 1.25,
     color: '#b58d60', shade: '#86623c', scoreBonus: 150, voice: 135,
   },
   electric: {
@@ -308,7 +310,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // A bulwark: a walking safe door. Front impacts clang off; burn it, shock it, or go around.
   bulwark: {
     id: 'bulwark', name: 'Bulwark', hp: 130, speed: 60, mass: 110, radius: 19, reaction: 0.7, awareness: 380,
-    impactFactor: 0.9, lightObjectFactor: 0.5, staggerFactor: 0.4, turnRate: 1.6, shield: true, helmetHp: 80,
+    impactFactor: 0.9, lightObjectFactor: 0.5, staggerFactor: 0.4, turnRate: 1.6, shield: true, shieldHp: 95, helmetHp: 80,
     burnFactor: 1.4, color: '#5a6b7d', shade: '#3a4552', scoreBonus: 200, voice: 100,
   },
   // CHAIRMAN OF CHAOS: middle management fused to its office chair. Rolls at you,

@@ -527,7 +527,7 @@ export class Game {
     this.lessonFrom = null;
     const firstVisit = !daily && this.save.data.deepest <= index;
     if (def.tutorial && !daily) this.tutorial.begin(lesson);
-    else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight);
+    else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight, def.teaser);
     this.portal.setContext({ room: daily ? 'daily' : index + 1, hero: this.hero });
     this.setState('playing');
     this.funnelT0 = performance.now();

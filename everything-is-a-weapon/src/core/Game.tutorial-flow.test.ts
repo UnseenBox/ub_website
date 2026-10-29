@@ -189,6 +189,41 @@ it('tutorial → clear → results with ledger claim → room 2', async () => {
   expect(['playing', 'failed']).toContain(game.state);
 }, 40000);
 
+it('a first visit to a later room spotlights its new toys and teaches one line', async () => {
+  const game = new Game(fakeCanvas());
+  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
+  game.start();
+  game.tutorial.skip();
+  // Room 1 clears instantly so we can step into room 2, which has a spotlight.
+  {
+    const limit = Math.round(40 / FIXED_DT);
+    for (let i = 0; i < limit; i++) {
+      if (game.room.pending.length === 0) break;
+      game.tick(FIXED_DT);
+      frameOf(game)(1, FIXED_DT);
+      sweep(game);
+    }
+  }
+  sweep(game);
+  waitFor(game, () => game.state === 'cleared', 8);
+  // Resolve the draft so nextRoom can advance: pick the first edge, then move on.
+  const chosen = game.pendingDraft!.offer[0]!;
+  game.chooseEdge(chosen.id);
+  game.save.data.deepest = 1;
+  game.save.write();
+  await game.nextRoom();
+  // Room 2 is a first visit with a spotlight: the teaser rides under the guide.
+  expect(game.tutorial.spotStep).toBe(true);
+  expect(game.tutorial.spot.length).toBeGreaterThan(0);
+  expect(game.tutorial.guide.caption.length).toBeGreaterThan(0);
+  // Picking up a highlighted toy ends the beat and the room is just a room.
+  const toy = game.objects.find((o) => o.alive && game.tutorial.spot.includes(o.def.id))!;
+  game.bus.emit({ type: 'OBJECT_GRABBED', object: toy });
+  expect(game.tutorial.spotStep).toBe(false);
+  expect(game.tutorial.spot).toHaveLength(0);
+  expect(game.tutorial.guide.caption).toBe('');
+});
+
 it('results screen builds the simple victory DOM and wires NEXT ROOM', async () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});

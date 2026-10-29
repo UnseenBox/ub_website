@@ -109,6 +109,8 @@ export class Enemy {
   private panicTimer = 0;
 
   helmetHp: number;
+  /** Front board HP: blocks frontal hits until it splinters away. */
+  shieldHp: number;
   fireZone: Zone | null = null;
 
   hitFlash = 0;
@@ -130,6 +132,7 @@ export class Enemy {
     this.label = type.name.toUpperCase();
     this.hp = type.hp;
     this.helmetHp = type.helmetHp ?? 0;
+    this.shieldHp = type.shieldHp ?? 0;
     this.tags.add(type.id);
     if (type.shockImmune) this.tags.add('shock_immune');
     if (type.electric) this.tags.add('electric_enemy');
@@ -1226,7 +1229,7 @@ export class Enemy {
       label = source.label;
     }
 
-    if (this.type.shield) {
+    if (this.type.shield && this.shieldHp > 0) {
       const facingDot = Math.cos(this.facing) * -dirX + Math.sin(this.facing) * -dirY;
       if (facingDot > 0.3) {
         this.blockFlash = 1;
@@ -1239,9 +1242,15 @@ export class Enemy {
         game.audio.impact('metal', 0.8, 3);
         game.fx.burst('CLANG!', b.x + Math.cos(this.facing) * 22, b.y - 30, 0.9, '#cfd8ea');
         game.discoveries.unlock('clang');
+        // The board takes the hit: it is armour, not a wall. When its HP runs out
+        // it splinters away and the front is open until the intruder finds another.
+        this.shieldHp -= damage;
+        game.bus.emit({ type: 'ENEMY_SHIELDED', enemy: this, damage });
+        if (this.shieldHp <= 0) this.loseShield(game, dirX, dirY);
         this.aware = true;
         return 0;
       }
+      // A flank still finds the gap behind the board.
       damage *= 1.5;
       game.discoveries.unlock('backstab');
     }
@@ -1293,6 +1302,23 @@ export class Enemy {
     return helmet;
   }
 
+  /** The front board splinters away in the blow's direction. */
+  loseShield(game: Game, dirX: number, dirY: number): void {
+    if (this.shieldHp > 0 || this.defeated) return;
+    const b = this.body;
+    const fx = Math.cos(this.facing);
+    const fy = Math.sin(this.facing);
+    // The board flies off as debris: a few chunks plus a smoke cloud, so the
+    // break reads as a break and the room stays visible through the haze.
+    game.particles.burst('smoke', b.x + fx * 10, b.y + fy * 10 - 4, 14, 150, { dirX: fx, dirY: fy, spread: 0.8 });
+    game.particles.burst('dust', b.x + fx * 14, b.y + fy * 14, 10, 120, { dirX: fx, dirY: fy, spread: 0.6 });
+    game.fx.burst('SHATTER!', b.x + fx * 26, b.y - 28, 1.05, '#cfd8ea');
+    game.audio.play('glassBreak', 0.9);
+    game.camera.addShake(0.25);
+    game.bus.emit({ type: 'ENEMY_SHIELDED', enemy: this, damage: 0 });
+    this.shieldHp = 0;
+  }
+
   damage(game: Game, amount: number, cause: DamageCause): void {
     if (this.defeated || amount <= 0) return;
     let applied = amount;
@@ -1339,6 +1365,15 @@ export class Enemy {
     }
     this.burn = seconds;
     this.burnTick = 0.15;
+    // Fire is the counterplay to a board: smoke and heat eat through the front
+    // plate, so burning a shield-bearer drops its guard for the rest of the fight.
+    if (this.shieldHp > 0) {
+      this.shieldHp = 0;
+      game.particles.burst('smoke', this.body.x, this.body.y - 6, 16, 170);
+      game.fx.burst('BOARD GONE!', this.body.x, this.body.y - 34, 1.05, '#ff9f1c');
+      game.audio.play('hiss', 1);
+      game.bus.emit({ type: 'ENEMY_SHIELDED', enemy: this, damage: 0 });
+    }
     if (chain) {
       this.chain = chain;
       this.chainAt = game.time;

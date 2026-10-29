@@ -2,7 +2,7 @@ import { Rng, hashString } from '../core/Random';
 import type { EnemyTypeId } from '../entities/EnemyTypes';
 import { ObjectRegistry } from '../objects/ObjectRegistry';
 import { GENERIC_CHALLENGES } from './ChallengeSystem';
-import type { RoomDefinition, RoomEnemySpec, RoomObjectSpec, RoomTheme, RoomZoneSpec } from './Room';
+import type { RoomDefinition, RoomEnemySpec, RoomObjectSpec, RoomTheme, RoomZoneSpec, Side } from './Room';
 
 interface Placed {
   x: number;
@@ -168,14 +168,54 @@ export function generateRoom(
   } else if (sizeRoll < 0.18) {
     width = 860; height = 640;
   }
-  const playerStart = { x: 150, y: height / 2 };
-  const entrancePos = rng.range(height * 0.3, height * 0.7);
+  const SIDES: readonly Side[] = ['left', 'right', 'top', 'bottom'];
 
+  /** Picks a door layout from the seed: four sides, four pairings, so the same
+     room never reads as the same shape twice. The player always starts near the
+     entrance and the exit is always reachable. */
+  const layoutRoll = rng.int(0, 15);
+  const entranceSide: Side = SIDES[layoutRoll % 4];
+  const exitSide: Side = SIDES[(layoutRoll + 2 + rng.int(0, 1)) % 4];
+  const entranceSpan = entranceSide === 'top' || entranceSide === 'bottom' ? width : height;
+  const exitSpan = exitSide === 'top' || exitSide === 'bottom' ? width : height;
+  const entrancePos = rng.range(entranceSpan * 0.3, entranceSpan * 0.7);
+  const exitPos = rng.range(exitSpan * 0.3, exitSpan * 0.7);
+  // The same theme can still look like three different rooms: the set-pieces move
+  // along the wall the entrance is NOT on, so a side-door room and a top-door room
+  // of the same kind never share a silhouette.
+  const layoutVariant = layoutRoll % 3;
+  // Fractional spot biased away from the entrance wall, with a per-variant jitter
+  // so two rooms of the same kind still differ.
+  const spot = (fx: number, fy: number): { x: number; y: number } => {
+    const j = (v: number) => v + (layoutVariant - 1) * 0.06;
+    let x = width * j(fx);
+    let y = height * j(fy);
+    if (entranceSide === 'left') x = width - x;
+    if (entranceSide === 'right') x = width * (1 - j(fx));
+    if (entranceSide === 'top') y = height - y;
+    if (entranceSide === 'bottom') y = height * (1 - j(fy));
+    return { x, y };
+  };
+  const playerStart =
+    entranceSide === 'right' ? { x: 150, y: height / 2 }
+    : entranceSide === 'left' ? { x: width - 150, y: height / 2 }
+    : entranceSide === 'top' ? { x: width / 2, y: height - 150 }
+    : { x: width / 2, y: 150 };
+  const entranceBlock =
+    entranceSide === 'right' ? { x: width - 20, y: entrancePos, r: 100 }
+    : entranceSide === 'left' ? { x: 20, y: entrancePos, r: 100 }
+    : entranceSide === 'top' ? { x: entrancePos, y: 20, r: 100 }
+    : { x: entrancePos, y: height - 20, r: 100 };
+  const exitBlock =
+    exitSide === 'right' ? { x: width - 20, y: exitPos, r: 70 }
+    : exitSide === 'left' ? { x: 20, y: exitPos, r: 70 }
+    : exitSide === 'top' ? { x: exitPos, y: 20, r: 70 }
+    : { x: exitPos, y: height - 20, r: 70 };
   const placed: Placed[] = [
     { x: playerStart.x, y: playerStart.y, r: 80 },
-    { x: width - 20, y: entrancePos, r: 100 },
+    entranceBlock,
     // Exits are walked out of nowhere, but nothing may pile up on the door.
-    { x: 20, y: height * 0.82, r: 70 },
+    exitBlock,
   ];
   const objects: RoomObjectSpec[] = [];
   const zones: RoomZoneSpec[] = [];
@@ -204,17 +244,30 @@ export function generateRoom(
     return objects.length - 1;
   };
 
-  /** Puts something flush against the back wall and reserves its footprint. */
-  const againstWall = (type: string, x: number, halfWidth: number, halfDepth: number): number => {
-    objects.push({ type, x, y: halfDepth + 3 });
-    placed.push({ x, y: halfDepth + 3, r: halfWidth + 6 });
+  /** Puts something flush against the wall opposite the entrance and reserves its footprint. */
+  const againstWall = (type: string, along: number, halfWidth: number, halfDepth: number): number => {
+    const onLeft = entranceSide === 'right';
+    const onTop = entranceSide === 'bottom';
+    const horizontal = entranceSide === 'left' || entranceSide === 'right';
+    const x = horizontal ? along : (onLeft ? halfDepth + 3 : width - halfDepth - 3);
+    const y = horizontal ? (onTop ? halfDepth + 3 : height - halfDepth - 3) : along;
+    objects.push({ type, x, y });
+    placed.push({ x, y, r: halfWidth + 6 });
     return objects.length - 1;
   };
 
-  /** Back-wall sleeper (bed, tub, sofa): retries along the wall, skips on failure. */
-  const sleeper = (type: string, y: number, r: number): number => {
+  /** Back-wall sleeper (bed, tub, sofa): retries along the wall opposite the entrance. */
+  const sleeper = (type: string, r: number): number => {
+    // The sleeper sits on the wall the entrance is NOT on, 92px in from the edge.
+    const onLeft = entranceSide === 'right';
+    const onTop = entranceSide === 'bottom';
+    const wallX = onLeft ? 92 : width - 92;
+    const wallY = onTop ? 92 : height - 92;
+    const horizontal = entranceSide === 'left' || entranceSide === 'right';
     for (let attempt = 0; attempt < 12; attempt++) {
-      const x = rng.range(110, width - 110 - r);
+      const along = rng.range(110, (horizontal ? width : height) - 110 - r);
+      const x = horizontal ? along : wallX;
+      const y = horizontal ? wallY : along;
       let clash = false;
       for (const p of placed) {
         if (Math.hypot(p.x - x, p.y - y) < p.r + r + 14) {
@@ -251,7 +304,7 @@ export function generateRoom(
   // ── the furniture that makes it this kind of room ──
   switch (theme) {
     case 'bedroom': {
-      const bed = sleeper('bed', 92, 84);
+      const bed = sleeper('bed', 84);
       if (bed >= 0) {
         onTop(bed, 'pillow', -18, -42);
         onTop(bed, 'pillow', 20, -38);
@@ -265,14 +318,13 @@ export function generateRoom(
       break;
     }
     case 'living': {
-      const x = rng.range(200, width - 260);
-      const sofa = sleeper('sofa', 150, 66);
+      const sofa = sleeper('sofa', 66);
       if (sofa >= 0) {
         onTop(sofa, 'pillow', -30, 6);
         onTop(sofa, 'pillow', 34, 8);
       }
       table();
-      if (rng.chance(0.6)) againstWall('bookshelf', x < width / 2 ? x + 240 : x - 240, 46, 13);
+      if (rng.chance(0.6)) againstWall('bookshelf', rng.range(180, width - 180), 46, 13);
       break;
     }
     case 'kitchen': {
@@ -302,12 +354,12 @@ export function generateRoom(
     }
     case 'pool': {
       // deck loungers facing the water
-      sleeper('bed', 67, 80);
+      sleeper('bed', 80);
       break;
     }
     case 'jail': {
       // bunks along the back wall
-      sleeper('bed', 67, 80);
+      sleeper('bed', 80);
       table();
       break;
     }
@@ -345,17 +397,21 @@ export function generateRoom(
   };
   switch (theme) {
     case 'office': {
-      // cubicle pair facing each other across an aisle
-      const t1 = tryPlace('table', width * 0.42, height * 0.32);
+      // cubicle pair facing each other across an aisle, pushed to the far wall
+      const a = spot(0.42, 0.32);
+      const t1 = tryPlace('table', a.x, a.y);
       if (t1 >= 0) onTop(t1, 'computer', -14, 0);
-      const t2 = tryPlace('table', width * 0.42, height * 0.68);
+      const b = spot(0.42, 0.68);
+      const t2 = tryPlace('table', b.x, b.y);
       if (t2 >= 0) onTop(t2, 'book', 16, 0);
-      tryPlace('officechair', width * 0.3, height * 0.5, 1.2);
+      const c = spot(0.3, 0.5);
+      tryPlace('officechair', c.x, c.y, 1.2);
       break;
     }
     case 'kitchen': {
       // middle island, already laid for lunch
-      const t = tryPlace('table', width * 0.5, height * 0.55);
+      const a = spot(0.5, 0.55);
+      const t = tryPlace('table', a.x, a.y);
       if (t >= 0) {
         onTop(t, 'plate', -20, 0);
         onTop(t, 'pan', 22, 0);
@@ -364,77 +420,85 @@ export function generateRoom(
     }
     case 'garage': {
       // tyre pile with the toolbox on top of the job
-      tryPlace('tire', width * 0.55, height * 0.4);
-      tryPlace('tire', width * 0.55 + 34, height * 0.4 + 20);
-      tryPlace('toolbox', width * 0.55, height * 0.58);
+      const a = spot(0.55, 0.4);
+      tryPlace('tire', a.x, a.y);
+      tryPlace('tire', a.x + 34, a.y + 20);
+      const b = spot(0.55, 0.58);
+      tryPlace('toolbox', b.x, b.y);
       break;
     }
     case 'living': {
       // sofa fort facing the door
-      const s = tryPlace('sofa', width * 0.55, height * 0.4);
+      const a = spot(0.55, 0.4);
+      const s = tryPlace('sofa', a.x, a.y);
       if (s >= 0) {
         onTop(s, 'pillow', -30, 6);
         onTop(s, 'pillow', 34, 8);
       }
-      tryPlace('chair', width * 0.55 - 110, height * 0.42, 0.4);
-      tryPlace('chair', width * 0.55 + 110, height * 0.42, -0.4);
+      tryPlace('chair', a.x - 110, a.y + 2, 0.4);
+      tryPlace('chair', a.x + 110, a.y + 2, -0.4);
       break;
     }
     case 'bathroom': {
-      tryPlace('bucket', width * 0.5, height * 0.6);
-      tryPlace('duck', width * 0.42, height * 0.5, 0.8);
+      const a = spot(0.5, 0.6);
+      tryPlace('bucket', a.x, a.y);
+      const b = spot(0.42, 0.5);
+      tryPlace('duck', b.x, b.y, 0.8);
       break;
     }
     case 'bedroom': {
-      const t = tryPlace('table', width * 0.55, height * 0.6);
+      const a = spot(0.55, 0.6);
+      const t = tryPlace('table', a.x, a.y);
       if (t >= 0) onTop(t, 'alarmclock', 0, 0);
-      tryPlace('chair', width * 0.55, height * 0.42);
+      const b = spot(0.55, 0.42);
+      tryPlace('chair', b.x, b.y);
       break;
     }
     case 'garden': {
       // flower beds flanking the lawn
-      tryPlace('flowerpot', width * 0.4, height * 0.35);
-      tryPlace('flowerpot', width * 0.6, height * 0.35);
-      tryPlace('flowerpot', width * 0.5, height * 0.68);
-      tryPlace('rake', width * 0.62, height * 0.55, 0.5);
-      tryPlace('bucket', width * 0.36, height * 0.6);
+      tryPlace('flowerpot', spot(0.4, 0.35).x, spot(0.4, 0.35).y);
+      tryPlace('flowerpot', spot(0.6, 0.35).x, spot(0.6, 0.35).y);
+      tryPlace('flowerpot', spot(0.5, 0.68).x, spot(0.5, 0.68).y);
+      tryPlace('rake', spot(0.62, 0.55).x, spot(0.62, 0.55).y, 0.5);
+      tryPlace('bucket', spot(0.36, 0.6).x, spot(0.36, 0.6).y);
       break;
     }
     case 'pool': {
       // beachhead: loungers' litter at the shallow end
-      tryPlace('pillow', width * 0.32, height * 0.62, 0.2);
-      tryPlace('pillow', width * 0.68, height * 0.62, -0.3);
-      tryPlace('ball', width * 0.5, height * 0.72);
-      tryPlace('duck', width * 0.56, height * 0.4, 0.7);
-      tryPlace('chair', width * 0.3, height * 0.3, 1.1);
+      tryPlace('pillow', spot(0.32, 0.62).x, spot(0.32, 0.62).y, 0.2);
+      tryPlace('pillow', spot(0.68, 0.62).x, spot(0.68, 0.62).y, -0.3);
+      tryPlace('ball', spot(0.5, 0.72).x, spot(0.5, 0.72).y);
+      tryPlace('duck', spot(0.56, 0.4).x, spot(0.56, 0.4).y, 0.7);
+      tryPlace('chair', spot(0.3, 0.3).x, spot(0.3, 0.3).y, 1.1);
       break;
     }
     case 'jail': {
       // yard time: weights, lines and a ball to chain
-      tryPlace('dumbbell', width * 0.42, height * 0.55);
-      tryPlace('bowlingball', width * 0.58, height * 0.55);
-      tryPlace('plank', width * 0.5, height * 0.68, 0.2);
-      tryPlace('book', width * 0.36, height * 0.4, -0.4);
+      tryPlace('dumbbell', spot(0.42, 0.55).x, spot(0.42, 0.55).y);
+      tryPlace('bowlingball', spot(0.58, 0.55).x, spot(0.58, 0.55).y);
+      tryPlace('plank', spot(0.5, 0.68).x, spot(0.5, 0.68).y, 0.2);
+      tryPlace('book', spot(0.36, 0.4).x, spot(0.36, 0.4).y, -0.4);
       break;
     }
     case 'porch': {
       // sweet tea for two
-      const t = tryPlace('table', width * 0.5, height * 0.5);
+      const a = spot(0.5, 0.5);
+      const t = tryPlace('table', a.x, a.y);
       if (t >= 0) {
         onTop(t, 'candle', -20, 0);
         onTop(t, 'book', 22, 0);
       }
-      tryPlace('chair', width * 0.5 - 120, height * 0.5, 1.4);
-      tryPlace('chair', width * 0.5 + 120, height * 0.5, -1.4);
-      tryPlace('flowerpot', width * 0.32, height * 0.66);
+      tryPlace('chair', a.x - 120, a.y, 1.4);
+      tryPlace('chair', a.x + 120, a.y, -1.4);
+      tryPlace('flowerpot', spot(0.32, 0.66).x, spot(0.32, 0.66).y);
       break;
     }
     case 'basement': {
       // workbench corner that never got finished
-      tryPlace('toolbox', width * 0.4, height * 0.4);
-      tryPlace('paintcan', width * 0.6, height * 0.42);
-      tryPlace('wrench', width * 0.5, height * 0.58, 0.7);
-      tryPlace('tire', width * 0.64, height * 0.62);
+      tryPlace('toolbox', spot(0.4, 0.4).x, spot(0.4, 0.4).y);
+      tryPlace('paintcan', spot(0.6, 0.42).x, spot(0.6, 0.42).y);
+      tryPlace('wrench', spot(0.5, 0.58).x, spot(0.5, 0.58).y, 0.7);
+      tryPlace('tire', spot(0.64, 0.62).x, spot(0.64, 0.62).y);
       break;
     }
   }
@@ -535,8 +599,8 @@ export function generateRoom(
     objects,
     zones,
     enemies,
-    entrance: { side: 'right', pos: entrancePos },
-    exit: { side: 'left', pos: height * 0.82 },
+    entrance: { side: entranceSide, pos: entrancePos },
+    exit: { side: exitSide, pos: exitPos },
     playerStart,
     rug:
       kit.rugs.length > 0 && rng.chance(0.7)

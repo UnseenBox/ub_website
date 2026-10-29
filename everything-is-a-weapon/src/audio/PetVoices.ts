@@ -38,6 +38,36 @@ interface Call {
 }
 
 const DEFAULT_SHAPE = [0, 1, 0.9, 0.8, 0.45, 0] as const;
+
+// The pets are chatty by design, but a room full of them yapping at every throw
+// and hit reads as noise. A short per-pet cooldown and a global cap keep the
+// voices present without turning the fight into a bark storm.
+const VOICE_COOLDOWN = 0.4;
+const VOICE_CAP = 4;
+const lastVoice = new Map<string, number>();
+let voiceCount = 0;
+let voiceWindow = 0;
+
+export function gate(key: string): boolean {
+  const now = performance.now() / 1000;
+  if (now - voiceWindow > 1) {
+    voiceWindow = now;
+    voiceCount = 0;
+  }
+  if (voiceCount >= VOICE_CAP) return false;
+  const last = lastVoice.get(key) ?? 0;
+  if (now - last < VOICE_COOLDOWN) return false;
+  lastVoice.set(key, now);
+  voiceCount++;
+  return true;
+}
+
+export function resetVoiceState(): void {
+  lastVoice.clear();
+  voiceCount = 0;
+  voiceWindow = 0;
+}
+
 const noiseBuffers = new WeakMap<BaseAudioContext, AudioBuffer>();
 
 function noiseBuffer(ctx: BaseAudioContext): AudioBuffer {
@@ -147,11 +177,12 @@ const scaled = (values: readonly number[], k: number): number[] => values.map((v
 // ───────────────────────── cat ─────────────────────────
 
 export function meow(audio: AudioManager, mood: 'hello' | 'scared' | 'war' = 'hello'): void {
+  if (!gate(`cat:${mood}`)) return;
   // A real meow when one is decoded; the synth below is the offline fallback.
   if (mood === 'war') {
-    if (audio.burstSamples('cat', 2, 0.35, { gain: 0.55, rate: 0.85 })) return;
+    if (audio.burstSamples('cat', 2, 0.35, { gain: 0.4, rate: 0.85 })) return;
   } else if (
-    audio.sample('cat', { gain: 0.55, rate: (mood === 'scared' ? 1.2 : 1) * vary(0.1), key: `cat:${mood}`, gap: 0.3 })
+    audio.sample('cat', { gain: 0.4, rate: (mood === 'scared' ? 1.2 : 1) * vary(0.1), key: `cat:${mood}`, gap: 0.3 })
   ) {
     return;
   }
@@ -163,7 +194,7 @@ export function meow(audio: AudioManager, mood: 'hello' | 'scared' | 'war' = 'he
     call(s, {
       pitch: scaled([520, 690, 760, 700, 590, 470], k),
       dur: 0.5 + Math.random() * 0.18,
-      gain: 0.46,
+      gain: 0.34,
       shape: [0, 0.5, 1, 0.95, 0.6, 0.25, 0],
       breath: 0.04,
       vibrato: { rate: 6, depth: 9 },
@@ -178,7 +209,7 @@ export function meow(audio: AudioManager, mood: 'hello' | 'scared' | 'war' = 'he
     call(s, {
       pitch: scaled([620, 980, 1250, 1300, 1150, 900], k),
       dur: 0.55,
-      gain: 0.36,
+      gain: 0.26,
       shape: [0, 1, 1, 0.9, 0.6, 0],
       breath: 0.12,
       rough: { rate: 38, depth: 0.5 },
@@ -193,7 +224,7 @@ export function meow(audio: AudioManager, mood: 'hello' | 'scared' | 'war' = 'he
     call(s, {
       pitch: scaled([210, 240, 300, 430, 600, 520, 300], k),
       dur: 1.05,
-      gain: 0.46,
+      gain: 0.34,
       shape: [0, 0.6, 0.8, 1, 1, 0.7, 0],
       breath: 0.1,
       rough: { rate: 27, depth: 0.65 },
@@ -207,32 +238,35 @@ export function meow(audio: AudioManager, mood: 'hello' | 'scared' | 'war' = 'he
 }
 
 export function hiss(audio: AudioManager): void {
+  if (!gate('cat:hiss')) return;
   const s = audio.synth('cat:hiss', 0.25);
   if (!s) return;
   // the spit at the front, then air through teeth
-  s.noise({ filter: 'bandpass', from: 2800, dur: 0.045, gain: 0.22, q: 1.4 });
-  s.noise({ filter: 'bandpass', from: 6200, to: 4400, dur: 0.6, gain: 0.24, q: 0.7, attack: 0.05, delay: 0.02 });
-  s.noise({ filter: 'highpass', from: 7500, dur: 0.5, gain: 0.1, attack: 0.06, delay: 0.02 });
+  s.noise({ filter: 'bandpass', from: 2800, dur: 0.045, gain: 0.14, q: 1.4 });
+  s.noise({ filter: 'bandpass', from: 6200, to: 4400, dur: 0.6, gain: 0.16, q: 0.7, attack: 0.05, delay: 0.02 });
+  s.noise({ filter: 'highpass', from: 7500, dur: 0.5, gain: 0.07, attack: 0.06, delay: 0.02 });
 }
 
 export function scratch(audio: AudioManager): void {
+  if (!gate('cat:scratch')) return;
   const s = audio.synth('cat:scratch', 0.07);
   if (!s) return;
   // claws on cardboard: three quick rips, each a little lower
   const f = 2200 + Math.random() * 1200;
   for (let i = 0; i < 3; i++) {
-    s.noise({ filter: 'bandpass', from: f * (1.5 - i * 0.2), to: f * (0.8 - i * 0.1), dur: 0.035, gain: 0.2 - i * 0.03, q: 2.2, delay: i * 0.028 });
+    s.noise({ filter: 'bandpass', from: f * (1.5 - i * 0.2), to: f * (0.8 - i * 0.1), dur: 0.035, gain: 0.14 - i * 0.02, q: 2.2, delay: i * 0.028 });
   }
 }
 
 export function purr(audio: AudioManager): void {
+  if (!gate('cat:purr')) return;
   const s = audio.synth('cat:purr', 1.6);
   if (!s) return;
   // about 26 pulses a second, louder on the breath in than the breath out
   call(s, {
     pitch: [26, 25, 27, 24, 26],
     dur: 1.5,
-    gain: 0.34,
+    gain: 0.22,
     shape: [0, 1, 0.75, 0.3, 0.85, 1, 0.5, 0],
     breath: 0.02,
     formants: [
@@ -250,7 +284,7 @@ function yap(s: Synth, delay: number, k: number, gain: number): void {
   call(s, {
     pitch: scaled([430, 640, 560, 360], k),
     dur: 0.15,
-    gain,
+    gain: gain * 0.7,
     delay,
     shape: [0, 1, 0.85, 0.4, 0],
     breath: 0.3,
@@ -261,18 +295,19 @@ function yap(s: Synth, delay: number, k: number, gain: number): void {
       { f: [3000, 3300, 2800], q: 6, level: 0.3 },
     ],
   });
-  s.noise({ filter: 'lowpass', from: 420, to: 140, dur: 0.05, gain: gain * 0.25, delay });
+  s.noise({ filter: 'lowpass', from: 420, to: 140, dur: 0.05, gain: gain * 0.25 * 0.7, delay });
 }
 
 export function bark(audio: AudioManager, growl: boolean): void {
+  if (!gate(growl ? 'dog:growl' : 'dog:bark')) return;
   // A real bark when decoded (slowed down for a growl); synth fallback below.
   if (growl) {
-    if (audio.sample('dog', { gain: 0.8, rate: 0.62, key: 'dog', gap: 0.12 })) return;
+    if (audio.sample('dog', { gain: 0.55, rate: 0.62, key: 'dog', gap: 0.12 })) return;
   } else {
     const k = vary(0.16);
-    if (audio.sample('dog', { gain: 0.6, rate: k, key: 'dog', gap: 0.12 })) {
+    if (audio.sample('dog', { gain: 0.45, rate: k, key: 'dog', gap: 0.12 })) {
       if (Math.random() < 0.6) {
-        audio.sample('dog', { gain: 0.5, rate: k * 0.94, delay: 0.19 + Math.random() * 0.04, key: 'dog:2' });
+        audio.sample('dog', { gain: 0.35, rate: k * 0.94, delay: 0.19 + Math.random() * 0.04, key: 'dog:2' });
       }
       return;
     }
@@ -285,7 +320,7 @@ export function bark(audio: AudioManager, growl: boolean): void {
     call(s, {
       pitch: scaled([92, 104, 98, 116, 108, 96], k),
       dur: 0.75,
-      gain: 0.5,
+      gain: 0.38,
       shape: [0, 0.7, 1, 0.9, 1, 0.8, 0],
       breath: 0.16,
       rough: { rate: 23, depth: 0.8 },
@@ -295,11 +330,11 @@ export function bark(audio: AudioManager, growl: boolean): void {
         { f: [2400, 2600, 2400], q: 6, level: 0.2 },
       ],
     });
-    yap(s, 0.78, k * 0.9, 0.6);
+    yap(s, 0.78, k * 0.9, 0.45);
     return;
   }
-  yap(s, 0, k, 0.6);
-  if (Math.random() < 0.6) yap(s, 0.19 + Math.random() * 0.04, k * 0.94, 0.5);
+  yap(s, 0, k, 0.45);
+  if (Math.random() < 0.6) yap(s, 0.19 + Math.random() * 0.04, k * 0.94, 0.35);
 }
 
 // ───────────────────────── parrot ─────────────────────────
@@ -322,26 +357,28 @@ function screech(s: Synth, delay: number, k: number, dur: number, gain: number):
 }
 
 export function squawk(audio: AudioManager): void {
+  if (!gate('parrot:squawk')) return;
   // A real tropical squawk when decoded (usually twice, like a macaw).
   const k = vary(0.16);
-  if (audio.sample('parrot', { gain: 0.55, rate: k, key: 'parrot', gap: 0.3 })) {
+  if (audio.sample('parrot', { gain: 0.4, rate: k, key: 'parrot', gap: 0.3 })) {
     if (Math.random() < 0.55) {
-      audio.sample('parrot', { gain: 0.45, rate: k * 1.06, delay: 0.36, key: 'parrot:2' });
+      audio.sample('parrot', { gain: 0.3, rate: k * 1.06, delay: 0.36, key: 'parrot:2' });
     }
     return;
   }
   const s = audio.synth('parrot', 0.3);
   if (!s) return;
   // a macaw: loud, rasping, and usually twice
-  screech(s, 0, k, 0.26 + Math.random() * 0.1, 0.34);
-  if (Math.random() < 0.55) screech(s, 0.36, k * 1.06, 0.2, 0.28);
+  screech(s, 0, k, 0.26 + Math.random() * 0.1, 0.26);
+  if (Math.random() < 0.55) screech(s, 0.36, k * 1.06, 0.2, 0.22);
 }
 
 // ───────────────────────── hamster ─────────────────────────
 
 export function hamsterSqueak(audio: AudioManager, alarm = false): void {
+  if (!gate(`hamster:${alarm ? 'alarm' : 'squeak'}`)) return;
   // A real rodent squeak burst when decoded; an alarmed hamster does more, faster.
-  if (audio.burstSamples('hamster', alarm ? 4 : 2 + Math.floor(Math.random() * 2), alarm ? 0.06 : 0.085, { gain: 0.5 })) {
+  if (audio.burstSamples('hamster', alarm ? 4 : 2 + Math.floor(Math.random() * 2), alarm ? 0.06 : 0.085, { gain: 0.35 })) {
     return;
   }
   const s = audio.synth('hamster', 0.15);
@@ -351,7 +388,7 @@ export function hamsterSqueak(audio: AudioManager, alarm = false): void {
   const gap = alarm ? 0.06 : 0.085;
   for (let i = 0; i < count; i++) {
     const f = (3100 + Math.random() * 500) * (alarm ? 1.15 : 1);
-    s.tone({ type: 'sine', from: f, to: f * 1.45, dur: 0.045, gain: 0.12, attack: 0.004, delay: i * gap });
-    s.tone({ type: 'sine', from: f * 2, to: f * 2.9, dur: 0.04, gain: 0.03, attack: 0.004, delay: i * gap });
+    s.tone({ type: 'sine', from: f, to: f * 1.45, dur: 0.045, gain: 0.08, attack: 0.004, delay: i * gap });
+    s.tone({ type: 'sine', from: f * 2, to: f * 2.9, dur: 0.04, gain: 0.02, attack: 0.004, delay: i * gap });
   }
 }
