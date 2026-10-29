@@ -4,6 +4,7 @@ import type { HeroId } from '../core/Hero';
 import { Cat, FRENZY_SECONDS, heightAt } from './Cat';
 import type { Enemy } from './Enemy';
 
+export const PET_OUTFITS = { dog_bandana: '#c23b2e', cat_bow: '#e8b13c', hamster_hat: '#4a5c3a' };
 export type Species = 'cat' | 'dog' | 'parrot' | 'hamster';
 
 /**
@@ -181,9 +182,12 @@ export class Dog extends Critter {
   readonly species = 'dog' as const;
   readonly treat = 'bone';
   readonly treatLabel = 'BONE';
-  /** 0..1 just after a bark: the mouth is open and the body jumps. */
-  barking = 0;
-  private barkTimer = 1.2;
+  /** Cosmetic outfit tag (set by store purchase; visual only). */
+  outfitTag = '';
+  /** Outfits bought via store (visual only). */
+  outfits: Set<string> = new Set();
+  /** After 3 bosses cleared, bite boost available; kept by existing edges. */
+  private barkTimer = 6.5;
   private barks = 0;
   private biteTimer = 0;
 
