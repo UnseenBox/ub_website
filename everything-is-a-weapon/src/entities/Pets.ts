@@ -226,7 +226,7 @@ export class Dog extends Critter {
 
     this.barkTimer -= dt;
     if (this.barkTimer > 0) return;
-    this.barkTimer = 2.1 + Math.random() * 1.2;
+    this.barkTimer = 6.5 + Math.random() * 2.5;
     this.barks++;
     this.barking = 1;
     this.vz = 150;

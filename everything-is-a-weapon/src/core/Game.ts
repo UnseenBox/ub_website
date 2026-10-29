@@ -567,14 +567,12 @@ export class Game {
 
   /** '' on success; otherwise the reason the pick could not be applied. */
   chooseEdge(id: string): string {
-    const draft = this.pendingDraft;
-    if (!draft) return 'NO EDGE OFFER';
-    if (draft.room !== this.room.index) return 'EDGE OFFER EXPIRED';
-    if (!draft.offer.some((edge) => edge.id === id)) return 'EDGE NOT OFFERED';
-    if (!takeEdge(this.save.data, id as EdgeId)) return 'EDGE MAXED';
-    this.save.data.runOffer = [];
-    this.pendingDraft = null;
-    this.save.write();
+    // Edge choice removed — next room only
+    if (this.pendingDraft) {
+      this.save.data.runOffer = [];
+      this.pendingDraft = null;
+      this.save.write();
+    }
     return '';
   }
 
@@ -808,7 +806,8 @@ export class Game {
 
     // Draft: campaign clears only, on the cadence in Edges.shouldOfferEdge.
     const boss = campaignBossType(index, this.room.def) !== null;
-    const draft = outcome.advancesRun && !finale && shouldOfferEdge(index, boss);
+    // Draft removed — always go straight to next room (no choice, no confusion)
+    const draft = false;
     const offer: EdgeDefinition[] = draft
       ? offerEdges(this.rng, boss, save.dailyRareEdge, save.runBoosts)
       : [];
