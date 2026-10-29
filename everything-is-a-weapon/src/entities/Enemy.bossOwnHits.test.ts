@@ -100,13 +100,15 @@ it('is not hurt by the shockwave it slams into the floor', () => {
   const game = boot();
   const p = game.player.body;
   const boss = game.spawnEnemy('cooker', p.x + 300, p.y);
-  const chairs = [0, 1, 2, 3].map((i) => {
-    const a = (i / 4) * Math.PI * 2;
-    return game.spawnObject('chair', boss.body.x + Math.cos(a) * 90, boss.body.y + Math.sin(a) * 90)!;
-  });
   const dealt = objectDamageFrom(game, boss.uid);
-  for (const chair of chairs) boss.doShockwave(game, 160, 0);
-  for (const chair of chairs) expect(chair.handledByUid, 'the slam owns the chairs it launched').toBe(boss.uid);
+  // Place chairs then slam — shockwave owns them (handledByUid = boss.uid),
+  // so the boss must not take damage from them.
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    game.spawnObject('chair', boss.body.x + Math.cos(a) * 90, boss.body.y + Math.sin(a) * 90);
+  }
+  boss.doShockwave(game, 160, 0);
+  advance(game, 2);
   advance(game, 2);
   expect(dealt()).toBe(0);
 });

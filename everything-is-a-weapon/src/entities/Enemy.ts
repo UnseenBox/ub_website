@@ -196,6 +196,10 @@ export class Enemy {
         game.particles.burst('smoke', b.x, b.y - 6, 5, 70);
         game.particles.burst('peanut', b.x, b.y - 10, 18, 230);
         game.particles.burst('scrap', b.x, b.y - 10, 6, 180, { color: '#c9a070' });
+        // Per-boss visual cue / death message (approval: unique per boss)
+        const msg = this.type.id === 'cardboard' ? 'FLAT-PACKED!' : this.type.id === 'cooker' ? 'DEPRESSURIZED!' : this.type.id === 'mom' ? 'BEDTIME!' : 'POOF!';
+        const c = this.type.color ?? '#ffd23f';
+        game.fx.burst(msg, b.x, b.y - 30, 1.05, c, true);
         game.fx.ring(b.x, b.y, 6, 44, 0.3, 'rgba(255,255,255,0.8)', 3);
         game.audio.play('poof', 0.7);
       }
@@ -762,7 +766,11 @@ export class Enemy {
     const cur = forms[this.form]!;
     this.squash = 1;
     game.audio.play('click', 1);
+    // Per-form visual cue (different colors per approval)
+    const ringColors = { tank: '#c23b2e', chopper: '#e8b13c', robot: '#3a4a5c' };
+    const color = (ringColors as Record<string, string>)[cur.key] ?? '#ffd23f';
     game.hud.banner(cur.announce, cur.name, 1.6);
+    game.fx.ring(this.body.x, this.body.y, 8, 70, 0.4, color, 4);
     game.fx.ring(this.body.x, this.body.y, 8, 70, 0.4, 'rgba(255,210,63,0.9)', 4);
     game.particles.burst('scrap', this.body.x, this.body.y - 10, 10, 200);
     game.camera.addShake(0.2);

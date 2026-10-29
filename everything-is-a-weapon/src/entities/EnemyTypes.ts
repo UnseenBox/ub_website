@@ -430,10 +430,8 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     slams: { radius: 145, damage: 1, cooldown: 7 },
     phases: [
       { below: 0.66, enrage: 1.2, announce: 'GO TO YOUR ROOM' },
-      {
-        below: 0.33, enrage: 1.5, summon: { type: 'gnat', count: 3 },
-        shockwave: { radius: 150, damage: 1 }, announce: 'NO DESSERT',
-      },
+      { below: 0.33, enrage: 1.5, summon: { type: 'gnat', count: 3 }, shockwave: { radius: 150, damage: 1 }, announce: 'NO DESSERT' },
+      { below: 0.15, enrage: 1.8, summon: { type: 'gnat', count: 5 }, shockwave: { radius: 170, damage: 2 }, announce: 'BEDTIME' },
     ],
   },
   // VACUUMASAURUS: the apex predator of dust. Inhales furniture, projectiles
@@ -567,6 +565,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     phases: [
       { below: 0.5, enrage: 1.25, announce: 'THE WALLS HAVE EYES' },
       { below: 0.25, shockwave: { radius: 180, damage: 1 }, announce: 'GET OUT' },
+      { below: 0.15, shockwave: { radius: 200, damage: 2 }, announce: 'CONDemned' },
     ],
   },
   // TIME-THIEF ALARM CLOCK: it rings, and physics files a complaint. Time
@@ -630,6 +629,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     formInterval: 11,
     phases: [
       { below: 0.5, summon: { type: 'mini', count: 2 }, announce: 'REINFORCEMENTS' },
+      { below: 0.15, enrage: 1.6, summon: { type: 'nested', count: 3 }, shockwave: { radius: 160, damage: 2 }, announce: 'FLAT-PACKED!' },
     ],
   },
 };
