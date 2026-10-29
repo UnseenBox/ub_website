@@ -585,6 +585,10 @@ export class Enemy {
       game.zones.spawn(game, spec.spawnZone.kind, b.x, b.y, spec.spawnZone.radius, { ttl: spec.spawnZone.ttl });
       game.particles.burst('water', b.x, b.y, 14, 220);
       game.audio.play('splash', 0.9);
+      // VISIBLE POWER — counter the "same" feeling: steam cloud + loud burst
+      game.fx.burst('STEAM!', b.x, b.y - 40, 1.3, '#b8b0a0', true);
+      game.particles.burst('steam', b.x, b.y - 20, 20, 200, { color: '#d0d0d0', spread: 0.7 });
+      game.camera.addShake(0.35);
     }
   }
 
@@ -662,10 +666,20 @@ export class Enemy {
         object.destroy(game);
         this.hp = Math.min(this.type.hp, this.hp + 5);
         this.squash = Math.max(this.squash, 0.5);
+        // VISIBLE CATCH — now unmistakable
+        game.fx.burst('MINE!', b.x, b.y - 56, 1.0, '#ffd23f', true);
+        game.particles.burst('spark', b.x, b.y - 56, 12, 250);
         game.audio.play('plop', 1);
         game.fx.burst('MINE.', b.x, b.y - 56, 1, '#ffd23f', true);
         game.discoveries.unlock('mine_now');
       }
+    }
+    if (this.stun > 0 || this.shockTimer > 0) {
+      // VISIBLE DODGE — sidestep is unmistakable
+      this.setState('recover', 0.3);
+      game.particles.burst('dust', b.x, b.y, 6, 120);
+      game.audio.play('swipe', 0.8);
+      return;
     }
     if (this.dodgeCooldown > 0 || this.stun > 0 || this.shockTimer > 0) return;
     if (this.ai === 'entering' || this.ai === 'windup' || this.ai === 'lunge' ||
@@ -729,7 +743,10 @@ export class Enemy {
     }
     if (moved > 0) {
       game.audio.play('poof', 0.9);
+      // VISIBLE TIDY — rearrange is now unmistakable
       game.fx.burst('CLEAN YOUR ROOM!', this.body.x, this.body.y - 60, 1.2, '#ffd23f', true);
+      game.particles.burst('dust', this.body.x, this.body.y - 10, 10, 200, { color: '#ffd23f', spread: 0.6 });
+      game.camera.addShake(0.25);
       game.discoveries.unlock('clean_your_room');
     }
   }
@@ -770,6 +787,9 @@ export class Enemy {
     const ringColors = { tank: '#c23b2e', chopper: '#e8b13c', robot: '#3a4a5c' };
     const color = (ringColors as Record<string, string>)[cur.key] ?? '#ffd23f';
     game.hud.banner(cur.announce, cur.name, 1.6);
+    // VISIBLE FORM SHIFT — unmistakable
+    game.fx.burst(cur.announce + '!', this.body.x, this.body.y - 40, 1.4, color, true);
+    game.particles.burst('scrap', this.body.x, this.body.y - 10, 14, 250, { color, spread: 0.7 });
     game.fx.ring(this.body.x, this.body.y, 8, 70, 0.4, color, 4);
     game.fx.ring(this.body.x, this.body.y, 8, 70, 0.4, 'rgba(255,210,63,0.9)', 4);
     game.particles.burst('scrap', this.body.x, this.body.y - 10, 10, 200);
@@ -940,8 +960,11 @@ export class Enemy {
       zone.dirX = -Math.sin(a);
       zone.dirY = Math.cos(a);
     }
-    game.audio.play('hiss', 0.7);
-    game.particles.burst('dust', b.x, b.y, 8, 200);
+    game.audio.play('hiss', 1.0);
+    game.particles.burst('dust', b.x, b.y, 12, 300, { color: '#d0d0d0', spread: 0.9 });
+    // VISIBLE CYCLONE
+    game.fx.burst('CYCLONE!', b.x, b.y - 30, 1.4, '#9fb3c4', true);
+    game.camera.addShake(0.4);
     game.discoveries.unlock('cyclone');
   }
 
@@ -959,6 +982,9 @@ export class Enemy {
       spec.radius, { ttl: spec.ttl },
     );
     game.particles.burst('spark', b.x, b.y - 10, 8, 140, { color: '#cfe8ff' });
+    // VISIBLE FROST — floor freezes visibly
+    game.fx.burst('FROST!', b.x, b.y - 40, 1.3, '#8fa8b8', true);
+    game.particles.burst('spark', b.x, b.y, 15, 200, { color: '#a8c0d0', spread: 0.6 });
     game.audio.play('hiss', 0.5);
   }
 
@@ -991,7 +1017,11 @@ export class Enemy {
         this.markHandled(game, owner);
       }
     });
-    game.particles.burst('dust', b.x, b.y + 6, 22, 260);
+    if (this.type.sucks) {
+      game.fx.burst('SUCK!', b.x, b.y - 40, 1.3, '#4a5c3a', true);
+      game.particles.burst('dust', b.x, b.y, 15, 250);
+    }
+    game.particles.burst('dust', b.x + b.y + 6, 22, 260, 140);
     game.fx.ring(b.x, b.y, 12, radius * 1.15, 0.45, 'rgba(255,255,255,0.9)', 6);
     game.fx.burst('WHUMP!', b.x, b.y - 52, 1.25, '#ff9f1c', true);
     game.audio.play('explosion', 0.55);
