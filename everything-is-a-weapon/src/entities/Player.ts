@@ -282,6 +282,8 @@ export class Player {
     if (object.restingOn) object.leaveSurface();
     object.fellFrom = null;
     object.held = true;
+    // A weapon picked up by the intruder belongs to the intruder now.
+    object.handledByUid = 0;
     object.tags.add('held');
     object.squash = 0.6;
     object.body.wake();

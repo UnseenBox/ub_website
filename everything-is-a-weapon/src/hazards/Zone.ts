@@ -68,6 +68,8 @@ export class Zone {
   energizedUntil = 0;
   dirX = 1;
   dirY = 0;
+  /** Enemy whose ability created this zone; its own furniture cannot hurt it. */
+  sourceUid = 0;
 
   constructor(zone: ZoneKind, x: number, y: number, r: number, now: number, options: ZoneOptions = {}) {
     this.zone = zone;

@@ -434,6 +434,7 @@ export class Enemy {
         }
         // Hold it overhead while aiming: readable, dodgeable, interruptible.
         const ob = obj.body;
+        this.markHandled(game, obj);
         const hx = b.x + Math.cos(this.facing) * (this.type.radius + ob.boundR * 0.5);
         const hy = b.y + Math.sin(this.facing) * (this.type.radius + ob.boundR * 0.5) - 10;
         ob.vx = (hx - ob.x) * 14;
@@ -462,6 +463,12 @@ export class Enemy {
   private setState(state: AiState, timer: number): void {
     this.ai = state;
     this.aiTimer = timer;
+  }
+
+  /** Records that this mover set the object in motion, so its own furniture cannot hurt it. */
+  private markHandled(game: Game, object: PhysicsObject): void {
+    object.handledByUid = this.uid;
+    object.handledAt = game.time;
   }
 
   private steer(dirX: number, dirY: number, speed: number, dt: number): void {
@@ -545,6 +552,7 @@ export class Enemy {
     ob.z = Math.max(ob.z, 10);
     ob.w = game.rng.sign() * 9;
     ob.wake();
+    this.markHandled(game, obj);
     obj.tags.add('hurled');
     obj.chain = startChain(game.time, obj.uid, obj.label);
     obj.chainAt = game.time;
@@ -624,6 +632,7 @@ export class Enemy {
       body.vz = Math.max(body.vz, 160);
       body.z = Math.max(body.z, 3);
       body.wake();
+      this.markHandled(game, owner);
     });
     game.particles.burst('dust', b.x + Math.cos(fa) * spec.range * 0.6, b.y + Math.sin(fa) * spec.range * 0.6, 12, 220);
     game.fx.burst('SLAP!', b.x + Math.cos(fa) * 40, b.y - 52, 1.1, '#ff7b54', true);
@@ -711,6 +720,7 @@ export class Enemy {
       ob.vz = 140;
       ob.z = Math.max(ob.z, 6);
       ob.wake();
+      this.markHandled(game, object);
       moved++;
     }
     if (moved > 0) {
@@ -829,6 +839,7 @@ export class Enemy {
       ob.vz = Math.max(ob.vz, 150);
       ob.z = Math.max(ob.z, 4);
       ob.wake();
+      this.markHandled(game, object);
     }
     game.audio.play('alarm', 1);
     game.fx.burst('TIME OUT!', b.x, b.y - 60, 1.2, '#4ad6e8', true);
@@ -917,6 +928,7 @@ export class Enemy {
         b.x + Math.cos(a) * spec.radius * 0.5, b.y + Math.sin(a) * spec.radius * 0.5,
         spec.radius * 0.55, { ttl: spec.ttl },
       );
+      zone.sourceUid = this.uid;
       zone.dirX = -Math.sin(a);
       zone.dirY = Math.cos(a);
     }
@@ -968,6 +980,7 @@ export class Enemy {
         body.vz = Math.max(body.vz, 240);
         body.z = Math.max(body.z, 4);
         body.wake();
+        this.markHandled(game, owner);
       }
     });
     game.particles.burst('dust', b.x, b.y + 6, 22, 260);
@@ -1026,6 +1039,7 @@ export class Enemy {
         ob.vy = (ob.vy / sp) * capped;
       }
       ob.wake();
+      this.markHandled(game, object);
       if (d < this.type.radius + 10) this.eatObject(game, object);
     }
     // The Vacuumasaurus also inhales rival movers. Crew is crew.

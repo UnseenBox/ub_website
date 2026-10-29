@@ -35,6 +35,12 @@ export class PhysicsObject {
   chainAt = -999;
   thrownByPlayer = false;
   thrownAt = -999;
+  /**
+   * Mover that last set this object moving with one of its own abilities (a vacuum's
+   * pull, a shockwave, a grab). It cannot be hurt by its own ammunition.
+   */
+  handledByUid = 0;
+  handledAt = -999;
 
   /** Surface this object is sitting on, with its offset in the surface's local space. */
   restingOn: PhysicsObject | null = null;
@@ -324,6 +330,8 @@ export class PhysicsObject {
   onThrown(game: Game): void {
     this.thrownByPlayer = true;
     this.thrownAt = game.time;
+    // Back in the intruder's hands: no longer the mover's own ammunition.
+    this.handledByUid = 0;
     this.tags.add('thrown');
     const behavior = this.def.behavior;
     if (behavior && (behavior.kind === 'seek' || behavior.kind === 'boomerang')) this.active = behavior.seconds;

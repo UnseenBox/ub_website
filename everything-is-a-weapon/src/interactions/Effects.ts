@@ -65,6 +65,9 @@ const handlers: EffectHandlers = {
         const b = source.body;
         const towards = ((b.x - b.prevX) * ctx.nx + (b.y - b.prevY) * ctx.ny) / FIXED_DT;
         if (towards < Math.max(80, ctx.approach * 0.25)) return false;
+        // Boss's own ammunition can't hurt it: objects it pulled, threw, slammed, or
+        // caught in a wind zone carry the mover's uid for a few seconds.
+        if (target.uid === source.handledByUid && game.time - source.handledAt < 3) return false;
       }
       return target.takeImpact(game, ctx.impulse, source, ctx.nx, ctx.ny, spec.scale, freshChain(source, game.time)) > 0;
     }
@@ -336,6 +339,11 @@ const handlers: EffectHandlers = {
     b.fx += source.dirX * spec.force;
     b.fy += source.dirY * spec.force;
     b.wake();
+    // A cyclone's own debris is still the cyclone's.
+    if (source.sourceUid !== 0) {
+      target.handledByUid = source.sourceUid;
+      target.handledAt = ctx.game.time;
+    }
     return b.speed() > 90;
   },
 
