@@ -2564,6 +2564,37 @@ function drawEnemyBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number): 
     const ax1 = bx - px * 17;
     const ay1 = by - py * 9;
     const tall = 27;
+    // A board is armour, not a wall: it shows its wear as it chips. A split opens
+    // at two-thirds and two more near the end, so a fight reads without the HUD.
+    const shieldMax = e.type.shieldHp ?? 0;
+    const shieldFrac = shieldMax > 0 ? Math.max(0, Math.min(1, e.shieldHp / shieldMax)) : 1;
+    const point = (u: number, v: number): readonly [number, number] => [
+      ax0 + (ax1 - ax0) * u,
+      ay0 + (ay1 - ay0) * u - tall * v,
+    ];
+    const cracks = (): void => {
+      if (shieldFrac > 0.66) return;
+      const splits: Array<ReadonlyArray<readonly [number, number]>> = [
+        [[0.44, 1], [0.48, 0.62], [0.41, 0.33], [0.45, 0]],
+      ];
+      if (shieldFrac <= 0.33) {
+        splits.push(
+          [[0.63, 0.9], [0.58, 0.58], [0.66, 0.3]],
+          [[0.25, 0.62], [0.29, 0.34], [0.22, 0.06]],
+        );
+      }
+      ctx.strokeStyle = 'rgba(30, 24, 34, 0.72)';
+      ctx.lineWidth = 1.7;
+      ctx.beginPath();
+      for (const split of splits) {
+        for (let i = 0; i < split.length; i++) {
+          const [cx, cy] = point(split[i]![0], split[i]![1]);
+          if (i === 0) ctx.moveTo(cx, cy);
+          else ctx.lineTo(cx, cy);
+        }
+      }
+      ctx.stroke();
+    };
     ctx.lineJoin = 'round';
     if (id === 'bulwark') {
       ctx.fillStyle = e.blockFlash > 0.1 ? '#ffffff' : tone(STEEL_DARK);
@@ -2591,6 +2622,7 @@ function drawEnemyBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number): 
       ctx.lineTo(ax0 + (ax1 - ax0) * 0.5, ay0 - 20);
       ctx.lineTo(ax0 + (ax1 - ax0) * 0.8, ay0 - 12);
       ctx.stroke();
+      cracks();
       return;
     }
     ctx.fillStyle = e.blockFlash > 0.1 ? '#ffffff' : tone('#fbf6e9');
@@ -2620,6 +2652,7 @@ function drawEnemyBody(ctx: Ctx, e: Enemy, x: number, y: number, time: number): 
       ctx.lineTo(ax0 + (ax1 - ax0) * (i === 2 ? 0.6 : 0.85), ay0 + (ay1 - ay0) * (i === 2 ? 0.6 : 0.85) + ly);
     }
     ctx.stroke();
+    cracks();
   };
   if ((id === 'shield' || id === 'bulwark') && !e.defeated && fy < -0.1 && e.shieldHp > 0) board();
 

@@ -806,6 +806,23 @@
   background-color: var(--b2-lavender);
 }
 
+/* The front board's own bar: thinner, steel-coloured, under the body bar. */
+.b2-hud .b2-hud__shieldtrack {
+  height: 14px;
+  margin-top: 4px;
+  border-width: 3px;
+  background: color-mix(in srgb, var(--b2-panel) 70%, var(--b2-ink));
+}
+
+.b2-hud .b2-hud__shieldfill {
+  background-color: color-mix(in srgb, var(--b2-steel, #9fb2c6) 70%, var(--b2-white));
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 18px,
+    rgba(38, 33, 45, 0.25) 18px 20px
+  );
+}
+
 .b2-hud .hud-boss.phase-2 .boss-fill {
   background-color: var(--b2-yellow);
 }
