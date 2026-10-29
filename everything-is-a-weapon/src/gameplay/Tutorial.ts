@@ -46,6 +46,12 @@ export class Tutorial {
   step: Lesson | null = null;
   /** Where a restart of this room picks up. */
   resume: Lesson | null = null;
+  /**
+   * A first visit to a later room is a one-beat lesson: the new toys glow and the
+   * teaser line rides under the icon until one is picked up, then the room is a room.
+   * It is not a full staged lesson — that is room 1's job — but it teaches one thing.
+   */
+  spotStep = false;
 
   private stepTime = 0;
   private misses = 0;
@@ -55,12 +61,19 @@ export class Tutorial {
   private treat: PhysicsObject | null = null;
   private scent = 0;
   /** Later rooms: object ids worth a look on a first visit, and for how long. */
-  private spot: readonly string[] = [];
+  spot: readonly string[] = [];
   private spotLeft = 0;
 
   constructor(private readonly game: Game) {
     game.bus.on('OBJECT_GRABBED', (e) => {
       this.spotLeft = 0;
+      if (this.spotStep) {
+        // A first visit to a later room ends the beat the moment one of the new
+        // toys is picked up; the room is then just a room.
+        this.spotStep = false;
+        this.spot = [];
+        this.guide.caption = '';
+      }
       if ((this.step === 'move' || this.step === 'grab') && e.object.def.throwable) this.enter('throw');
     });
     game.bus.on('OBJECT_THROWN', () => {
@@ -104,10 +117,20 @@ export class Tutorial {
     this.enter(from);
   }
 
-  /** A first visit to a later room: its new toys glow until one is picked up. */
-  spotlight(ids: readonly string[]): void {
+  /** A first visit to a later room: its new toys glow until one is picked up, and the
+     teaser line rides under the icon so the player learns one thing at a time. */
+  spotlight(ids: readonly string[], teaser?: string): void {
     this.spot = ids;
     this.spotLeft = 9;
+    this.spotStep = true;
+    if (teaser) {
+      const g = this.guide;
+      g.caption = teaser;
+      g.icon = null;
+      g.line = 'none';
+      g.tx = this.game.player.body.x;
+      g.ty = this.game.player.body.y - 78;
+    }
   }
 
   /** "I know all this": everyone still outside comes in, and the room is just a room. */
@@ -128,6 +151,13 @@ export class Tutorial {
     this.clearGuide();
     this.focus = null;
     if (this.spotLeft > 0) this.spotLeft -= dt;
+    // A first visit to a later room: the teaser rides under the icon until one of
+    // the new toys is picked up, then the room is just a room.
+    if (this.spotStep && this.spotLeft <= 0) {
+      this.spotStep = false;
+      this.spot = [];
+      this.guide.caption = '';
+    }
     const step = this.step;
     if (!step) return;
     this.stepTime += dt;
