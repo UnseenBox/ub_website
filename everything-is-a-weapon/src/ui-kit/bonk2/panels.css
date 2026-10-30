@@ -665,6 +665,206 @@
 }
 
 /* --------------------------------------------------------------------------
+   Store
+   The tallest screen in the game: pin the panel to the viewport and let the
+   card grid scroll inside it instead of running off the bottom of the screen.
+   -------------------------------------------------------------------------- */
+
+.b2-store {
+  --b2-panel-w: 1040px;
+  max-height: 100%;
+  min-height: 0;
+}
+
+.b2-store__head {
+  justify-content: flex-start;
+  gap: clamp(8px, 1.4vw, 18px);
+  min-height: clamp(44px, 6vh, 56px);
+  padding: 6px clamp(12px, 2vw, 20px);
+}
+
+.b2-store__head .b2-panel__title {
+  margin-right: auto;
+  font-size: clamp(18px, 2.8vh, 26px);
+  text-align: left;
+}
+
+.b2-store__promise {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: clamp(9px, 1.3vh, 12px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.b2-store__wallet {
+  flex: none;
+  background: var(--b2-ink);
+}
+
+.b2-store__back {
+  flex: none;
+}
+
+.b2-store__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--b2-lime) rgba(0, 0, 0, 0.3);
+}
+
+.b2-store__body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.b2-store__body::-webkit-scrollbar-thumb {
+  background: var(--b2-lime);
+  border: 3px solid var(--b2-panel);
+}
+
+.b2-store__note {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 4px solid var(--b2-yellow);
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: clamp(10px, 1.4vh, 12px);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.b2-store__tabs {
+  flex: none;
+}
+
+.b2-store__goal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 7px 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 3px solid var(--b2-ink);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.b2-goal__label {
+  color: var(--b2-lime);
+  font-family: var(--b2-display);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.b2-goal__kicker {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.b2-goal__name {
+  color: var(--b2-white);
+  font-family: var(--b2-display);
+  font-size: clamp(14px, 1.9vh, 17px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.b2-goal__detail {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.b2-goal__meter {
+  flex: 1 1 120px;
+  min-width: 90px;
+}
+
+.b2-store__ledger {
+  flex: none;
+  padding: 4px 8px;
+  font-size: 9px;
+}
+
+.b2-store__pane {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  gap: clamp(6px, 1vh, 10px);
+  align-content: start;
+}
+
+.b2-store__pane[hidden] {
+  display: none;
+}
+
+.b2-store__pane .b2-shop-card {
+  gap: 10px;
+  height: 100%;
+  padding: 8px 10px;
+}
+
+.b2-store .b2-shop-card__icon-wrap {
+  width: clamp(42px, 6.4vh, 54px);
+  height: clamp(42px, 6.4vh, 54px);
+}
+
+.b2-store .b2-shop-card__name {
+  font-size: clamp(14px, 1.9vh, 17px);
+}
+
+.b2-store .b2-shop-card__blurb {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: clamp(10px, 1.4vh, 12px);
+  line-height: 1.3;
+}
+
+.b2-store .b2-shop-card__cost {
+  font-size: clamp(13px, 1.8vh, 16px);
+}
+
+.b2-store .b2-shop-card__buy {
+  font-size: clamp(10px, 1.4vh, 12px);
+  white-space: nowrap;
+}
+
+.b2-upgrade__pips {
+  margin-left: auto;
+  color: var(--b2-yellow);
+  font-family: var(--b2-body);
+  font-size: 11px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.b2-upgrade__effect,
+.b2-upgrade__next {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: clamp(10px, 1.4vh, 12px);
+  line-height: 1.3;
+}
+
+.b2-upgrade__next {
+  color: var(--b2-lime);
+}
+
+.b2-outfit__swatch {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-left: auto;
+  background: var(--outfit-color, var(--b2-lime));
+  border: 2px solid var(--b2-ink);
+}
+
+/* --------------------------------------------------------------------------
    Small screens
    -------------------------------------------------------------------------- */
 
@@ -680,6 +880,15 @@
   }
   .b2-settings__shopgrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .b2-store__promise {
+    display: none;
+  }
+  .b2-store__head {
+    flex-wrap: wrap;
+  }
+  .b2-store__pane {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -707,10 +916,14 @@
 
 @media (max-height: 640px) {
   .b2-pause__panel,
-  .b2-settings__panel {
+  .b2-settings__panel,
+  .b2-store {
     --b2-pad: 12px;
   }
   .b2-pause__controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .b2-store__head {
+    min-height: 42px;
   }
 }

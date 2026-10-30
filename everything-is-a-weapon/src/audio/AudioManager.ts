@@ -1169,4 +1169,18 @@ export class AudioManager {
         break;
     }
   }
+
+  /**
+   * One struck piano key, in Hz. The Piano Spider plays its own accompaniment:
+   * each note is a bell struck at the key's pitch, with two quieter overtones
+   * that ring out a little longer than the fundamental.
+   */
+  pianoNote(freq: number, intensity = 1): void {
+    const s = this.begin(`piano:${Math.round(freq)}`, 0.02);
+    if (!s) return;
+    const g = Math.min(1, Math.max(0.05, intensity));
+    s.modal(freq, BELL, 0.3 * g, 0, 1.8);
+    s.modal(freq * 2, BELL, 0.08 * g, 0, 1.1);
+    s.modal(freq * 3, BELL, 0.03 * g, 0, 0.7);
+  }
 }

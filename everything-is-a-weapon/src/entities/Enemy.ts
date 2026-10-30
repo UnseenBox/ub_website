@@ -2,10 +2,10 @@ import { newUid, type Chain, type DamageCause, type Thing } from '../core/types'
 import type { Game } from '../core/Game';
 import { angleDiff, clamp } from '../core/math';
 import { Layer, RigidBody } from '../physics/RigidBody';
-import type { Zone } from '../hazards/Zone';
+import type { Zone, ZoneKind } from '../hazards/Zone';
 import { extendChain, startChain } from '../gameplay/Chain';
 import { wallAvoidance } from '../gameplay/Navigation';
-import type { EnemyType } from './EnemyTypes';
+import type { EnemyType, EnemyTypeId } from './EnemyTypes';
 import type { PhysicsObject } from './PhysicsObject';
 
 type AiState = 'entering' | 'idle' | 'investigate' | 'chase' | 'windup' | 'lunge' | 'recover' | 'hurl' | 'slam' | 'lash';
@@ -16,6 +16,10 @@ const LUNGE_SPEED = 430;
 const RECOVER_TIME = 0.65;
 const BURN_TICK = 0.4;
 const BURN_DAMAGE = 7;
+
+/** The Piano Spider's keyboard: one octave of C, and the letters to shout. */
+const PIANO_NOTES = [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25] as const;
+const PIANO_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'] as const;
 
 const scratch = { x: 0, y: 0 };
 const wallPush = { x: 0, y: 0 };
@@ -100,6 +104,15 @@ export class Enemy {
   zapTimer = 2;
   /** Cyclone timer (Fan-tastic Nightmare). */
   windTimer = 2;
+  /** Seconds until the next signature performance; reset on every use. */
+  signatureTimer = 9;
+  /** Piano Spider: the keys of the solo it is playing, and where it is up to. */
+  private pianoTimer = 5;
+  private pianoBeat = 0;
+  private pianoIndex = 0;
+  private pianoPlaying = false;
+  private pianoEncore = false;
+  private pianoKeys: Array<{ x: number; y: number }> = [];
   burn = 0;
   private burnTick = 0;
   slip = 0;
@@ -229,6 +242,17 @@ export class Enemy {
     this.hurlCooldown -= dt * this.rageMult;
     this.slamCooldown -= dt * this.rageMult;
     this.lashCooldown -= dt * this.rageMult;
+    // Every boss has one named power, and it is a thing that happens, not a
+    // flash: announce it, then run the boss's own mechanic.
+    if (this.type.signature && this.aware && this.ai !== 'entering') {
+      this.signatureTimer -= dt * this.rageMult;
+      if (this.signatureTimer <= 0) {
+        this.signatureTimer = 20;
+        this.releaseSignature(game);
+      }
+    }
+    // The Piano Spider stops chasing and plays. Everything else can wait.
+    if (this.type.id === 'piano' && this.aware && this.ai !== 'entering' && this.updatePiano(game, dt)) return;
     if (this.type.sucks) this.updateSuck(game, dt);
     if (this.type.dodges) this.updateDodge(game, dt);
     if (this.type.rearranges) this.updateRearrange(game, dt);
@@ -1183,14 +1207,341 @@ export class Enemy {
       }
       if (phase.shockwave) this.doShockwave(game, phase.shockwave.radius, phase.shockwave.damage);
     }
-    // Signature attack: once per boss, at 50% HP.
+    // Signature attack: the halfway point buys an extra performance.
     const sig = this.type.signature;
     if (sig && !this.signatureReleased && this.hp <= this.type.hp * 0.5) {
       this.signatureReleased = true;
-      game.audio.play(sig.sound as any, 1);
-      game.fx.burst(sig.name, this.body.x, this.body.y - 40, 1.3, '#fff3d6', true);
-      game.particles.burst('spark', this.body.x, this.body.y - 20, 14, 200, { color: '#ffd966' });
+      this.signatureTimer = 20;
+      this.releaseSignature(game, true);
     }
+  }
+
+  // --------------------------------------------------------------------------
+  // Boss powers
+  // --------------------------------------------------------------------------
+
+  /** A volley of conjured objects, aimed at the player. */
+  private signatureVolley(game: Game, spawn: string, count: number): void {
+    const b = this.body;
+    const target = game.player.body;
+    const base = Math.atan2(target.y - b.y, target.x - b.x);
+    for (let i = 0; i < count; i++) {
+      const a = base + (i - (count - 1) / 2) * 0.16;
+      const obj = game.spawnObject(spawn, b.x + Math.cos(a) * (this.type.radius + 12), b.y + Math.sin(a) * (this.type.radius + 12) - 8);
+      if (!obj) continue;
+      const ob = obj.body;
+      ob.vx = Math.cos(a) * 620;
+      ob.vy = Math.sin(a) * 620;
+      ob.vz = 140;
+      ob.z = Math.max(ob.z, 8);
+      ob.wake();
+      obj.tags.add('hurled');
+      this.markHandled(game, obj);
+    }
+  }
+
+  /** A shockwave, plus a ring of hazard where it lands. */
+  private signatureNova(
+    game: Game,
+    radius: number,
+    damage: number,
+    zone?: ZoneKind,
+    count = 8,
+    zoneRadius = 48,
+    ttl = 7,
+  ): void {
+    const b = this.body;
+    this.doShockwave(game, radius, damage);
+    if (!zone) return;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      game.zones.spawn(game, zone, b.x + Math.cos(a) * radius * 0.85, b.y + Math.sin(a) * radius * 0.85, zoneRadius, { ttl });
+    }
+  }
+
+  /** Drags the player and every loose object towards the boss. */
+  private signaturePull(game: Game, force: number): void {
+    const b = this.body;
+    const player = game.player;
+    if (player.alive) {
+      const dx = b.x - player.body.x;
+      const dy = b.y - player.body.y;
+      const d = Math.hypot(dx, dy) || 1;
+      player.body.vx += (dx / d) * force;
+      player.body.vy += (dy / d) * force;
+    }
+    for (const object of game.objects) {
+      if (!object.alive || object.held || object.body.type !== 'dynamic') continue;
+      const ob = object.body;
+      const dx = b.x - ob.x;
+      const dy = b.y - ob.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d > 420) continue;
+      if (object.restingOn) object.leaveSurface();
+      ob.vx += (dx / d) * force * 0.7;
+      ob.vy += (dy / d) * force * 0.7;
+      ob.vz = Math.max(ob.vz, 120);
+      ob.z = Math.max(ob.z, 3);
+      ob.wake();
+      this.markHandled(game, object);
+    }
+  }
+
+  /** Hurls every loose object in reach straight at the player. */
+  private signatureFling(game: Game, count: number): void {
+    const b = this.body;
+    const target = game.player.body;
+    const picked = game.objects
+      .filter((object) => object.alive && !object.held && object.body.type === 'dynamic')
+      .sort((a, z) => Math.hypot(a.body.x - b.x, a.body.y - b.y) - Math.hypot(z.body.x - b.x, z.body.y - b.y))
+      .slice(0, count);
+    for (const object of picked) {
+      const ob = object.body;
+      if (object.restingOn) object.leaveSurface();
+      const dx = target.x - ob.x;
+      const dy = target.y - ob.y;
+      const d = Math.hypot(dx, dy) || 1;
+      ob.vx = (dx / d) * 640;
+      ob.vy = (dy / d) * 640;
+      ob.vz = 150;
+      ob.z = Math.max(ob.z, 6);
+      ob.wake();
+      object.tags.add('thrown');
+      this.markHandled(game, object);
+    }
+  }
+
+  /** Calls in a handful of friends, the same way a phase does. */
+  private signatureSummon(game: Game, type: EnemyTypeId, count: number): void {
+    const b = this.body;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + game.rng.range(0, 1);
+      const child = game.spawnEnemy(type, b.x + Math.cos(a) * (this.type.radius + 26), b.y + Math.sin(a) * (this.type.radius + 26), Math.cos(a), Math.sin(a));
+      child.summoned = true;
+      child.body.vx = Math.cos(a) * 320;
+      child.body.vy = Math.sin(a) * 320;
+      child.squash = 1;
+    }
+    game.particles.burst('dust', b.x, b.y, 16, 220);
+  }
+
+  /** Drops everything and runs the player down. */
+  private signatureCharge(game: Game, time: number): void {
+    const b = this.body;
+    const p = game.player.body;
+    this.facing = Math.atan2(p.y - b.y, p.x - b.x);
+    this.lungeX = Math.cos(this.facing);
+    this.lungeY = Math.sin(this.facing);
+    this.lungeLanded = false;
+    this.trampleSoundT = 0;
+    this.setState('lunge', time);
+    game.audio.play('alarm', 1);
+  }
+
+  /**
+   * The boss's named power, performed for real. It announces itself, then
+   * changes the fight in a way only this boss does.
+   */
+  private releaseSignature(game: Game, encore = false): void {
+    const sig = this.type.signature;
+    if (!sig) return;
+    const b = this.body;
+    game.audio.play(sig.sound as never, 1);
+    game.hud.banner(sig.name, this.type.name, 1.6);
+    game.fx.burst(sig.name, b.x, b.y - 40, 1.3, '#fff3d6', true);
+    game.particles.burst('spark', b.x, b.y - 20, encore ? 22 : 14, 220, { color: '#ffd966' });
+    game.camera.addShake(0.2);
+
+    switch (this.type.id) {
+      case 'chairman':
+        // Memos in every direction, then the desk hits the floor.
+        this.signatureVolley(game, 'paperball', encore ? 7 : 4);
+        this.doShockwave(game, 120, 1);
+        break;
+
+      case 'flusher':
+        // The whirlpool actually pulls: water ring plus a hard drag.
+        this.signatureNova(game, 150, 1, 'water', 8, 55, 8);
+        this.signaturePull(game, 460);
+        break;
+
+      case 'kraken':
+        // Tentacles hook the player and reel them into hugging range.
+        this.signaturePull(game, 620);
+        this.doShockwave(game, 155, 1);
+        game.fx.burst('GET OVER HERE!', b.x, b.y - 60, 1.2, '#7a3b5c', true);
+        break;
+
+      case 'fridgezilla':
+        // Frost breath: ice underfoot and a numbing chill.
+        this.signatureNova(game, 165, 1, 'slick', 9, 50, 9);
+        if (Math.hypot(game.player.body.x - b.x, game.player.body.y - b.y) < 240) {
+          game.player.slowTimer = 2.6;
+          game.player.slowFactor = 0.4;
+        }
+        break;
+
+      case 'piano':
+        // The only boss with a soundtrack it performs live.
+        this.pianoTimer = 0;
+        this.pianoPlaying = false;
+        this.pianoEncore = encore;
+        break;
+
+      case 'mower':
+        // Rev up, then mow a straight line through the room.
+        this.signatureCharge(game, 0.9);
+        this.doShockwave(game, 120, 1);
+        break;
+
+      case 'mom':
+        // Tidies the room and throws the tidied bits.
+        this.rearrangeTimer = 0;
+        this.signatureVolley(game, 'shoe', encore ? 5 : 3);
+        break;
+
+      case 'vacuumasaurus':
+        // Inhale everything, then spit the dust back out.
+        this.signaturePull(game, 700);
+        this.signatureNova(game, 160, 1, 'dirt', 8, 55, 6);
+        break;
+
+      case 'hydra':
+        // Three heads, three throws, no agreement about anything.
+        this.signatureVolley(game, 'ball', 3);
+        this.signatureVolley(game, 'soap', 3);
+        break;
+
+      case 'fan':
+        // A gust that moves you, and cyclones where you land.
+        this.signatureNova(game, 150, 1, 'wind', 6, 70, 5);
+        break;
+
+      case 'popcorn':
+        // Blink, then a fresh tray of cans.
+        this.teleportTimer = 0;
+        this.signatureVolley(game, 'spraycan', encore ? 6 : 4);
+        break;
+
+      case 'cables':
+        // Everything conducts. Especially the floor.
+        this.signatureNova(game, 190, 1, 'electric', 8, 55, 5);
+        break;
+
+      case 'cooker':
+        // The lid comes off: steam everywhere and a pressure wave.
+        this.signatureNova(game, 170, 1, 'steam', 9, 60, 7);
+        break;
+
+      case 'train':
+        // A horn, then the whole length of the room.
+        game.audio.play('whistle', 1);
+        this.signatureCharge(game, 1);
+        break;
+
+      case 'junk':
+        // Pulls the junk into orbit, then fires it all at once.
+        this.signaturePull(game, 520);
+        this.signatureFling(game, encore ? 7 : 4);
+        break;
+
+      case 'house':
+        // Bits of the building fall on you.
+        this.signatureVolley(game, 'plank', encore ? 7 : 4);
+        this.doShockwave(game, 165, 1);
+        break;
+
+      case 'clock':
+        // Time stops for everyone except the clock.
+        this.stasisCooldown = 0;
+        game.player.slowTimer = 2.8;
+        game.player.slowFactor = 0.25;
+        break;
+
+      case 'toybox':
+        // Tips the whole chest out.
+        this.signatureSummon(game, 'mini', encore ? 5 : 3);
+        break;
+
+      case 'dishwasher':
+        // Floods the floor, then bowls the crockery down it.
+        this.signatureNova(game, 150, 1, 'water', 9, 55, 10);
+        this.signatureVolley(game, 'plate', 3);
+        break;
+
+      case 'cardboard':
+        // Re-folds into the next shape in front of you.
+        this.formTimer = 0;
+        this.signatureSummon(game, 'mini', 2);
+        break;
+    }
+  }
+
+  /**
+   * The Piano Spider's whole personality: it stops, lays its legs out like a
+   * keyboard, and plays an ascending scale. Every key that lands is a note you
+   * can hear and a circle you have to be out of. Returns true while playing.
+   */
+  private updatePiano(game: Game, dt: number): boolean {
+    const b = this.body;
+    const notes = this.pianoEncore ? 12 : PIANO_NOTES.length;
+    if (!this.pianoPlaying) {
+      this.pianoTimer -= dt * this.rageMult;
+      if (this.pianoTimer > 0) return false;
+      const p = game.player.body;
+      const facing = Math.atan2(p.y - b.y, p.x - b.x);
+      this.facing = facing;
+      const reach = clamp(Math.hypot(p.x - b.x, p.y - b.y) + 20, 150, 300);
+      const bounds = game.world.bounds;
+      this.pianoKeys = [];
+      for (let i = 0; i < notes; i++) {
+        const a = facing + (i - (notes - 1) / 2) * (this.pianoEncore ? 0.16 : 0.2);
+        this.pianoKeys.push({
+          x: clamp(b.x + Math.cos(a) * reach, bounds.x0 + 40, bounds.x1 - 40),
+          y: clamp(b.y + Math.sin(a) * reach, bounds.y0 + 40, bounds.y1 - 40),
+        });
+      }
+      this.pianoPlaying = true;
+      this.pianoIndex = 0;
+      this.pianoBeat = 0.3;
+      this.pianoTimer = this.pianoEncore ? 7 : 8.5;
+      game.hud.banner(this.pianoEncore ? 'PIANO FORTE' : 'PIANO SOLO', this.type.name, 1.4);
+      game.audio.voice('attack', this.type.voice, this.type.id);
+      return true;
+    }
+
+    this.steer(0, 0, 0, dt);
+    this.squash = Math.max(this.squash, 0.35);
+    this.pianoBeat -= dt;
+    if (this.pianoBeat > 0) return true;
+
+    const key = this.pianoKeys[this.pianoIndex];
+    if (key) {
+      const noteIndex = this.pianoIndex % PIANO_NOTES.length;
+      game.audio.pianoNote(PIANO_NOTES[noteIndex]!, 1);
+      game.zones.spawn(game, 'music', key.x, key.y, 56, { ttl: 0.65 });
+      game.particles.ringBurst('note', key.x, key.y, 10, 130, 48);
+      game.fx.ring(key.x, key.y, 10, 60, 0.35, 'rgba(255,243,214,0.9)', 4);
+      game.fx.burst(PIANO_LETTERS[noteIndex]!, key.x, key.y - 42, 1, '#fff3d6', true);
+      const player = game.player;
+      if (player.alive && Math.hypot(player.body.x - key.x, player.body.y - key.y) < 56 + player.body.boundR) {
+        if (player.hurt(game, 1, this.label)) {
+          player.body.vx += (player.body.x - key.x) * 2.4;
+          player.body.vy += (player.body.y - key.y) * 2.4;
+        }
+      }
+      game.camera.addShake(0.07);
+    }
+    this.pianoIndex++;
+    this.pianoBeat = this.pianoIndex >= this.pianoKeys.length ? 0 : this.pianoEncore ? 0.18 : 0.32;
+    if (this.pianoIndex >= this.pianoKeys.length) {
+      this.pianoPlaying = false;
+      this.pianoEncore = false;
+      game.audio.pianoNote(1046.5, 0.8);
+      game.fx.burst('BRAVO!', b.x, b.y - 60, 1.4, '#ffd966', true);
+      this.setState('recover', 0.9);
+    }
+    return true;
   }
 
   private updateBurn(game: Game, dt: number): void {
