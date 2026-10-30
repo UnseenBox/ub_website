@@ -7,10 +7,10 @@ import { SaveManager } from '../../save/SaveManager';
 import { buildMainMenu } from './lobby';
 
 const HERO_CASES = [
-  ['tenant', 'violet'],
-  ['flatmate', 'teal'],
-  ['gran', 'rose'],
-  ['kid', 'lime'],
+  ['tenant', 'tenant'],
+  ['flatmate', 'flatmate'],
+  ['gran', 'gran'],
+  ['kid', 'kid'],
 ] as const satisfies ReadonlyArray<readonly [HeroId, string]>;
 
 function menuFor(hero: HeroId): HTMLElement {
@@ -36,13 +36,13 @@ beforeEach(() => {
   document.body.innerHTML = '';
 });
 
-it.each(HERO_CASES)('shows only the selected %s hero in the main menu', (hero, accent) => {
+it.each(HERO_CASES)('shows only the selected %s hero in the main menu', (hero, slug) => {
   const menu = menuFor(hero);
   document.body.append(menu);
 
   const portraits = [...menu.querySelectorAll<HTMLImageElement>('.b2-lobby__hero')];
   expect(portraits).toHaveLength(1);
-  expect(portraits[0]?.getAttribute('src')).toContain(`character-${accent}`);
+  expect(portraits[0]?.getAttribute('src')).toContain(`${slug}.png`);
   expect(menu.querySelector('.b2-lobby__cast')).toBeNull();
   expect(menu.querySelector('img[src*="bonk-cast"]')).toBeNull();
 });

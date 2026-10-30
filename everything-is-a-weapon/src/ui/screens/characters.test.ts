@@ -6,13 +6,15 @@ import { buildCharactersPane } from './characters';
 it('shows each hero once, using the full hero-and-pet illustration', () => {
   const pane = buildCharactersPane({ hero: 'tenant' } as Game);
   const cards = [...pane.querySelectorAll<HTMLButtonElement>('.b2-hero')];
-  const accents = ['violet', 'teal', 'rose', 'lime'];
+  const portraits = ['tenant.png', 'flatmate.png', 'gran.png', 'kid.png'];
+  const accents = ['teal', 'violet', 'rose', 'lime'];
 
   expect(cards).toHaveLength(4);
   cards.forEach((card, index) => {
     expect(card.querySelector('.b2-hero__portrait')?.getAttribute('src')).toContain(
-      `character-${accents[index]}`,
+      portraits[index],
     );
+    expect(card.dataset.accent).toBe(accents[index]);
     expect(card.querySelectorAll('img')).toHaveLength(1);
     expect(card.querySelector('.b2-hero__pet')).toBeNull();
   });

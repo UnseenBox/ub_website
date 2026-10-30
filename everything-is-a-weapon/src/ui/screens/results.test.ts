@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { RoomSummary } from '../../core/Game';
-import { EDGE_BY_ID, type EdgeId } from '../../gameplay/Edges';
 import { buildResults } from './results';
 
 function summary(overrides: Partial<RoomSummary>): RoomSummary {
@@ -34,8 +33,7 @@ function summary(overrides: Partial<RoomSummary>): RoomSummary {
     ledgerClaims: [],
     roomScore: 2340,
     isNewRoomBest: false,
-        nextRoom: null,
-    nextEdge: null,
+    nextRoom: null,
     nextGoal: { kind: 'store', kicker: 'READY TO BUY', name: 'EVERYTHING UNLOCKED', detail: 'THE LEASE IS YOURS.', progress: 100, action: null },
     ledgerNext: null,
     ledgerStars: 12,
@@ -60,10 +58,7 @@ function actions() {
   };
 }
 
-const edge = (id: EdgeId) => EDGE_BY_ID[id];
-const offer = [edge('heavy_hands'), edge('quick_feet'), edge('scrap_luck')];
 const draft = summary({
-  offer,
   run: { floor: 3, nextFloor: 4, streak: 2, score: 4200, types: 2, stacks: 3, boosts: ['heavy_hands'], ended: false },
   nextRoom: { number: 4, name: 'THE BATHROOM', boss: false },
 });
@@ -102,14 +97,11 @@ it('shows no edge cards when cleared', () => {
   expect(primary.textContent).toContain('NEXT ROOM');
 });
 
-it('requires a second tap to skip replay', () => {
+it('HOME leaves the results screen in one tap', () => {
   const acts = actions();
   document.body.append(buildResults(draft, acts));
   const home = [...document.querySelectorAll<HTMLButtonElement>('.b2-results__action')]
     .find((b) => b.textContent?.includes('HOME'))!;
-  home.click();
-  expect(acts.home).not.toHaveBeenCalled();
-  expect(home.textContent).toContain('TAP AGAIN TO SKIP');
   home.click();
   expect(acts.home).toHaveBeenCalledOnce();
 });
@@ -129,20 +121,9 @@ it('arms replay when run would be lost', () => {
   expect(acts.retry).toHaveBeenCalledOnce();
 });
 
-it('shows the next Edge line on a non-draft victory', () => {
-  document.body.append(buildResults(summary({
-        nextRoom: { number: 11, name: 'THE HALLWAY', boss: false },
-  }), actions()));
-  expect(document.querySelectorAll('button.b2-edge')).toHaveLength(0);
-  expect(document.querySelector('.b2-report__nextedge')!.textContent).toContain('NEXT EDGE · ROOM 11');
-});
-
-it('shows BUILD MAXED when no draft remains', () => {
-  expect(document.body.textContent).toContain('BUILD MAXED');
-});
-
 it('reports failure with no salvage, kept Edges and the next goal', () => {
   document.body.append(buildResults(summary({
+    cleared: false,
     run: { floor: 12, nextFloor: null, streak: 0, score: 5000, types: 2, stacks: 5, boosts: ['quick_feet', 'quick_feet', 'heavy_hands'], ended: false },
     nextGoal: { kind: 'ledger', kicker: 'NEXT STAR', name: 'SCRAP STIPEND', detail: '2 STARS TO GO · +100 SCRAP', progress: 33, action: 'ledger' },
   }), actions()));

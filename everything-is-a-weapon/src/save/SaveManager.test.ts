@@ -19,7 +19,7 @@ function loadRaw(raw: Record<string, unknown>): SaveData {
   return manager.data;
 }
 
-describe('SaveManager v7', () => {
+describe('SaveManager v8', () => {
   it('migrates a v4 save without losing progress', () => {
     const save = loadRaw({
       version: 4,
@@ -31,7 +31,7 @@ describe('SaveManager v7', () => {
       tutorial: 'done',
     });
 
-    expect(SAVE_VERSION).toBe(7);
+    expect(SAVE_VERSION).toBe(8);
     expect(save.upgrades).toEqual({});
     expect(save.runOffer).toEqual([]);
     expect(save.unlockedRoom).toBe(5);
@@ -122,7 +122,7 @@ describe('SaveManager v7', () => {
       runActive: true, runFloor: 4, runStreak: 2, runScore: 4200,
       runBoosts: ['quick_feet'], runOffer: ['heavy_hands'],
     });
-    expect(SAVE_VERSION).toBe(7);
+    expect(SAVE_VERSION).toBe(8);
     expect(save.upgrades).toEqual({});
     expect(save.runOffer).toEqual([]);
     expect(save.roomBests).toEqual({});
@@ -182,7 +182,7 @@ describe('SaveManager v7', () => {
   it('keeps an old save on Normal, the difficulty it was born on', () => {
     const legacy = loadRaw({ version: 5, unlockedRoom: 9 });
     expect(legacy.difficulty).toBe('normal');
-    expect(legacy.version).toBe(7);
+    expect(legacy.version).toBe(8);
   });
 
   it('round-trips difficulty and writes it back', () => {
@@ -194,5 +194,22 @@ describe('SaveManager v7', () => {
     const second = new SaveManager(storage);
     second.load();
     expect(second.data.difficulty).toBe('hard');
+  });
+
+  it('migrates v7 saves with no outfits owned and none worn', () => {
+    const save = loadRaw({ version: 7, scrap: 40, difficulty: 'easy' });
+    expect(save.petOutfits).toEqual([]);
+    expect(save.petOutfit).toBe('');
+    expect(save.scrap).toBe(40);
+    expect(save.difficulty).toBe('easy');
+  });
+
+  it('keeps owned outfits and only wears one that is actually owned', () => {
+    const owned = loadRaw({ version: 8, petOutfits: ['cat_bow', 'nope', 'cat_bow'], petOutfit: 'cat_bow' });
+    expect(owned.petOutfits).toEqual(['cat_bow']);
+    expect(owned.petOutfit).toBe('cat_bow');
+
+    const notOwned = loadRaw({ version: 8, petOutfits: [], petOutfit: 'dog_bandana' });
+    expect(notOwned.petOutfit).toBe('');
   });
 });

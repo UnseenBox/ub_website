@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, expect, it, vi } from 'vitest';
 import { todayKey, yesterdayKey } from '../gameplay/Campaign';
+import { EDGE_BY_ID } from '../gameplay/Edges';
 import { Game } from './Game';
 
 function stub2d(): CanvasRenderingContext2D {
@@ -146,7 +147,7 @@ it('makes a daily replay pure practice', () => {
   expect(game.save.data.totalKills).toBe(kills);
 });
 
-it('grants the day-7 legendary and consumes it on the next campaign draft', () => {
+it('grants the day-7 starting Edge instead of a draft', () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
@@ -159,13 +160,12 @@ it('grants the day-7 legendary and consumes it on the next campaign draft', () =
   expect(game.save.data.dailyRareEdge).toBe(true);
 
   game.playFrom(0);
-  game.score.score = 100;
-  const draft = summarize(game, true);
-  expect(draft.offer.some((edge) => edge.rarity === 'legendary')).toBe(true);
   expect(game.save.data.dailyRareEdge).toBe(false);
+  const granted = game.save.data.runBoosts.map((id) => EDGE_BY_ID[id as keyof typeof EDGE_BY_ID]?.rarity);
+  expect(granted.some((rarity) => rarity === 'rare' || rarity === 'legendary')).toBe(true);
 });
 
-it('auto-grants the first persisted offer on load', () => {
+it('drops a stale persisted Edge offer on load', () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
@@ -181,7 +181,7 @@ it('auto-grants the first persisted offer on load', () => {
   reloaded.start();
   expect(reloaded.save.data.runActive).toBe(true);
   expect(reloaded.save.data.runFloor).toBe(3);
-  expect(reloaded.save.data.runBoosts).toContain('quick_feet');
+  expect(reloaded.save.data.runBoosts).toEqual([]);
   expect(reloaded.save.data.runOffer).toEqual([]);
 });
 

@@ -1,10 +1,10 @@
 import type { Game } from '../../core/Game';
 import { HEROES, type HeroId } from '../../core/Hero';
 import { el } from '../dom';
-import characterLime from '../../ui-kit/bonk2/assets/icons/character-lime@2x.png';
-import characterRose from '../../ui-kit/bonk2/assets/icons/character-rose@2x.png';
-import characterTeal from '../../ui-kit/bonk2/assets/icons/character-teal@2x.png';
-import characterViolet from '../../ui-kit/bonk2/assets/icons/character-violet@2x.png';
+import tenantArt from '../../assets/characters/tenant.png';
+import flatmateArt from '../../assets/characters/flatmate.png';
+import granArt from '../../assets/characters/gran.png';
+import kidArt from '../../assets/characters/kid.png';
 
 interface RosterArt {
   readonly portrait: string;
@@ -12,12 +12,12 @@ interface RosterArt {
   readonly accent: 'violet' | 'teal' | 'rose' | 'lime';
 }
 
-/** The kit's four robes. Each illustration already includes the hero's pet. */
+/** The four sticker illustrations. Each one already includes the hero's pet. */
 const ROSTER: Record<HeroId, RosterArt> = {
-  tenant: { portrait: characterViolet, accent: 'violet' },
-  flatmate: { portrait: characterTeal, accent: 'teal' },
-  gran: { portrait: characterRose, accent: 'rose' },
-  kid: { portrait: characterLime, accent: 'lime' },
+  tenant: { portrait: tenantArt, accent: 'teal' },
+  flatmate: { portrait: flatmateArt, accent: 'violet' },
+  gran: { portrait: granArt, accent: 'rose' },
+  kid: { portrait: kidArt, accent: 'lime' },
 };
 
 /** The selected hero's card art, shared by the roster and the main menu. */

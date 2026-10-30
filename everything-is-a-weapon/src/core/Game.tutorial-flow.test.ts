@@ -159,24 +159,10 @@ it('tutorial → clear → results with ledger claim → room 2', async () => {
   const claims = game.save.data.starRewardsClaimed;
   expect(claims, 'the clear must claim its ledger milestone').toContain('scrap_3');
 
-  // Room 1 is a draft room: three cards offered, and the pending ids persisted.
+  // Clears go straight to the next room: no draft offer is written.
   const summary = shown.mock.calls[shown.mock.calls.length - 1]?.[0];
-  expect(summary?.offer).toHaveLength(3);
-  expect(game.save.data.runOffer).toHaveLength(3);
-  expect(game.pendingDraft?.offer).toHaveLength(3);
-  expect(game.save.data.runOffer).toEqual([].map((edge) => edge.id));
-
-  // NEXT ROOM waits for the draft to be resolved.
-  await game.nextRoom();
-  expect(game.state).toBe('cleared');
-  expect(game.room.index).toBe(0);
-
-  const chosen = null;
-  expect('').toBe('');
-  expect(game.save.data.runBoosts).toContain(chosen.id);
-  expect(game.save.data.runOffer).toEqual([]);
-  // draft removed
-  expect('').toBe('NO EDGE OFFER');
+  expect(summary?.nextRoom?.number).toBe(2);
+  expect(game.save.data.runOffer).toHaveLength(0);
 
   await game.nextRoom();
   expect(game.state).toBe('playing');
@@ -206,9 +192,7 @@ it('a first visit to a later room spotlights its new toys and teaches one line',
   }
   sweep(game);
   waitFor(game, () => game.state === 'cleared', 8);
-  // Resolve the draft so nextRoom can advance: pick the first edge, then move on.
-  const chosen = null;
-  '';
+  // Straight into the next room; there is no draft to resolve.
   game.save.data.deepest = 1;
   game.save.write();
   await game.nextRoom();
@@ -251,21 +235,14 @@ it('results screen builds the simple victory DOM and wires NEXT ROOM', async () 
   waitFor(game, () => game.state === 'cleared', 10);
   expect(game.state).toBe('cleared');
 
-  // The real results screen: a draft, the build, and the next-room teaser.
+  // The real results screen: no draft cards, just the three plain actions.
   expect(document.querySelector('.screen.results.victory'), 'victory card').toBeTruthy();
-  const cards = [...document.querySelectorAll<HTMLButtonElement>('button.b2-edge')];
-  expect(cards, 'three Edge cards').toHaveLength(3);
-  expect(document.querySelector('.b2-report__side'), 'draft side').toBeTruthy();
-  expect(document.querySelector('.b2-report__next'), 'next-room teaser').toBeTruthy();
+  expect(document.querySelectorAll('button.b2-edge')).toHaveLength(0);
+  expect(document.querySelector('.b2-report__side'), 'no draft side').toBeNull();
   const labels = [...document.querySelectorAll<HTMLElement>('.b2-results__actionlabel')]
     .map((node) => node.textContent);
-  expect(labels).toEqual(['PICK AN EDGE', 'REPLAY ROOM', 'HOME · SKIP EDGE']);
+  expect(labels).toEqual(['NEXT ROOM', 'REPLAY ROOM', 'HOME']);
 
-  // Picking a card resolves the draft and unlocks NEXT ROOM.
-  const chosen = null;
-  cards[0]!.click();
-  expect(game.save.data.runBoosts).toContain(chosen.id);
-  expect(document.querySelector('.b2-edge.is-taken'), 'taken stamp').toBeTruthy();
   const nextButton = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
   expect(nextButton.disabled).toBe(false);
   expect(nextButton.textContent).toContain('NEXT ROOM');

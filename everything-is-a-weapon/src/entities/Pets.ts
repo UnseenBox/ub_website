@@ -188,6 +188,8 @@ export class Dog extends Critter {
   private barkTimer = 6.5;
   private barks = 0;
   private biteTimer = 0;
+  /** Visibly barking this frame; drives the open mouth and the hop. */
+  barking = 0;
 
   feed(game: Game): void {
     this.state = 'chase';
