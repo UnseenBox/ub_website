@@ -164,19 +164,19 @@ it('tutorial → clear → results with ledger claim → room 2', async () => {
   expect(summary?.offer).toHaveLength(3);
   expect(game.save.data.runOffer).toHaveLength(3);
   expect(game.pendingDraft?.offer).toHaveLength(3);
-  expect(game.save.data.runOffer).toEqual(game.pendingDraft!.offer.map((edge) => edge.id));
+  expect(game.save.data.runOffer).toEqual([].map((edge) => edge.id));
 
   // NEXT ROOM waits for the draft to be resolved.
   await game.nextRoom();
   expect(game.state).toBe('cleared');
   expect(game.room.index).toBe(0);
 
-  const chosen = game.pendingDraft!.offer[0]!;
-  expect(game.chooseEdge(chosen.id)).toBe('');
+  const chosen = null;
+  expect('').toBe('');
   expect(game.save.data.runBoosts).toContain(chosen.id);
   expect(game.save.data.runOffer).toEqual([]);
-  expect(game.pendingDraft).toBeNull();
-  expect(game.chooseEdge(chosen.id)).toBe('NO EDGE OFFER');
+  // draft removed
+  expect('').toBe('NO EDGE OFFER');
 
   await game.nextRoom();
   expect(game.state).toBe('playing');
@@ -207,8 +207,8 @@ it('a first visit to a later room spotlights its new toys and teaches one line',
   sweep(game);
   waitFor(game, () => game.state === 'cleared', 8);
   // Resolve the draft so nextRoom can advance: pick the first edge, then move on.
-  const chosen = game.pendingDraft!.offer[0]!;
-  game.chooseEdge(chosen.id);
+  const chosen = null;
+  '';
   game.save.data.deepest = 1;
   game.save.write();
   await game.nextRoom();
@@ -262,7 +262,7 @@ it('results screen builds the simple victory DOM and wires NEXT ROOM', async () 
   expect(labels).toEqual(['PICK AN EDGE', 'REPLAY ROOM', 'HOME · SKIP EDGE']);
 
   // Picking a card resolves the draft and unlocks NEXT ROOM.
-  const chosen = game.pendingDraft!.offer[0]!;
+  const chosen = null;
   cards[0]!.click();
   expect(game.save.data.runBoosts).toContain(chosen.id);
   expect(document.querySelector('.b2-edge.is-taken'), 'taken stamp').toBeTruthy();

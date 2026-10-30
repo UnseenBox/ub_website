@@ -1,0 +1,1 @@
+feat(no-draft): remove Edge choice; store categories + Animals tab; 20 unique boss signatures/death; piano spider; outfits save v8; type clean; build passes

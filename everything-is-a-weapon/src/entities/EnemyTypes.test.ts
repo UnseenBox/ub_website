@@ -24,6 +24,17 @@ describe('the boss roster', () => {
     }
   });
 
+  it('gives every boss a unique signature attack', () => {
+    const sigs = bosses.map((b) => b.signature?.name).filter(Boolean);
+    expect(sigs.length).toBe(20);
+    expect(new Set(sigs).size).toBe(20);
+  });
+
+  it('makes Piano Spider play piano', () => {
+    expect(ENEMY_TYPES.piano.signature?.sound).toBe('piano');
+    expect(ENEMY_TYPES.piano.signature?.name).toContain('PIANO');
+  });
+
   it('keeps the roster heavier than the old line-up', () => {
     expect(Math.min(...bosses.map((boss) => boss.hp))).toBeGreaterThanOrEqual(480);
     expect(ENEMY_TYPES.cardboard.hp).toBeGreaterThanOrEqual(750);

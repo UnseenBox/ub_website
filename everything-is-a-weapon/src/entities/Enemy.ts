@@ -55,6 +55,8 @@ export class Enemy {
   incident: 'headliner' | 'enforcer' | null = null;
   /** Boss phase already crossed (indexes into type.phases). */
   phaseIndex = 0;
+  /** Whether the boss's unique signature attack has been triggered. */
+  signatureReleased = false;
   /** Speed multiplier from crossed phases. */
   rageMult = 1;
   /** Campaign-difficulty speed multiplier, set when the intruder walks in. */
@@ -1181,6 +1183,14 @@ export class Enemy {
       }
       if (phase.shockwave) this.doShockwave(game, phase.shockwave.radius, phase.shockwave.damage);
     }
+    // Signature attack: once per boss, at 50% HP.
+    const sig = this.type.signature;
+    if (sig && !this.signatureReleased && this.hp <= this.type.hp * 0.5) {
+      this.signatureReleased = true;
+      game.audio.play(sig.sound as any, 1);
+      game.fx.burst(sig.name, this.body.x, this.body.y - 40, 1.3, '#fff3d6', true);
+      game.particles.burst('spark', this.body.x, this.body.y - 20, 14, 200, { color: '#ffd966' });
+    }
   }
 
   private updateBurn(game: Game, dt: number): void {
@@ -1454,6 +1464,12 @@ export class Enemy {
     if (this.defeated) return;
     this.defeated = true;
     this.removeIn = 1.35;
+    const d = this.type.death;
+    if (d) {
+      game.audio.play(d.sound as any, 1);
+      game.fx.burst(d.effect || 'DEATH', this.body.x, this.body.y - 40, 1.2, '#ff4d6d', true);
+      game.particles.burst('smoke', this.body.x, this.body.y - 6, 10, 230, { color: '#333' });
+    }
     this.hp = 0;
     this.tags.delete('enemy');
     this.tags.delete('creature');

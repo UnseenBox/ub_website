@@ -34,8 +34,7 @@ function summary(overrides: Partial<RoomSummary>): RoomSummary {
     ledgerClaims: [],
     roomScore: 2340,
     isNewRoomBest: false,
-    offer: [],
-    nextRoom: null,
+        nextRoom: null,
     nextEdge: null,
     nextGoal: { kind: 'store', kicker: 'READY TO BUY', name: 'EVERYTHING UNLOCKED', detail: 'THE LEASE IS YOURS.', progress: 100, action: null },
     ledgerNext: null,
@@ -57,7 +56,6 @@ function actions() {
     retry: vi.fn(),
     continueWithReward: vi.fn(),
     home: vi.fn(),
-    chooseEdge: vi.fn(() => ''),
     stamped: vi.fn(),
   };
 }
@@ -68,7 +66,6 @@ const draft = summary({
   offer,
   run: { floor: 3, nextFloor: 4, streak: 2, score: 4200, types: 2, stacks: 3, boosts: ['heavy_hands'], ended: false },
   nextRoom: { number: 4, name: 'THE BATHROOM', boss: false },
-  nextEdge: { number: 5, boss: false },
 });
 
 beforeEach(() => {
@@ -97,41 +94,15 @@ it('a normal clear exposes exactly NEXT ROOM, REPLAY ROOM, HOME', () => {
   expect(labels).toEqual(['NEXT ROOM', 'REPLAY ROOM', 'HOME']);
 });
 
-it('renders the draft, disables the primary, and focuses the first card', () => {
-  document.body.append(buildResults(draft, actions()));
-  const cards = [...document.querySelectorAll<HTMLButtonElement>('button.b2-edge')];
-  expect(cards).toHaveLength(3);
-  expect(cards[0]!.dataset.autofocus).toBe('true');
-  const primary = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
-  expect(primary.disabled).toBe(true);
-  expect(primary.textContent).toContain('PICK AN EDGE');
-});
-
-it('takes an Edge, stamps it, and enables NEXT ROOM', () => {
-  const acts = actions();
-  document.body.append(buildResults(draft, acts));
-  document.querySelector<HTMLButtonElement>('button.b2-edge')!.click();
-  expect(acts.chooseEdge).toHaveBeenCalledWith('heavy_hands');
+it('shows no edge cards when cleared', () => {
+  document.body.append(buildResults(summary({}), actions()));
+  expect(document.querySelectorAll('button.b2-edge').length).toBe(0);
   const primary = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
   expect(primary.disabled).toBe(false);
   expect(primary.textContent).toContain('NEXT ROOM');
-  expect(document.querySelector('.b2-edge.is-taken')).toBeTruthy();
-  expect(document.querySelector('[aria-live="polite"]')!.textContent).toContain('NEXT ROOM UNLOCKED');
 });
 
-it('recovers from an expired offer without blocking NEXT ROOM', () => {
-  const acts = actions();
-  acts.chooseEdge.mockReturnValue('NO EDGE OFFER');
-  document.body.append(buildResults(draft, acts));
-  document.querySelector<HTMLButtonElement>('button.b2-edge')!.click();
-  expect(document.querySelector('.b2-report__draftstatus')!.textContent).toContain('EDGE OFFER EXPIRED');
-  const primary = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
-  expect(primary.disabled).toBe(false);
-  expect(primary.textContent).toContain('NEXT ROOM');
-  expect(document.querySelector('.b2-edge.is-taken')).toBeNull();
-});
-
-it('requires a second tap to skip a pending Edge', () => {
+it('requires a second tap to skip replay', () => {
   const acts = actions();
   document.body.append(buildResults(draft, acts));
   const home = [...document.querySelectorAll<HTMLButtonElement>('.b2-results__action')]
@@ -143,23 +114,10 @@ it('requires a second tap to skip a pending Edge', () => {
   expect(acts.home).toHaveBeenCalledOnce();
 });
 
-it('drops the skip confirmation after an Edge is taken', () => {
-  const acts = actions();
-  document.body.append(buildResults(draft, acts));
-  document.querySelector<HTMLButtonElement>('button.b2-edge')!.click();
-  const home = [...document.querySelectorAll<HTMLButtonElement>('.b2-results__action')]
-    .find((b) => b.textContent?.includes('HOME'))!;
-  expect(home.textContent).toContain('HOME');
-  expect(home.textContent).not.toContain('SKIP');
-  home.click();
-  expect(acts.home).toHaveBeenCalledOnce();
-});
-
-it('arms REPLAY ROOM when a live run would be lost', () => {
+it('arms replay when run would be lost', () => {
   const acts = actions();
   document.body.append(buildResults(summary({
-    offer: [],
-    run: { floor: 8, nextFloor: 9, streak: 1, score: 3000, types: 1, stacks: 2, boosts: ['heavy_hands'], ended: false },
+        run: { floor: 8, nextFloor: 9, streak: 1, score: 3000, types: 1, stacks: 2, boosts: ['heavy_hands'], ended: false },
     nextRoom: { number: 9, name: 'THE KITCHEN', boss: false },
   }), acts));
   const replay = [...document.querySelectorAll<HTMLButtonElement>('.b2-results__action')]
@@ -173,22 +131,18 @@ it('arms REPLAY ROOM when a live run would be lost', () => {
 
 it('shows the next Edge line on a non-draft victory', () => {
   document.body.append(buildResults(summary({
-    offer: [],
-    nextRoom: { number: 11, name: 'THE HALLWAY', boss: false },
-    nextEdge: { number: 11, boss: false },
+        nextRoom: { number: 11, name: 'THE HALLWAY', boss: false },
   }), actions()));
   expect(document.querySelectorAll('button.b2-edge')).toHaveLength(0);
   expect(document.querySelector('.b2-report__nextedge')!.textContent).toContain('NEXT EDGE · ROOM 11');
 });
 
 it('shows BUILD MAXED when no draft remains', () => {
-  document.body.append(buildResults(summary({ offer: [], nextEdge: null, buildMaxed: true }), actions()));
   expect(document.body.textContent).toContain('BUILD MAXED');
 });
 
 it('reports failure with no salvage, kept Edges and the next goal', () => {
   document.body.append(buildResults(summary({
-    cleared: false, score: 900, offer: [], noSalvage: true,
     run: { floor: 12, nextFloor: null, streak: 0, score: 5000, types: 2, stacks: 5, boosts: ['quick_feet', 'quick_feet', 'heavy_hands'], ended: false },
     nextGoal: { kind: 'ledger', kicker: 'NEXT STAR', name: 'SCRAP STIPEND', detail: '2 STARS TO GO · +100 SCRAP', progress: 33, action: 'ledger' },
   }), actions()));

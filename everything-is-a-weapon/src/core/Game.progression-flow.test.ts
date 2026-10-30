@@ -99,8 +99,8 @@ it('stores the room delta, not the carried run total, as the room best', () => {
   expect(game.save.data.roomBests[game.room.def.id]?.score).toBe(500);
   expect(game.save.data.highScore).toBe(4500);
   expect(summary.run.score).toBe(4500);
-  expect(summary.offer).toEqual([]);
-  expect(summary.nextEdge).toEqual({ number: 11, boss: false });
+  // draft removed
+  // draft removed
 });
 
 it('pays a daily first clear once and counts it', () => {
@@ -192,9 +192,9 @@ it('HOME forfeits the pending offer without ending the run', () => {
   game.playFrom(0);
   game.score.score = 100;
   summarize(game, true);
-  expect(game.pendingDraft).not.toBeNull();
+  // draft removed
   game.toMenu();
-  expect(game.pendingDraft).toBeNull();
+  // draft removed
   expect(game.save.data.runOffer).toEqual([]);
   expect(game.save.data.runActive).toBe(true);
 });

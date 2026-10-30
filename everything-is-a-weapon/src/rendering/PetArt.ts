@@ -2,6 +2,7 @@ import { INK } from '../core/constants';
 import { TAU } from '../core/math';
 import type { Dog, Hamster, Parrot, Pet } from '../entities/Pets';
 import { drawCat } from './CatArt';
+import { PET_OUTFITS, type PetOutfitId } from '../gameplay/PetOutfits';
 import type { Ctx } from './draw';
 
 /** The pets that are not the cat. Side-on stickers, like it, flipped to face the way they go. */
@@ -217,6 +218,15 @@ function drawDog(ctx: Ctx, dog: Dog, x: number, y: number, z: number, time: numb
     }
     ctx.stroke();
     ctx.lineCap = 'butt';
+  }
+  // cosmetic outfit accessory (drawn when owned + equipped)
+  const outfit = dog.outfitTag || '';
+  if (outfit && outfit in PET_OUTFITS) {
+    const def = PET_OUTFITS[outfit as PetOutfitId];
+    ctx.fillStyle = def.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+    if (outfit === 'dog_bandana') { ctx.beginPath(); ctx.ellipse(-6,-16,7,3.5,0,0,Math.PI*2); ctx.fill(); ctx.stroke(); }
+    else if (outfit === 'cat_bow') { ctx.beginPath(); ctx.ellipse(-5,-18,4,2,0,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-9,-18); ctx.lineTo(-1,-18); ctx.stroke(); }
+    else if (outfit === 'hamster_hat') { ctx.beginPath(); ctx.arc(-6,-19,5,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.fillStyle='#fff3d6'; ctx.beginPath(); ctx.ellipse(-6,-17,3,1.2,0,0,Math.PI*2); ctx.fill(); }
   }
   ctx.restore();
 }

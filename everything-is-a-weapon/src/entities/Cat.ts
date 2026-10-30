@@ -80,6 +80,8 @@ export class Cat {
   /** 0..1, eased: how frightened it looks. */
   fear = 0;
   sitting = false;
+  /** Cosmetic outfit id bought in the store; empty means no accessory. */
+  outfitTag = '';
   /** Seconds since it last did anything; drives the idle fidgets. */
   idle = 0;
   readonly seed = Math.random() * 100;

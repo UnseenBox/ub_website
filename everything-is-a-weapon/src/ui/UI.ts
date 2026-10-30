@@ -113,7 +113,6 @@ export class UI implements GameUi {
           }),
         home: () => (summary.runEnded ? game.abandonRun() : game.toMenu()),
         stamped: () => game.audio.play('stamp', 1),
-        chooseEdge: (id) => game.chooseEdge(id),
       }),
     );
   }
@@ -161,6 +160,8 @@ export class UI implements GameUi {
       buildStore(game, {
         buyUpgrade: (id) => game.buyUpgrade(id),
         buyAbility: (id) => game.buyAbility(id),
+        buyOutfit: (id) => game.buyOutfit(id),
+        equipOutfit: (id) => game.equipOutfit(id),
         back: () => this.showMenu(),
       }),
     );

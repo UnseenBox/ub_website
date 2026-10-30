@@ -41,6 +41,8 @@ function store(game: Game, overrides: Partial<Parameters<typeof buildStore>[1]> 
   return buildStore(game, {
     buyUpgrade: (id) => game.buyUpgrade(id),
     buyAbility: (id) => game.buyAbility(id),
+    buyOutfit: (id) => game.buyOutfit(id),
+    equipOutfit: (id) => game.equipOutfit(id),
     back: vi.fn(),
     ...overrides,
   });

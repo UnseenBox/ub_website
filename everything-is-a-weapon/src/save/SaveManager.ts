@@ -3,8 +3,9 @@ import { EDGE_STACK_CAP, isEdgeId } from '../gameplay/Edges';
 import { UPGRADES } from '../gameplay/Upgrades';
 import { isHeroId, type HeroId } from '../core/Hero';
 import type { PortalStorage } from '../platform/Portal';
+import { isPetOutfitId, type PetOutfitId } from '../gameplay/PetOutfits';
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 const STORAGE_KEY = 'everything-is-a-weapon/save';
 
 /** Best run on one room, for the level-select wall and replay bragging rights. */
@@ -110,6 +111,10 @@ export interface SaveData {
   difficulty: Difficulty;
   /** Room 1's lesson plan: '' not started, a lesson id part-way through, 'done' after. */
   tutorial: string;
+  /** Cosmetic pet outfits bought with scrap (new in version 8). */
+  petOutfits: PetOutfitId[];
+  /** The outfit currently worn by the pet ('' for none). */
+  petOutfit: string;
   settings: Settings;
 }
 
@@ -149,6 +154,8 @@ function defaults(): SaveData {
     hero: 'tenant',
     difficulty: 'normal',
     tutorial: '',
+    petOutfits: [],
+    petOutfit: '',
     settings: { volume: 0.7, muted: false, music: true, reducedShake: false, highContrast: false },
   };
 }
@@ -224,6 +231,12 @@ function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     raw.difficulty = 'normal';
     version = 7;
   }
+  if (version < 8) {
+    // Version 8 adds cosmetic pet outfits bought from the store.
+    raw.petOutfits = [];
+    raw.petOutfit = '';
+    version = 8;
+  }
   return raw;
 }
 
@@ -286,12 +299,22 @@ function runOffer(value: unknown, active: boolean): string[] {
   return out;
 }
 
+function petOutfits(value: unknown): PetOutfitId[] {
+  const out: PetOutfitId[] = [];
+  for (const id of stringArray(value)) {
+    if (isPetOutfitId(id) && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
 function sanitize(raw: unknown): SaveData {
   const base = defaults();
   if (!isRecord(raw)) return base;
   const data = migrate(raw);
   const settings = isRecord(data.settings) ? data.settings : {};
   const runActive = data.runActive === true;
+  const ownedOutfits = petOutfits(data.petOutfits);
+  const equipped = String(data.petOutfit ?? '');
   return {
     version: SAVE_VERSION,
     discoveries: [...new Set(stringArray(data.discoveries))],
@@ -329,6 +352,8 @@ function sanitize(raw: unknown): SaveData {
     difficulty: difficultyFor(data.difficulty),
     // Saves from before the lesson plan: anyone past room 1 has nothing left to be taught.
     tutorial: typeof data.tutorial === 'string' ? data.tutorial : finite(data.unlockedRoom, 0) > 0 ? 'done' : '',
+    petOutfits: ownedOutfits,
+    petOutfit: isPetOutfitId(equipped) && ownedOutfits.includes(equipped) ? equipped : '',
     settings: {
       volume: Math.min(1, Math.max(0, finite(settings.volume, base.settings.volume))),
       muted: settings.muted === true,

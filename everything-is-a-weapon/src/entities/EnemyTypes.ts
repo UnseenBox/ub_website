@@ -176,6 +176,10 @@ export interface EnemyType {
   readonly burnFactor: number;
   /** What is left behind when it is beaten: broken glass, two smaller boxes, or a crater. */
   readonly onDefeat?: 'glass' | 'split' | 'explode';
+  /** Unique signature attack (name + effect + sound). */
+  readonly signature?: { readonly name: string; readonly sound: string; readonly effect: string; readonly trail?: string };
+  /** Death treatment (particles / sound / banner). */
+  readonly death?: { readonly sound: string; readonly effect: string; readonly banner?: string };
   /** A charge instead of a shove: how far away it starts, how fast and how long it runs. */
   readonly lungeRange?: number;
   readonly lungeSpeed?: number;
@@ -322,6 +326,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#3a4a5c', shade: '#232e3b', scoreBonus: 400, voice: 120,
     boss: true, bossTitle: 'CHAIRMAN OUSTED', bossDiscovery: 'hostile_takeover',
     bossBanner: 'CHAIRMAN OF CHAOS', bossBlurb: 'your 9 a.m. has been rescheduled. forever.',
+    signature: { name: 'CYCLONE SWEEP', sound: 'bossWalk', effect: 'fan_spread', trail: 'wind' },
+    death: { sound: 'bossWalk', effect: 'fan_spread' },
+    signature: { name: 'CYCLONE SWEEP', sound: 'bossWalk', effect: 'fan_spread', trail: 'wind' },
+    death: { sound: 'bossWalk', effect: 'fan_spread' },
     hurls: { range: 480, cooldown: 2.4, windup: 0.5, spawn: 'paperball' },
     slams: { radius: 125, damage: 1, cooldown: 8 },
     phases: [
@@ -339,6 +347,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#dfeaf2', shade: '#9fb3c4', scoreBonus: 400, voice: 75,
     boss: true, bossTitle: 'FLUSHER UNBLOCKED', bossDiscovery: 'do_not_flush',
     bossBanner: 'THE FLUSHER', bossBlurb: 'do not stand downstream.',
+    signature: { name: 'WHIRLPOOL', sound: 'slams', effect: 'water_ring', trail: 'water' },
+    death: { sound: 'slams', effect: 'water_ring' },
+    signature: { name: 'WHIRLPOOL', sound: 'slams', effect: 'water_ring', trail: 'water' },
+    death: { sound: 'slams', effect: 'water_ring' },
     sucks: { radius: 240, pull: 850 },
     slams: { radius: 135, damage: 1, cooldown: 7, spawnZone: { kind: 'water', radius: 65, ttl: 10 } },
     hurls: { range: 440, cooldown: 4, windup: 0.7, spawn: 'plunger' },
@@ -357,6 +369,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#7a3b5c', shade: '#522741', scoreBonus: 500, voice: 65,
     boss: true, bossTitle: 'KRAKEN DEFLATED', bossDiscovery: 'release_the_kraken',
     bossBanner: 'SOFA KRAKEN', bossBlurb: 'it wants a hug. decline.',
+    signature: { name: 'TENTACLE CRUSH', sound: 'bossWalk', effect: 'tentacle_burst', trail: 'ink' },
+    death: { sound: 'bossWalk', effect: 'tentacle_burst' },
+    signature: { name: 'TENTACLE CRUSH', sound: 'bossWalk', effect: 'tentacle_burst', trail: 'ink' },
+    death: { sound: 'bossWalk', effect: 'tentacle_burst' },
     lashes: { range: 200, arc: 0.8, cooldown: 5, windup: 0.6 },
     slams: { radius: 135, damage: 1, cooldown: 7 },
     phases: [
@@ -372,6 +388,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#cfe0e8', shade: '#8fa8b8', scoreBonus: 500, voice: 70,
     boss: true, bossTitle: 'FRIDGEZILLA DEFROSTED', bossDiscovery: 'brain_freeze',
     bossBanner: 'FRIDGEZILLA', bossBlurb: 'serve chilled. serves you chilled.',
+    signature: { name: 'FROST BREATHE', sound: 'freeze', effect: 'frost_ring', trail: 'ice' },
+    death: { sound: 'freeze', effect: 'frost_ring' },
+    signature: { name: 'FROST BREATHE', sound: 'freeze', effect: 'frost_ring', trail: 'ice' },
+    death: { sound: 'freeze', effect: 'frost_ring' },
     hurls: { range: 470, cooldown: 3, windup: 0.6, spawn: 'fish' },
     frost: { radius: 48, interval: 4, ttl: 9 },
     slams: { radius: 125, damage: 1, cooldown: 8 },
@@ -390,6 +410,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#26232e', shade: '#121017', scoreBonus: 600, voice: 55,
     boss: true, bossTitle: 'PIANO OUT OF TUNE', bossDiscovery: 'grand_finale',
     bossBanner: 'PIANO SPIDER', bossBlurb: 'tonight: one night only. every night.',
+    signature: { name: 'PIANO ARPEGGIO', sound: 'piano', effect: 'note_ripple', trail: 'note' },
+    death: { sound: 'piano', effect: 'note_ripple' },
+    signature: { name: 'PIANO ARPEGGIO', sound: 'piano', effect: 'note_ripple', trail: 'note' },
+    death: { sound: 'piano', effect: 'note_ripple' },
     slams: { radius: 170, damage: 1, cooldown: 7 },
     phases: [
       {
@@ -407,6 +431,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#c23b2e', shade: '#7d241c', scoreBonus: 500, voice: 90,
     boss: true, bossTitle: 'MOWER RETIRED', bossDiscovery: 'mow_no_mo',
     bossBanner: 'LAWN MOWER MANIAC', bossBlurb: 'the grass is always greener. you are the grass.',
+    signature: { name: 'BLADE SLASH', sound: 'bossWalk', effect: 'blade_ring', trail: 'grass' },
+    death: { sound: 'bossWalk', effect: 'blade_ring' },
+    signature: { name: 'BLADE SLASH', sound: 'bossWalk', effect: 'blade_ring', trail: 'grass' },
+    death: { sound: 'bossWalk', effect: 'blade_ring' },
     tramples: true,
     phases: [
       {
@@ -424,6 +452,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#8a3b5c', shade: '#5c2540', scoreBonus: 1500, voice: 300,
     boss: true, bossTitle: 'MOM CALMED DOWN', bossDiscovery: 'mom_says_no',
     bossBanner: 'MOM', bossBlurb: 'she found the mess. run.',
+    signature: { name: 'HUG STRIKE', sound: 'bossWalk', effect: 'hug_burst', trail: 'hug' },
+    death: { sound: 'bossWalk', effect: 'hug_burst' },
+    signature: { name: 'HUG STRIKE', sound: 'bossWalk', effect: 'hug_burst', trail: 'hug' },
+    death: { sound: 'bossWalk', effect: 'hug_burst' },
     dodges: { radius: 210, cooldown: 2.5 },
     rearranges: { cooldown: 14, count: 5 },
     hurls: { range: 500, cooldown: 3.2, windup: 0.6, spawn: 'shoe' },
@@ -442,6 +474,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#4a5c3a', shade: '#2c3a24', scoreBonus: 700, voice: 60,
     boss: true, bossTitle: 'SAURUS EXTINCT', bossDiscovery: 'saurus_fed',
     bossBanner: 'VACUUMASAURUS', bossBlurb: '65 million years of dust. zero survivors.',
+    signature: { name: 'SUCK PULL', sound: 'bossWalk', effect: 'vacuum_ring', trail: 'dust' },
+    death: { sound: 'bossWalk', effect: 'vacuum_ring' },
+    signature: { name: 'SUCK PULL', sound: 'bossWalk', effect: 'vacuum_ring', trail: 'dust' },
+    death: { sound: 'bossWalk', effect: 'vacuum_ring' },
     sucks: { radius: 260, pull: 1000 }, voracious: true,
     slams: { radius: 140, damage: 1, cooldown: 8 },
     phases: [
@@ -456,6 +492,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#7a8ba8', shade: '#4d5a75', scoreBonus: 600, voice: 200,
     boss: true, bossTitle: 'HYDRA FOLDED', bossDiscovery: 'split_ends',
     bossBanner: 'LAUNDRY HYDRA', bossBlurb: 'three heads. no pairs. all angry.',
+    signature: { name: 'MULTI HEAD', sound: 'bossWalk', effect: 'multi_burst', trail: 'head' },
+    death: { sound: 'bossWalk', effect: 'multi_burst' },
+    signature: { name: 'MULTI HEAD', sound: 'bossWalk', effect: 'multi_burst', trail: 'head' },
+    death: { sound: 'bossWalk', effect: 'multi_burst' },
     lashes: { range: 185, arc: 0.9, cooldown: 3.5, windup: 0.5 },
     hurls: { range: 420, cooldown: 3, windup: 0.6, spawn: 'ball' },
     phases: [
@@ -471,6 +511,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#9fb3c4', shade: '#647687', scoreBonus: 600, voice: 240,
     boss: true, bossTitle: 'FAN SWITCHED OFF', bossDiscovery: 'fan_mail',
     bossBanner: 'FAN-TASTIC NIGHTMARE', bossBlurb: 'it puts the air in despair.',
+    signature: { name: 'CYCLONE FAN', sound: 'bossWalk', effect: 'fan_burst', trail: 'wind' },
+    death: { sound: 'bossWalk', effect: 'fan_burst' },
+    signature: { name: 'CYCLONE FAN', sound: 'bossWalk', effect: 'fan_burst', trail: 'wind' },
+    death: { sound: 'bossWalk', effect: 'fan_burst' },
     winds: { radius: 90, interval: 3.5, ttl: 4 },
     phases: [
       { below: 0.5, enrage: 1.4, announce: 'TURBO' },
@@ -484,6 +528,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#e8b13c', shade: '#a87a24', scoreBonus: 600, voice: 260,
     boss: true, bossTitle: 'POPCORN BURNT', bossDiscovery: 'burnt_popcorn',
     bossBanner: 'POPCORN APOCALYPSE', bossBlurb: 'fresh, hot, and aimed at you.',
+    signature: { name: 'POP BURST', sound: 'slams', effect: 'pop_ring', trail: 'pop' },
+    death: { sound: 'slams', effect: 'pop_ring' },
+    signature: { name: 'POP BURST', sound: 'slams', effect: 'pop_ring', trail: 'pop' },
+    death: { sound: 'slams', effect: 'pop_ring' },
     teleports: { cooldown: 9, minDist: 220 },
     hurls: { range: 420, cooldown: 2.8, windup: 0.6, spawn: 'spraycan' },
     phases: [
@@ -499,6 +547,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#3a3a4a', shade: '#1f1f2a', scoreBonus: 650, voice: 150,
     boss: true, bossTitle: 'CABLES UNTANGLED', bossDiscovery: 'untangled',
     bossBanner: 'CABLE KRAKEN', bossBlurb: 'do not lick.',
+    signature: { name: 'SHOCK ZAP', sound: 'shock', effect: 'zap_ring', trail: 'zap' },
+    death: { sound: 'shock', effect: 'zap_ring' },
+    signature: { name: 'SHOCK ZAP', sound: 'shock', effect: 'zap_ring', trail: 'zap' },
+    death: { sound: 'shock', effect: 'zap_ring' },
     lashes: { range: 170, arc: 0.9, cooldown: 4, windup: 0.6 },
     zaps: { radius: 170, interval: 3 },
     phases: [
@@ -513,6 +565,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#b8b0a0', shade: '#7d7668', scoreBonus: 650, voice: 75,
     boss: true, bossTitle: 'COOKER DEPRESSURIZED', bossDiscovery: 'pressure_drop',
     bossBanner: 'PRESSURE COOKER', bossBlurb: 'do not remove the lid. it will.',
+    signature: { name: 'FLAME BURST', sound: 'burn', effect: 'flame_ring', trail: 'fire' },
+    death: { sound: 'burn', effect: 'flame_ring' },
+    signature: { name: 'FLAME BURST', sound: 'burn', effect: 'flame_ring', trail: 'fire' },
+    death: { sound: 'burn', effect: 'flame_ring' },
     slams: { radius: 135, damage: 1, cooldown: 6, spawnZone: { kind: 'steam', radius: 70, ttl: 6 } },
     phases: [
       { below: 0.6, enrage: 1.2, announce: 'SIMMERING' },
@@ -528,6 +584,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#2e3a55', shade: '#1a2236', scoreBonus: 700, voice: 70,
     boss: true, bossTitle: 'EXPRESS DERAILED', bossDiscovery: 'derailed',
     bossBanner: 'MIDNIGHT EXPRESS', bossBlurb: 'all aboard. no refunds.',
+    signature: { name: 'RAIL SLAM', sound: 'bossWalk', effect: 'rail_ring', trail: 'rail' },
+    death: { sound: 'bossWalk', effect: 'rail_ring' },
+    signature: { name: 'RAIL SLAM', sound: 'bossWalk', effect: 'rail_ring', trail: 'rail' },
+    death: { sound: 'bossWalk', effect: 'rail_ring' },
     tramples: true,
     phases: [
       { below: 0.5, enrage: 1.3, announce: 'EXPRESS' },
@@ -541,6 +601,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#6b5a86', shade: '#453a58', scoreBonus: 800, voice: 65,
     boss: true, bossTitle: 'JUNK REMOVED', bossDiscovery: 'junk_removed',
     bossBanner: 'KING OF JUNK', bossBlurb: 'your deposit is forfeit. so are you.',
+    signature: { name: 'SCRAP CRASH', sound: 'slams', effect: 'scrap_ring', trail: 'junk' },
+    death: { sound: 'slams', effect: 'scrap_ring' },
+    signature: { name: 'SCRAP CRASH', sound: 'slams', effect: 'scrap_ring', trail: 'junk' },
+    death: { sound: 'slams', effect: 'scrap_ring' },
     sucks: { radius: 170, pull: 500 },
     hurls: { range: 460, cooldown: 3.5, windup: 0.7, spawn: 'plank' },
     slams: { radius: 140, damage: 1, cooldown: 8 },
@@ -560,6 +624,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#a85848', shade: '#74382e', scoreBonus: 900, voice: 50,
     boss: true, bossTitle: 'HOUSE CONDEMNED', bossDiscovery: 'condemned',
     bossBanner: 'THE HOUSE THAT HATES YOU', bossBlurb: 'rent due. tenants doomed.',
+    signature: { name: 'HOUSE SHAKE', sound: 'bossWalk', effect: 'shake_ring', trail: 'house' },
+    death: { sound: 'bossWalk', effect: 'shake_ring' },
+    signature: { name: 'HOUSE SHAKE', sound: 'bossWalk', effect: 'shake_ring', trail: 'house' },
+    death: { sound: 'bossWalk', effect: 'shake_ring' },
     slams: { radius: 160, damage: 1, cooldown: 9 },
     hurls: { range: 500, cooldown: 4, windup: 0.8, spawn: 'plank' },
     phases: [
@@ -576,6 +644,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#3fa7a3', shade: '#2a736f', scoreBonus: 700, voice: 400,
     boss: true, bossTitle: 'CLOCK SNOOZED', bossDiscovery: 'snoozed_forever',
     bossBanner: 'TIME-THIEF', bossBlurb: 'you are late. permanently.',
+    signature: { name: 'TIME SPIN', sound: 'bossWalk', effect: 'spin_ring', trail: 'time' },
+    death: { sound: 'bossWalk', effect: 'spin_ring' },
+    signature: { name: 'TIME SPIN', sound: 'bossWalk', effect: 'spin_ring', trail: 'time' },
+    death: { sound: 'bossWalk', effect: 'spin_ring' },
     stasis: { radius: 260, cooldown: 12, slowDuration: 2.2 },
     hurls: { range: 450, cooldown: 4, windup: 0.6, spawn: 'alarmclock' },
     phases: [
@@ -590,6 +662,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#d4652e', shade: '#8f3f1c', scoreBonus: 650, voice: 220,
     boss: true, bossTitle: 'TOYS PUT AWAY', bossDiscovery: 'put_away',
     bossBanner: 'TOYBOX TITAN', bossBlurb: 'playtime. forever.',
+    signature: { name: 'TOY BURST', sound: 'slams', effect: 'toy_ring', trail: 'toy' },
+    death: { sound: 'slams', effect: 'toy_ring' },
+    signature: { name: 'TOY BURST', sound: 'slams', effect: 'toy_ring', trail: 'toy' },
+    death: { sound: 'slams', effect: 'toy_ring' },
     spawns: { pool: ['gnat', 'mini'], interval: 8, maxAlive: 4, escalateEvery: 3, escalateType: 'nested' },
     slams: { radius: 120, damage: 1, cooldown: 8 },
     phases: [
@@ -604,6 +680,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#7a9bb0', shade: '#4d6a7d', scoreBonus: 600, voice: 130,
     boss: true, bossTitle: 'DISHWASHER AIR-DRIED', bossDiscovery: 'air_dried',
     bossBanner: 'DISHWASHER DEMON', bossBlurb: 'everything must go. through you.',
+    signature: { name: 'WASH SPIN', sound: 'bossWalk', effect: 'wash_ring', trail: 'water' },
+    death: { sound: 'bossWalk', effect: 'wash_ring' },
+    signature: { name: 'WASH SPIN', sound: 'bossWalk', effect: 'wash_ring', trail: 'water' },
+    death: { sound: 'bossWalk', effect: 'wash_ring' },
     seeps: { kind: 'water', radius: 50, interval: 5, ttl: 12 },
     hurls: { range: 460, cooldown: 3, windup: 0.6, spawn: 'plate' },
     phases: [
@@ -619,6 +699,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#c9a070', shade: '#9c7446', scoreBonus: 900, voice: 140,
     boss: true, bossTitle: 'KING FLAT-PACKED', bossDiscovery: 'flat_pack',
     bossBanner: 'KING OF CARDBOARD', bossBlurb: 'some assembly required. yours.',
+    signature: { name: 'FORM BURST', sound: 'slams', effect: 'form_ring', trail: 'form' },
+    death: { sound: 'slams', effect: 'form_ring' },
+    signature: { name: 'FORM BURST', sound: 'slams', effect: 'form_ring', trail: 'form' },
+    death: { sound: 'slams', effect: 'form_ring' },
     hurls: { range: 450, cooldown: 3.5, windup: 0.6, spawn: 'plank' },
     slams: { radius: 130, damage: 1, cooldown: 7 },
     forms: [

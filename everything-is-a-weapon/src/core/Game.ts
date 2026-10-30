@@ -11,7 +11,7 @@ import { actFor, briefingFor, CAMPAIGN_ROOMS, CONTRACTS, FINAL_ROOM_INDEX, stars
 import { extendChain, freshChain } from '../gameplay/Chain';
 import { ABILITIES, AbilitySystem, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
-import { isEdgeId, EDGES, EDGE_STACK_CAP, edgeStacks, offerEdges, shouldOfferEdge, startingEdge, type EdgeDefinition, type EdgeId } from '../gameplay/Edges';
+import { isEdgeId, EDGES, EDGE_STACK_CAP, edgeStacks, startingEdge, type EdgeId } from '../gameplay/Edges';
 import { EdgeSystem } from '../gameplay/EdgeSystem';
 import { HeatSystem, type HeatEvent } from '../gameplay/Heat';
 import { enforcerSpec, headlinerSpec, releaseIncident, rushRegulars, type IncidentSpec } from '../gameplay/Incidents';
@@ -22,7 +22,7 @@ import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
 import { campaignBossType, RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
 import { roomOutcome } from '../gameplay/RoomOutcome';
-import { chooseEdge as takeEdge, endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
+import { endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
 import {
   claimLedger, descendStart, LEDGER, ledgerBonus, startingEdgeRarity, type LedgerMilestone,
 } from '../gameplay/StarLedger';
@@ -30,6 +30,7 @@ import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
 import { buyUpgrade as purchaseUpgrade, maxHealthBonus, upgradePetMultiplier, type UpgradeId } from '../gameplay/Upgrades';
 import { nextUnlock, type UnlockGoal } from '../gameplay/Progression';
+import { isPetOutfitId, PET_OUTFITS } from '../gameplay/PetOutfits';
 
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import { ZoneManager } from '../hazards/Zone';
@@ -100,10 +101,7 @@ export interface RoomSummary {
   /** Room-local score delta (not the cumulative run total). */
   roomScore: number;
   isNewRoomBest: boolean;
-  /** Pending Edge draft cards (empty on non-draft / failure / final). */
-  offer: EdgeDefinition[];
   nextRoom: { number: number; name: string; boss: boolean } | null;
-  nextEdge: { number: number; boss: boolean } | null;
   nextGoal: UnlockGoal;
   ledgerNext: LedgerMilestone | null;
   ledgerStars: number;
@@ -220,7 +218,6 @@ export class Game {
   private slowScale = 1;
   private revived = false;
   private consecutiveFailures = 0;
-  pendingDraft: { room: number; offer: EdgeDefinition[] } | null = null;
   /** Lesson the next entry into room 1 starts from (a replay, or a restart mid-lesson). */
   private lessonFrom: Lesson | null = null;
   private inGameplay = false;
@@ -351,9 +348,7 @@ export class Game {
     );
     const save = this.save.data;
     if (save.runActive && save.runOffer.length > 0) {
-      // Auto-resolve a draft interrupted by a reload. Take the first grantable card;
-      // an all-capped offer is discarded rather than pinned forever.
-      for (const id of save.runOffer) if (isEdgeId(id) && takeEdge(save, id)) break;
+      // Edge choices are gone. A save interrupted mid-draft just drops its offer.
       save.runOffer = [];
       this.save.write();
     }
@@ -426,6 +421,7 @@ export class Game {
     this.player.armor = this.edges.armorAtFloorStart();
     this.room = this.rooms.build(this, def, index, daily, incident);
     this.pet = createPet(this.hero, def.playerStart.x - 34, def.playerStart.y + 12);
+    this.pet.outfitTag = this.save.data.petOutfit;
     placePickups(this);
     this.discoveries.newThisRoom = 0;
     this.score.resetRoom(this.scoreAtRoomStart);
@@ -461,11 +457,15 @@ export class Game {
 
   /** Starts a fresh run from the given room (0-based). */
   playFrom(index: number): void {
-    this.pendingDraft = null;
     const start = Math.max(0, Math.min(FINAL_ROOM_INDEX, Math.floor(index)));
     startRun(this.save.data, start);
-    const rarity = startingEdgeRarity(this.save.data);
-    if (rarity) this.save.data.runBoosts.push(startingEdge(this.rng, rarity).id);
+    // A day-7 daily streak earns one guaranteed rare starting Edge instead of
+    // a post-room choice: the reward is already in hand when the run begins.
+    const rarity = startingEdgeRarity(this.save.data) ?? (this.save.data.dailyRareEdge ? 'rare' : null);
+    if (rarity) {
+      this.save.data.runBoosts.push(startingEdge(this.rng, rarity).id);
+      if (this.save.data.dailyRareEdge) this.save.data.dailyRareEdge = false;
+    }
     this.tutorialSkippedThisRoom = false;
     this.scoreAtRoomStart = 0;
     this.consecutiveFailures = 0;
@@ -565,19 +565,7 @@ export class Game {
     this.restartRoom();
   }
 
-  /** '' on success; otherwise the reason the pick could not be applied. */
-  chooseEdge(id: string): string {
-    // Edge choice removed — next room only
-    if (this.pendingDraft) {
-      this.save.data.runOffer = [];
-      this.pendingDraft = null;
-      this.save.write();
-    }
-    return '';
-  }
-
   async nextRoom(): Promise<void> {
-    if (this.pendingDraft) return;
     if (this.waitingForAd) return;
     await this.ads.onRoomComplete();
     if (this.room.daily || this.room.index >= FINAL_ROOM_INDEX) {
@@ -595,7 +583,6 @@ export class Game {
 
   /** Leaves a failed run and returns to the menu. */
   abandonRun(): void {
-    this.pendingDraft = null;
     if (this.save.data.runActive) {
       endRun(this.save.data);
       this.save.write();
@@ -624,22 +611,12 @@ export class Game {
     return true;
   }
 
-  private firstDraftAfter(index: number): { number: number; boss: boolean } | null {
-    for (let i = index + 1; i < FINAL_ROOM_INDEX; i++) {
-      const def = this.rooms.definition(i);
-      const boss = campaignBossType(i, def) !== null;
-      if (shouldOfferEdge(i, boss)) return { number: i + 1, boss };
-    }
-    return null;
-  }
-
   /** How far through the 50-room campaign this player has got, for the portal. */
   private reportProgress(): void {
     this.portal.reportProgress((this.save.data.deepest / this.rooms.roomCount) * 100);
   }
 
   toMenu(): void {
-    this.pendingDraft = null;
     if (this.save.data.runOffer.length > 0) {
       this.save.data.runOffer = [];
       this.save.write();
@@ -684,6 +661,32 @@ export class Game {
     const reason = purchaseUpgrade(this.save.data, id);
     if (reason === '') this.save.write();
     return reason;
+  }
+
+  /** Buys a cosmetic pet outfit and puts it on immediately. */
+  buyOutfit(id: string): string {
+    if (!isPetOutfitId(id)) return 'UNKNOWN OUTFIT';
+    const save = this.save.data;
+    if (save.petOutfits.includes(id)) return 'ALREADY OWNED';
+    const def = PET_OUTFITS[id];
+    if (save.scrap < def.cost) return `NEEDS ${def.cost} SCRAP`;
+    save.scrap -= def.cost;
+    save.petOutfits.push(id);
+    save.petOutfit = id;
+    if (this.pet) this.pet.outfitTag = id;
+    this.save.write();
+    return '';
+  }
+
+  /** Puts an owned cosmetic on the pet. Returns '' or the reason it failed. */
+  equipOutfit(id: string): string {
+    if (!isPetOutfitId(id)) return 'UNKNOWN OUTFIT';
+    const save = this.save.data;
+    if (!save.petOutfits.includes(id)) return 'NOT OWNED';
+    save.petOutfit = id;
+    if (this.pet) this.pet.outfitTag = id;
+    this.save.write();
+    return '';
   }
 
   private summarize(cleared: boolean, challengeBonus: number): RoomSummary {
@@ -804,22 +807,9 @@ export class Game {
     // Star Ledger: newly crossed milestones pay their scrap at the same desk.
     const ledgerClaims = outcome.awardsStars ? claimLedger(save) : [];
 
-    // Draft: campaign clears only, on the cadence in Edges.shouldOfferEdge.
-    const boss = campaignBossType(index, this.room.def) !== null;
-    // Draft removed — always go straight to next room (no choice, no confusion)
-    const draft = false;
-    const offer: EdgeDefinition[] = draft
-      ? offerEdges(this.rng, boss, save.dailyRareEdge, save.runBoosts)
-      : [];
-    if (draft && offer.length > 0) {
-      save.runOffer = offer.map((edge) => edge.id);
-      this.pendingDraft = { room: index, offer };
-      // A day-7 legendary is spent only when a draft actually offers it.
-      if (save.dailyRareEdge) save.dailyRareEdge = false;
-    } else {
-      save.runOffer = [];
-      this.pendingDraft = null;
-    }
+    // Edge choices are gone: clears go straight to the next room. The save field
+    // stays only so older saves can be cleared on load.
+    save.runOffer = [];
 
     this.save.write();
 
@@ -831,7 +821,6 @@ export class Game {
           boss: campaignBossType(index + 1, nextDef) !== null,
         }
       : null;
-    const nextEdge = outcome.advancesRun && !finale ? this.firstDraftAfter(index) : null;
     const starTotal = totalStars(save.roomStars);
     const ledgerNext = LEDGER.find((milestone) => milestone.stars > starTotal) ?? null;
     const briefing = briefingFor(this.room.def.id, this.room.index);
@@ -864,9 +853,7 @@ export class Game {
       ledgerClaims,
       roomScore,
       isNewRoomBest,
-      offer,
       nextRoom,
-      nextEdge,
       nextGoal: nextUnlock(save, starTotal),
       ledgerNext,
       ledgerStars: Math.min(27, starTotal),

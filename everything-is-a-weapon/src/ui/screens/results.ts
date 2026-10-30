@@ -12,8 +12,6 @@ export interface ResultsActions {
   retry(): void;
   continueWithReward(): void;
   home(): void;
-  /** '' on success; otherwise the reason the pick could not be applied. */
-  chooseEdge(edgeId: string): string;
   /** Called at the moment the rubber stamp hits the page. */
   stamped(): void;
 }
@@ -74,32 +72,12 @@ function chevron(node: HTMLButtonElement): void {
   node.append(mark);
 }
 
-function noteLine(kind: string, text: string, variant: string): HTMLElement {
-  const row = el('div', `b2-report__line b2-report__line--${variant}`);
-  row.append(
-    el('span', 'b2-report__linekind', kind),
-    el('span', 'b2-report__linedot', ' · '),
-    el('span', 'b2-report__linetext', text),
-  );
-  return row;
-}
-
-function runChip(summary: RoomSummary): HTMLElement {
-  const text = summary.finale
-    ? 'RUN COMPLETE · 50 FLOORS'
-    : `RUN · FLOOR ${summary.run.floor} · STREAK ${summary.run.streak}`;
-  return el('span', 'b2-chip b2-report__run', text);
-}
-
-function edgeStackLabel(owned: number): string {
-  return owned === 0 ? 'NEW' : `OWNED ×${owned} → ×${owned + 1}`;
-}
-
 interface ConfirmHandle {
   /** Reverts to the original label and makes the next click non-destructive. */
   disarm(): void;
 }
 
+/** Two-step guard for an action that throws away the current run. */
 function confirmAction(
   button: HTMLButtonElement,
   confirmLabel: string,
@@ -124,6 +102,23 @@ function confirmAction(
       label.textContent = resetLabel;
     },
   };
+}
+
+function noteLine(kind: string, text: string, variant: string): HTMLElement {
+  const row = el('div', `b2-report__line b2-report__line--${variant}`);
+  row.append(
+    el('span', 'b2-report__linekind', kind),
+    el('span', 'b2-report__linedot', ' · '),
+    el('span', 'b2-report__linetext', text),
+  );
+  return row;
+}
+
+function runChip(summary: RoomSummary): HTMLElement {
+  const text = summary.finale
+    ? 'RUN COMPLETE · 50 FLOORS'
+    : `RUN · FLOOR ${summary.run.floor} · STREAK ${summary.run.streak}`;
+  return el('span', 'b2-chip b2-report__run', text);
 }
 
 /** Aggregated build, first-seen order. */
@@ -153,106 +148,6 @@ function buildList(summary: RoomSummary, limit = 4): HTMLElement {
   return wrap;
 }
 
-function nextTeaser(nextRoom: NonNullable<RoomSummary['nextRoom']>): HTMLElement {
-  const card = el('div', 'b2-report__next is-new');
-  const info = el('div', 'b2-report__nextinfo');
-  info.append(
-    el('span', 'b2-label', 'NEXT'),
-    el('span', 'b2-report__nextname', `ROOM ${nextRoom.number} · ${nextRoom.name.toUpperCase()}`),
-  );
-  card.append(info);
-  if (nextRoom.boss) card.append(el('span', 'b2-report__keytag', 'BOSS'));
-  return card;
-}
-
-function nextEdgeStrip(summary: RoomSummary): HTMLElement {
-  const strip = el('div', 'b2-report__nextedge');
-  if (summary.buildMaxed) {
-    strip.append(el('span', 'b2-report__nextedgekind', 'BUILD MAXED'), el('span', 'b2-report__nextedgetext', 'EVERY EDGE IS AT THREE STACKS.'));
-  } else if (summary.nextEdge) {
-    strip.append(
-      el('span', 'b2-report__nextedgekind', summary.nextEdge.boss ? 'NEXT EDGE · BOSS' : `NEXT EDGE · ROOM ${summary.nextEdge.number}`),
-      el('span', 'b2-report__nextedgetext', 'CLEAR THE ROOM TO DRAFT.'),
-    );
-  }
-  return strip;
-}
-
-/** The draft side: three cards, the build so far, and where the run goes next. */
-function buildDraftSide(
-  summary: RoomSummary,
-  actions: ResultsActions,
-  primary: HTMLButtonElement,
-  onTaken: () => void,
-): HTMLElement {
-  const side = el('div', 'b2-report__side');
-  const edges = el('section', 'b2-report__edges');
-  edges.append(el('h3', 'b2-label', 'TAKE AN EDGE'));
-  const grid = el('div', 'b2-report__edgegrid');
-  const cards: HTMLButtonElement[] = [];
-  const status = el('p', 'b2-report__draftstatus', 'PICK ONE. THE RUN KEEPS IT.');
-  status.setAttribute('aria-live', 'polite');
-  const label = (): HTMLElement => primary.querySelector<HTMLElement>('.b2-results__actionlabel')!;
-  for (const [index, edge] of summary.offer.entries()) {
-    const owned = summary.run.boosts.filter((id) => id === edge.id).length;
-    const card = el('button', `b2-edge b2-edge--${edge.category} b2-edge--${edge.rarity}`);
-    card.type = 'button';
-    card.dataset.edge = edge.id;
-    if (index === 0) card.dataset.autofocus = 'true';
-    card.setAttribute('aria-pressed', 'false');
-    card.setAttribute('aria-label', `${edge.name}, ${edge.rarity}, ${edge.effect}, ${edgeStackLabel(owned)}`);
-    const top = el('span', 'b2-edge__top');
-    top.append(
-      el('span', 'b2-edge__kicker', edge.category.toUpperCase()),
-      el('span', 'b2-edge__rarity', edge.rarity),
-    );
-    card.append(
-      top,
-      el('strong', 'b2-edge__name', edge.name),
-      el('span', 'b2-edge__effect', edge.effect),
-      el('span', 'b2-edge__flavor', edge.flavor),
-      el('span', 'b2-edge__stack', edgeStackLabel(owned)),
-    );
-    card.addEventListener('click', () => {
-      if (cards.some((c) => c.getAttribute('aria-pressed') === 'true')) return;
-      const reason = actions.chooseEdge(edge.id);
-      if (reason) {
-        for (const other of cards) {
-          other.disabled = true;
-          other.setAttribute('aria-disabled', 'true');
-        }
-        status.textContent = reason === 'EDGE OFFER EXPIRED'
-          ? 'EDGE OFFER EXPIRED · NEXT ROOM UNLOCKED.'
-          : `EDGE OFFER EXPIRED · ${reason}`;
-        primary.disabled = false;
-        label().textContent = 'NEXT ROOM';
-        onTaken();
-        primary.focus();
-        return;
-      }
-      card.setAttribute('aria-pressed', 'true');
-      card.classList.add('is-taken');
-      card.append(el('span', 'b2-edge__stamp', 'TAKEN'));
-      for (const other of cards) {
-        other.disabled = true;
-        other.setAttribute('aria-disabled', 'true');
-      }
-      status.textContent = `${edge.name} TAKEN · NEXT ROOM UNLOCKED.`;
-      primary.disabled = false;
-      label().textContent = 'NEXT ROOM';
-      onTaken();
-      primary.focus();
-    });
-    cards.push(card);
-    grid.append(card);
-  }
-  edges.append(grid, status);
-  side.append(edges);
-  side.append(buildList(summary));
-  if (summary.nextRoom) side.append(nextTeaser(summary.nextRoom));
-  return side;
-}
-
 function ledgerStrip(summary: RoomSummary): HTMLElement {
   const strip = el('div', 'b2-report__ledger');
   strip.append(el('span', 'b2-report__sectionlabel', 'STAR LEDGER'));
@@ -276,8 +171,7 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   const ribbon = banner(victoryBanner);
   shell.append(ribbon);
 
-  const draft = summary.offer.length > 0;
-  const panel = el('section', `b2-panel b2-report ${draft ? 'b2-report--draft' : 'b2-report--simple'}`);
+  const panel = el('section', 'b2-panel b2-report b2-report--simple');
   const titleId = 'b2-results-title';
   panel.setAttribute('aria-labelledby', titleId);
 
@@ -290,18 +184,9 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   const primary = summary.daily || summary.finale
     ? null
     : actionButton('NEXT ROOM', 'lime', actions.next, true);
-  if (primary) {
-    chevron(primary);
-    if (draft) {
-      primary.disabled = true;
-      primary.querySelector<HTMLElement>('.b2-results__actionlabel')!.textContent = 'PICK AN EDGE';
-    }
-  }
+  if (primary) chevron(primary);
 
-  const home = draft
-    ? actionButton('HOME · SKIP EDGE', 'lavender', () => {})
-    : actionButton('HOME', 'lavender', actions.home);
-  const skip = draft ? confirmAction(home, 'TAP AGAIN TO SKIP', 'HOME', actions.home) : null;
+  const home = actionButton('HOME', 'lavender', actions.home);
 
   let replay: HTMLButtonElement | null = null;
   if (!summary.daily) {
@@ -311,8 +196,6 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
       : actionButton('REPLAY ROOM', 'blue', actions.retry);
     if (armedReplay) confirmAction(replay, 'TAP AGAIN · NEW RUN', 'REPLAY ROOM', actions.retry);
   }
-
-  const side = draft && primary ? buildDraftSide(summary, actions, primary, () => skip?.disarm()) : null;
 
   const body = el('div', 'b2-panel__body b2-report__body');
 
@@ -380,9 +263,7 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   if (notes.childElementCount > 0) marks.append(notes);
 
   body.append(meta, hero);
-  if (side) body.append(side);
   body.append(marks);
-  if (!draft && !summary.daily && !summary.finale) body.append(nextEdgeStrip(summary));
   panel.append(body);
   shell.append(panel);
 
