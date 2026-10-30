@@ -367,17 +367,7 @@
    -------------------------------------------------------------------------- */
 
 .b2-hud .lineup {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  max-width: min(42vw, 520px);
-  padding: 0;
-  background: transparent;
-  clip-path: none;
-  transform: none;
-  filter: none;
+  display: none !important;
 }
 /* Phones: the intruder mugshot bar is pure clutter over the play field. */
 @media (max-width: 520px) {
