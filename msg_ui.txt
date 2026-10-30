@@ -1,0 +1,1 @@
+fix(mobile-ui): shrink HUD 50% at top + remove credits button

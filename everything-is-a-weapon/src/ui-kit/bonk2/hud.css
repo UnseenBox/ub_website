@@ -1355,3 +1355,9 @@ body.touch .b2-hud__powerkey {
     animation: none;
   }
 }
+
+/* Mobile fix: shrink HUD bars 50%, keep at top */
+@media (max-width: 768px) {
+  .b2-hud__health { transform: scale(0.5); transform-origin: left top; }
+  .b2-hud .lineup { transform: scale(0.5); transform-origin: center top; }
+}
