@@ -1,0 +1,5 @@
+
+> everything-is-a-weapon@0.1.0 typecheck
+> tsc --noEmit
+
+src/entities/Enemy.signature.test.ts(102,9): error TS6133: 'p' is declared but its value is never read.
