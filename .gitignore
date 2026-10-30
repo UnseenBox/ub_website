@@ -48,3 +48,11 @@ next-env.d.ts
 Projects/
 
 !.env.example
+.screenshots/  
+.superpowers/  
+crazy-goal/assets/crazy-kora-svg-pack.zip  
+reels/  
+tmp_*.txt  
+msg.txt  
+tmp_*.txt  
+msg.txt 

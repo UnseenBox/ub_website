@@ -1,7 +1,0 @@
-
-> everything-is-a-weapon@0.1.0 typecheck
-> tsc --noEmit
-
-src/entities/Enemy.signature.test.ts(88,8): error TS2341: Property 'pianoTimer' is private and only accessible within class 'Enemy'.
-src/entities/Enemy.signature.test.ts(109,9): error TS6133: 'cables' is declared but its value is never read.
-src/entities/Enemy.signature.test.ts(147,12): error TS2339: Property 'alive' does not exist on type 'RigidBody'.
