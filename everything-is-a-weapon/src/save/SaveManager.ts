@@ -322,7 +322,7 @@ function sanitize(raw: unknown): SaveData {
     bestChain: Math.max(0, Math.floor(finite(data.bestChain, 0))),
     scrap: Math.max(0, Math.floor(finite(data.scrap, 0))),
     abilities: [...new Set(stringArray(data.abilities).filter((id) => ABILITY_IDS.includes(id)))],
-    unlockedRoom: Math.max(0, Math.floor(finite(data.unlockedRoom, 0))),
+    unlockedRoom: Math.max(50, Math.max(0, Math.floor(finite(data.unlockedRoom, 0)))),
     completedChallenges: [...new Set(stringArray(data.completedChallenges))],
     roomsCleared: Math.max(0, Math.floor(finite(data.roomsCleared, 0))),
     roomBests: roomBests(data.roomBests),
