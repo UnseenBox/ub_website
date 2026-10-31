@@ -89,6 +89,7 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+  grid-column: 1;
 }
 
 .b2-lobby__stat {
@@ -170,6 +171,7 @@
   min-height: 0;
   height: 100%;
   text-align: center;
+  grid-column: 2;
 }
 
 .b2-lobby__logo {
@@ -407,6 +409,9 @@
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
     align-items: stretch;
+  }
+  .b2-lobby__center {
+    grid-column: 1;
   }
   .b2-lobby__left {
     flex-direction: row;

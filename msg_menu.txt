@@ -1,0 +1,1 @@
+fix(lobby): center logo and hero when left stats hidden; grid-column lock
