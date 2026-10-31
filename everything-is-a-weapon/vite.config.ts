@@ -139,7 +139,7 @@ export default defineConfig(({ mode }) => {
     base: './',
     // Recorded sounds ship as files next to the page — except in the single-file
     // portal builds, which must stay one file and keep the synthesiser.
-    define: { __SAMPLES__: JSON.stringify(portal === null) },
+    define: { __SAMPLES__: JSON.stringify(portal === null || portal === 'crazygames') },
     publicDir: portal === null ? undefined : false,
     plugins:
       portal === 'crazygames'
