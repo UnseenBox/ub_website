@@ -283,6 +283,16 @@
         </div>
       </div>
     </div>
+    <script>
+      // If the bundle never boots (failed load, offline), don't trap the player on the splash.
+      window.setTimeout(function () {
+        var splash = document.getElementById('app-loading');
+        if (splash) {
+          splash.classList.add('is-done');
+          window.setTimeout(function () { splash.remove(); }, 550);
+        }
+      }, 6000);
+    </script>
     <div id="app">
       <canvas id="game" aria-label="Crazy Kora play field"></canvas>
       <div id="overlay"></div>

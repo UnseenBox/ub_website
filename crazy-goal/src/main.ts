@@ -6,6 +6,19 @@ import { installTestHooks } from './debug/TestHooks';
 import { isCrazyGames, portal } from './portal/Portal';
 import './styles.css';
 
+/** How long the splash stays up at minimum, so it is actually seen. */
+const SPLASH_MIN_MS = 1100;
+/** The closest thing to "splash became visible" this script can know. */
+const splashStart = performance.now();
+
+/** Fade the splash out, then take it out of the DOM. */
+function dismissSplash(): void {
+  const splash = document.getElementById('app-loading');
+  if (!splash) return;
+  splash.classList.add('is-done');
+  window.setTimeout(() => splash.remove(), 550);
+}
+
 function boot(): void {
   document.documentElement.lang = lang;
   if (rtl) document.documentElement.dir = 'rtl';
@@ -18,15 +31,12 @@ function boot(): void {
   const game = new Game(canvas, overlay, LEVELS);
   game.start();
   if (import.meta.env.DEV) installTestHooks(game);
-  // The first painted frame ends loading: drop the splash, the menu is up and ready.
-  requestAnimationFrame(() => {
+  // Keep the splash up for at least SPLASH_MIN_MS so it is actually seen, then fade it out.
+  const wait = Math.max(0, SPLASH_MIN_MS - (performance.now() - splashStart));
+  window.setTimeout(() => {
     portal.loadingStop();
-    const splash = document.getElementById('app-loading');
-    if (splash) {
-      splash.classList.add('is-done');
-      window.setTimeout(() => splash.remove(), 500);
-    }
-  });
+    requestAnimationFrame(dismissSplash);
+  }, wait);
 
   // An invite link carries a friend's id: open on the duel lobby with it filled in.
   // Portal builds have no duels (their server lives elsewhere), so the link is ignored.
