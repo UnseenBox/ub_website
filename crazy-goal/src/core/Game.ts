@@ -28,6 +28,7 @@ import { Popups } from '../particles/Popups';
 import { FIXED_DT, type ContactListener } from '../physics/PhysicsWorld';
 import type { RigidBody } from '../physics/RigidBody';
 import { aimOffset } from '../rendering/AimArt';
+import { saveSession, loadSession, type SessionScreen } from './session';
 import { Camera } from '../rendering/Camera';
 import { Renderer } from '../rendering/Renderer';
 import { SaveManager, type LevelRecord } from '../save/SaveManager';
@@ -194,6 +195,8 @@ export class Game {
   state: GameState = 'menu';
   /** Real seconds spent in the current state. */
   stateT = 0;
+  /** Where the player was, for the per-tab resume after a reload; mirrors what is on screen. */
+  private sessionScreen: SessionScreen = 'menu';
   /** True while the pause card or the level list is up over a level. */
   paused = false;
   missKind: MissKind = 'miss';
@@ -330,10 +333,52 @@ export class Game {
         this.setPaused(true);
       }
     });
+    window.addEventListener('pagehide', () => {
+      // A reload is imminent; skip the pause card and land back in the level instead.
+      this.remember(this.sessionScreen === 'pause' ? 'game' : this.sessionScreen);
+    });
+    this.restoreSession();
   }
 
   start(): void {
     this.loop.start();
+  }
+
+  /** Remembers the screen on the way out, so a reload brings the player back to it. */
+  private remember(screen: SessionScreen): void {
+    const level = this.level?.index ?? 0;
+    this.sessionScreen = screen;
+    // A duel alley has no number; a reload lands back on the solo houma instead.
+    saveSession({ screen: level < 0 ? 'menu' : screen, level: Math.max(0, level) });
+  }
+
+  /**
+   * A reload starts the page again; bring the player back to the alley they were on
+   * (or the houma list) instead of dumping them on the title card. Fresh visits
+   * carry no per-tab session, so they still land on the menu.
+   */
+  private restoreSession(): void {
+    const snapshot = loadSession();
+    if (!snapshot || snapshot.screen === 'menu') {
+      this.remember('menu');
+      return;
+    }
+    if (snapshot.screen === 'levels') {
+      this.openLevels();
+      return;
+    }
+    const { level } = snapshot;
+    if (level >= this.levels.length || !this.isUnlocked(level)) {
+      this.remember('menu');
+      return;
+    }
+    // 'game' and 'pause' both land back in the level; the reload already lost the in-flight shot.
+    this.sessionScreen = 'game';
+    this.overlay.hide();
+    this.loadLevel(level);
+    portal.gameplayStart();
+    this.abilities.refresh(BOOST_COSTS);
+    this.remember('game');
   }
 
   private totalStars(): number {
@@ -508,6 +553,7 @@ export class Game {
     this.loadLevel(this.furthestUnlocked());
     this.state = 'menu';
     this.overlay.showMenu();
+    this.remember('menu');
   }
 
   /** Leaves the title card. */
@@ -520,6 +566,7 @@ export class Game {
     this.stateT = 0;
     this.ball.reset(this.level.def.ballStart.x, this.level.def.ballStart.y);
     portal.gameplayStart();
+    this.remember('game');
   }
 
   setPaused(paused: boolean): void {
@@ -533,10 +580,12 @@ export class Game {
         this.overlay.showPause();
         this.overlay.setReward(this.rewardOffer());
       }
+      this.remember('pause');
     } else {
       this.overlay.hide();
       this.syncButtons(true);
       portal.gameplayStart();
+      this.remember('game');
     }
     this.abilities.refresh(BOOST_COSTS);
   }
@@ -576,11 +625,13 @@ export class Game {
       this.level.index,
     );
     this.abilities.refresh(BOOST_COSTS);
+    this.remember('levels');
   }
 
   closeLevels(): void {
     if (this.state === 'menu') {
       this.overlay.showMenu();
+      this.remember('menu');
       return;
     }
     this.paused = false;
@@ -588,6 +639,7 @@ export class Game {
     this.syncButtons(true);
     this.abilities.refresh(BOOST_COSTS);
     portal.gameplayStart();
+    this.remember('game');
   }
 
   selectLevel(index: number): void {
@@ -598,6 +650,7 @@ export class Game {
     this.overlay.hide();
     this.loadLevel(index);
     portal.gameplayStart();
+    this.remember('game');
   }
 
   /** True when a midgame ad cannot interrupt a shot, a moving ball or a celebration still landing. */
