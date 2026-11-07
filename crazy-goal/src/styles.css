@@ -1279,11 +1279,11 @@ body {
 }
 
 .menu-shortcut-top .menu-shortcut-art {
-  width: clamp(40px, 7.4vmin, 56px);
+  width: clamp(56px, 11vmin, 82px);
 }
 
 .menu-shortcut-top .menu-shortcut-label {
-  font-size: clamp(7px, 1.2vmin, 9px);
+  font-size: clamp(8px, 1.4vmin, 10px);
   letter-spacing: 0.1em;
 }
 
