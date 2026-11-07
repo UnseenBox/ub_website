@@ -187,7 +187,12 @@ export class Overlay {
     ballsArt.alt = '';
     ballsArt.draggable = false;
     ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'));
-    top.append(gear, levels, ballsButton, this.starCount);
+
+    const leftTop = el('div', 'menu-top-stack menu-top-stack-left');
+    leftTop.append(gear, levels);
+    const rightTop = el('div', 'menu-top-stack menu-top-stack-right');
+    rightTop.append(this.starCount, ballsButton);
+    top.append(leftTop, rightTop);
 
     const actions = el('div', 'menu-actions');
     const play = button('menu-play', '', handlers.play);

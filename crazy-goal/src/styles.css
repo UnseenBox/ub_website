@@ -1191,10 +1191,24 @@ body {
 .menu-top {
   grid-area: top;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+}
+
+.menu-top-stack {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1.2vmin, 10px);
+}
+
+.menu-top-stack-left {
+  align-items: flex-start;
+}
+
+.menu-top-stack-right {
+  align-items: flex-end;
 }
 
 .menu-logo {
@@ -1273,13 +1287,9 @@ body {
   letter-spacing: 0.1em;
 }
 
-.menu-shortcut-goal {
-  margin-left: clamp(8px, 2.5vw, 28px);
-}
-
+.menu-shortcut-goal,
 .menu-shortcut-balls {
-  margin-left: auto;
-  margin-right: clamp(8px, 2.5vw, 28px);
+  margin: 0;
 }
 
 .menu-shortcut {
