@@ -11,9 +11,11 @@ interface Popup {
   dur: number;
   size: number;
   color: string;
+  rot: number;
 }
 
-const POOL = 10;
+const POOL = 16;
+const rand = (lo: number, hi: number): number => lo + Math.random() * (hi - lo);
 
 /** Small words that pop up in the world: combo counts, "POST!". */
 export class Popups {
@@ -21,7 +23,7 @@ export class Popups {
   private cursor = 0;
 
   constructor() {
-    for (let i = 0; i < POOL; i++) this.pool.push({ active: false, text: '', x: 0, y: 0, t: 0, dur: 1, size: 20, color: C.white });
+    for (let i = 0; i < POOL; i++) this.pool.push({ active: false, text: '', x: 0, y: 0, t: 0, dur: 1, size: 20, color: C.white, rot: 0 });
   }
 
   spawn(text: string, x: number, y: number, size: number, color: string, dur = 0.7): void {
@@ -35,6 +37,8 @@ export class Popups {
     p.dur = dur;
     p.size = size;
     p.color = color;
+    // Big callouts land crooked, like they were slapped on.
+    p.rot = size >= 26 ? rand(-0.09, 0.09) : 0;
   }
 
   clear(): void {
@@ -56,15 +60,19 @@ export class Popups {
     for (const p of this.pool) {
       if (!p.active) continue;
       const f = p.t / p.dur;
-      const scale = easeOutBack(Math.min(1, f * 5), 3);
+      const scale = easeOutBack(Math.min(1, f * 6), 4.2);
       ctx.globalAlpha = f < 0.7 ? 1 : 1 - (f - 0.7) / 0.3;
       ctx.font = `900 ${p.size * scale}px ${FONT}`;
-      const y = p.y - 34 * f;
-      ctx.lineWidth = p.size * 0.32;
+      const y = p.y - 44 * f;
+      ctx.save();
+      ctx.translate(p.x, y);
+      ctx.rotate(p.rot);
+      ctx.lineWidth = p.size * 0.4;
       ctx.strokeStyle = C.ink;
-      ctx.strokeText(p.text, p.x, y);
+      ctx.strokeText(p.text, 0, 0);
       ctx.fillStyle = p.color;
-      ctx.fillText(p.text, p.x, y);
+      ctx.fillText(p.text, 0, 0);
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
   }

@@ -18,10 +18,12 @@ export interface Frame {
 /** Below this width-to-height ratio the window counts as portrait. */
 export const PORTRAIT_ASPECT = 0.85;
 
-const ZOOM_MAX = 0.16;
-const SHAKE_PIXELS = 15;
+const ZOOM_MAX = 0.24;
+const SHAKE_PIXELS = 26;
 const KICK_STIFFNESS = 260;
 const KICK_DAMPING = 24;
+/** Extra zoom from an impact, at most this much. Decays far faster than a goal zoom. */
+const PUNCH_MAX = 0.22;
 
 /**
  * Fixed camera that fits the level to any window without distorting it, plus the small
@@ -58,10 +60,14 @@ export class Camera {
   private trauma = 0;
   private shakeX = 0;
   private shakeY = 0;
+  private roll = 0;
   private kickX = 0;
   private kickY = 0;
   private kickVX = 0;
   private kickVY = 0;
+  private punch = 0;
+  private punchX = 0;
+  private punchY = 0;
   private clock = 0;
 
   /** Result of the last `toWorld` call. */
@@ -109,8 +115,16 @@ export class Camera {
     this.zoomTarget = amount;
   }
 
+  /** A quick punch of zoom at the point of contact, gone almost as soon as it lands. */
+  punchZoom(amount: number, x: number, y: number): void {
+    this.punch = Math.min(PUNCH_MAX, this.punch + amount);
+    this.punchX = x;
+    this.punchY = y;
+  }
+
   zoomOut(): void {
     this.zoomTarget = 0;
+    this.punch = 0;
   }
 
   /** `lookX, lookY` is a world point to lean towards slightly (the ball). Runs on real time. */
@@ -126,6 +140,9 @@ export class Camera {
     // Sums of sines at unrelated rates: smooth, never repeating visibly, no allocation.
     this.shakeX = amp * (Math.sin(t * 61.3) * 0.6 + Math.sin(t * 37.1 + 1.7) * 0.4);
     this.shakeY = amp * (Math.sin(t * 53.9 + 0.6) * 0.6 + Math.sin(t * 41.7 + 2.9) * 0.4);
+    // A hard hit rocks the whole frame, not just slides it.
+    this.roll = this.trauma * this.trauma * 0.032 * this.shakeScale * (Math.sin(t * 47.3) * 0.65 + Math.sin(t * 71.9 + 1.2) * 0.35);
+    this.punch = damp(this.punch, 0, 12, dt);
 
     this.kickVX += (-KICK_STIFFNESS * this.kickX - KICK_DAMPING * this.kickVX) * dt;
     this.kickVY += (-KICK_STIFFNESS * this.kickY - KICK_DAMPING * this.kickVY) * dt;
@@ -134,24 +151,32 @@ export class Camera {
   }
 
   private get zoom(): number {
-    return 1 + this.zoomAmount * ZOOM_MAX;
+    return 1 + (this.zoomAmount + this.punch) * ZOOM_MAX;
   }
 
   private get centreX(): number {
-    return this.baseX + this.lookX + (this.focusX - this.baseX) * this.zoomAmount * 0.5;
+    return this.baseX + this.lookX + (this.focusX - this.baseX) * this.zoomAmount * 0.5 + (this.punchX - this.baseX) * this.punch * 0.6;
   }
 
   private get centreY(): number {
-    return this.baseY + this.lookY + (this.focusY - this.baseY) * this.zoomAmount * 0.5;
+    return this.baseY + this.lookY + (this.focusY - this.baseY) * this.zoomAmount * 0.5 + (this.punchY - this.baseY) * this.punch * 0.6;
   }
 
-  /** World transform with every effect applied. */
+  /** World transform with every effect applied: zoom, shake, kick and a little roll. */
   applyWorld(ctx: CanvasRenderingContext2D): void {
     const k = this.scale * this.zoom * this.dpr;
     const s = this.shakeScale * this.scale;
-    const tx = (this.width / 2 + this.shakeX + this.kickX * s) * this.dpr - this.centreX * k;
-    const ty = (this.height / 2 + this.shakeY + this.kickY * s) * this.dpr - this.centreY * k;
-    ctx.setTransform(k, 0, 0, k, tx, ty);
+    const cx = (this.width / 2) * this.dpr;
+    const cy = (this.height / 2) * this.dpr;
+    const ox = (this.shakeX + this.kickX * s) * this.dpr;
+    const oy = (this.shakeY + this.kickY * s) * this.dpr;
+    // Build the transform by hand so the roll turns the whole frame around the screen centre.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(cx, cy);
+    ctx.rotate(this.roll);
+    ctx.translate(ox, oy);
+    ctx.scale(k, k);
+    ctx.translate(-this.centreX, -this.centreY);
   }
 
   /** World units, but rock steady: for the HUD. */

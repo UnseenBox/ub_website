@@ -3,9 +3,9 @@ import type { ScoreCard } from '../scoring/ScoreSystem';
 
 /** When each piece of the celebration lands, in real seconds after the ball crosses the line. */
 export const CELEBRATION_TIMING = {
-  hitStop: 0.14,
-  slowMoScale: 0.28,
-  slowMoSeconds: 0.5,
+  hitStop: 0.16,
+  slowMoScale: 0.24,
+  slowMoSeconds: 0.58,
   cardAt: 0.55,
   lineGap: 0.13,
   /** Clicks before this are ignored, so a stray press cannot skip the moment. */

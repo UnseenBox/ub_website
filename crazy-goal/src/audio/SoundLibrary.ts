@@ -47,11 +47,41 @@ export class SoundLibrary {
     this.audio.play('cloth', { gain: 0.45, rate: vary(0.9) });
   }
 
+  /**
+   * A short sub-bass body under a loud moment. Not a voice of its own: it is the weight the
+   * recordings cannot carry on small speakers.
+   */
+  private boom(strength: number, at = 0): void {
+    const s = Math.max(0, Math.min(1, strength));
+    this.audio.tone({
+      freq: 96 - 30 * s,
+      glide: 34,
+      glideTime: 0.16 + 0.12 * s,
+      type: 'sine',
+      at,
+      attack: 0.004,
+      decay: 0.18 + 0.18 * s,
+      gain: 0.08 + 0.2 * s,
+    });
+  }
+
   /** Boot on leather. A firm strike is a heavier recording, with a low thud under it. */
   kick(power: number): void {
     const a = this.audio;
     a.play(power > 0.5 ? 'kick' : 'kick_soft', { gain: 0.55 + 0.45 * power, rate: vary(1.05 - 0.12 * power) });
     a.play('thud_soft', { gain: 0.3 + 0.5 * power, rate: vary(0.9) });
+    // The bigger the pull, the more the street shakes under the boot.
+    this.boom(0.25 + 0.7 * power);
+    if (power > 0.9) a.play('grit', { gain: 0.22, rate: 0.55, at: 0.01 });
+  }
+
+  /** A soft tick for each step of the power ring, brightening as the pull tightens. */
+  aimStep(step: number): void {
+    this.audio.play('tap', { gain: step >= 10 ? 0.34 : 0.13, rate: 1.5 + step * 0.07, variant: 0 });
+    if (step >= 10) {
+      this.audio.play('glass_tap', { gain: 0.26, rate: 1.8, variant: 0 });
+      this.audio.tone({ freq: 880, glide: 1320, glideTime: 0.08, type: 'triangle', attack: 0.005, decay: 0.12, gain: 0.035, lowpass: 3000 });
+    }
   }
 
   /** `strength` is 0 to 1. `bounce` is the running count for the pitch ladder (0 = uncounted). */
@@ -112,6 +142,8 @@ export class SoundLibrary {
         a.play('stone', { gain: 0.2 + 0.5 * s, rate: vary(0.9) });
         if (s > 0.6) a.play('grit', { gain: 0.25 * s, at: 0.03 });
     }
+    // Weight under the hardest contacts. The ball's own thump is the voice; this is the floor.
+    if (s > 0.42 && surface !== 'cat') this.boom(0.12 + 0.62 * s, 0.003);
     // The musical part of a combo: every counted bounce climbs one note.
     if (bounce > 0) a.play('glass_tap', { gain: 0.3, rate: 0.6 * rung(bounce - 1), variant: 0, at: 0.01 });
   }
@@ -139,6 +171,7 @@ export class SoundLibrary {
         a.play('thud', { gain: 0.9, rate: 2.1 });
         a.play('glass_tap', { gain: 0.5, rate: 1.6, variant: 0, at: 0.02 });
         a.play('kick_soft', { gain: 0.5, rate: 1.8, at: 0.05 });
+        this.boom(0.45, 0.005);
         break;
       case 'spin':
         a.play('tin', { gain: 0.7, rate: vary(1.2) });
@@ -162,6 +195,7 @@ export class SoundLibrary {
         a.play('glass_bits', { gain: 0.7, at: 0.05 });
         a.play('glass_tap', { gain: 0.5, at: 0.16, rate: 1.2 });
         a.play('glass_tap', { gain: 0.35, at: 0.27, rate: 1.5 });
+        this.boom(0.75, 0.01);
         break;
       case 'clink':
         a.play('glass_tap', { gain: 0.4 + 0.4 * s, rate: vary(1) });
@@ -175,6 +209,7 @@ export class SoundLibrary {
         break;
       case 'save':
         a.play('thud_soft', { gain: 0.7, rate: 1 });
+        this.boom(0.4, 0.005);
         this.meow();
         break;
       case 'burn':
@@ -185,6 +220,7 @@ export class SoundLibrary {
         a.play('thud', { gain: 1, rate: 0.5 });
         a.play('glass_bits', { gain: 0.5, rate: 0.7, at: 0.06 });
         a.play('grit', { gain: 0.6, rate: 0.7, at: 0.12 });
+        this.boom(1, 0);
         break;
       case 'magnet':
         a.play('post', { gain: 0.7, rate: 0.6 });
@@ -258,6 +294,8 @@ export class SoundLibrary {
   goal(bounces: number, stars = 0, newBest = false): void {
     void newBest;
     const a = this.audio;
+    // The whole alley takes the impact, then the houma answers.
+    this.boom(1, 0);
     a.play('net', { gain: 0.8, rate: 0.7 });
     a.play('net', { gain: 0.5, rate: 0.55, at: 0.06 });
     a.play('thud_soft', { gain: 0.5, rate: 0.85 });

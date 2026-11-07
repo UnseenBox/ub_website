@@ -39,7 +39,109 @@ export interface WallDef {
 }
 
 /**
- * Things in the alley that do more than stand there. Each `type` has one class in
+ * What the street is paved with. This only changes how the ground looks: the ball rolls on
+ * every one of them the same way, so a surface never lies about the physics.
+ */
+export type Surface =
+  /** Worn tarmac, patched and oil-stained. */
+  | 'asphalt'
+  /** Poured concrete slabs with hairline cracks. */
+  | 'concrete'
+  /** The old ochre paving stones of the houma. */
+  | 'paving'
+  /** Market tiles, terracotta and cream. */
+  | 'terracotta'
+  /** Dry beach sand with ripples. */
+  | 'sand'
+  /** Broken cement with weeds pushing through. */
+  | 'cracked'
+  /** Roof screed with felt patches and a gravel edge. */
+  | 'rooftop'
+  /** Asphalt with pale concrete repair patches. */
+  | 'patches'
+  /** Street with a grid of iron manhole covers and drain grates. */
+  | 'drains'
+  /** Courtyard zellige tile, blue and white. */
+  | 'tiles'
+  /** Old cobblestones, worn smooth in the middle. */
+  | 'cobble'
+  /** A frozen street, pale and crazed. */
+  | 'ice'
+  /** Rain-slick asphalt, dark and reflective. */
+  | 'wet';
+
+/**
+ * A flat piece of street furniture painted on the ground. None of it is solid and none of it
+ * stands in the ball's way: landmarks are for the eye, the puzzle is for the walls.
+ */
+export type DressingKind =
+  /** Blue garage door set into a wall face. */
+  | 'garage'
+  /** Café frontage with two tables under an awning. */
+  | 'cafe'
+  /** A painted wall mural. */
+  | 'mural'
+  /** A little courtyard fountain. */
+  | 'fountain'
+  /** A stairway up to a doorway. */
+  | 'stairs'
+  /** A market stall: canopy over a trestle. */
+  | 'stall'
+  /** A washing line strung between two poles. */
+  | 'washline'
+  /** An iron manhole cover. */
+  | 'manhole'
+  /** A shallow puddle with a wet rim. */
+  | 'puddle'
+  /** Painted parking bays. */
+  | 'parking'
+  /** A red phone box. */
+  | 'phonebox'
+  /** A concrete planter with a shrub. */
+  | 'planter'
+  /** A street name sign on a post. */
+  | 'signpost'
+  /** A char grill with smoke stains. */
+  | 'grill'
+  /** An oil drum. */
+  | 'barrel';
+
+export interface DressingDef {
+  kind: DressingKind;
+  x: number;
+  y: number;
+  /** Radians, clockwise on screen. */
+  angle?: number;
+  /** Size hint. 1 is normal, 1.5 is large. */
+  scale?: number;
+}
+
+/**
+ * A boundary edge is usually a building wall, but the bottom of the street is a low kerb so
+ * it never hides the ball.
+ */
+export type BoundaryKind = WallKind | 'kerb';
+
+/**
+ * The shape of the playable ground.
+ *
+ * `points` runs from the left goal post, down and around the street, to the right goal post.
+ * The engine closes the loop at both ends against the top corners of the arena and leaves the
+ * goal mouth as the only opening, so the ball can never leave the street.
+ *
+ * `kinds` gives the wall kind for each edge of the closed loop. Edge 0 is the closure at the
+ * top-left corner and the last edge is the closure at the top-right corner; the edges between
+ * are the street itself, in order.
+ */
+export interface BoundaryDef {
+  points: readonly Point[];
+  /** One kind per edge of the closed loop. `points.length + 1` entries. */
+  kinds?: readonly BoundaryKind[];
+  /** Thickness of the wall band. Defaults to the rail thickness. */
+  thickness?: number;
+}
+
+/** Things in the alley that do more than stand there. Each `type` has one class in
  * src/mechanics and one drawing routine in src/rendering/MechanicArt.ts.
  */
 export type MechanicDef =
@@ -88,6 +190,15 @@ export interface LevelDefinition {
   mechanics: readonly MechanicDef[];
   /** What the ground is: paving when left out. Only the look changes. */
   theme?: Theme;
+  /**
+   * The shape of the playable ground. When it is left out the level gets the old rectangular
+   * rails, which is what the duel streets use.
+   */
+  boundary?: BoundaryDef;
+  /** What the street is paved with. `paving` when left out. Only the look changes. */
+  surface?: Surface;
+  /** Flat landmarks painted on the ground. */
+  dressing?: readonly DressingDef[];
   /** Crazy Score needed for the second and third star. Any goal earns the first. */
   stars: readonly [number, number];
 }

@@ -16,7 +16,7 @@ export function drawBallShadow(ctx: CanvasRenderingContext2D, ball: Ball, x: num
   ctx.fill();
 }
 
-/** Dust kicked up behind a fast ball: a pale ribbon, widest and strongest at the ball. */
+/** Dust kicked up behind a fast ball: a wide glow around a hot core, widest at the ball. */
 export function drawTrail(ctx: CanvasRenderingContext2D, trail: BallTrail, radius: number, color: string = C.white): void {
   if (trail.count < 2) return;
   ctx.lineCap = 'round';
@@ -27,14 +27,44 @@ export function drawTrail(ctx: CanvasRenderingContext2D, trail: BallTrail, radiu
     const f = i / (trail.count - 1);
     const strength = trail.strength[b];
     if (strength <= 0.01) continue;
-    ctx.globalAlpha = f * f * 0.5 * strength;
-    ctx.lineWidth = radius * (0.25 + 1.45 * f);
+    const x0 = trail.xs[a];
+    const y0 = trail.ys[a];
+    const x1 = trail.xs[b];
+    const y1 = trail.ys[b];
+    // Outer heat haze.
+    ctx.globalAlpha = f * f * 0.28 * strength;
+    ctx.lineWidth = radius * (0.55 + 2.4 * f);
     ctx.beginPath();
-    ctx.moveTo(trail.xs[a], trail.ys[a]);
-    ctx.lineTo(trail.xs[b], trail.ys[b]);
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    // Bright core.
+    ctx.globalAlpha = f * f * 0.62 * strength;
+    ctx.lineWidth = radius * (0.1 + 0.7 * f);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
+}
+
+/** A hot halo around the ball. Sells speed in flight and the fire boost without a new sprite. */
+export function drawBallAura(ctx: CanvasRenderingContext2D, ball: Ball, x: number, y: number, color: string, intensity: number): void {
+  if (intensity <= 0.01) return;
+  const r = ball.radius;
+  const reach = r * (2 + 1.3 * intensity);
+  const glow = ctx.createRadialGradient(x, y, r * 0.55, x, y, reach);
+  glow.addColorStop(0, rgba(color, 0.34 * intensity));
+  glow.addColorStop(0.55, rgba(color, 0.12 * intensity));
+  glow.addColorStop(1, rgba(color, 0));
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, reach, 0, TAU);
+  ctx.fill();
+  ctx.restore();
 }
 
 /**

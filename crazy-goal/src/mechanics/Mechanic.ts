@@ -38,6 +38,12 @@ export abstract class Mechanic {
   reset(): void {}
   /** Every physics step, before the ball moves. `live` is false while the ball waits on its spot. */
   move(_dt: number, _ball: RigidBody, _live: boolean, _sink: MechSink | null): void {}
+  /**
+   * The force this mechanic puts on a ball at its current spot, without advancing the
+   * mechanic or announcing an event. The aim preview applies it to its ghost so ground
+   * effects (sand, slopes, fans) bend the dotted line the same way they will bend the shot.
+   */
+  field(_ball: RigidBody, _dt: number): void {}
   /** The ball struck one of this mechanic's bodies. */
   contact(_other: RigidBody, _impact: number, _ball: RigidBody, _sink: MechSink | null): void {}
   /** Every physics step of a live ball, after it has moved and bounced. */
