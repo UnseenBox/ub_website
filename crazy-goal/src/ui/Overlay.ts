@@ -58,7 +58,7 @@ const starSprite = (): HTMLImageElement => {
   return img;
 };
 
-const GEAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>`;
+const GEAR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>`;
 
 const CHAPTERS: ReadonlyArray<{ until: number; title: string }> = [
   { until: 12, title: 'THE HOUMA' },
@@ -104,6 +104,21 @@ function slider(label: string, onInput: (volume: number) => void): { row: HTMLEl
   return { row, input };
 }
 
+/** Chunky icons for the pause cabinet: play, replay, goal, home and a gear. */
+const RESUME_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15c0 1.6 1.75 2.6 3.1 1.75l11.4-7.5c1.25-.88 1.25-2.9 0-3.78L10.1 2.75C8.75 1.9 7 2.9 7 4.5Z"/></svg>`;
+const REPLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.65 6.35A8 8 0 1 0 19.73 12h-2.08a6 6 0 1 1-1.41-4.24L13 11h7V4l-2.35 2.35z"/></svg>`;
+const GOAL_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3.5 19V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v14"/><path d="M3.5 19h17" stroke-linecap="round"/><path d="M8.5 3v16M13.5 3v16M8.5 8h7M8.5 13h7" stroke-width="1.5"/></svg>`;
+const HOME_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>`;
+const AD_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="3.5"/><path d="M10.5 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg>`;
+
+const pauseButton = (className: string, label: string, icon: string, onClick: () => void): HTMLButtonElement => {
+  const b = button(className, '', onClick);
+  const art = el('span', 'btn-icon');
+  art.innerHTML = icon;
+  b.append(art, el('span', 'btn-label', label));
+  return b;
+};
+
 export class Overlay {
   private readonly menu: HTMLElement;
   private readonly pause: HTMLElement;
@@ -127,6 +142,7 @@ export class Overlay {
   private settingsFrom: HTMLElement;
   private resetArmed = false;
   private readonly resetButton: HTMLButtonElement;
+  private readonly rewardLabel: HTMLElement;
 
   constructor(
     private readonly root: HTMLElement,
@@ -197,16 +213,20 @@ export class Overlay {
 
     this.pause = el('div', 'screen pause');
     const panel = el('div', 'panel pause-panel');
-    this.rewardButton = button('btn btn-ghost reward-button', '+30 COINS', handlers.reward);
+    this.rewardButton = button('btn btn-sun reward-button', '', handlers.reward);
+    const rewardArt = el('span', 'btn-icon');
+    rewardArt.innerHTML = AD_SVG;
+    this.rewardLabel = el('span', 'btn-label', '+30 COINS');
+    this.rewardButton.append(rewardArt, this.rewardLabel);
     this.rewardButton.hidden = true;
     panel.append(
       el('h2', 'panel-title', 'PAUSED'),
-      button('btn btn-primary', 'RESUME', handlers.resume),
-      button('btn btn-sun', 'RESTART SHOT', handlers.restart),
-      button('btn btn-navy', 'HOUMA', handlers.levels),
-      button('btn btn-red', 'HOME', handlers.home),
+      pauseButton('btn btn-primary', 'RESUME', RESUME_SVG, handlers.resume),
+      pauseButton('btn btn-sun', 'RESTART SHOT', REPLAY_SVG, handlers.restart),
+      pauseButton('btn btn-navy', 'HOUMA', GOAL_SVG, handlers.levels),
+      pauseButton('btn btn-red', 'HOME', HOME_SVG, handlers.home),
       this.rewardButton,
-      button('btn btn-ghost', 'SETTINGS', () => this.showSettings()),
+      pauseButton('btn btn-ghost', 'SETTINGS', GEAR_SVG, () => this.showSettings()),
     );
     this.pause.append(panel);
 
@@ -294,7 +314,7 @@ export class Overlay {
   /** A rewarded-ad offer in the pause menu, or null for none. */
   setReward(offer: { label: string } | null): void {
     this.rewardButton.hidden = offer === null;
-    if (offer) this.rewardButton.textContent = tr(offer.label);
+    if (offer) this.rewardLabel.textContent = tr(offer.label);
   }
 
   private showSettings(): void {
