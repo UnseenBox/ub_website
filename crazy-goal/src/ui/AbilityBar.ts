@@ -1,3 +1,6 @@
+import fireIcon from '../assets/ui/ability-fire.png';
+import magnetIcon from '../assets/ui/ability-magnet.png';
+import rubberIcon from '../assets/ui/ability-rubber.png';
 import { cardOf, type Boost } from '../abilities/Cards';
 import { tr } from '../core/i18n';
 
@@ -11,18 +14,19 @@ export interface AbilityBarHandlers {
 
 const SHOP: readonly Boost[] = ['fire', 'magnet', 'rubber'];
 
-/** SVG icons for each boost — 24×24, currentColor. */
-const ICONS: Record<Boost, string> = {
-  fire: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"/></svg>`,
-  magnet: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3h4v7a2 2 0 0 0 4 0V3h4v7a6 6 0 0 1-12 0V3z"/><path d="M6 3h4v4H6zM14 3h4v4h-4z" opacity=".55"/></svg>`,
-  rubber: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="14" r="6" fill="currentColor" stroke="none"/><path d="M2.5 8.5c2.5-2.5 5.5-2.5 8 0"/><path d="M13.5 5.5c2.5-2.5 5.5-2.5 8 0"/></svg>`,
+/** The hand-drawn circular badge artwork for each boost. */
+const ART: Record<Boost, string> = {
+  fire: fireIcon,
+  magnet: magnetIcon,
+  rubber: rubberIcon,
 };
 
 /**
  * The solo ability sidebar: three boosts with coin prices and the wallet,
- * stacked vertically on the right. Each card has an SVG icon, name, cost,
- * and a live glow when armed. Tap to arm for the next shot, tap again
- * to take it back off (refunded). Paid boosts ride exactly one shot.
+ * stacked vertically on the right. Each boost is its circular badge artwork
+ * with a price tag on the corner and a name plate under it. Tap to arm for
+ * the next shot, tap again to take it back off (refunded). Paid boosts
+ * ride exactly one shot.
  */
 export class AbilityBar {
   readonly el: HTMLElement;
@@ -55,7 +59,11 @@ export class AbilityBar {
       b.dataset.boost = id;
       const iconWrap = document.createElement('span');
       iconWrap.className = 'ability-icon';
-      iconWrap.innerHTML = ICONS[id];
+      const img = document.createElement('img');
+      img.src = ART[id];
+      img.alt = '';
+      img.draggable = false;
+      iconWrap.append(img);
       const name = document.createElement('span');
       name.className = 'ability-name';
       const cost = document.createElement('span');
