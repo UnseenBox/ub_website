@@ -99,6 +99,7 @@ export function copyMotion(from: RigidBody, to: RigidBody): void {
   to.angVel = from.angVel;
   to.drag = from.drag;
   to.rollResistance = from.rollResistance;
+  to.spinDrag = from.spinDrag;
   to.restitution = from.restitution;
   to.maxSpeed = from.maxSpeed;
 }

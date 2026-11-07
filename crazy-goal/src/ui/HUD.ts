@@ -1,6 +1,6 @@
 import type { DuelScore, Game } from '../core/Game';
 import { rtl, tr } from '../core/i18n';
-import { clamp01, easeOutBack, easeOutCubic, lerp } from '../core/math';
+import { clamp01, easeOutBack, easeOutCubic, lerp, TAU } from '../core/math';
 import { CELEBRATION_TIMING } from '../goal/GoalCelebration';
 import { MISS_LABEL } from '../goal/GoalDetector';
 import { formatScore, roundRect, signText, text, tileStar, wrapText } from '../rendering/DrawUtils';
@@ -71,6 +71,7 @@ export class Hud {
     if (g.level.index === 0 && g.record.goals === 0 && (g.state === 'ready' || g.state === 'aiming')) this.drawPrompt(ctx, g, u);
     if (g.state === 'missed') this.drawMiss(ctx, g, u);
     if (g.banner && g.banner.t < g.banner.dur) this.drawBannerText(ctx, g, u);
+    if (g.state === 'flight') this.drawComboBadge(ctx, g, u);
     if (g.celebration.active) {
       this.drawCard(ctx, g, u);
       this.drawBanner(ctx, g);
@@ -333,6 +334,44 @@ export class Hud {
     ctx.textBaseline = 'alphabetic';
   }
 
+  /**
+   * The live combo ribbon under the kerb. It grows with every counted touch, takes the colour
+   * of the climbing combo, and names the last trick while the word is still fresh.
+   */
+  private drawComboBadge(ctx: CanvasRenderingContext2D, g: Game, u: number): void {
+    const juice = g.juice;
+    if (juice.combo < 2) return;
+    const { arena } = g.level.def;
+    const colour = juice.comboColor();
+    const label = `x${juice.combo} COMBO`;
+    const word = juice.trickT < 1.15 ? juice.trickText : '';
+    const pulse = 1 + 0.22 * juice.comboPulse;
+    ctx.save();
+    ctx.translate(arena.x + arena.w / 2, arena.y + arena.h + 28);
+    ctx.rotate(-0.03);
+    ctx.scale(u * pulse, u * pulse);
+    ctx.font = `900 18px ${FONT}`;
+    const labelW = ctx.measureText(label).width;
+    ctx.font = `900 11px ${FONT}`;
+    const wordW = word ? ctx.measureText(tr(word)).width : 0;
+    const w = Math.max(labelW, wordW) + 38;
+    const h = word ? 52 : 34;
+    roundRect(ctx, -w / 2 + 4, -h / 2 + 5, w, h, 11);
+    ctx.fillStyle = rgba(C.shadow, 0.35);
+    ctx.fill();
+    roundRect(ctx, -w / 2, -h / 2, w, h, 11);
+    ctx.fillStyle = rgba(C.ink, 0.94);
+    ctx.fill();
+    ctx.strokeStyle = rgba(colour, 0.9);
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    if (word) text(ctx, juice.trickText, 0, -8, { size: 11, color: juice.trickColor, align: 'center', baseline: 'middle', spacing: 1.5 });
+    text(ctx, label, 0, word ? 12 : 1, { size: 18, color: colour, align: 'center', baseline: 'middle', spacing: 1.5 });
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
   private drawBanner(ctx: CanvasRenderingContext2D, g: Game): void {
     const { arena } = g.level.def;
     const t = g.celebration.t;
@@ -341,9 +380,15 @@ export class Hud {
     const settle = easeOutCubic(clamp01((t - CELEBRATION_TIMING.cardAt + 0.1) / 0.3));
     // On a narrow alley the banner is sized to the alley rather than to the type.
     const fit = Math.min(1, arena.w / 760);
+    // The hit still rings through the lettering for a moment after the goal.
+    const rush = g.juice.goalRush;
+    const shake = 7 * rush;
     ctx.save();
-    ctx.translate(arena.x + arena.w / 2, lerp(arena.y + 300, arena.y + 172, settle));
-    ctx.rotate(-0.06);
+    ctx.translate(
+      arena.x + arena.w / 2 + Math.sin(t * 63) * shake,
+      lerp(arena.y + 300, arena.y + 172, settle) + Math.cos(t * 51) * shake * 0.7,
+    );
+    ctx.rotate(-0.06 + Math.sin(t * 43) * 0.02 * rush);
     const scale = slam * fit * lerp(1, 0.52, settle);
     ctx.scale(scale, scale);
     ctx.globalAlpha = clamp01(t / 0.05);
@@ -351,6 +396,14 @@ export class Hud {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     signText(ctx, 'GOAL!', 0, 0, C.sun, C.navy, 12, C.blue);
+    // The best thing about the goal gets its own line before the score card takes over.
+    const headline = g.celebration.card?.headline ?? '';
+    const sub = headline && headline !== 'GOAL' ? clamp01((t - 0.18) / 0.12) * clamp01((CELEBRATION_TIMING.cardAt + 0.08 - t) / 0.16) : 0;
+    if (sub > 0) {
+      ctx.globalAlpha = sub;
+      ctx.font = `900 40px ${FONT}`;
+      signText(ctx, headline, 0, 116, C.white, C.terraDark, 5);
+    }
     ctx.restore();
     ctx.textBaseline = 'alphabetic';
   }
@@ -422,7 +475,13 @@ export class Hud {
     if (hasCombo) ty += 42;
 
     if (tail > 0) {
-      text(ctx, formatScore(cel.shownTotal), cx, ty + 62, { size: 52, color: C.blue, align: 'center', alpha: tail });
+      // The total punches with every score line that lands.
+      ctx.save();
+      ctx.translate(cx, ty + 62);
+      const totalPop = 1 + 0.18 * g.juice.scorePulse;
+      ctx.scale(totalPop, totalPop);
+      text(ctx, formatScore(cel.shownTotal), 0, 0, { size: 52, color: C.blue, align: 'center', alpha: tail });
+      ctx.restore();
       // Three tile stars, each landing with a pop.
       for (let i = 0; i < 3; i++) {
         const sx = cx + (i - 1) * 52;
@@ -430,12 +489,20 @@ export class Hud {
         const age = i < card.stars ? cel.starAge(i) : -1;
         ctx.globalAlpha = tail;
         if (age >= 0) {
-          tileStar(ctx, sx, sy, 20 * easeOutBack(clamp01(age / 0.22), 3));
+          const starPop = 1 + 0.55 * g.juice.starPulse[i];
+          tileStar(ctx, sx, sy, 20 * easeOutBack(clamp01(age / 0.22), 3) * starPop);
           ctx.fillStyle = C.sun;
           ctx.fill();
           ctx.strokeStyle = C.sunDark;
           ctx.lineWidth = 2;
           ctx.stroke();
+          if (g.juice.starPulse[i] > 0.01) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, 27 + 18 * g.juice.starPulse[i], 0, TAU);
+            ctx.strokeStyle = rgba(C.sun, 0.7 * g.juice.starPulse[i]);
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          }
         } else {
           tileStar(ctx, sx, sy, 18);
           ctx.strokeStyle = rgba(C.navy, 0.22);

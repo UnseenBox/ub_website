@@ -35,13 +35,18 @@ export class Sand extends Mechanic {
     this.wasIn = false;
   }
 
+  override field(ball: RigidBody, dt: number): void {
+    if (!inside(this.rect, ball)) return;
+    const k = Math.exp(-this.drag * dt);
+    ball.vx *= k;
+    ball.vy *= k;
+  }
+
   override move(dt: number, ball: RigidBody, live: boolean, sink: MechSink | null): void {
     if (!live) return;
     const isIn = inside(this.rect, ball);
     if (isIn) {
-      const k = Math.exp(-this.drag * dt);
-      ball.vx *= k;
-      ball.vy *= k;
+      this.field(ball, dt);
       if (!this.wasIn && this.drag > 0) sink?.({ kind: 'sand', x: ball.x, y: ball.y, strength: Math.min(1, Math.hypot(ball.vx, ball.vy) / 1200) });
     }
     this.wasIn = isIn;
@@ -65,9 +70,14 @@ export class Slope extends Mechanic {
     this.dirY = Math.sin(angle);
   }
 
-  override move(_dt: number, ball: RigidBody, live: boolean): void {
-    if (!live || !inside(this.rect, ball)) return;
+  override field(ball: RigidBody): void {
+    if (!inside(this.rect, ball)) return;
     ball.ax += this.dirX * this.strength;
     ball.ay += this.dirY * this.strength;
+  }
+
+  override move(_dt: number, ball: RigidBody, live: boolean): void {
+    if (!live) return;
+    this.field(ball);
   }
 }

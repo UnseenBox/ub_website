@@ -1,5 +1,6 @@
+import type { Level } from '../levels/Level';
 import { circle, Layer } from '../physics/Collider';
-import { FIXED_DT, type ContactListener, type PhysicsWorld } from '../physics/PhysicsWorld';
+import { FIXED_DT, type ContactListener } from '../physics/PhysicsWorld';
 import { copyMotion, createBody, type RigidBody } from '../physics/RigidBody';
 
 const MAX_POINTS = 24;
@@ -41,8 +42,9 @@ export class TrajectoryPreview {
   }
 
   /** `field`, when given, is applied to the ghost before every step (the magnet's pull). */
-  compute(world: PhysicsWorld, ball: RigidBody, dirX: number, dirY: number, speed: number, power: number, field: ((b: RigidBody) => void) | null = null): void {
+  compute(level: Level, ball: RigidBody, dirX: number, dirY: number, speed: number, power: number, field: ((b: RigidBody) => void) | null = null): void {
     const g = this.ghost;
+    const world = level.world;
     copyMotion(ball, g);
     g.vx = dirX * speed;
     g.vy = dirY * speed;
@@ -56,6 +58,7 @@ export class TrajectoryPreview {
     // After the first touch, show only a stub of the rebound.
     let afterHit = Math.round(0.11 / FIXED_DT);
     for (let i = 1; i <= steps; i++) {
+      level.applyFields(g, FIXED_DT);
       if (field) field(g);
       world.stepBody(g, FIXED_DT, this.onContact);
       if (this.hasHit && --afterHit <= 0) break;

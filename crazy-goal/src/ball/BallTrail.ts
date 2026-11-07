@@ -1,6 +1,6 @@
 import { smoothstep } from '../core/math';
 
-const LENGTH = 16;
+const LENGTH = 26;
 
 /** Ring buffer of recent ball positions, drawn as a tapering ribbon when the ball is quick. */
 export class BallTrail {
@@ -20,7 +20,7 @@ export class BallTrail {
   push(x: number, y: number, speed: number): void {
     this.xs[this.head] = x;
     this.ys[this.head] = y;
-    this.strength[this.head] = smoothstep(380, 1300, speed);
+    this.strength[this.head] = smoothstep(260, 1150, speed);
     this.head = (this.head + 1) % LENGTH;
     if (this.count < LENGTH) this.count++;
   }

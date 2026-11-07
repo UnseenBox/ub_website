@@ -26,6 +26,8 @@ interface Particle {
 interface Flash {
   active: boolean;
   rays: boolean;
+  /** A filled burst instead of an outline: the core of an explosion. */
+  fill: boolean;
   x: number;
   y: number;
   t: number;
@@ -35,8 +37,8 @@ interface Flash {
   color: string;
 }
 
-const POOL = 460;
-const FLASHES = 24;
+const POOL = 640;
+const FLASHES = 32;
 const CONFETTI = [C.sun, C.blue, C.white, C.terra, C.blueLite] as const;
 const EMBERS = [C.sun, C.orange, '#e2472b'] as const;
 const rand = (lo: number, hi: number): number => lo + Math.random() * (hi - lo);
@@ -56,7 +58,7 @@ export class ParticleSystem {
       this.pool.push({ active: false, kind: DUST, x: 0, y: 0, vx: 0, vy: 0, gravity: 0, drag: 0, life: 0, maxLife: 1, size: 1, rot: 0, spin: 0, color: C.white });
     }
     for (let i = 0; i < FLASHES; i++) {
-      this.flashes.push({ active: false, rays: false, x: 0, y: 0, t: 0, dur: 1, size: 1, rot: 0, color: C.white });
+      this.flashes.push({ active: false, rays: false, fill: false, x: 0, y: 0, t: 0, dur: 1, size: 1, rot: 0, color: C.white });
     }
   }
 
@@ -200,20 +202,27 @@ export class ParticleSystem {
   }
 
   ring(x: number, y: number, size: number, color: string, dur = 0.34): void {
-    this.flash(false, x, y, size, color, dur);
+    this.flash(false, false, x, y, size, color, dur);
   }
 
   /** A burst of short rays at the point of a hard impact. */
   rays(x: number, y: number, size: number, color: string): void {
     if (this.reduced) return;
-    this.flash(true, x, y, size, color, 0.22);
+    this.flash(true, false, x, y, size, color, 0.22);
   }
 
-  private flash(rays: boolean, x: number, y: number, size: number, color: string, dur: number): void {
+  /** The hot core of an explosion: a bright disc that blooms and dies at once. */
+  blast(x: number, y: number, size: number, color: string, dur = 0.24): void {
+    if (this.reduced) return;
+    this.flash(false, true, x, y, size, color, dur);
+  }
+
+  private flash(rays: boolean, fill: boolean, x: number, y: number, size: number, color: string, dur: number): void {
     const f = this.flashes[this.flashCursor];
     this.flashCursor = (this.flashCursor + 1) % FLASHES;
     f.active = true;
     f.rays = rays;
+    f.fill = fill;
     f.x = x;
     f.y = y;
     f.t = 0;
@@ -302,7 +311,14 @@ export class ParticleSystem {
       if (!f.active) continue;
       const t = f.t / f.dur;
       ctx.strokeStyle = f.color;
-      if (f.rays) {
+      if (f.fill) {
+        // A solid disc that blooms fast and fades faster: the flash at the centre of a hit.
+        ctx.globalAlpha = (1 - t) * (1 - t) * 0.55;
+        ctx.fillStyle = f.color;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.size * (0.35 + 0.65 * easeOutCubic(t)), 0, TAU);
+        ctx.fill();
+      } else if (f.rays) {
         // Rays shoot outwards and thin as they go.
         const inner = f.size * (0.25 + 0.55 * easeOutCubic(t));
         const outer = f.size * (0.45 + 0.75 * easeOutCubic(t));

@@ -14,6 +14,7 @@ import { TrajectoryPreview } from '../ball/TrajectoryPreview';
 import { DebugOverlay } from '../debug/DebugOverlay';
 import { DuelController } from '../duel/DuelController';
 import { boostFeedback, wireFeedback } from '../feedback/Feedback';
+import { Juice } from '../feedback/Juice';
 import { CELEBRATION_TIMING, GoalCelebration } from '../goal/GoalCelebration';
 import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
@@ -169,6 +170,8 @@ export class Game {
   skin: Skin;
   readonly particles = new ParticleSystem();
   readonly popups = new Popups();
+  /** The running spectacle: flash, speed lines, live combo, trick callout, goal rush. */
+  readonly juice = new Juice();
   readonly save = new SaveManager();
   readonly shot = new ShotController();
   readonly analyzer = new ShotAnalyzer();
@@ -230,6 +233,8 @@ export class Game {
   private flightFor = 0;
   private pathTick = 0;
   private buttonsUp = false;
+  /** Set once per shot as the ball closes on the goal mouth: starts the goal-cam slow motion. */
+  private goalCine = false;
   private shotEvents: number[] = [];
   private shotMovers: number[] = [];
   private readonly magnetField = (b: RigidBody): void => {
@@ -260,6 +265,7 @@ export class Game {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       this.camera.shakeScale = 0.3;
       this.particles.reduced = true;
+      this.juice.reduced = true;
     }
 
     this.overlay = new Overlay(overlayRoot, {
@@ -332,8 +338,12 @@ export class Game {
 
   /** Erases every record and puts the player back on the first alley. */
   resetProgress(): void {
+    // Drop an armed boost first: loadLevel would otherwise refund it into the fresh wallet.
+    this.armedBoost = null;
     this.save.data.levels = {};
     this.save.data.coins = 0;
+    this.save.data.skin = 'classic';
+    this.skin = skinOf('classic');
     this.save.save();
     this.loadLevel(0);
   }
@@ -426,6 +436,8 @@ export class Game {
     this.lastPath.clear();
     this.path.clear();
     this.popups.clear();
+    this.juice.reset();
+    this.goalCine = false;
     this.frameCamera();
     this.hud.invalidate();
     this.renderer.invalidate();
@@ -585,6 +597,12 @@ export class Game {
     portal.gameplayStart();
   }
 
+  /** True when a midgame ad cannot interrupt a shot, a moving ball or a celebration still landing. */
+  get adBreakAllowed(): boolean {
+    if (this.state === 'goal') return this.celebration.t >= CELEBRATION_TIMING.buttonsAfter;
+    return this.state === 'ready' || this.state === 'missed' || this.state === 'menu';
+  }
+
   /** Between houmas: the portal may take a midgame break first, then the next street loads. */
   nextLevel(): void {
     if (this.level.index + 1 >= this.levels.length) {
@@ -637,7 +655,7 @@ export class Game {
         // One shot and no going back: the pointer only matters until it is taken.
         if (!this.shotTaken && this.state !== 'replay') this.handlePointer(realDt);
       } else {
-        if (input.consume('restart')) this.resetShot();
+        if (input.consume('restart')) this.retryShot();
         if (input.consume('confirm') && this.state === 'goal' && this.celebration.canRetry) this.nextLevel();
         this.handlePointer(realDt);
       }
@@ -653,7 +671,7 @@ export class Game {
     const p = this.input.pointer;
     if (p.pressed) {
       // Any press is "go again": after a miss or a goal it resets and starts the next pull at once.
-      if (this.state === 'missed' || (this.state === 'goal' && this.celebration.canRetry)) this.resetShot();
+      if (this.state === 'missed' || (this.state === 'goal' && this.celebration.canRetry)) this.retryShot();
       if (this.state === 'ready') this.beginAim();
     }
     if (this.state !== 'aiming') return;
@@ -665,7 +683,7 @@ export class Game {
     if (stepped) this.events.emit('AIM_STEP', { step: this.shot.step });
     this.sounds.pull(this.shot.power, realDt);
     if (this.shot.armed) {
-      this.preview.compute(this.level.world, this.ball.body, this.shot.dirX, this.shot.dirY, this.shot.speed, this.shot.power, this.armedBoost === 'magnet' ? this.magnetField : null);
+      this.preview.compute(this.level, this.ball.body, this.shot.dirX, this.shot.dirY, this.shot.speed, this.shot.power, this.armedBoost === 'magnet' ? this.magnetField : null);
     } else {
       this.preview.clear();
     }
@@ -718,6 +736,7 @@ export class Game {
     this.pathTick = 0;
     this.stillFor = 0;
     this.flightFor = 0;
+    this.goalCine = false;
     this.record.attempts++;
     this.save.save();
     this.setState('flight');
@@ -748,6 +767,14 @@ export class Game {
     if (++this.pathTick >= PATH_EVERY) {
       this.pathTick = 0;
       this.path.push(ball.body.x, ball.body.y, this.keeperX());
+    }
+    // The last stretch before the mouth plays out in slow motion: the shot already has its
+    // trajectory, so this only stretches the drama, it never changes where the ball goes.
+    if (!this.goalCine && ball.body.vy < -80 && goal.distanceToMouth(ball.body.x, ball.body.y) < 200) {
+      this.goalCine = true;
+      this.time.slowMo(0.45, 0.34);
+      this.camera.zoomTo(goal.cx, goal.lineY + 50, 0.42);
+      this.juice.approach();
     }
     if (goal.contains(ball.body.x, ball.body.y)) {
       this.scoreGoal();
@@ -806,8 +833,10 @@ export class Game {
     this.celebration.start(card);
     this.time.hitStop(CELEBRATION_TIMING.hitStop);
     this.time.slowMo(CELEBRATION_TIMING.slowMoScale, CELEBRATION_TIMING.slowMoSeconds);
-    this.camera.zoomTo(goal.cx, goal.lineY + 40, 0.45);
-    this.net.punch(b.x, b.vx * 0.1, b.vy * 0.08);
+    this.camera.zoomTo(goal.cx, goal.lineY + 30, 0.85);
+    this.camera.addTrauma(0.9);
+    this.camera.punchZoom(0.16, b.x, b.y);
+    this.net.punch(b.x, b.vx * 0.16, b.vy * 0.12);
     this.events.emit('GOAL_SCORED', { x: b.x, y: b.y, speed: Math.hypot(b.vx, b.vy), total: card.total, bounces: card.bounces, stars: card.stars, newBest: card.newBest });
     if (this.shotRule === 'single') this.onShotEnd?.({ goal: true, score: card.total, path: this.path, events: this.shotEvents, movers: this.shotMovers });
   }
@@ -821,6 +850,13 @@ export class Game {
     this.setState('missed');
     this.events.emit('SHOT_FAILED', { kind: this.missKind, x: b.x, y: b.y });
     if (this.shotRule === 'single') this.onShotEnd?.({ goal: false, score: 0, path: this.path, events: this.shotEvents, movers: this.shotMovers });
+  }
+
+  /** A retry is gameplay again: the goal that stopped the portal must hand it back. */
+  private retryShot(): void {
+    if (this.state === 'menu') return;
+    this.resetShot();
+    if (!this.paused) portal.gameplayStart();
   }
 
   /** Puts the ball back on its spot, from any state. This is the whole retry flow. */
@@ -967,6 +1003,7 @@ export class Game {
     this.net.update(dt);
     this.particles.update(dt);
     this.popups.update(dt);
+    this.juice.update(realDt);
     this.celebration.update(realDt);
     if (this.goalFlash > 0) this.goalFlash = Math.max(0, this.goalFlash - realDt * 1.5);
     aimOffset(this.shot, this.time.elapsed, this.aimDraw);

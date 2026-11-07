@@ -1,14 +1,16 @@
 import type { Game, ShotPath } from '../core/Game';
+import { clamp01, easeOutCubic, smoothstep, TAU } from '../core/math';
 import { Tyre, TYRE_RADIUS } from '../mechanics/Tyre';
 import { BOOST_TRAIL, drawBoostOver, drawBoostUnder, drawMagnetField, drawScorch, drawSmoke } from './AbilityArt';
 import { drawAimGround, drawAimOver, drawTutorialGhost } from './AimArt';
-import { drawBlock, paintBackdrop, paintGround, paintStaticShadows } from './ArenaArt';
-import { drawBall, drawBallShadow, drawTrail } from './BallArt';
+import { drawBlock, paintBackdrop, paintStaticShadows } from './ArenaArt';
+import { drawBall, drawBallAura, drawBallShadow, drawTrail } from './BallArt';
 import { drawTag } from './DuelArt';
 import type { Camera, ViewRect } from './Camera';
 import { drawGoalCue, drawGoalFrame, drawNet, paintGoalFloor } from './GoalArt';
 import { drawMechanicGround, drawMechanicSolid, paintMechanicShadows } from './MechanicArt';
 import { C, rgba, SHADOW_ALPHA } from './Palette';
+import { paintStreet, streetPath } from './StreetArt';
 
 /** World units of static scenery kept beyond the screen edge, for shake and zoom to move into. */
 const CACHE_MARGIN = 90;
@@ -79,7 +81,7 @@ export class Renderer {
     if (!ctx) return;
     ctx.setTransform(k, 0, 0, k, -r.x * k, -r.y * k);
     paintBackdrop(ctx, r, g.level);
-    paintGround(ctx, g.level);
+    paintStreet(ctx, g.level);
     paintGoalFloor(ctx, g.level.goal);
 
     // Shadows are drawn solid on a scratch canvas and laid down in one pass, so where two
@@ -92,12 +94,10 @@ export class Renderer {
       sctx.setTransform(k, 0, 0, k, -r.x * k, -r.y * k);
       paintStaticShadows(sctx, g.level);
       paintMechanicShadows(sctx, g.level.mechanics);
-      const { arena } = g.level.def;
       const goal = g.level.goal;
       ctx.save();
       // Only the street takes shadow; the rooftops beyond the walls are higher than the things casting it.
-      ctx.beginPath();
-      ctx.rect(arena.x, arena.y, arena.w, arena.h);
+      streetPath(ctx, g.level);
       ctx.rect(goal.leftPostX, goal.backY, goal.rightPostX - goal.leftPostX, goal.depth);
       ctx.clip();
       ctx.globalAlpha = SHADOW_ALPHA;
@@ -136,6 +136,15 @@ export class Renderer {
     // Ground level.
     const look = g.duelLook;
     const boost = g.shownBoost;
+    const juice = g.juice;
+    // A burning ball stops burning once it has gone through something.
+    const lit = boost !== null && !(boost === 'fire' && level.fireSpent) ? boost : null;
+    const auraColour = lit ? BOOST_TRAIL[lit] : juice.combo >= 2 ? juice.comboColor() : C.sun;
+    // At rest the ball is just a ball; the halo only burns once it is moving or lit.
+    const aura = lit
+      ? 0.5 + 0.5 * smoothstep(280, 1500, ball.speed)
+      : smoothstep(480, 1850, ball.speed) * (0.55 + 0.45 * Math.min(1, juice.combo / 6));
+    const trailColour = boost ? BOOST_TRAIL[boost] : juice.combo >= 2 ? juice.comboColor() : C.white;
     for (const m of level.mechanics) {
       drawMechanicGround(ctx, m, time);
       if (m instanceof Tyre && m.gone) drawScorch(ctx, m.x, m.y, TYRE_RADIUS * 2, TYRE_RADIUS * 2, 0);
@@ -145,7 +154,7 @@ export class Renderer {
     drawPath(ctx, g.lastPath, look ? look.attacker : C.chalk);
     drawGoalCue(ctx, goal, time, g.state === 'ready' || aiming ? 1 : 0.35);
     if (aiming) drawAimGround(ctx, ball, bx, by, shot);
-    drawTrail(ctx, g.trail, ball.radius, boost ? BOOST_TRAIL[boost] : C.white);
+    drawTrail(ctx, g.trail, ball.radius, trailColour);
     drawBallShadow(ctx, ball, bx, by);
 
     // Solids. Anything whose base is further up the screen than the ball goes behind it.
@@ -154,9 +163,8 @@ export class Renderer {
     for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY < sortY) drawMechanicSolid(ctx, m, time);
     const patch = look ? look.attacker : g.skin.patch;
-    // A burning ball stops burning once it has gone through something.
-    const lit = boost !== null && !(boost === 'fire' && level.fireSpent) ? boost : null;
     const paintBall = (): void => {
+      drawBallAura(ctx, ball, bx, by, auraColour, aura);
       if (lit) drawBoostUnder(ctx, ball, bx, by, lit, time);
       drawBall(ctx, ball, bx, by, patch, g.skin.base);
       if (lit) drawBoostOver(ctx, ball, bx, by, lit, time);
@@ -180,10 +188,22 @@ export class Renderer {
     }
     if (g.debug.enabled) g.debug.drawWorld(ctx, g);
 
+    // Screen-space spectacle: speed streaks, combo glow and the goal letterbox, all under the HUD.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // Reduced motion keeps the information but takes most of the movement out.
+    const motion = juice.reduced ? 0.3 : 1;
+    drawSpeedLines(ctx, this.canvas.width, this.canvas.height, juice.speedLines * motion, time);
+    drawEdgeGlow(ctx, this.canvas.width, this.canvas.height, juice.edgeGlow * motion, juice.comboColor());
+    drawCinematic(ctx, this.canvas.width, this.canvas.height, juice.cinematic);
+
     cam.applyHud(ctx);
     g.hud.draw(ctx, g);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (juice.flashAlpha > 0.002) {
+      ctx.fillStyle = rgba(juice.flashColor, juice.flashAlpha);
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
     if (g.goalFlash > 0.5) {
       // One bright frame or two as the ball crosses the line.
       ctx.fillStyle = rgba('#ffffff', (g.goalFlash - 0.5) * 0.7);
@@ -191,6 +211,78 @@ export class Renderer {
     }
     if (g.debug.enabled) g.debug.drawScreen(ctx, g, cam.dpr);
   }
+}
+
+/** Streaks rushing out of the middle of the screen, driven by the speed of the shot. */
+function drawSpeedLines(ctx: CanvasRenderingContext2D, w: number, h: number, strength: number, time: number): void {
+  if (strength <= 0.01) return;
+  const cx = w / 2;
+  const cy = h / 2;
+  const near = Math.min(w, h) * 0.3;
+  const far = Math.hypot(w, h) * 0.58;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 20; i++) {
+    const raw = Math.sin(i * 91.7 + 3.1) * 43758.5453;
+    const seed = raw - Math.floor(raw);
+    const angle = (i / 20) * TAU + seed * 0.22 + Math.sin(time * 0.7 + i) * 0.025;
+    const ca = Math.cos(angle);
+    const sa = Math.sin(angle);
+    const inner = near + seed * near * 0.55;
+    const len = (0.08 + 0.3 * seed) * far * strength;
+    const x0 = cx + ca * inner;
+    const y0 = cy + sa * inner;
+    const x1 = cx + ca * (inner + len);
+    const y1 = cy + sa * (inner + len);
+    const alpha = (0.06 + 0.22 * seed) * strength;
+    // A dark edge under the white keeps the streak visible on pale walls and paving.
+    ctx.strokeStyle = rgba(C.ink, alpha * 0.5);
+    ctx.lineWidth = (2.4 + 4.6 * seed) * (0.55 + 0.45 * strength);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    ctx.strokeStyle = rgba(C.white, alpha);
+    ctx.lineWidth = (1.1 + 3.2 * seed) * (0.55 + 0.45 * strength);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** A coloured halo around the edge of the frame that climbs with the combo. */
+function drawEdgeGlow(ctx: CanvasRenderingContext2D, w: number, h: number, strength: number, colour: string): void {
+  if (strength <= 0.01) return;
+  const cx = w / 2;
+  const cy = h / 2;
+  const inner = Math.min(w, h) * 0.3;
+  const outer = Math.hypot(w, h) * 0.6;
+  const grad = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+  grad.addColorStop(0, rgba(colour, 0));
+  grad.addColorStop(0.6, rgba(colour, 0.035 * strength));
+  grad.addColorStop(1, rgba(colour, 0.34 * strength));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  // One crisp inner line, so the glow reads as a frame and not just a tint.
+  const inset = Math.max(2, Math.min(w, h) * 0.012);
+  ctx.strokeStyle = rgba(colour, 0.42 * strength);
+  ctx.lineWidth = inset;
+  ctx.strokeRect(inset / 2, inset / 2, w - inset, h - inset);
+}
+
+/** The goal letterbox: bars slam in as the ball crosses the line and slide away after. */
+function drawCinematic(ctx: CanvasRenderingContext2D, w: number, h: number, amount: number): void {
+  if (amount <= 0.001) return;
+  const t = easeOutCubic(clamp01(amount));
+  const bar = (h * 0.16 + 20) * t;
+  ctx.fillStyle = C.ink;
+  ctx.fillRect(0, 0, w, bar);
+  ctx.fillRect(0, h - bar, w, bar);
+  ctx.fillStyle = rgba(C.sun, 0.85 * t);
+  ctx.fillRect(0, bar - 2, w, 2);
+  ctx.fillRect(0, h - bar, w, 2);
 }
 
 /** The last shot, chalked where it went. Seeing your miss is how you fix it. */

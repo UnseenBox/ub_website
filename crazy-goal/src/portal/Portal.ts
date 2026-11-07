@@ -12,6 +12,10 @@ const SDK_TIMEOUT = 3000;
 const REWARD_COOLDOWN = 90;
 const REWARD_KEY = 'crazy-goal-rewarded-at';
 const LOCALE_KEY = 'crazygames-locale-applied';
+/** Seconds between midgame breaks; CrazyGames asks for at least three minutes. */
+const MIDROLL_COOLDOWN = 180;
+/** Levels (0 based) that must be finished before the first midgame break. */
+const MIDROLL_MIN_LEVEL = 2;
 
 interface AdCallbacks {
   adStarted?: () => void;
@@ -69,16 +73,32 @@ export class Portal {
   private playing = false;
   private adOpen = false;
   private heldMuted = false;
+  private loading = false;
+  private ready = false;
+  private lastMidroll = 0;
 
   /** Boots the SDK in the background; never blocks the game. */
   async init(): Promise<void> {
+    // Other portals and local builds should not download a third-party SDK at all.
+    if (!isCrazyGames) return;
     try {
       if (!window.CrazyGames?.SDK) await loadScript(SDK_URL, SDK_TIMEOUT);
       const sdk = window.CrazyGames?.SDK;
       if (!sdk) return;
       await sdk.init();
       // Every call throws outside local and crazygames environments.
-      if (sdk.environment === 'local' || sdk.environment === 'crazygames') this.sdk = sdk;
+      if (sdk.environment !== 'local' && sdk.environment !== 'crazygames') return;
+      this.sdk = sdk;
+      // Boot may have finished while the SDK was in flight. Hand it the same two edges so
+      // the portal sees a complete loading span instead of only the stop.
+      if (this.ready) {
+        sdk.game.loadingStart();
+        sdk.game.loadingStop();
+      } else if (this.loading) {
+        sdk.game.loadingStart();
+      }
+      // A press on Play may have happened before the SDK was live.
+      if (this.playing) sdk.game.gameplayStart();
     } catch {
       this.sdk = null;
     }
@@ -95,6 +115,8 @@ export class Portal {
   }
 
   loadingStart(): void {
+    this.loading = true;
+    this.ready = false;
     try {
       this.sdk?.game.loadingStart();
     } catch {
@@ -103,6 +125,8 @@ export class Portal {
   }
 
   loadingStop(): void {
+    this.loading = false;
+    this.ready = true;
     try {
       this.sdk?.game.loadingStop();
     } catch {
@@ -136,10 +160,12 @@ export class Portal {
    * when the ad finishes or fails, and the caller carries on then.
    */
   midroll(game: Game, done: () => void): boolean {
-    if (!this.ads || game.duel.active || game.shotRule !== 'free' || game.duelScore) {
-      done();
-      return false;
-    }
+    if (!this.ads || game.duel.active || game.shotRule !== 'free' || game.duelScore) return false;
+    // Keep the first minutes clean, let the goal card finish, and never stack breaks.
+    if (game.level.index < MIDROLL_MIN_LEVEL || !game.adBreakAllowed) return false;
+    const now = Date.now() / 1000;
+    if (this.lastMidroll > 0 && now - this.lastMidroll < MIDROLL_COOLDOWN) return false;
+    this.lastMidroll = now;
     this.adOpen = true;
     this.hold(game, true);
     let settled = false;

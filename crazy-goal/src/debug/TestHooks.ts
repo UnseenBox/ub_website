@@ -5,9 +5,12 @@ import { speedForPower } from '../ball/ShotController';
 import type { Game } from '../core/Game';
 import { buildDuelLevel, waysIn } from '../duel/DuelLevels';
 import { Level } from '../levels/Level';
-import { circle, Layer } from '../physics/Collider';
+import type { MechEventKind } from '../mechanics/Mechanic';
+import { circle, Layer, type Surface } from '../physics/Collider';
 import { FIXED_DT } from '../physics/PhysicsWorld';
 import { createBody } from '../physics/RigidBody';
+import { portal } from '../portal/Portal';
+import { scoreShot } from '../scoring/ScoreSystem';
 
 interface SweepHit {
   angle: number;
@@ -15,10 +18,16 @@ interface SweepHit {
   bounces: number;
   did: string;
   seconds: number;
+  /** The Crazy Score the same shot would earn, and the stars it would win. */
+  total: number;
+  stars: number;
+  lines: string;
 }
 
 interface TestApi {
   game: Game;
+  /** The portal singleton, so tests can watch its lifecycle flags without an SDK. */
+  portal: typeof portal;
   /** Advances the game by `seconds` without waiting for animation frames, then draws. */
   step(seconds?: number): void;
   /** Angle in degrees, 0 = right, -90 = straight up the alley. Power 0 to 1. */
@@ -40,6 +49,33 @@ interface TestApi {
   duelWaysOf(template: DuelTemplate, boost?: Boost | null, trick?: Trick | null, stepDeg?: number): number;
   /** Loads a duel street to look at, outside any duel. */
   duelStreet(id: string, trick?: Trick | null): void;
+  /** The playable outline and boundary blocks of a level, for geometry checks. */
+  shape(levelNumber?: number): {
+    level: number;
+    points: { x: number; y: number }[];
+    blocks: number;
+    boundary: boolean;
+    ballStart: { x: number; y: number };
+    goalX: number;
+    width: number;
+  };
+  /** Simulates one shot on a private copy of a level and returns its path. */
+  sim(
+    levelNumber: number,
+    angleDeg: number,
+    power: number,
+    seconds?: number,
+    delay?: number,
+  ): {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    goal: boolean;
+    bounces: number;
+    events: string;
+    path: { t: number; x: number; y: number; vx: number; vy: number }[];
+  };
 }
 
 declare global {
@@ -55,6 +91,7 @@ declare global {
 export function installTestHooks(game: Game): void {
   window.__cg = {
     game,
+    portal,
     step: (seconds = 1 / 60) => game.loop.advance(seconds),
     shoot: (angleDeg, power) => {
       const a = (angleDeg * Math.PI) / 180;
@@ -94,6 +131,74 @@ export function installTestHooks(game: Game): void {
       if (game.state === 'menu') game.play();
       game.loadCustom(buildDuelLevel(template, trick, -1));
     },
+    shape: (levelNumber = game.level.index + 1) => {
+      const def = game.levels[levelNumber - 1];
+      const level = new Level(def, levelNumber - 1);
+      return {
+        level: levelNumber,
+        points: level.playable.map((p) => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 })),
+        blocks: level.blocks.length,
+        boundary: level.hasCustomBoundary,
+        ballStart: def.ballStart,
+        goalX: level.goal.cx,
+        width: level.goal.width,
+      };
+    },
+    sim: (levelNumber, angleDeg, power, seconds = 6, delay = 0) => {
+      const def = game.levels[levelNumber - 1];
+      const level = new Level(def, levelNumber - 1);
+      const ghost = createBody({
+        shape: circle(BALL_TUNING.radius),
+        surface: 'ball',
+        x: def.ballStart.x,
+        y: def.ballStart.y,
+        isStatic: false,
+        layer: Layer.Ball,
+        mask: Layer.Solid | Layer.Net,
+        restitution: 1,
+        drag: BALL_TUNING.drag,
+        rollResistance: BALL_TUNING.rollResistance,
+        spinDrag: BALL_TUNING.spinDrag,
+        maxSpeed: BALL_TUNING.maxSpeed,
+      });
+      for (let t = 0; t < delay; t += FIXED_DT) level.step(ghost, FIXED_DT, false, null, null);
+      const a = (angleDeg * Math.PI) / 180;
+      ghost.vx = Math.cos(a) * speedForPower(power);
+      ghost.vy = Math.sin(a) * speedForPower(power);
+      let bounces = 0;
+      const events = new Set<string>();
+      const path: { t: number; x: number; y: number; vx: number; vy: number }[] = [];
+      let goal = false;
+      const steps = Math.round(seconds / FIXED_DT);
+      for (let i = 0; i < steps; i++) {
+        level.step(
+          ghost,
+          FIXED_DT,
+          true,
+          (_b, other, _c, impact) => {
+            if (other.surface === 'net' || other.surface === 'ball' || impact < 60) return;
+            bounces++;
+          },
+          (e) => events.add(e.kind),
+        );
+        if (i % 6 === 0) path.push({ t: +(i * FIXED_DT).toFixed(2), x: Math.round(ghost.x), y: Math.round(ghost.y), vx: Math.round(ghost.vx), vy: Math.round(ghost.vy) });
+        if (level.goal.contains(ghost.x, ghost.y)) {
+          goal = true;
+          path.push({ t: +(i * FIXED_DT).toFixed(2), x: Math.round(ghost.x), y: Math.round(ghost.y), vx: Math.round(ghost.vx), vy: Math.round(ghost.vy) });
+          break;
+        }
+      }
+      return {
+        x: Math.round(ghost.x),
+        y: Math.round(ghost.y),
+        vx: Math.round(ghost.vx),
+        vy: Math.round(ghost.vy),
+        goal,
+        bounces,
+        events: [...events].join('+'),
+        path,
+      };
+    },
     sweep: (levelNumber = game.level.index + 1, stepDeg = 1, powers = [0.4, 0.55, 0.7, 0.85, 1], delay = 0) => {
       const def = game.levels[levelNumber - 1];
       const hits: SweepHit[] = [];
@@ -112,26 +217,65 @@ export function installTestHooks(game: Game): void {
             restitution: 1,
             drag: BALL_TUNING.drag,
             rollResistance: BALL_TUNING.rollResistance,
+            spinDrag: BALL_TUNING.spinDrag,
             maxSpeed: BALL_TUNING.maxSpeed,
           });
           for (let t = 0; t < delay; t += FIXED_DT) level.step(ghost, FIXED_DT, false, null, null);
           const a = (angle * Math.PI) / 180;
           ghost.vx = Math.cos(a) * speedForPower(power);
           ghost.vy = Math.sin(a) * speedForPower(power);
+          const goal = level.goal;
+          const gx = goal.cx - ghost.x;
+          const gy = goal.lineY - ghost.y;
+          const boomerang = (Math.cos(a) * gx + Math.sin(a) * gy) / (Math.hypot(gx, gy) || 1) < -0.2;
           let bounces = 0;
-          const did = new Set<string>();
+          let distance = 0;
+          let time = 0;
+          let minGoalDist = goal.distanceToMouth(ghost.x, ghost.y);
+          let lastBody = -1;
+          let lastTime = -1;
+          const touched: Partial<Record<Surface, number>> = {};
+          const did = new Set<MechEventKind>();
           for (let i = 0; i < 240 * 9; i++) {
             level.step(
               ghost,
               FIXED_DT,
               true,
               (_b, other, _c, impact) => {
-                if (other.surface !== 'net' && impact > 60) bounces++;
+                if (other.surface === 'net' || other.surface === 'ball' || impact < 60) return;
+                // The real analyzer folds repeat contacts with one body into a single bounce.
+                if (other.id === lastBody && time - lastTime < 0.08) return;
+                lastBody = other.id;
+                lastTime = time;
+                touched[other.surface] = (touched[other.surface] ?? 0) + 1;
+                bounces++;
               },
               (e) => did.add(e.kind),
             );
-            if (level.goal.contains(ghost.x, ghost.y)) {
-              hits.push({ angle, power, bounces, did: [...did].join('+'), seconds: +(i * FIXED_DT).toFixed(2) });
+            distance += Math.hypot(ghost.vx, ghost.vy) * FIXED_DT;
+            time += FIXED_DT;
+            const d = goal.distanceToMouth(ghost.x, ghost.y);
+            if (d < minGoalDist) minGoalDist = d;
+            if (goal.contains(ghost.x, ghost.y)) {
+              const card = scoreShot(
+                {
+                  goal: true,
+                  bounces,
+                  touched,
+                  did,
+                  keeper: level.hasKeeper,
+                  distance,
+                  time,
+                  power,
+                  entrySpeed: Math.hypot(ghost.vx, ghost.vy),
+                  entryOffset: (ghost.x - goal.cx) / (goal.width / 2),
+                  boomerang,
+                  minGoalDist,
+                },
+                0,
+                def.stars,
+              );
+              hits.push({ angle, power, bounces, did: [...did].join('+'), seconds: +time.toFixed(2), total: card.total, stars: card.stars, lines: card.lines.map((l) => l.label).join(', ') });
               break;
             }
             if (Math.hypot(ghost.vx, ghost.vy) < 4 && i > 30) break;

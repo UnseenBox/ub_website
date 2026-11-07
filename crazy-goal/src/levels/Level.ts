@@ -15,7 +15,7 @@ import { Sand, Slope } from '../mechanics/Zones';
 import { box, Layer, type Surface } from '../physics/Collider';
 import { PhysicsWorld, type ContactListener } from '../physics/PhysicsWorld';
 import { createBody, type RigidBody } from '../physics/RigidBody';
-import type { LevelDefinition, MechanicDef, WallKind } from './LevelDefinition';
+import type { BoundaryDef, LevelDefinition, MechanicDef, Point, Theme, WallKind } from './LevelDefinition';
 
 export const RAIL_THICKNESS = 26;
 
@@ -64,6 +64,8 @@ export interface Block {
   hitNy: number;
   /** Burnt away by a HARISSA shot: not solid and not drawn until the shot is reset. */
   gone: boolean;
+  /** The chapter the level belongs to, so the art can tint the block for the hour of day. */
+  readonly theme?: Theme;
 }
 
 /** What a burning ball last went through: where it stood, how big it was, what it was made of. */
@@ -86,6 +88,17 @@ export class Level {
   readonly goal: Goal;
   readonly blocks: Block[] = [];
   readonly mechanics: Mechanic[] = [];
+  /**
+   * The outline of the playable ground, as a closed polygon: the top-left corner of the
+   * arena, the street, the top-right corner, and straight back across the goal mouth.
+   * The renderer clips the ground to it, so the shape of the street is what you see.
+   */
+  get playable(): readonly Point[] {
+    return this.playablePoints;
+  }
+  /** True when the level brought its own outline instead of the old rectangular rails. */
+  hasCustomBoundary = false;
+  private readonly playablePoints: Point[] = [];
   /** The goalkeeper, if this level has one. */
   readonly keeper: Cat | null;
   readonly hasKeeper: boolean;
@@ -124,22 +137,70 @@ export class Level {
     const midY = arena.y + arena.h / 2;
     const g = this.goal;
 
-    // The houses either side run the full height and own the corners.
-    this.addBlock('rail', arena.x - t / 2, midY, t, arena.h + t * 2, 0);
-    this.addBlock('rail', right + t / 2, midY, t, arena.h + t * 2, 0);
-    this.addBlock('kerb', arena.x + arena.w / 2, bottom + t / 2, arena.w, t, 0);
-    // The top wall is split around the goal mouth; each half ends at a post.
-    this.addBlock('rail', (arena.x + g.leftPostX) / 2, arena.y - t / 2, g.leftPostX - arena.x, t, 0);
-    this.addBlock('rail', (g.rightPostX + right) / 2, arena.y - t / 2, right - g.rightPostX, t, 0);
+    if (this.def.boundary) {
+      this.buildBoundary(this.def.boundary);
+    } else {
+      // The houses either side run the full height and own the corners.
+      this.addBlock('rail', arena.x - t / 2, midY, t, arena.h + t * 2, 0);
+      this.addBlock('rail', right + t / 2, midY, t, arena.h + t * 2, 0);
+      this.addBlock('kerb', arena.x + arena.w / 2, bottom + t / 2, arena.w, t, 0);
+      // The top wall is split around the goal mouth; each half ends at a post.
+      this.addBlock('rail', (arena.x + g.leftPostX) / 2, arena.y - t / 2, g.leftPostX - arena.x, t, 0);
+      this.addBlock('rail', (g.rightPostX + right) / 2, arena.y - t / 2, right - g.rightPostX, t, 0);
+      this.playablePoints.push(
+        { x: arena.x, y: arena.y },
+        { x: arena.x, y: bottom },
+        { x: right, y: bottom },
+        { x: right, y: arena.y },
+      );
+    }
 
     for (const w of walls) this.addBlock(w.kind ?? 'wall', w.x, w.y, w.w, w.h, w.angle ?? 0);
     g.addTo(this.world);
   }
 
+  /**
+   * Turns an outline into a closed ring of wall bands.
+   *
+   * Each band is a rotated box that runs a little past both of its ends, so two bands that
+   * meet always overlap and the ball can never find the seam. The loop is closed against the
+   * top corners of the arena, which leaves the goal mouth as the only way in or out.
+   */
+  private buildBoundary(def: BoundaryDef): void {
+    const { arena } = this.def;
+    const g = this.goal;
+    const t = def.thickness ?? RAIL_THICKNESS;
+    const right = arena.x + arena.w;
+
+    const pts: Point[] = def.points.map((p) => ({ x: p.x, y: p.y }));
+    if (pts.length < 2) throw new Error(`Level ${this.def.id}: a boundary needs at least two points`);
+    // The outline has to start and end at the posts, or the goal would be walled off.
+    pts[0] = { x: g.leftPostX, y: arena.y };
+    pts[pts.length - 1] = { x: g.rightPostX, y: arena.y };
+
+    // The closed loop: the two top corners of the arena, then the street between them.
+    const loop: Point[] = [{ x: arena.x, y: arena.y }, ...pts, { x: right, y: arena.y }];
+    const kinds = def.kinds ?? [];
+
+    for (let i = 0; i < loop.length - 1; i++) {
+      const a = loop[i];
+      const b = loop[i + 1];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy);
+      if (len < 1) continue;
+      // Run a little past both ends so neighbouring bands overlap and the seam is sealed.
+      this.addBlock(kinds[i] ?? 'wall', (a.x + b.x) / 2, (a.y + b.y) / 2, len + t + 4, t, Math.atan2(dy, dx));
+    }
+
+    this.playablePoints.push(...loop);
+    this.hasCustomBoundary = true;
+  }
+
   private addBlock(kind: BlockKind, x: number, y: number, w: number, h: number, angle: number): void {
     const spec = BLOCKS[kind];
     const body = this.world.addStatic(createBody({ shape: box(w, h), surface: spec.surface, x, y, angle, restitution: spec.restitution, friction: spec.friction }));
-    const block: Block = { body, kind, x, y, w, h, angle, lift: spec.lift, hit: 0, hitNx: 0, hitNy: 0, gone: false };
+    const block: Block = { body, kind, x, y, w, h, angle, lift: spec.lift, hit: 0, hitNx: 0, hitNy: 0, gone: false, theme: this.def.theme };
     this.blocks.push(block);
     this.blockOf.set(body.id, block);
   }
@@ -237,6 +298,14 @@ export class Level {
     ball.ax += dx * k;
     ball.ay += dy * k;
     return true;
+  }
+
+  /**
+   * Applies every ground force to `ball` without moving the street. The aim preview runs its
+   * ghost through this each step, so a sand patch, slope or fan bends the dotted line too.
+   */
+  applyFields(ball: RigidBody, dt: number): void {
+    for (let i = 0; i < this.mechanics.length; i++) this.mechanics[i].field(ball, dt);
   }
 
   /**

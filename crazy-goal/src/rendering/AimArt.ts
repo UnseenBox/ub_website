@@ -59,12 +59,23 @@ export function drawAimOver(ctx: CanvasRenderingContext2D, ball: Ball, x: number
 
   // Dots are evenly spaced in time, so wider gaps mean a faster ball.
   const n = preview.count;
+  const chargeGlow = clamp01((shot.power - 0.55) / 0.45);
   for (let i = 0; i < n; i++) {
     const f = i / Math.max(1, n - 1);
+    const px = preview.points[i * 2];
+    const py = preview.points[i * 2 + 1];
+    if (chargeGlow > 0) {
+      // At high power the route itself starts to glow.
+      ctx.globalAlpha = (1 - f) * 0.3 * chargeGlow;
+      ctx.fillStyle = full ? C.sun : C.blueLite;
+      ctx.beginPath();
+      ctx.arc(px, py, lerp(8.5, 3.8, f), 0, TAU);
+      ctx.fill();
+    }
     ctx.globalAlpha = lerp(0.85, 0.12, f);
     ctx.fillStyle = C.ink;
     ctx.beginPath();
-    ctx.arc(preview.points[i * 2], preview.points[i * 2 + 1], lerp(5.5, 2.2, f), 0, TAU);
+    ctx.arc(px, py, lerp(5.5, 2.2, f) * (1 + 0.25 * chargeGlow * Math.sin(time * 18 - i * 0.9)), 0, TAU);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -131,12 +142,52 @@ export function drawAimOver(ctx: CanvasRenderingContext2D, ball: Ball, x: number
   ctx.arc(x, y, ringR, -Math.PI / 2, -Math.PI / 2 + TAU * filled);
   ctx.stroke();
   ctx.setLineDash([]);
+  // Sparks pulling in towards the ball once the pull is serious.
+  if (shot.power > 0.45) {
+    const charge = clamp01((shot.power - 0.45) / 0.55);
+    const inner = r + 17;
+    const reach = r + 22 + 42 * charge;
+    ctx.save();
+    ctx.translate(x, y);
+    for (let i = 0; i < 10; i++) {
+      const flick = 0.55 + 0.45 * Math.sin(time * 15 + i * 1.7);
+      const a = (i / 10) * TAU + time * 0.55;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const r0 = inner + 2 * flick;
+      const r1 = reach * (0.55 + 0.45 * flick);
+      ctx.strokeStyle = rgba(full ? C.sun : C.blueLite, (0.12 + 0.3 * charge) * flick);
+      ctx.lineWidth = 1.5 + 2.8 * charge;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(ca * r0, sa * r0);
+      ctx.lineTo(ca * r1, sa * r1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   if (full) {
-    ctx.strokeStyle = rgba(C.sun, 0.5 + 0.5 * Math.sin(time * 18));
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, ringR + 8, 0, TAU);
-    ctx.stroke();
+    // Three rings beating out of phase: the shot is loaded and the street knows it.
+    for (let i = 0; i < 3; i++) {
+      const beat = 0.5 + 0.5 * Math.sin(time * 8 - i * 1.1);
+      ctx.strokeStyle = rgba(C.sun, (0.5 - i * 0.12) * (0.35 + 0.65 * beat));
+      ctx.lineWidth = 3 - i * 0.6;
+      ctx.beginPath();
+      ctx.arc(x, y, ringR + 8 + i * 7, 0, TAU);
+      ctx.stroke();
+    }
+    // Six ticks around the outside, turning slowly.
+    ctx.strokeStyle = rgba(C.sun, 0.9);
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU + time * 1.4;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      ctx.beginPath();
+      ctx.moveTo(x + ca * (ringR + 29), y + sa * (ringR + 29));
+      ctx.lineTo(x + ca * (ringR + 37), y + sa * (ringR + 37));
+      ctx.stroke();
+    }
   }
 }
 
