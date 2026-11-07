@@ -196,15 +196,15 @@ export class Overlay {
     this.settingsFrom = this.menu;
 
     this.pause = el('div', 'screen pause');
-    const panel = el('div', 'panel');
+    const panel = el('div', 'panel pause-panel');
     this.rewardButton = button('btn btn-ghost reward-button', '+30 COINS', handlers.reward);
     this.rewardButton.hidden = true;
     panel.append(
       el('h2', 'panel-title', 'PAUSED'),
       button('btn btn-primary', 'RESUME', handlers.resume),
-      button('btn btn-ghost', 'RESTART SHOT', handlers.restart),
-      button('btn btn-ghost', 'HOUMA', handlers.levels),
-      button('btn btn-ghost', 'HOME', handlers.home),
+      button('btn btn-sun', 'RESTART SHOT', handlers.restart),
+      button('btn btn-navy', 'HOUMA', handlers.levels),
+      button('btn btn-red', 'HOME', handlers.home),
       this.rewardButton,
       button('btn btn-ghost', 'SETTINGS', () => this.showSettings()),
     );
@@ -253,7 +253,7 @@ export class Overlay {
 
     this.result = el('div', 'result');
     this.nextButton = button('btn btn-primary', 'NEXT HOUMA', handlers.next);
-    this.result.append(button('btn btn-ghost', 'AGAIN', handlers.retry), this.nextButton);
+    this.result.append(button('btn btn-navy', 'AGAIN', handlers.retry), this.nextButton);
     this.result.hidden = true;
     root.after(this.pauseButton, this.result);
   }

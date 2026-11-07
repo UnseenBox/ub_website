@@ -29,7 +29,6 @@ export function drawCoin(ctx: CanvasRenderingContext2D, x: number, y: number, ti
   ctx.fill();
 
   ctx.globalAlpha = 1;
-  ctx.imageSmoothingEnabled = false;
   const size = 46 * pulse;
   ctx.drawImage(coin, -size / 2, bob - size / 2, size, size);
   ctx.restore();

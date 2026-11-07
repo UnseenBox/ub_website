@@ -18,8 +18,15 @@ function boot(): void {
   const game = new Game(canvas, overlay, LEVELS);
   game.start();
   if (import.meta.env.DEV) installTestHooks(game);
-  // The first painted frame ends loading: the menu is up and the game is ready.
-  requestAnimationFrame(() => portal.loadingStop());
+  // The first painted frame ends loading: drop the splash, the menu is up and ready.
+  requestAnimationFrame(() => {
+    portal.loadingStop();
+    const splash = document.getElementById('app-loading');
+    if (splash) {
+      splash.classList.add('is-done');
+      window.setTimeout(() => splash.remove(), 500);
+    }
+  });
 
   // An invite link carries a friend's id: open on the duel lobby with it filled in.
   // Portal builds have no duels (their server lives elsewhere), so the link is ignored.

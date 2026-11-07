@@ -149,6 +149,75 @@ body {
   background: var(--white);
 }
 
+/* Gold, navy and red three-dimensional buttons, for any menu that wants colour. */
+.btn-sun {
+  color: var(--navy);
+  background: linear-gradient(180deg, #ffd94d 0%, #f2b52a 55%, #d99a17 100%);
+  box-shadow:
+    0 5px 0 #a86f10,
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.btn-sun:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 7px 0 #a86f10,
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.btn-sun:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 2px 0 #a86f10,
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.btn-navy {
+  color: #eef1ff;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  background: linear-gradient(180deg, #2c3a63 0%, var(--navy) 55%, #141c33 100%);
+  box-shadow:
+    0 5px 0 #0d1226,
+    inset 0 2px 0 rgba(255, 255, 255, 0.22);
+}
+
+.btn-navy:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 7px 0 #0d1226,
+    inset 0 2px 0 rgba(255, 255, 255, 0.22);
+}
+
+.btn-navy:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 2px 0 #0d1226,
+    inset 0 2px 0 rgba(255, 255, 255, 0.22);
+}
+
+.btn-red {
+  color: #fff2ee;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, #e0503c 0%, var(--red) 55%, #b02a1c 100%);
+  box-shadow:
+    0 5px 0 var(--red-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn-red:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 7px 0 var(--red-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn-red:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 2px 0 var(--red-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
 .btn:focus-visible {
   outline: 3px solid var(--sun);
   outline-offset: 4px;
@@ -173,6 +242,24 @@ body {
 .panel .btn-primary {
   font-size: clamp(17px, 3vmin, 22px);
   margin-bottom: 8px;
+}
+
+.pause-panel {
+  overflow: hidden;
+}
+
+/* The marquee band across the top of the pause cabinet. */
+.pause-panel .panel-title {
+  margin: -32px -32px 4px;
+  padding: 16px 12px 12px;
+  font-size: 16px;
+  letter-spacing: 0.34em;
+  color: #f4ffe2;
+  text-shadow: 0 2px 0 rgba(8, 58, 23, 0.5);
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.14) 0 14px, transparent 14px 28px),
+    linear-gradient(180deg, var(--green-hi) 0%, var(--green) 55%, #12a53e 100%);
+  border-bottom: 4px solid var(--green-deep);
 }
 
 .panel-title {
@@ -265,7 +352,6 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  image-rendering: pixelated;
   opacity: 0.3;
   filter: grayscale(1);
 }
@@ -1283,7 +1369,6 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  image-rendering: pixelated;
 }
 
 /* Wide screens put the alley on the left and the controls on the right. */
@@ -1718,7 +1803,6 @@ body {
   width: 17px;
   height: auto;
   flex-shrink: 0;
-  image-rendering: pixelated;
 }
 
 .coin-n {
@@ -1871,7 +1955,6 @@ body {
   height: 1.15em;
   flex-shrink: 0;
   background: url('./assets/ui/arcade-coin.png') center / contain no-repeat;
-  image-rendering: pixelated;
 }
 
 .ability-card.is-armed .ability-cost::before {

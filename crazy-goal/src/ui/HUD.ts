@@ -306,7 +306,7 @@ export class Hud {
     ctx.font = `900 150px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    signText(ctx, 'GOAL!', 0, 0, C.sun, C.navy, 12, C.blue);
+    signText(ctx, 'GOAL!', 0, 0, C.sun, C.greenNight, 12, C.greenHi);
     // The best thing about the goal gets its own line before the score card takes over.
     const headline = g.celebration.card?.headline ?? '';
     const sub = headline && headline !== 'GOAL' ? clamp01((t - 0.18) / 0.12) * clamp01((CELEBRATION_TIMING.cardAt + 0.08 - t) / 0.16) : 0;
@@ -347,20 +347,51 @@ export class Hud {
     ctx.translate(-cx, -cy);
     ctx.globalAlpha = appear;
 
-    roundRect(ctx, x + 8, y + 10, CARD_W, h, 22);
-    ctx.fillStyle = rgba(C.shadow, 0.35);
+    // Chunky arcade cabinet: hard green base edge, white face, dark-green frame.
+    roundRect(ctx, x + 8, y + 12, CARD_W, h, 22);
+    ctx.fillStyle = rgba(C.greenNight, 0.32);
+    ctx.fill();
+    roundRect(ctx, x, y + 9, CARD_W, h, 22);
+    ctx.fillStyle = C.greenDeep;
     ctx.fill();
     roundRect(ctx, x, y, CARD_W, h, 22);
     ctx.fillStyle = C.white;
     ctx.fill();
-    ctx.strokeStyle = C.blue;
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = C.greenNight;
+    ctx.lineWidth = 5;
     ctx.stroke();
 
-    text(ctx, 'CRAZY SCORE', inner, y + 36, { size: 12, color: C.blue, spacing: 3 });
-    text(ctx, tr('{n} M', { n: card.metres }), innerR, y + 36, { size: 12, color: rgba(C.navy, 0.55), align: 'right', weight: 700, spacing: 1 });
-    ctx.fillStyle = rgba(C.blue, 0.2);
-    ctx.fillRect(inner, y + 48, CARD_W - CARD_PAD * 2, 2);
+    // The marquee band across the top, clipped to the card's rounded shoulders.
+    const bandH = 48;
+    ctx.save();
+    roundRect(ctx, x, y, CARD_W, h, 22);
+    ctx.clip();
+    const band = ctx.createLinearGradient(0, y, 0, y + bandH);
+    band.addColorStop(0, C.greenHi);
+    band.addColorStop(0.45, C.greenGame);
+    band.addColorStop(1, '#12a53e');
+    ctx.fillStyle = band;
+    ctx.fillRect(x, y, CARD_W, bandH);
+    ctx.globalAlpha = 0.13;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 12;
+    for (let sx = x - bandH; sx < x + CARD_W + bandH; sx += 36) {
+      ctx.beginPath();
+      ctx.moveTo(sx, y + bandH + 6);
+      ctx.lineTo(sx + bandH + 6, y - 6);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = appear;
+    ctx.strokeStyle = C.greenDeep;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x, y + bandH);
+    ctx.lineTo(x + CARD_W, y + bandH);
+    ctx.stroke();
+    ctx.restore();
+
+    text(ctx, 'CRAZY SCORE', inner, y + 32, { size: 13, color: '#f4ffe2', spacing: 3 });
+    text(ctx, tr('{n} M', { n: card.metres }), innerR, y + 32, { size: 11.5, color: 'rgba(244, 255, 226, 0.85)', align: 'right', weight: 700, spacing: 1 });
 
     for (let i = 0; i < n; i++) {
       const age = cel.lineAge(i);
@@ -378,9 +409,9 @@ export class Hud {
     if (hasCombo && tail > 0) {
       ctx.globalAlpha = tail;
       roundRect(ctx, inner - 8, ty, CARD_W - CARD_PAD * 2 + 16, 30, 9);
-      ctx.fillStyle = rgba(C.blue, 0.13);
+      ctx.fillStyle = rgba(C.greenGame, 0.16);
       ctx.fill();
-      text(ctx, tr('x{n} CRAZY COMBO', { n: card.combo }), inner + 4, ty + 21, { size: 13, color: C.blue, spacing: 1, alpha: tail });
+      text(ctx, tr('x{n} CRAZY COMBO', { n: card.combo }), inner + 4, ty + 21, { size: 13, color: C.greenNight, spacing: 1, alpha: tail });
       text(ctx, `x${card.multiplier.toFixed(2)}`, innerR - 4, ty + 21, { size: 13, color: C.navy, align: 'right', alpha: tail });
     }
     if (hasCombo) ty += 42;
@@ -391,11 +422,9 @@ export class Hud {
       ctx.translate(cx, ty + 62);
       const totalPop = 1 + 0.18 * g.juice.scorePulse;
       ctx.scale(totalPop, totalPop);
-      text(ctx, formatScore(cel.shownTotal), 0, 0, { size: 52, color: C.blue, align: 'center', alpha: tail });
+      text(ctx, formatScore(cel.shownTotal), 0, 0, { size: 52, color: C.greenDeep, align: 'center', alpha: tail });
       ctx.restore();
-      // Three arcade stars, each landing with a pop. The 20px sprite is upscaled nearest-neighbour.
-      const smoothing = ctx.imageSmoothingEnabled;
-      ctx.imageSmoothingEnabled = false;
+      // Three arcade stars, each landing with a pop.
       for (let i = 0; i < 3; i++) {
         const sx = cx + (i - 1) * 52;
         const sy = ty + 100;
@@ -418,7 +447,6 @@ export class Hud {
           ctx.drawImage(arcadeStar, sx - 23, sy - 23, 46, 46);
         }
       }
-      ctx.imageSmoothingEnabled = smoothing;
       ctx.globalAlpha = 1;
       const sub = card.newBest ? 'NEW BEST' : tr('BEST {n}', { n: formatScore(card.previousBest) });
       text(ctx, sub, cx, ty + 138, { size: 11, color: card.newBest ? C.terra : rgba(C.navy, 0.5), align: 'center', weight: 700, spacing: 3, alpha: tail });

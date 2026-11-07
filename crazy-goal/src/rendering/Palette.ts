@@ -26,6 +26,12 @@ export const C = {
   woodDark: '#99652f',
   orange: '#f08a24',
   green: '#5d8f4a',
+  /** The menu's arcade greens — glossy button green down to its dark panel green. */
+  greenHi: '#4ce16c',
+  greenGame: '#1fc24c',
+  greenDeep: '#0e7a30',
+  greenNight: '#0b4d1f',
+  red: '#cd3a24',
   rubber: '#3a3d4a',
   rubberLite: '#5b5f70',
   stone: '#bcae98',
