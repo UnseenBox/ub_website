@@ -16,6 +16,8 @@ export interface GameEvents {
   SHOT_RESET: { x: number; y: number };
   /** A mechanic did its thing: a tyre boinged, a pane broke, the cat made a save. */
   MECHANIC: MechEvent;
+  /** The ball punched a Kora Coin out of the air: wallet only, no score. */
+  COIN_SNATCHED: { x: number; y: number };
 }
 
 type Handler<P> = (payload: P) => void;

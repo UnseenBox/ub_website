@@ -1,6 +1,7 @@
 import fireIcon from '../assets/ui/ability-fire.png';
 import magnetIcon from '../assets/ui/ability-magnet.png';
 import rubberIcon from '../assets/ui/ability-rubber.png';
+import coinUrl from '../assets/ui/arcade-coin.png';
 import { cardOf, type Boost } from '../abilities/Cards';
 import { tr } from '../core/i18n';
 
@@ -30,6 +31,8 @@ const ART: Record<Boost, string> = {
  */
 export class AbilityBar {
   readonly el: HTMLElement;
+  /** The coin pill lives on its own now: it floats in the top-right corner of the screen. */
+  readonly walletEl: HTMLElement;
   private readonly coinCount: HTMLElement;
   private readonly buttons = new Map<Boost, HTMLButtonElement>();
   private last = '';
@@ -39,15 +42,18 @@ export class AbilityBar {
     this.el.className = 'ability-bar';
     this.el.hidden = true;
 
-    // Wallet at the top
-    const wallet = document.createElement('div');
-    wallet.className = 'coin-pill';
-    const dot = document.createElement('span');
+    // Wallet: a separate floating element, pinned to the top-right corner.
+    this.walletEl = document.createElement('div');
+    this.walletEl.className = 'coin-pill';
+    this.walletEl.hidden = true;
+    const dot = document.createElement('img');
     dot.className = 'coin-dot';
+    dot.src = coinUrl;
+    dot.alt = '';
+    dot.draggable = false;
     this.coinCount = document.createElement('span');
     this.coinCount.className = 'coin-n';
-    wallet.append(dot, this.coinCount);
-    this.el.append(wallet);
+    this.walletEl.append(dot, this.coinCount);
 
     // Three ability cards
     for (const id of SHOP) {
@@ -83,9 +89,10 @@ export class AbilityBar {
     if (key === this.last) return;
     this.last = key;
     this.el.hidden = !visible;
+    this.walletEl.hidden = !visible;
     if (!visible) return;
     this.coinCount.textContent = String(wallet);
-    this.el.querySelector('.coin-pill')?.setAttribute('aria-label', tr('{n} COINS', { n: wallet }));
+    this.walletEl.setAttribute('aria-label', tr('{n} COINS', { n: wallet }));
     for (const [id, b] of this.buttons) {
       const card = cardOf(id);
       const cost = costs[id];
@@ -96,7 +103,7 @@ export class AbilityBar {
       b.title = tr(card.blurb);
       b.setAttribute('aria-label', isArmed ? `${tr(card.name)} — ${tr('ARMED')}` : afford ? `${tr(card.name)} — ${tr(card.blurb)}` : tr('NOT ENOUGH COINS'));
       (b.querySelector('.ability-name') as HTMLElement).textContent = tr(card.name);
-      (b.querySelector('.ability-cost') as HTMLElement).textContent = isArmed ? '✓' : `◉${cost}`;
+      (b.querySelector('.ability-cost') as HTMLElement).textContent = isArmed ? '✓' : String(cost);
     }
   }
 }

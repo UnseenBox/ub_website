@@ -319,6 +319,13 @@ export class SoundLibrary {
     this.audio.play('post', { gain: 0.3, rate: rate * 1.5, variant: 0 });
   }
 
+  /** A Kora Coin punched out of the air: two bright taps a step and a half apart. */
+  coin(): void {
+    this.audio.play('glass_tap', { gain: 0.6, rate: 2.2, variant: 0 });
+    this.audio.play('glass_tap', { gain: 0.7, rate: 3.1, at: 0.09, variant: 0 });
+    this.audio.play('post', { gain: 0.35, rate: 3.6, at: 0.09, variant: 0 });
+  }
+
   /** Your trap kept the ball out: a short round of applause. */
   saved(): void {
     this.audio.play('applause', { gain: 0.55 });

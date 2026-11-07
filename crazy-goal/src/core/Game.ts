@@ -20,6 +20,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
+import { COIN_VALUE, coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
 import { ParticleSystem } from '../particles/ParticleSystem';
@@ -220,6 +221,10 @@ export class Game {
   banner: Banner | null = null;
   duelScore: DuelScore | null = null;
   duelLook: DuelLook | null = null;
+  /** The alley's coin: where it hangs, and whether it was grabbed this attempt. */
+  coinX = 0;
+  coinY = 0;
+  coinTaken = false;
   readonly duel: DuelController;
   readonly abilities: AbilityBar;
   private replay: Replay | null = null;
@@ -249,6 +254,7 @@ export class Game {
     this.level = new Level(levels[start], start);
     this.net = new GoalNet(this.level.goal);
     this.record = this.save.level(this.level.def.id);
+    this.placeCoin(this.level);
     const { ballStart } = this.level.def;
     this.ball = new Ball(ballStart.x, ballStart.y);
     this.preview = new TrajectoryPreview(this.ball.radius);
@@ -308,7 +314,7 @@ export class Game {
       canShow: () => this.shopVisible(),
       buy: (id) => this.buyAbility(id),
     });
-    this.overlay.addFloating(this.abilities.el);
+    this.overlay.addFloating(this.abilities.walletEl, this.abilities.el);
     this.duel = new DuelController(this, this.overlay, canvas.parentElement ?? document.body);
 
     wireFeedback(this);
@@ -428,6 +434,7 @@ export class Game {
     this.level = level;
     this.net = new GoalNet(this.level.goal);
     this.record = record;
+    this.placeCoin(level);
     this.shotTaken = false;
     this.lastScore = 0;
     this.lastPath.clear();
@@ -759,6 +766,12 @@ export class Game {
 
     this.analyzer.track(ball.body, FIXED_DT, goal);
     this.flightFor += FIXED_DT;
+    // A coin punched out of the air: the wallet grows, the CRAZY SCORE stays pure.
+    if (!this.coinTaken) {
+      const dx = ball.body.x - this.coinX;
+      const dy = ball.body.y - this.coinY;
+      if (dx * dx + dy * dy < 36 * 36) this.collectCoin();
+    }
     if (++this.pathTick >= PATH_EVERY) {
       this.pathTick = 0;
       this.path.push(ball.body.x, ball.body.y, this.keeperX());
@@ -783,6 +796,22 @@ export class Game {
 
   private keeperX(): number {
     return this.level.keeper ? this.level.keeper.body.x : NaN;
+  }
+
+  /** Strings the alley's coin along the natural ball-to-goal line, clear of static geometry. */
+  private placeCoin(level: Level): void {
+    this.coinTaken = false;
+    const spot = coinSpot(level.def.id, level.def.arena, level.def.ballStart, level.def.goal, level.world.statics);
+    this.coinX = spot.x;
+    this.coinY = spot.y;
+  }
+
+  /** A coin punched out of mid-flight: wallet grows by COIN_VALUE, score untouched. */
+  private collectCoin(): void {
+    this.coinTaken = true;
+    this.save.data.coins += COIN_VALUE;
+    this.save.save();
+    this.events.emit('COIN_SNATCHED', { x: this.coinX, y: this.coinY });
   }
 
   private readonly onContact: ContactListener = (_body, other, c, impact) => {
@@ -874,6 +903,7 @@ export class Game {
     this.level.resetShot();
     this.flightBoost = null;
     this.ball.reset(x, y);
+    this.coinTaken = false;
     this.setState('ready');
     this.events.emit('SHOT_RESET', { x, y });
   }

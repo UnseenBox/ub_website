@@ -3,8 +3,12 @@ import { rtl, tr } from '../core/i18n';
 import { clamp01, easeOutBack, easeOutCubic, lerp, TAU } from '../core/math';
 import { CELEBRATION_TIMING } from '../goal/GoalCelebration';
 import { MISS_LABEL } from '../goal/GoalDetector';
-import { formatScore, roundRect, signText, text, tileStar } from '../rendering/DrawUtils';
+import { formatScore, roundRect, signText, text } from '../rendering/DrawUtils';
 import { C, FONT, rgba } from '../rendering/Palette';
+import arcadeStarUrl from '../assets/ui/arcade-star.png';
+
+const arcadeStar = new Image();
+arcadeStar.src = arcadeStarUrl;
 
 const CARD_W = 440;
 const CARD_PAD = 26;
@@ -389,21 +393,20 @@ export class Hud {
       ctx.scale(totalPop, totalPop);
       text(ctx, formatScore(cel.shownTotal), 0, 0, { size: 52, color: C.blue, align: 'center', alpha: tail });
       ctx.restore();
-      // Three tile stars, each landing with a pop.
+      // Three arcade stars, each landing with a pop. The 20px sprite is upscaled nearest-neighbour.
+      const smoothing = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
       for (let i = 0; i < 3; i++) {
         const sx = cx + (i - 1) * 52;
         const sy = ty + 100;
         const age = i < card.stars ? cel.starAge(i) : -1;
-        ctx.globalAlpha = tail;
         if (age >= 0) {
           const starPop = 1 + 0.55 * g.juice.starPulse[i];
-          tileStar(ctx, sx, sy, 20 * easeOutBack(clamp01(age / 0.22), 3) * starPop);
-          ctx.fillStyle = C.sun;
-          ctx.fill();
-          ctx.strokeStyle = C.sunDark;
-          ctx.lineWidth = 2;
-          ctx.stroke();
+          const size = 46 * easeOutBack(clamp01(age / 0.22), 3) * starPop;
+          ctx.globalAlpha = tail;
+          ctx.drawImage(arcadeStar, sx - size / 2, sy - size / 2, size, size);
           if (g.juice.starPulse[i] > 0.01) {
+            ctx.globalAlpha = tail;
             ctx.beginPath();
             ctx.arc(sx, sy, 27 + 18 * g.juice.starPulse[i], 0, TAU);
             ctx.strokeStyle = rgba(C.sun, 0.7 * g.juice.starPulse[i]);
@@ -411,12 +414,11 @@ export class Hud {
             ctx.stroke();
           }
         } else {
-          tileStar(ctx, sx, sy, 18);
-          ctx.strokeStyle = rgba(C.navy, 0.22);
-          ctx.lineWidth = 2.5;
-          ctx.stroke();
+          ctx.globalAlpha = tail * 0.22;
+          ctx.drawImage(arcadeStar, sx - 23, sy - 23, 46, 46);
         }
       }
+      ctx.imageSmoothingEnabled = smoothing;
       ctx.globalAlpha = 1;
       const sub = card.newBest ? 'NEW BEST' : tr('BEST {n}', { n: formatScore(card.previousBest) });
       text(ctx, sub, cx, ty + 138, { size: 11, color: card.newBest ? C.terra : rgba(C.navy, 0.5), align: 'center', weight: 700, spacing: 3, alpha: tail });

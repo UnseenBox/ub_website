@@ -94,7 +94,8 @@ export function wireFeedback(g: Game): void {
     camera.kick(e.dirX * (4 + 16 * e.power), e.dirY * (4 + 16 * e.power));
     camera.addTrauma(0.16 + 0.4 * e.power);
     camera.punchZoom(0.025 + 0.075 * e.power, e.x, e.y);
-    time.hitStop(0.008 + 0.02 * e.power);
+    // A defensive cap: even a typo'd power of 100 must not freeze the street for seconds.
+    time.hitStop(Math.min(0.05, 0.008 + 0.02 * e.power));
     if (e.power >= 0.92) popups.spawn('YALLA!', e.x, e.y - 96, 40, C.sun, 0.8);
     // A duel card riding on the shot announces itself as the ball leaves.
     const boost = g.flightBoost;
@@ -326,6 +327,13 @@ export function wireFeedback(g: Game): void {
     sounds.reset();
     g.juice.reset();
     particles.ring(e.x, e.y, 60, C.white, 0.3);
+  });
+
+  events.on('COIN_SNATCHED', (e) => {
+    sounds.coin();
+    particles.sparks(e.x, e.y, 0, -1, 10, C.sun);
+    particles.ring(e.x, e.y, 46, C.sun, 0.4);
+    popups.spawn('+10', e.x, e.y - 46, 30, C.sun, 0.9);
   });
 
   celebration.onLine = (index, last) => {

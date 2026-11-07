@@ -1,13 +1,19 @@
 :root {
-  --bg: #e6dccb;
-  --white: #fbf7ee;
-  --blue: #1f5fa8;
-  --blue-dark: #174a85;
-  --terra: #cf5c36;
+  --bg: #e9ebe0;
+  --white: #ffffff;
+  --blue: #0b4d1f;
+  --blue-dark: #083a17;
+  --terra: #cd3a24;
   --sun: #ffc83a;
   --sun-dark: #e0a41c;
   --navy: #1b2540;
-  --shadow: rgba(44, 52, 112, 0.3);
+  --shadow: rgba(11, 77, 28, 0.28);
+  --green: #1fc24c;
+  --green-hi: #4ce16c;
+  --green-deep: #0e7a30;
+  --green-night: #0b4d1f;
+  --red: #cd3a24;
+  --red-deep: #8f2314;
   --display: 'Unbounded', 'Arial Black', 'Segoe UI Black', Impact, system-ui, sans-serif;
 }
 
@@ -67,7 +73,7 @@ body {
   place-items: center;
   padding: 24px;
   overflow: hidden auto;
-  background: rgba(251, 247, 238, 0.86);
+  background: rgba(255, 255, 255, 0.86);
   animation: screen-in 0.22s ease-out both;
 }
 
@@ -77,58 +83,70 @@ body {
 
 .pause,
 .levels {
-  background: rgba(27, 37, 64, 0.55);
+  background: rgba(8, 58, 23, 0.58);
 }
 
-/* Buttons are enamel plaques: a slab of colour with a white line set just inside the edge. */
+/* Buttons are chunky arcade cabinets: a glossy slab of green with a hard bottom edge, like the menu. */
 .btn {
   position: relative;
   font: inherit;
   font-weight: 900;
   font-size: clamp(13px, 2.1vmin, 17px);
-  letter-spacing: 0.16em;
-  padding: 1em 2.2em 0.9em;
+  letter-spacing: 0.12em;
+  padding: 0.85em 1.6em 0.8em;
   border: 0;
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
-  box-shadow: 5px 6px 0 var(--shadow);
+  color: var(--green-night);
+  background: var(--white);
+  box-shadow: 0 5px 0 var(--green-night);
   transition:
     transform 0.08s ease-out,
-    box-shadow 0.08s ease-out;
-}
-
-.btn::after {
-  content: '';
-  position: absolute;
-  inset: 5px;
-  border: 2px solid rgba(251, 247, 238, 0.85);
-  border-radius: 9px;
-  pointer-events: none;
+    box-shadow 0.08s ease-out,
+    filter 0.08s ease-out;
 }
 
 .btn:hover {
-  transform: translate(-1px, -2px);
-  box-shadow: 6px 8px 0 var(--shadow);
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 var(--green-night);
 }
 
 .btn:active {
-  transform: translate(3px, 4px);
-  box-shadow: 2px 2px 0 var(--shadow);
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--green-night);
 }
 
 .btn-primary {
+  color: #f4ffe2;
   font-size: clamp(18px, 3.6vmin, 30px);
-  color: var(--white);
-  background: var(--blue);
+  text-shadow: 0 2px 0 rgba(8, 58, 23, 0.45);
+  background: linear-gradient(180deg, var(--green-hi) 0%, var(--green) 45%, #12a53e 100%);
+  box-shadow:
+    0 6px 0 var(--green-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 0 rgba(8, 58, 23, 0.22);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow:
+    0 8px 0 var(--green-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 0 rgba(8, 58, 23, 0.22);
+}
+
+.btn-primary:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 2px 0 var(--green-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 0 rgba(8, 58, 23, 0.22);
 }
 
 .btn-ghost {
-  color: var(--navy);
+  color: var(--green-night);
   background: var(--white);
-}
-
-.btn-ghost::after {
-  border-color: rgba(31, 95, 168, 0.5);
 }
 
 .btn:focus-visible {
@@ -143,14 +161,13 @@ body {
   justify-items: stretch;
   padding: 32px 32px 28px;
   background: var(--white);
-  border: 4px solid var(--blue);
-  border-radius: 24px;
-  box-shadow: 9px 11px 0 rgba(27, 37, 64, 0.35);
+  border: 4px solid var(--green-night);
+  border-radius: 22px;
+  box-shadow: 0 10px 0 rgba(11, 77, 28, 0.32);
 }
 
 .panel {
   min-width: min(330px, 86vw);
-  transform: rotate(-1deg);
 }
 
 .panel .btn-primary {
@@ -163,7 +180,7 @@ body {
   font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.34em;
-  color: var(--blue);
+  color: var(--green-night);
   text-align: center;
 }
 
@@ -179,25 +196,28 @@ body {
   margin-bottom: 8px;
 }
 
-/* A level is a tile: number in the corner, name, three stars. */
+/* A level is a tile: a glossy green chip with a yellow number, like a menu button. */
 .tile {
   display: grid;
   gap: 6px;
   justify-items: start;
   padding: 12px 14px 12px;
   font: inherit;
-  color: var(--white);
-  background: var(--blue);
+  color: #f4ffe2;
+  text-shadow: 0 1px 0 rgba(8, 58, 23, 0.4);
+  background: linear-gradient(180deg, #3fd95f 0%, var(--green) 45%, #12a53e 100%);
   border: 0;
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
   text-align: left;
-  box-shadow: 4px 5px 0 var(--shadow);
+  box-shadow:
+    0 5px 0 var(--green-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4);
   transition: transform 0.08s ease-out;
 }
 
 .tile:hover:not(:disabled) {
-  transform: translate(-1px, -2px);
+  transform: translateY(-2px);
 }
 
 .tile.is-current {
@@ -241,19 +261,23 @@ body {
   height: 16px;
 }
 
-.tile-stars svg {
+.tile-stars img {
   display: block;
   width: 100%;
   height: 100%;
-  fill: rgba(251, 247, 238, 0.28);
+  image-rendering: pixelated;
+  opacity: 0.3;
+  filter: grayscale(1);
 }
 
-.tile-stars .on svg {
-  fill: var(--sun);
+.tile-stars .on img {
+  opacity: 1;
+  filter: none;
 }
 
-.tile:disabled .tile-stars svg {
-  fill: rgba(27, 37, 64, 0.14);
+.tile:disabled .tile-stars img {
+  opacity: 0.2;
+  filter: grayscale(1);
 }
 
 /* The two buttons that follow the result card. */
@@ -288,9 +312,9 @@ body {
   height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 12px;
-  background: var(--blue);
-  box-shadow: 3px 4px 0 var(--shadow);
+  border-radius: 50%;
+  background: var(--green-night);
+  box-shadow: 0 4px 0 rgba(8, 58, 23, 0.4);
   cursor: pointer;
 }
 
@@ -302,7 +326,7 @@ body {
   width: 5px;
   height: 16px;
   border-radius: 2px;
-  background: var(--white);
+  background: #f7ffe9;
 }
 
 /* Duel lobby. */
@@ -340,11 +364,13 @@ body {
   font-size: clamp(22px, 6vmin, 36px);
   font-weight: 900;
   letter-spacing: 0.16em;
-  color: var(--white);
-  background: var(--blue);
+  color: #f4ffe2;
+  text-shadow: 0 2px 0 rgba(8, 58, 23, 0.45);
+  background: linear-gradient(180deg, var(--green-hi) 0%, var(--green) 45%, #12a53e 100%);
   border: 0;
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
+  box-shadow: 0 5px 0 var(--green-deep);
   user-select: text;
   -webkit-user-select: text;
 }
@@ -362,11 +388,12 @@ body {
   gap: 4px;
   padding: 12px 6px 10px;
   font: inherit;
-  color: var(--navy);
-  background: #efe8da;
-  border: 0;
-  border-radius: 14px;
+  color: var(--green-night);
+  background: var(--white);
+  border: 3px solid var(--green-night);
+  border-radius: 16px;
   cursor: pointer;
+  box-shadow: 0 4px 0 var(--green-night);
   transition:
     transform 0.1s ease-out,
     background 0.1s ease-out;
@@ -377,9 +404,13 @@ body {
 }
 
 .mode-tile.is-on {
-  color: var(--white);
-  background: var(--blue);
-  box-shadow: 0 0 0 3px var(--sun);
+  color: #f4ffe2;
+  background: linear-gradient(180deg, var(--green-hi) 0%, var(--green) 45%, #12a53e 100%);
+  border-color: var(--green-night);
+  box-shadow:
+    0 0 0 3px var(--sun),
+    0 5px 0 var(--green-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4);
 }
 
 .mode-icon {
@@ -426,12 +457,12 @@ body {
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.08em;
-  color: var(--white);
-  background: var(--terra);
+  color: #fff2ee;
+  background: linear-gradient(180deg, #e0503c 0%, var(--red) 55%, #b02a1c 100%);
   border: 0;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 2px 3px 0 var(--shadow);
+  box-shadow: 0 4px 0 var(--red-deep);
 }
 
 .rival-chip:active {
@@ -462,9 +493,9 @@ body {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--navy);
-  background: #fff;
-  border: 3px solid rgba(31, 95, 168, 0.4);
+  color: var(--green-night);
+  background: var(--white);
+  border: 3px solid rgba(11, 77, 28, 0.35);
   border-radius: 12px;
   user-select: text;
   -webkit-user-select: text;
@@ -472,7 +503,7 @@ body {
 
 .duel-input:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--green);
 }
 
 .duel-go {
@@ -514,16 +545,22 @@ body {
   padding: 10px 14px;
   font: inherit;
   text-align: left;
-  color: var(--navy);
-  background: #efe8da;
-  border: 0;
-  border-radius: 12px;
+  color: var(--green-night);
+  background: var(--white);
+  border: 3px solid var(--green-night);
+  border-radius: 14px;
   cursor: pointer;
+  box-shadow: 0 4px 0 var(--green-night);
 }
 
 .duel-item.is-turn {
-  color: var(--white);
-  background: var(--blue);
+  color: #f4ffe2;
+  text-shadow: 0 1px 0 rgba(8, 58, 23, 0.4);
+  background: linear-gradient(180deg, var(--green-hi) 0%, var(--green) 45%, #12a53e 100%);
+  border-color: var(--green-night);
+  box-shadow:
+    0 4px 0 var(--green-deep),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4);
 }
 
 /* What the row is waiting on, as a badge — not a sentence. */
@@ -536,6 +573,7 @@ body {
   color: var(--white);
   background: var(--navy);
   flex: none;
+  box-shadow: 0 2px 0 rgba(8, 58, 23, 0.35);
 }
 
 .row-icon svg {
@@ -544,16 +582,16 @@ body {
 }
 
 .row-icon.is-play {
-  background: #2f9a63;
+  background: var(--green);
   animation: row-pulse 1.2s ease-in-out infinite;
 }
 
 .row-icon.is-eye {
-  background: var(--blue);
+  background: var(--green-night);
 }
 
 .row-icon.is-wait {
-  background: var(--terra);
+  background: var(--red);
 }
 
 .row-icon.is-win {
@@ -610,7 +648,7 @@ body {
 }
 
 .mode-mini.is-pure {
-  color: var(--blue);
+  color: var(--green-night);
   background: var(--white);
 }
 
@@ -625,8 +663,9 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: #efe8da;
-  border-radius: 12px;
+  background: var(--white);
+  border: 2px solid var(--green-night);
+  border-radius: 14px;
 }
 
 .help-step-icon {
@@ -636,8 +675,9 @@ body {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  color: var(--white);
-  background: var(--blue);
+  color: #f4ffe2;
+  background: linear-gradient(180deg, var(--green-hi) 0%, var(--green) 45%, #12a53e 100%);
+  box-shadow: 0 3px 0 var(--green-deep);
 }
 
 .help-step-icon svg {
@@ -1047,7 +1087,7 @@ body {
 
 .menu-logo {
   grid-area: logo;
-  width: min(58vw, 34vh, 300px);
+  width: min(66vw, 42vh, 340px);
   margin: 0;
   line-height: 0;
   animation: mark-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
@@ -1234,16 +1274,16 @@ body {
 
 .star-count-icon {
   display: block;
-  width: 1.15em;
-  height: 1.15em;
+  width: 1.3em;
+  height: 1.3em;
 }
 
-.star-count-icon svg {
+.star-count-icon img {
   display: block;
   width: 100%;
   height: 100%;
-  fill: #ffd21c;
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.2));
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 /* Wide screens put the alley on the left and the controls on the right. */
@@ -1271,7 +1311,7 @@ body {
   }
 
   .menu-logo {
-    width: min(42vh, 320px);
+    width: min(54vh, 380px);
   }
 }
 
@@ -1282,7 +1322,7 @@ body {
   }
 
   .menu-logo {
-    width: min(40vw, 22vh, 190px);
+    width: min(46vw, 26vh, 225px);
   }
 
   .menu-actions {
@@ -1310,7 +1350,7 @@ body {
   }
 
   .menu-logo {
-    width: min(38vh, 200px);
+    width: min(48vh, 240px);
   }
 
   .menu-actions {
@@ -1343,7 +1383,7 @@ body {
 .setting-range {
   width: 100%;
   height: 28px;
-  accent-color: var(--blue);
+  accent-color: var(--green);
   cursor: pointer;
 }
 
@@ -1360,16 +1400,19 @@ body {
 }
 
 .lang-button.is-on {
-  color: var(--white);
-  background: var(--blue);
+  color: #f4ffe2;
+  text-shadow: 0 1px 0 rgba(8, 58, 23, 0.4);
+  background: linear-gradient(180deg, var(--green-hi) 0%, var(--green) 45%, #12a53e 100%);
+  box-shadow: 0 4px 0 var(--green-deep);
 }
 
 /* The balls. */
 .skin-ball {
   width: 54px;
   height: 54px;
-  border: 3px solid var(--navy);
+  border: 3px solid var(--green-night);
   border-radius: 50%;
+  box-shadow: 0 3px 0 rgba(8, 58, 23, 0.35);
   background:
     radial-gradient(circle at 50% 50%, var(--patch) 0 22%, transparent 23%),
     radial-gradient(circle at 8% 30%, var(--patch) 0 16%, transparent 17%),
@@ -1457,15 +1500,15 @@ body {
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.18em;
-  color: var(--blue);
+  color: var(--green-night);
 }
 
 .progress-bar {
   height: 12px;
-  background: #e3dacb;
+  background: #e7ece0;
   border-radius: 999px;
   overflow: hidden;
-  box-shadow: inset 2px 2px 0 rgba(27, 37, 64, 0.12);
+  box-shadow: inset 2px 2px 0 rgba(11, 77, 28, 0.18);
 }
 
 .progress-fill {
@@ -1524,16 +1567,40 @@ body {
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.18em;
-  color: var(--blue);
+  color: var(--green-night);
   text-align: center;
 }
 
 .reset-button {
   font-size: clamp(10px, 1.8vmin, 12px);
-  color: var(--terra);
+  color: var(--red);
+  box-shadow: 0 5px 0 var(--red-deep);
 }
 
-/* A rewarded ad for coins: a video glyph up front, impossible to mistake. */
+/* A rewarded ad for coins: gold, impossible to mistake. */
+.reward-button {
+  color: var(--navy);
+  text-shadow: none;
+  background: linear-gradient(180deg, #ffd94d 0%, #f2b52a 55%, #d99a17 100%);
+  box-shadow:
+    0 5px 0 #a86f10,
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.reward-button:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 7px 0 #a86f10,
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.reward-button:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 2px 0 #a86f10,
+    inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
 .reward-button::before {
   content: '▶ ';
 }
@@ -1613,41 +1680,45 @@ body {
 }
 
 .coin-pill {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 8px 14px;
-  background: var(--navy);
+  padding: 8px 16px;
+  background: var(--green-night);
   color: var(--sun);
   border-radius: 999px;
   font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.1em;
   box-shadow:
-    0 0 0 1px rgba(31, 95, 168, 0.3),
-    0 4px 12px rgba(27, 37, 64, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  pointer-events: none;
-  position: relative;
+    0 4px 0 rgba(8, 58, 23, 0.45),
+    0 8px 18px rgba(11, 77, 28, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
   overflow: hidden;
+}
+
+.coin-pill[hidden] {
+  display: none;
 }
 
 .coin-pill::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 200, 58, 0.15), transparent);
+  background: linear-gradient(135deg, rgba(255, 200, 58, 0.18), transparent);
   pointer-events: none;
 }
 
 .coin-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: inset -1px -1px 3px rgba(0, 0, 0, 0.3);
+  width: 17px;
+  height: auto;
   flex-shrink: 0;
+  image-rendering: pixelated;
 }
 
 .coin-n {
@@ -1763,10 +1834,10 @@ body {
   text-transform: uppercase;
   text-align: center;
   padding: 4px 8px 3px;
-  color: var(--white);
-  background: var(--navy);
+  color: #f4ffe2;
+  background: var(--green-night);
   border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(27, 37, 64, 0.35);
+  box-shadow: 0 2px 6px rgba(11, 77, 28, 0.45);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1791,6 +1862,20 @@ body {
   font-weight: 900;
   letter-spacing: 0.02em;
   line-height: 1;
+  gap: 3px;
+}
+
+.ability-cost::before {
+  content: '';
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
+  background: url('./assets/ui/arcade-coin.png') center / contain no-repeat;
+  image-rendering: pixelated;
+}
+
+.ability-card.is-armed .ability-cost::before {
+  display: none;
 }
 
 .ability-card.is-armed .ability-cost {

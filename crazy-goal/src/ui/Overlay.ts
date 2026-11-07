@@ -2,6 +2,7 @@ import ballsUrl from '../assets/ui/balls.png';
 import levelsUrl from '../assets/ui/levels.png';
 import logoUrl from '../assets/ui/logo.png';
 import playUrl from '../assets/ui/play.png';
+import starUrl from '../assets/ui/arcade-star.png';
 import { lang, tr, type Lang } from '../core/i18n';
 
 export interface SkinTile {
@@ -48,7 +49,14 @@ export interface LevelTile {
   unlocked: boolean;
 }
 
-const STAR_SVG = `<svg viewBox="-10 -10 20 20" aria-hidden="true"><path d="M0-10 2.4-5.7 7.1-7.1 5.7-2.4 10 0 5.7 2.4 7.1 7.1 2.4 5.7 0 10-2.4 5.7-7.1 7.1-5.7 2.4-10 0-5.7-2.4-7.1-7.1-2.4-5.7Z"/></svg>`;
+/** The arcade star sprite used wherever a star shows in the DOM. */
+const starSprite = (): HTMLImageElement => {
+  const img = document.createElement('img');
+  img.src = starUrl;
+  img.alt = '';
+  img.draggable = false;
+  return img;
+};
 
 const GEAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>`;
 
@@ -132,7 +140,7 @@ export class Overlay {
     gear.innerHTML = GEAR_SVG;
     this.starCount = el('p', 'star-count');
     const starIcon = el('span', 'star-count-icon');
-    starIcon.innerHTML = STAR_SVG;
+    starIcon.append(starSprite());
     this.starText = el('span', 'star-count-text');
     this.starCount.append(starIcon, this.starText);
     top.append(gear, this.starCount);
@@ -377,7 +385,11 @@ export class Overlay {
       b.setAttribute('aria-label', `${tr(tile.name)}${best}, ${tile.unlocked ? `${tile.stars} / 3` : tr('LOCKED')}`);
       b.title = tile.unlocked ? tr(tile.hint) : tr('LOCKED');
       const stars = el('span', 'tile-stars');
-      stars.innerHTML = [0, 1, 2].map((s) => `<span class="${s < tile.stars ? 'on' : ''}">${STAR_SVG}</span>`).join('');
+      for (let s = 0; s < 3; s++) {
+        const slot = el('span', s < tile.stars ? 'on' : '');
+        slot.append(starSprite());
+        stars.append(slot);
+      }
       const bestLine = document.createElement('span');
       bestLine.className = 'tile-best';
       bestLine.textContent = tile.best > 0 ? String(tile.best) : tile.unlocked ? '—' : '🔒';

@@ -52,18 +52,6 @@ export function signText(ctx: CanvasRenderingContext2D, str: string, x: number, 
   ctx.fillText(str, x, y);
 }
 
-/** An eight-pointed tile star, the kind set into every doorway in the quarter. */
-export function tileStar(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
-  ctx.beginPath();
-  for (let i = 0; i < 16; i++) {
-    const a = (i * Math.PI) / 8 - Math.PI / 2;
-    const k = i % 2 === 0 ? r : r * 0.62;
-    if (i === 0) ctx.moveTo(x + Math.cos(a) * k, y + Math.sin(a) * k);
-    else ctx.lineTo(x + Math.cos(a) * k, y + Math.sin(a) * k);
-  }
-  ctx.closePath();
-}
-
 export const formatScore = (n: number): string => Math.round(n).toLocaleString('en-US');
 
 /** Greedy word wrap. Uses the font currently set on the context. */
