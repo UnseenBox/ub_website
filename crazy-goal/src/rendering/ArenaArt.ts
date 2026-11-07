@@ -1,4 +1,4 @@
-﻿import type { Theme } from '../levels/LevelDefinition';
+import type { Theme } from '../levels/LevelDefinition';
 import { hashString, seededRandom, TAU } from '../core/math';
 import type { Block, Level } from '../levels/Level';
 import type { ViewRect } from './Camera';
@@ -322,6 +322,35 @@ const LOOKS: Readonly<Record<Block['kind'], BlockLook>> = {
   shutter: { top: C.blueLite, side: C.blueDark },
 };
 
+/** A pillar cap for a shared boundary vertex: shadow, blue body, white cap, blue band. */
+export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: number; y: number }): void {
+  const r = 17;
+  const lift = 22;
+  ctx.fillStyle = rgba(C.shadow, 0.3);
+  ctx.beginPath();
+  ctx.ellipse(joint.x + r * SUN_X * 0.6, joint.y + r * SUN_Y * 0.6, r * 1.15, r * 0.55, 0, 0, TAU);
+  ctx.fill();
+  // Pillar body, with a darker lower crescent for depth.
+  ctx.fillStyle = C.blue;
+  ctx.beginPath();
+  ctx.arc(joint.x, joint.y - 2, r, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = rgba(C.navy, 0.4);
+  ctx.beginPath();
+  ctx.arc(joint.x, joint.y - 2, r, Math.PI * 0.15, Math.PI * 0.85);
+  ctx.fill();
+  // White cap on top, rimmed in blue, with the trim dash like the wall faces.
+  ctx.fillStyle = C.white;
+  ctx.beginPath();
+  ctx.arc(joint.x, joint.y - lift, r, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = rgba(C.blue, 0.9);
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.fillStyle = rgba(C.blue, 0.85);
+  ctx.fillRect(joint.x - 8, joint.y - lift - 1.5, 16, 3);
+}
+
 /** A solid block in the game's oblique view: footprint on the ground, top face lifted straight up. */
 export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
   // Recoil away from the ball, easing out with the square of the hit.
@@ -332,9 +361,12 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
     drawTaxi(ctx, b, ox, oy);
     return;
   }
-  const p = footprint(b, ox, oy);
-  const lift = b.lift;
-  const look = LOOKS[b.kind];
+  // Boundary bands butt together like masonry; the pillar caps cover the joints.
+  const shrink = b.boundary ? b.h + 2 : 0;
+  const blk = shrink > 0 ? { ...b, w: b.w - shrink } : b;
+  const p = footprint(blk, ox, oy);
+  const lift = blk.lift;
+  const look = LOOKS[blk.kind];
 
   // Side faces. Only those turned towards the viewer end up visible; the top covers the rest.
   ctx.fillStyle = look.side;
@@ -355,17 +387,17 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
   // Surface detail, drawn in the block's own frame and clipped to its top face.
   ctx.save();
   ctx.clip();
-  ctx.translate(b.x + ox, b.y + oy - lift);
-  ctx.rotate(b.angle);
-  const hw = b.w / 2;
-  const hh = b.h / 2;
-  if (b.kind === 'crate') {
+  ctx.translate(blk.x + ox, blk.y + oy - lift);
+  ctx.rotate(blk.angle);
+  const hw = blk.w / 2;
+  const hh = blk.h / 2;
+  if (blk.kind === 'crate') {
     // Slats, and the oranges inside.
     ctx.strokeStyle = C.woodDark;
     ctx.lineWidth = 4;
-    ctx.strokeRect(-hw + 4, -hh + 4, b.w - 8, b.h - 8);
-    const cols = Math.max(1, Math.floor((b.w - 20) / 26));
-    const rows = Math.max(1, Math.floor((b.h - 20) / 24));
+    ctx.strokeRect(-hw + 4, -hh + 4, blk.w - 8, blk.h - 8);
+    const cols = Math.max(1, Math.floor((blk.w - 20) / 26));
+    const rows = Math.max(1, Math.floor((blk.h - 20) / 24));
     for (let j = 0; j < rows; j++) {
       for (let i = 0; i < cols; i++) {
         const x = -((cols - 1) * 26) / 2 + i * 26 + (j % 2 === 0 ? 0 : 5);
@@ -380,17 +412,17 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
         ctx.fill();
       }
     }
-  } else if (b.kind === 'wall') {
+  } else if (blk.kind === 'wall') {
     // A line of blue tile along the cap.
     ctx.fillStyle = rgba(C.blue, 0.85);
     const tile = 14;
-    const along = b.w >= b.h;
-    const len = along ? b.w : b.h;
+    const along = blk.w >= blk.h;
+    const len = along ? blk.w : blk.h;
     for (let d = -len / 2 + 10; d < len / 2 - 10; d += tile * 2) {
       if (along) ctx.fillRect(d, -3, tile, 6);
       else ctx.fillRect(-3, d, 6, tile);
     }
-  } else if (b.kind === 'shutter') {
+  } else if (blk.kind === 'shutter') {
     // Roller-shutter slats, and the yellow pull bar along the bottom.
     ctx.strokeStyle = rgba(C.blueDark, 0.55);
     ctx.lineWidth = 2;
@@ -401,16 +433,16 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
       ctx.stroke();
     }
     ctx.fillStyle = C.sun;
-    ctx.fillRect(-hw, hh - 5, b.w, 5);
-  } else if (b.kind === 'hedge') {
+    ctx.fillRect(-hw, hh - 5, blk.w, 5);
+  } else if (blk.kind === 'hedge') {
     // Leafy hedge: dark scallops over the green, lighter tufts on top.
     ctx.fillStyle = rgba('#1e4d1e', 0.5);
-    const cols = Math.max(2, Math.floor(b.w / 26));
-    const rows = Math.max(1, Math.floor(b.h / 24));
+    const cols = Math.max(2, Math.floor(blk.w / 26));
+    const rows = Math.max(1, Math.floor(blk.h / 24));
     for (let j = 0; j < rows; j++) {
       for (let i = 0; i < cols; i++) {
-        const x = -hw + 13 + (i * (b.w - 26)) / Math.max(1, cols - 1);
-        const y = -hh + 12 + (j * (b.h - 24)) / Math.max(1, rows - 1);
+        const x = -hw + 13 + (i * (blk.w - 26)) / Math.max(1, cols - 1);
+        const y = -hh + 12 + (j * (blk.h - 24)) / Math.max(1, rows - 1);
         ctx.beginPath();
         ctx.arc(x, y, 10, 0, TAU);
         ctx.fill();
@@ -419,8 +451,8 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
     ctx.fillStyle = rgba('#bfe6a8', 0.7);
     for (let j = 0; j < rows; j++) {
       for (let i = 0; i < cols; i++) {
-        const x = -hw + 13 + (i * (b.w - 26)) / Math.max(1, cols - 1) - 3;
-        const y = -hh + 12 + (j * (b.h - 24)) / Math.max(1, rows - 1) - 3;
+        const x = -hw + 13 + (i * (blk.w - 26)) / Math.max(1, cols - 1) - 3;
+        const y = -hh + 12 + (j * (blk.h - 24)) / Math.max(1, rows - 1) - 3;
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, TAU);
         ctx.fill();
@@ -429,11 +461,11 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
   } else {
     ctx.strokeStyle = rgba(C.shadow, 0.1);
     ctx.lineWidth = 2;
-    ctx.strokeRect(-hw + 5, -hh + 5, b.w - 10, b.h - 10);
+    ctx.strokeRect(-hw + 5, -hh + 5, blk.w - 10, blk.h - 10);
   }
-  if (b.hit > 0) {
-    ctx.fillStyle = rgba(b.kind === 'crate' ? '#ffffff' : C.sun, b.hit * 0.45);
-    ctx.fillRect(-hw, -hh, b.w, b.h);
+  if (blk.hit > 0) {
+    ctx.fillStyle = rgba(blk.kind === 'crate' ? '#ffffff' : C.sun, blk.hit * 0.45);
+    ctx.fillRect(-hw, -hh, blk.w, blk.h);
   }
   ctx.restore();
 }

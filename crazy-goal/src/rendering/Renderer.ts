@@ -3,7 +3,7 @@ import { clamp01, easeOutCubic, smoothstep, TAU } from '../core/math';
 import { Tyre, TYRE_RADIUS } from '../mechanics/Tyre';
 import { BOOST_TRAIL, drawBoostOver, drawBoostUnder, drawMagnetField, drawScorch, drawSmoke } from './AbilityArt';
 import { drawAimGround, drawAimOver, drawTutorialGhost } from './AimArt';
-import { drawBlock, paintBackdrop, paintStaticShadows } from './ArenaArt';
+import { drawBlock, drawBoundaryJoint, paintBackdrop, paintStaticShadows } from './ArenaArt';
 import { drawBall, drawBallAura, drawBallShadow, drawTrail } from './BallArt';
 import { drawCoin } from './CoinArt';
 import { drawTag } from './DuelArt';
@@ -163,6 +163,7 @@ export class Renderer {
     const inGoal = ball.renderY < goal.lineY - 2;
     const sortY = Math.max(ball.renderY, goal.lineY + 1);
     for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b);
+    for (const j of level.boundaryJoints) if (!j.kerb && j.y < sortY) drawBoundaryJoint(ctx, j);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY < sortY) drawMechanicSolid(ctx, m, time);
     const patch = look ? look.attacker : g.skin.patch;
     const paintBall = (): void => {
@@ -176,6 +177,7 @@ export class Renderer {
     drawGoalFrame(ctx, goal, g.goalFlash, look ? look.defender : C.blue);
     if (!inGoal) paintBall();
     for (const b of level.blocks) if (b.y >= sortY && !b.gone) drawBlock(ctx, b);
+    for (const j of level.boundaryJoints) if (!j.kerb && j.y >= sortY) drawBoundaryJoint(ctx, j);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY >= sortY) drawMechanicSolid(ctx, m, time);
 
     g.particles.draw(ctx);

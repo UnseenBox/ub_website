@@ -64,6 +64,8 @@ export interface Block {
   hitNy: number;
   /** Burnt away by a HARISSA shot: not solid and not drawn until the shot is reset. */
   gone: boolean;
+  /** Built by the boundary outline, so the art can butt the bands together instead of overlapping them. */
+  readonly boundary?: boolean;
   /** The chapter the level belongs to, so the art can tint the block for the hour of day. */
   readonly theme?: Theme;
 }
@@ -98,6 +100,8 @@ export class Level {
   }
   /** True when the level brought its own outline instead of the old rectangular rails. */
   hasCustomBoundary = false;
+  /** Shared vertices of the boundary outline, for the pillar caps the art draws. */
+  readonly boundaryJoints: { x: number; y: number; kerb: boolean }[] = [];
   private readonly playablePoints: Point[] = [];
   /** The goalkeeper, if this level has one. */
   readonly keeper: Cat | null;
@@ -189,18 +193,27 @@ export class Level {
       const dy = b.y - a.y;
       const len = Math.hypot(dx, dy);
       if (len < 1) continue;
-      // Run a little past both ends so neighbouring bands overlap and the seam is sealed.
-      this.addBlock(kinds[i] ?? 'wall', (a.x + b.x) / 2, (a.y + b.y) / 2, len + t + 4, t, Math.atan2(dy, dx));
+      // Flush bands: the ball meets exactly the face it sees. Adjacent faces meet at the
+      // shard vertex, so the corner can never be slipped no matter the interior angle.
+      this.addBlock(kinds[i] ?? 'wall', (a.x + b.x) / 2, (a.y + b.y) / 2, len + 2, t, Math.atan2(dy, dx), true);
+      if (i > 0) {
+        // Every shared vertex gets a pillar cap in the art, unless a low kerb meets it there.
+        this.boundaryJoints.push({
+          x: a.x,
+          y: a.y,
+          kerb: (kinds[i - 1] ?? 'wall') === 'kerb' || (kinds[i] ?? 'wall') === 'kerb',
+        });
+      }
     }
 
     this.playablePoints.push(...loop);
     this.hasCustomBoundary = true;
   }
 
-  private addBlock(kind: BlockKind, x: number, y: number, w: number, h: number, angle: number): void {
+  private addBlock(kind: BlockKind, x: number, y: number, w: number, h: number, angle: number, boundary = false): void {
     const spec = BLOCKS[kind];
     const body = this.world.addStatic(createBody({ shape: box(w, h), surface: spec.surface, x, y, angle, restitution: spec.restitution, friction: spec.friction }));
-    const block: Block = { body, kind, x, y, w, h, angle, lift: spec.lift, hit: 0, hitNx: 0, hitNy: 0, gone: false, theme: this.def.theme };
+    const block: Block = { body, kind, x, y, w, h, angle, lift: spec.lift, hit: 0, hitNx: 0, hitNy: 0, gone: false, boundary, theme: this.def.theme };
     this.blocks.push(block);
     this.blockOf.set(body.id, block);
   }
