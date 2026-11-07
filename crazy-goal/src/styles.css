@@ -1710,9 +1710,7 @@ body {
   height: 76px;
   flex-shrink: 0;
   border-radius: 50%;
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.95),
-    0 5px 16px rgba(27, 37, 64, 0.3);
+  box-shadow: 0 5px 16px rgba(27, 37, 64, 0.3);
   transition: filter 0.15s ease, box-shadow 0.2s ease;
 }
 
@@ -1787,7 +1785,6 @@ body {
   padding: 0 6px;
   background: var(--sun);
   color: var(--navy);
-  border: 2px solid var(--white);
   border-radius: 999px;
   box-shadow: 0 2px 6px rgba(27, 37, 64, 0.4);
   font-size: 11px;
@@ -1830,7 +1827,6 @@ body {
     min-width: 23px;
     height: 23px;
     font-size: 10px;
-    border-width: 1.5px;
   }
 
   .coin-pill {
@@ -1862,7 +1858,6 @@ body {
     height: 22px;
     padding: 0 5px;
     font-size: 9px;
-    border-width: 1.5px;
   }
 
   .coin-pill {
