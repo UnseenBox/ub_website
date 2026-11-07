@@ -118,16 +118,16 @@
 
       .loading-goalbar-fill {
         height: 100%;
-        width: 8%;
+        width: 6%;
         border-radius: 999px;
         background: linear-gradient(90deg, #ffd94d, #f2b52a);
         box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.6);
-        animation: fill-run 2.3s ease-in-out infinite alternate;
+        animation: fill-run 2.2s ease-out forwards;
       }
 
       @keyframes fill-run {
         from { width: 6%; }
-        to { width: 93%; }
+        to { width: 100%; }
       }
 
       .loading-runner {
@@ -137,14 +137,14 @@
         width: clamp(30px, 5.6vmin, 40px);
         margin-bottom: 3px;
         animation:
-          runner-run 2.3s ease-in-out infinite alternate,
+          runner-run 2.2s ease-out forwards,
           runner-bob 0.46s ease-in-out infinite;
         will-change: left, transform;
       }
 
       @keyframes runner-run {
         from { left: 2%; }
-        to { left: calc(93% - clamp(30px, 5.6vmin, 40px)); }
+        to { left: calc(100% - clamp(30px, 5.6vmin, 40px) - 2px); }
       }
 
       @keyframes runner-bob {
@@ -237,8 +237,8 @@
         .loading-rays, .loading-logo, .loading-star, .loading-runner, .loading-fill {
           animation: none;
         }
-        .loading-goalbar-fill { transform: none; width: 55%; }
-        .loading-runner { left: 30%; }
+        .loading-goalbar-fill { transform: none; width: 70%; }
+        .loading-runner { left: 45%; }
         .loading-ticker-track { animation: none; }
       }
     </style>
