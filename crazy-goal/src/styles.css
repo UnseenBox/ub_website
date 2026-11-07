@@ -80,81 +80,6 @@ body {
   background: rgba(27, 37, 64, 0.55);
 }
 
-.menu {
-  align-content: center;
-  justify-items: center;
-  gap: clamp(14px, 3.2vmin, 34px);
-  text-align: center;
-}
-
-.wordmark {
-  margin: 0;
-  font-weight: 900;
-  font-size: clamp(50px, 15vmin, 170px);
-  line-height: 0.9;
-  letter-spacing: -0.035em;
-  transform: rotate(-4deg);
-  animation: mark-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
-}
-
-/* Sign-painter lettering: flat colour and a hard offset shadow. */
-.word {
-  display: block;
-}
-
-.crazy {
-  color: var(--blue);
-  text-shadow:
-    0.035em 0.035em 0 var(--sun),
-    0.07em 0.07em 0 var(--sun);
-}
-
-.goal {
-  color: var(--terra);
-  margin-left: 0.5em;
-  text-shadow:
-    0.035em 0.035em 0 var(--navy),
-    0.07em 0.07em 0 var(--navy);
-}
-
-.ball-o {
-  display: inline-block;
-  width: 0.8em;
-  height: 0.8em;
-  margin: 0 0.02em;
-  vertical-align: -0.06em;
-  filter: drop-shadow(0.06em 0.06em 0 var(--navy));
-  animation: ball-roll 7s linear infinite;
-}
-
-.ball-o svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.tagline {
-  margin: 0;
-  font-size: clamp(11px, 2.1vmin, 19px);
-  font-weight: 700;
-  letter-spacing: 0.32em;
-  color: var(--navy);
-}
-
-.hint {
-  margin: 0;
-  font-size: clamp(9px, 1.5vmin, 12px);
-  font-weight: 500;
-  letter-spacing: 0.22em;
-  color: rgba(27, 37, 64, 0.6);
-}
-
-.actions {
-  display: grid;
-  gap: 14px;
-  justify-items: stretch;
-}
-
 /* Buttons are enamel plaques: a slab of colour with a white line set just inside the edge. */
 .btn {
   position: relative;
@@ -1073,59 +998,332 @@ body {
   }
 }
 
-/* The title card: sunlight, and a plaque of a different colour for each place to go. */
+/* ---- Main menu: white paper, the Toon Alley diorama, and the new title art ---- */
 .menu {
-  background:
-    radial-gradient(circle at 50% 118%, rgba(207, 92, 54, 0.5) 0 34%, transparent 35%),
-    radial-gradient(circle at 50% 118%, rgba(255, 200, 58, 0.85) 0 52%, transparent 53%),
-    rgba(143, 208, 238, 0.9);
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(clamp(12px, 2.6vmin, 30px) + env(safe-area-inset-top))
+    calc(clamp(12px, 2.6vmin, 30px) + env(safe-area-inset-right))
+    calc(clamp(12px, 2.6vmin, 30px) + env(safe-area-inset-bottom))
+    calc(clamp(12px, 2.6vmin, 30px) + env(safe-area-inset-left));
+  overflow: hidden;
+  text-align: center;
+  background: #fff;
 }
 
-.btn-play {
-  padding-left: 3.2em;
-  padding-right: 3.2em;
-  background: var(--terra);
+.menu-frame {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-areas:
+    'top'
+    'logo'
+    'hero'
+    'actions';
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: center;
+  gap: clamp(8px, 1.7vh, 20px);
+  width: 100%;
+  max-width: 560px;
+  min-height: 0;
+  margin: 0 auto;
 }
 
-.menu-grid {
+/* The wrapper only groups the right-hand column on wide screens. */
+.menu-panel {
+  display: contents;
+}
+
+.menu-top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.menu-logo {
+  grid-area: logo;
+  width: min(58vw, 34vh, 300px);
+  margin: 0;
+  line-height: 0;
+  animation: mark-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.menu-logo-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 8px 10px rgba(27, 37, 64, 0.12));
+}
+
+.menu-hero {
+  grid-area: hero;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: url('./assets/ui/toon-alley.png') center / contain no-repeat;
+}
+
+.menu-actions {
+  grid-area: actions;
+  display: grid;
+  gap: clamp(8px, 1.5vh, 14px);
+  width: min(360px, 100%);
+}
+
+.menu-play {
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+  filter: drop-shadow(0 6px 0 rgba(11, 77, 28, 0.14));
+  transition:
+    transform 0.1s ease-out,
+    filter 0.1s ease-out;
+}
+
+.menu-play-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.menu-play:hover {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 8px 0 rgba(11, 77, 28, 0.14));
+}
+
+.menu-play:active {
+  transform: translateY(3px);
+  filter: drop-shadow(0 2px 0 rgba(11, 77, 28, 0.14));
+}
+
+.menu-shortcuts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  align-items: start;
+  justify-items: center;
+  gap: clamp(14px, 4vw, 34px);
 }
 
-.menu-tile {
-  padding: 1.1em 0.8em 1em;
-  font-size: clamp(10px, 1.8vmin, 14px);
-  letter-spacing: 0.12em;
-  color: var(--white);
+.menu-shortcut {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: #0b4d1f;
+  cursor: pointer;
 }
 
-.menu-tile.is-terra {
-  background: var(--terra);
+.menu-shortcut-art {
+  display: block;
+  width: clamp(58px, 11vmin, 88px);
+  height: auto;
+  filter: drop-shadow(0 5px 0 rgba(11, 77, 28, 0.12));
+  transition: transform 0.1s ease-out;
 }
 
-.menu-tile.is-blue {
-  background: var(--blue);
+.menu-shortcut:hover .menu-shortcut-art {
+  transform: translateY(-3px) rotate(-2deg);
 }
 
-.menu-tile.is-green {
-  background: #2f9a63;
+.menu-shortcut:active .menu-shortcut-art {
+  transform: translateY(2px) rotate(0deg);
 }
 
-.menu-tile.is-navy {
-  background: var(--navy);
+.menu-shortcut-label {
+  font-size: clamp(9px, 1.5vmin, 11px);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+}
+
+.menu-gear {
+  display: grid;
+  place-items: center;
+  width: clamp(38px, 6vmin, 46px);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #f7ffe9;
+  background: #0b4d1f;
+  box-shadow: 0 4px 0 rgba(11, 77, 28, 0.18);
+  cursor: pointer;
+  transition:
+    transform 0.1s ease-out,
+    box-shadow 0.1s ease-out;
+}
+
+.menu-gear svg {
+  width: 55%;
+  height: 55%;
+  fill: currentColor;
+}
+
+.menu-gear:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgba(11, 77, 28, 0.18);
+}
+
+.menu-gear:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(11, 77, 28, 0.18);
+}
+
+.menu-duel {
+  width: 100%;
+  height: clamp(38px, 6.4vmin, 54px);
+  padding: 0 16px;
+  border: 0;
+  background: url('./assets/ui/button-blank.png') center / 100% 100% no-repeat;
+  color: #e9ffd4;
+  font: inherit;
+  font-size: clamp(10px, 1.7vmin, 13px);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  filter: drop-shadow(0 4px 0 rgba(11, 77, 28, 0.14));
+  transition:
+    transform 0.1s ease-out,
+    filter 0.1s ease-out;
+}
+
+.menu-duel:hover {
+  transform: translateY(-2px);
+}
+
+.menu-duel:active {
+  transform: translateY(2px);
+  filter: none;
+}
+
+.menu-play:focus-visible,
+.menu-shortcut:focus-visible,
+.menu-gear:focus-visible,
+.menu-duel:focus-visible {
+  outline: 3px solid #ffd21c;
+  outline-offset: 4px;
+  border-radius: 14px;
 }
 
 .star-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   margin: 0;
-  padding: 0.5em 1.2em;
-  font-size: clamp(10px, 1.7vmin, 13px);
+  padding: clamp(6px, 1vmin, 9px) clamp(10px, 1.7vmin, 15px);
+  font-size: clamp(10px, 1.5vmin, 12px);
   font-weight: 900;
-  letter-spacing: 0.2em;
-  color: var(--navy);
-  background: var(--white);
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  color: #f7ffe9;
+  background: #0b4d1f;
   border-radius: 999px;
-  box-shadow: 3px 4px 0 var(--shadow);
+  box-shadow: 0 4px 0 rgba(11, 77, 28, 0.16);
+}
+
+.star-count-icon {
+  display: block;
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.star-count-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: #ffd21c;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.2));
+}
+
+/* Wide screens put the alley on the left and the controls on the right. */
+@media (min-aspect-ratio: 6/5) and (min-width: 760px) {
+  .menu-frame {
+    grid-template-areas: 'hero panel';
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: clamp(24px, 4vw, 72px);
+    max-width: 1180px;
+  }
+
+  .menu-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(14px, 2.6vh, 30px);
+    min-width: 0;
+  }
+
+  .menu-top,
+  .menu-actions {
+    width: min(380px, 100%);
+  }
+
+  .menu-logo {
+    width: min(42vh, 320px);
+  }
+}
+
+/* Short screens trim the stack so the alley still has room to show. */
+@media (max-height: 680px) and (max-aspect-ratio: 6/5) {
+  .menu-frame {
+    gap: 5px;
+  }
+
+  .menu-logo {
+    width: min(40vw, 22vh, 190px);
+  }
+
+  .menu-actions {
+    gap: 6px;
+    width: min(280px, 100%);
+  }
+
+  .menu-shortcut-art {
+    width: clamp(44px, 9vmin, 58px);
+  }
+
+  .menu-duel {
+    height: 32px;
+  }
+}
+
+@media (max-height: 520px) and (min-aspect-ratio: 6/5) {
+  .menu-panel {
+    gap: clamp(6px, 1.8vh, 12px);
+  }
+
+  .menu-top,
+  .menu-actions {
+    width: min(320px, 100%);
+  }
+
+  .menu-logo {
+    width: min(38vh, 200px);
+  }
+
+  .menu-actions {
+    gap: 6px;
+  }
+
+  .menu-shortcut-art {
+    width: clamp(44px, 10vmin, 62px);
+  }
+
+  .menu-duel {
+    height: clamp(30px, 8vh, 38px);
+  }
 }
 
 /* Settings. */
@@ -1198,11 +1396,6 @@ body {
   font-family: 'Segoe UI', Tahoma, 'Noto Kufi Arabic', 'Geeza Pro', system-ui, sans-serif;
 }
 
-[dir='rtl'] .wordmark,
-[dir='rtl'] .wordmark * {
-  font-family: var(--display);
-}
-
 @keyframes screen-in {
   from {
     opacity: 0;
@@ -1223,18 +1416,18 @@ body {
   }
 }
 
-@keyframes ball-roll {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .screen,
-  .wordmark,
-  .ball-o,
+  .menu-logo,
   .result {
     animation: none;
+  }
+
+  .menu-play,
+  .menu-shortcut-art,
+  .menu-gear,
+  .menu-duel {
+    transition: none;
   }
 }
 
@@ -1320,39 +1513,10 @@ body {
   color: rgba(27, 37, 64, 0.35);
 }
 
-/* The title card with its key art: wide print on wide screens, tall print on phones.
-   The art already carries the logo, so the DOM wordmark steps aside (visually only). */
+/* The white page behind the new art. Kept as a separate class so the menu can be
+   re-skinned without touching the other overlay screens. */
 .menu-bg {
-  background-color: #1f5fa8;
-  background-image:
-    linear-gradient(rgba(20, 28, 54, 0.02) 0 52%, rgba(20, 28, 54, 0.6)),
-    url('./assets/menu-bg-wide.jpg');
-  background-size: cover, cover;
-  background-position: center, center;
-  background-repeat: no-repeat;
-  align-content: end;
-  padding-bottom: calc(max(120px, 20vh) + env(safe-area-inset-bottom));
-}
-
-@media (max-aspect-ratio: 1/1) {
-  .menu-bg {
-    background-image:
-      linear-gradient(rgba(20, 28, 54, 0.02) 0 52%, rgba(20, 28, 54, 0.6)),
-      url('./assets/menu-bg-tall.jpg');
-  }
-}
-
-.menu-bg .wordmark,
-.menu-bg .tagline {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
-.menu-bg .star-count {
-  background: rgba(251, 247, 238, 0.94);
+  background-color: #fff;
 }
 
 .skin-progress {
@@ -1405,11 +1569,6 @@ body {
 
   .grid {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 10px;
-  }
-
-  .menu-grid {
-    grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
 

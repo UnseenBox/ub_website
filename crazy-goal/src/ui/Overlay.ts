@@ -1,3 +1,7 @@
+import ballsUrl from '../assets/ui/balls.png';
+import levelsUrl from '../assets/ui/levels.png';
+import logoUrl from '../assets/ui/logo.png';
+import playUrl from '../assets/ui/play.png';
 import { lang, tr, type Lang } from '../core/i18n';
 
 export interface SkinTile {
@@ -44,21 +48,9 @@ export interface LevelTile {
   unlocked: boolean;
 }
 
-const BALL_SVG = `<svg viewBox="0 0 100 100" aria-hidden="true">
-  <defs><clipPath id="cg-o"><circle cx="50" cy="50" r="45"/></clipPath></defs>
-  <circle cx="50" cy="50" r="45" fill="#fbf7ee"/>
-  <g clip-path="url(#cg-o)" fill="#1b2540">
-    <polygon points="50,29 70,43.5 62.4,67 37.6,67 30,43.5"/>
-    <polygon points="50,-4 70,6 66,22 34,22 30,6"/>
-    <polygon points="102,33 95,54 79,50 80,30 92,18"/>
-    <polygon points="82,97 64,104 56,88 70,76 88,82"/>
-    <polygon points="18,97 12,82 30,76 44,88 36,104"/>
-    <polygon points="-2,33 8,18 20,30 21,50 5,54"/>
-  </g>
-  <circle cx="50" cy="50" r="45" fill="none" stroke="#1b2540" stroke-width="4"/>
-</svg>`;
-
 const STAR_SVG = `<svg viewBox="-10 -10 20 20" aria-hidden="true"><path d="M0-10 2.4-5.7 7.1-7.1 5.7-2.4 10 0 5.7 2.4 7.1 7.1 2.4 5.7 0 10-2.4 5.7-7.1 7.1-5.7 2.4-10 0-5.7-2.4-7.1-7.1-2.4-5.7Z"/></svg>`;
+
+const GEAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>`;
 
 const CHAPTERS: ReadonlyArray<{ until: number; title: string }> = [
   { until: 12, title: 'THE HOUMA' },
@@ -115,9 +107,11 @@ export class Overlay {
   private readonly skinGrid: HTMLElement;
   private readonly skinProgress: HTMLElement;
   private readonly starCount: HTMLElement;
+  private readonly starText: HTMLElement;
   private readonly sound: HTMLInputElement;
   private readonly music: HTMLInputElement;
   private readonly pauseButton: HTMLButtonElement;
+  private readonly playButton: HTMLButtonElement;
   private readonly result: HTMLElement;
   private readonly nextButton: HTMLButtonElement;
   private readonly rewardButton: HTMLButtonElement;
@@ -131,26 +125,66 @@ export class Overlay {
     private readonly handlers: OverlayHandlers,
   ) {
     this.menu = el('div', 'screen menu menu-bg');
-    const mark = el('h1', 'wordmark');
+
+    const top = el('div', 'menu-top');
+    const gear = button('menu-gear', '', () => this.showSettings());
+    gear.setAttribute('aria-label', tr('SETTINGS'));
+    gear.innerHTML = GEAR_SVG;
+    this.starCount = el('p', 'star-count');
+    const starIcon = el('span', 'star-count-icon');
+    starIcon.innerHTML = STAR_SVG;
+    this.starText = el('span', 'star-count-text');
+    this.starCount.append(starIcon, this.starText);
+    top.append(gear, this.starCount);
+
+    const mark = el('h1', 'menu-logo');
     mark.setAttribute('aria-label', 'Crazy Kora');
     mark.dir = 'ltr';
-    mark.append(el('span', 'word crazy', 'CRAZY'));
-    const kora = el('span', 'word goal');
-    const o = el('span', 'ball-o');
-    o.innerHTML = BALL_SVG;
-    kora.append('K', o, 'RA');
-    mark.append(kora);
-    this.starCount = el('p', 'star-count');
-    const more = el('div', 'menu-grid');
-    if (handlers.canDuel()) more.append(button('btn menu-tile is-terra', 'DUEL A FRIEND', handlers.duel));
-    more.append(
-      button('btn menu-tile is-blue', 'HOUMA', handlers.levels),
-      button('btn menu-tile is-green', 'BALLS', () => this.showSkins()),
-      button('btn menu-tile is-navy', 'SETTINGS', () => this.showSettings()),
-    );
-    const actions = el('div', 'actions');
-    actions.append(button('btn btn-primary btn-play', 'PLAY', handlers.play), more);
-    this.menu.append(mark, el('p', 'tagline', 'HOW CRAZY CAN YOU SCORE?'), actions, this.starCount);
+    const logo = el('img', 'menu-logo-art');
+    logo.src = logoUrl;
+    logo.alt = '';
+    logo.draggable = false;
+    mark.append(logo);
+
+    const hero = el('div', 'menu-hero');
+    hero.setAttribute('aria-hidden', 'true');
+
+    const actions = el('div', 'menu-actions');
+    const play = button('menu-play', '', handlers.play);
+    play.setAttribute('aria-label', tr('PLAY'));
+    this.playButton = play;
+    const playArt = el('img', 'menu-play-art');
+    playArt.src = playUrl;
+    playArt.alt = '';
+    playArt.draggable = false;
+    play.append(playArt);
+
+    const shortcuts = el('div', 'menu-shortcuts');
+    const levels = button('menu-shortcut', '', handlers.levels);
+    levels.setAttribute('aria-label', tr('HOUMA'));
+    const levelsArt = el('img', 'menu-shortcut-art');
+    levelsArt.src = levelsUrl;
+    levelsArt.alt = '';
+    levelsArt.draggable = false;
+    levels.append(levelsArt, el('span', 'menu-shortcut-label', 'HOUMA'));
+
+    const ballsButton = button('menu-shortcut', '', () => this.showSkins());
+    ballsButton.setAttribute('aria-label', tr('BALLS'));
+    const ballsArt = el('img', 'menu-shortcut-art');
+    ballsArt.src = ballsUrl;
+    ballsArt.alt = '';
+    ballsArt.draggable = false;
+    ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'));
+    shortcuts.append(levels, ballsButton);
+
+    actions.append(play, shortcuts);
+    if (handlers.canDuel()) actions.append(button('menu-duel', 'DUEL A FRIEND', handlers.duel));
+
+    const menuPanel = el('div', 'menu-panel');
+    menuPanel.append(top, mark, actions);
+    const frame = el('div', 'menu-frame');
+    frame.append(hero, menuPanel);
+    this.menu.append(frame);
     this.settingsFrom = this.menu;
 
     this.pause = el('div', 'screen pause');
@@ -235,12 +269,13 @@ export class Overlay {
     this.root.classList.toggle('is-open', screen !== null);
     this.pauseButton.hidden = screen !== null;
     if (screen) this.result.hidden = true;
-    screen?.querySelector('button')?.focus({ preventScroll: true });
+    if (screen === this.menu) this.playButton.focus({ preventScroll: true });
+    else screen?.querySelector('button')?.focus({ preventScroll: true });
   }
 
   showMenu(): void {
     const { n, max } = this.handlers.stars();
-    this.starCount.textContent = tr('STARS {n} / {max}', { n, max });
+    this.starText.textContent = tr('STARS {n} / {max}', { n, max });
     this.show(this.menu);
   }
 
