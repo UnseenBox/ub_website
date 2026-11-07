@@ -1264,6 +1264,24 @@ body {
   gap: clamp(14px, 4vw, 34px);
 }
 
+.menu-shortcut-top .menu-shortcut-art {
+  width: clamp(40px, 7.4vmin, 56px);
+}
+
+.menu-shortcut-top .menu-shortcut-label {
+  font-size: clamp(7px, 1.2vmin, 9px);
+  letter-spacing: 0.1em;
+}
+
+.menu-shortcut-goal {
+  margin-left: clamp(8px, 2.5vw, 28px);
+}
+
+.menu-shortcut-balls {
+  margin-left: auto;
+  margin-right: clamp(8px, 2.5vw, 28px);
+}
+
 .menu-shortcut {
   display: grid;
   justify-items: center;

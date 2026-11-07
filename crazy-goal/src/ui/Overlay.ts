@@ -159,7 +159,6 @@ export class Overlay {
     starIcon.append(starSprite());
     this.starText = el('span', 'star-count-text');
     this.starCount.append(starIcon, this.starText);
-    top.append(gear, this.starCount);
 
     const mark = el('h1', 'menu-logo');
     mark.setAttribute('aria-label', 'Crazy Kora');
@@ -173,6 +172,23 @@ export class Overlay {
     const hero = el('div', 'menu-hero');
     hero.setAttribute('aria-hidden', 'true');
 
+    const levels = button('menu-shortcut menu-shortcut-top menu-shortcut-goal', '', handlers.levels);
+    levels.setAttribute('aria-label', tr('HOUMA'));
+    const levelsArt = el('img', 'menu-shortcut-art');
+    levelsArt.src = levelsUrl;
+    levelsArt.alt = '';
+    levelsArt.draggable = false;
+    levels.append(levelsArt, el('span', 'menu-shortcut-label', 'HOUMA'));
+
+    const ballsButton = button('menu-shortcut menu-shortcut-top menu-shortcut-balls', '', () => this.showSkins());
+    ballsButton.setAttribute('aria-label', tr('BALLS'));
+    const ballsArt = el('img', 'menu-shortcut-art');
+    ballsArt.src = ballsUrl;
+    ballsArt.alt = '';
+    ballsArt.draggable = false;
+    ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'));
+    top.append(gear, levels, ballsButton, this.starCount);
+
     const actions = el('div', 'menu-actions');
     const play = button('menu-play', '', handlers.play);
     play.setAttribute('aria-label', tr('PLAY'));
@@ -183,25 +199,7 @@ export class Overlay {
     playArt.draggable = false;
     play.append(playArt);
 
-    const shortcuts = el('div', 'menu-shortcuts');
-    const levels = button('menu-shortcut', '', handlers.levels);
-    levels.setAttribute('aria-label', tr('HOUMA'));
-    const levelsArt = el('img', 'menu-shortcut-art');
-    levelsArt.src = levelsUrl;
-    levelsArt.alt = '';
-    levelsArt.draggable = false;
-    levels.append(levelsArt, el('span', 'menu-shortcut-label', 'HOUMA'));
-
-    const ballsButton = button('menu-shortcut', '', () => this.showSkins());
-    ballsButton.setAttribute('aria-label', tr('BALLS'));
-    const ballsArt = el('img', 'menu-shortcut-art');
-    ballsArt.src = ballsUrl;
-    ballsArt.alt = '';
-    ballsArt.draggable = false;
-    ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'));
-    shortcuts.append(levels, ballsButton);
-
-    actions.append(play, shortcuts);
+    actions.append(play);
     if (handlers.canDuel()) actions.append(button('menu-duel', 'DUEL A FRIEND', handlers.duel));
 
     const menuPanel = el('div', 'menu-panel');
