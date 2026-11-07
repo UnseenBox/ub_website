@@ -548,7 +548,6 @@ const AR: Readonly<Record<string, string>> = {
   'PLAY A CARD, OR JUST SHOOT. EACH CARD WORKS ONCE.': 'العب بطاقة أو سدّد فقط. كل بطاقة تعمل مرة واحدة.',
   'LAST ROUND. A TRICK WOULD HAVE NO NEXT SHOT TO LAND ON.': 'الجولة الأخيرة. لا تسديدة تالية للخدعة.',
   'TAP AGAIN TO PUT IT BACK.': 'المس مجدداً لإرجاعها.',
-  'ROUND {n} OF {max}': 'الجولة {n} من {max}',
   'ROUND {n}: {name}': 'الجولة {n}: {name}',
   '{name} SENT {card}!': '{name} أرسل {card}!',
   '{card} SENT TO {name}': '{card} في الطريق إلى {name}',

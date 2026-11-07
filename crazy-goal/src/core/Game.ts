@@ -220,8 +220,6 @@ export class Game {
   banner: Banner | null = null;
   duelScore: DuelScore | null = null;
   duelLook: DuelLook | null = null;
-  /** Replaces "ZENQA nn" on the level plaque. */
-  hudLabel: string | null = null;
   readonly duel: DuelController;
   readonly abilities: AbilityBar;
   private replay: Replay | null = null;
@@ -410,7 +408,6 @@ export class Game {
     this.clearDuelState();
     this.duelScore = null;
     this.duelLook = null;
-    this.hudLabel = null;
     this.install(new Level(def, index), this.save.level(def.id));
   }
 
@@ -439,7 +436,6 @@ export class Game {
     this.juice.reset();
     this.goalCine = false;
     this.frameCamera();
-    this.hud.invalidate();
     this.renderer.invalidate();
     this.state = 'ready';
     this.resetShot();
@@ -622,9 +618,8 @@ export class Game {
     return !muted;
   }
 
-  /** Called when a web font finishes loading: cached text was drawn in the fallback face. */
+  /** Called when a web font finishes loading. */
   fontsChanged(): void {
-    this.hud.invalidate();
     this.renderer.invalidate();
   }
 

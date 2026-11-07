@@ -349,7 +349,6 @@ export class DuelController {
     if (!duel) return;
     const [mine, theirs] = tally(duel, this.side, this.seen(duel.id));
     this.game.duelScore = { round, mine: mine.results, theirs: theirs.results, opponent: this.opponentName, mineColor: TEAM[this.side], theirColor: TEAM[1 - this.side] };
-    this.game.hudLabel = tr('ROUND {n} OF {max}', { n: round + 1, max: this.total });
   }
 
   /** Looks at the duel and starts whatever this player should do next. */

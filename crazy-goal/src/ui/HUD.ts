@@ -3,65 +3,55 @@ import { rtl, tr } from '../core/i18n';
 import { clamp01, easeOutBack, easeOutCubic, lerp, TAU } from '../core/math';
 import { CELEBRATION_TIMING } from '../goal/GoalCelebration';
 import { MISS_LABEL } from '../goal/GoalDetector';
-import { formatScore, roundRect, signText, text, tileStar, wrapText } from '../rendering/DrawUtils';
+import { formatScore, roundRect, signText, text, tileStar } from '../rendering/DrawUtils';
 import { C, FONT, rgba } from '../rendering/Palette';
 
 const CARD_W = 440;
 const CARD_PAD = 26;
 const LINE_H = 30;
-/** Gap between the alley wall and a plaque. */
+/** Gap between the alley wall and the duel's scoreboard. */
 const PLAQUE_GAP = 46;
 
 /**
  * Everything written on screen during play, drawn on the canvas in steady world units.
- * The fixed panels are blue enamel street plaques, like the ones on every corner of the
- * quarter. On small screens each piece is enlarged by the camera's `hudScale`.
+ * Solo play keeps the street bare: just the prompts, the miss call and the goal celebration.
+ * Duels keep a white board with the running score. On small screens each piece is enlarged
+ * by the camera's `hudScale`.
  */
 export class Hud {
-  private hintLines: string[] | null = null;
-  private hintWidth = 0;
   /**
-   * The free strip under the left-hand plaque, in world units: where it starts and how wide
-   * it is. The duel puts its cards there when the window is wide.
+   * The duel's cards are pinned beside the alley when the window is wide; this is the
+   * spot they hang from, in world units. There is no plaque in the way any more.
    */
   readonly column = { x: 0, y: 0, w: 0 };
-
-  /** Text measurements are stale after a font loads or the level changes. */
-  invalidate(): void {
-    this.hintLines = null;
-  }
 
   draw(ctx: CanvasRenderingContext2D, g: Game): void {
     const cam = g.camera;
     const u = cam.hudScale;
     const { arena } = g.level.def;
     const arenaRight = arena.x + arena.w;
-    // Landscape: beside the alley. Portrait: above the goal, narrower so two fit side by side.
+    // Landscape: beside the alley. Portrait: the duel's white board goes above the goal.
     const w = cam.portrait ? Math.min(250, (arena.w / 2 - 8) / u) : 250;
     const left = cam.portrait ? arena.x : arena.x - PLAQUE_GAP - w * u;
     const right = cam.portrait ? arenaRight : arenaRight + PLAQUE_GAP + w * u;
-    // On a tall phone there is spare room above the frame: the plaques move up into it, clear of the goal.
+    // On a tall phone there is spare room above the frame: the duel board moves up into it, clear of the goal.
     const top = cam.portrait ? Math.max(cam.visible.y + 14, arena.y - 475) : arena.y + 14;
 
-    ctx.save();
-    ctx.translate(left, top);
-    ctx.scale(u, u);
-    const leftH = this.drawLevelPlaque(ctx, g, w);
-    ctx.restore();
     this.column.x = left;
-    this.column.y = top + (leftH + 18) * u;
+    this.column.y = top + 18 * u;
     this.column.w = w * u;
 
-    ctx.save();
-    ctx.translate(right - w * u, top);
-    ctx.scale(u, u);
-    if (g.duelScore) this.drawDuelPlaque(ctx, g.duelScore, w);
-    else this.drawScorePlaque(ctx, g, w);
-    ctx.restore();
+    if (g.duelScore) {
+      ctx.save();
+      ctx.translate(right - w * u, top);
+      ctx.scale(u, u);
+      this.drawDuelPlaque(ctx, g.duelScore, w);
+      ctx.restore();
+    }
 
     if (!cam.portrait && !g.input.pointer.touch && !g.duelScore) {
       ctx.save();
-      ctx.translate(left, top + (leftH + 18) * u);
+      ctx.translate(left, top + 18 * u);
       ctx.scale(u, u);
       this.drawKeys(ctx, g, w);
       ctx.restore();
@@ -76,89 +66,6 @@ export class Hud {
       this.drawCard(ctx, g, u);
       this.drawBanner(ctx, g);
     }
-  }
-
-  /** A blue enamel plaque with its white inner line and a soft shadow. */
-  private plaque(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-    roundRect(ctx, 6, 7, w, h, 14);
-    ctx.fillStyle = rgba(C.shadow, 0.3);
-    ctx.fill();
-    roundRect(ctx, 0, 0, w, h, 14);
-    ctx.fillStyle = C.blue;
-    ctx.fill();
-    roundRect(ctx, 6, 6, w - 12, h - 12, 9);
-    ctx.strokeStyle = rgba(C.white, 0.9);
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-
-  private drawLevelPlaque(ctx: CanvasRenderingContext2D, g: Game, w: number): number {
-    const def = g.level.def;
-    const inner = w - 44;
-    ctx.font = `500 11.5px ${FONT}`;
-    if (!this.hintLines || this.hintWidth !== inner) {
-      this.hintLines = wrapText(ctx, tr(def.hint), inner);
-      this.hintWidth = inner;
-    }
-    const h = 108 + this.hintLines.length * 17;
-    this.plaque(ctx, w, h);
-
-    const i = g.level.index;
-    const chapter = i < 0 ? 'DUEL' : i < 12 ? tr('THE HOUMA') : i < 24 ? tr('NEW GROUNDS') : i < 36 ? tr('CRAZY LEAGUE') : i < 48 ? tr('LEGENDS') : i < 60 ? tr('STREET KINGS') : i < 72 ? tr('NIGHT LEAGUE') : i < 84 ? tr('GOLDEN HOUR') : i < 96 ? tr('HALL OF FAME') : tr('THE FINALS');
-    // "Houma" is the neighbourhood; each of its hundred streets gets a number.
-    text(ctx, g.hudLabel ?? `${chapter} · ${tr('HOUMA {n}', { n: String(g.level.index + 1).padStart(2, '0') })}`, 22, 32, { size: 10, color: C.sun, spacing: 2 });
-    // The name shrinks to fit rather than wrapping.
-    let size = 25;
-    ctx.font = `900 ${size}px ${FONT}`;
-    const measured = ctx.measureText(tr(def.name)).width;
-    if (measured > inner) size = Math.max(13, (size * inner) / measured);
-    text(ctx, def.name, 22, 64, { size, color: C.white });
-    this.hintLines.forEach((line, i) => text(ctx, line, 22, 88 + i * 17, { size: 11.5, color: rgba(C.white, 0.82), weight: 500 }));
-    // Attempts under the hint: proof of effort.
-    const rec = g.record;
-    if (rec.attempts > 0) text(ctx, `◉ ${rec.attempts} · ◎ ${rec.goals}`, 22, 92 + this.hintLines.length * 17, { size: 10, color: rgba(C.white, 0.6), weight: 700, spacing: 1.5 });
-    return h;
-  }
-
-  private drawScorePlaque(ctx: CanvasRenderingContext2D, g: Game, w: number): void {
-    const [two, three] = g.level.def.stars;
-    const rec = g.record;
-    this.plaque(ctx, w, 196);
-    const r = w - 22;
-    text(ctx, 'BEST', r, 36, { size: 12, color: C.sun, align: 'right', spacing: 3 });
-    text(ctx, formatScore(rec.best), r, 76, { size: 32, color: C.white, align: 'right' });
-
-    // Stars earned on this alley: filled in yellow, otherwise just an outline.
-    for (let i = 0; i < 3; i++) {
-      tileStar(ctx, r - 14 - (2 - i) * 34, 104, 13);
-      if (i < rec.stars) {
-        ctx.fillStyle = C.sun;
-        ctx.fill();
-      } else {
-        ctx.strokeStyle = rgba(C.white, 0.5);
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-    }
-    const next = rec.stars >= 3 ? 0 : rec.stars === 1 ? two : rec.stars === 2 ? three : two;
-    const goalLine = rec.stars >= 3 ? 'ALL THREE STARS' : rec.stars === 0 ? 'SCORE FOR A STAR' : tr('NEXT STAR {n}', { n: formatScore(next) });
-    text(ctx, goalLine, r, 140, { size: 10.5, color: rgba(C.white, 0.85), align: 'right', weight: 700, spacing: 1.5 });
-    // Progress bar to the next star.
-    if (rec.stars < 3 && next > 0) {
-      const pct = Math.min(1, rec.best / next);
-      const bw = w - 44;
-      const bx = 22;
-      const by = 150;
-      roundRect(ctx, bx, by, bw, 8, 4);
-      ctx.fillStyle = rgba(C.white, 0.25);
-      ctx.fill();
-      if (pct > 0) {
-        roundRect(ctx, bx, by, Math.max(8, bw * pct), 8, 4);
-        ctx.fillStyle = C.sun;
-        ctx.fill();
-      }
-    }
-    text(ctx, g.audio.muted ? 'SOUND OFF' : tr('LAST {n}', { n: formatScore(g.lastScore) }), r, 180, { size: 10.5, color: rgba(C.white, 0.6), align: 'right', weight: 700, spacing: 1.5 });
   }
 
   /**
