@@ -44,6 +44,10 @@ export class AudioManager {
   private sheet: AudioBuffer | null = null;
   private sheetData: ArrayBuffer | null = null;
   private index: SoundIndex = {};
+  /** Standalone samples (e.g. goal sting, bg music source) loaded outside the sheet. */
+  private clips = new Map<string, AudioBuffer>();
+  private clipData = new Map<string, ArrayBuffer>();
+  private musicSrc: AudioBufferSourceNode | null = null;
   private musicBus: GainNode | null = null;
   soundVolume = 0.8;
   musicVolume = 0.5;
@@ -83,11 +87,73 @@ export class AudioManager {
     );
   }
 
-  /** Plays one recording of a named sound. Returns false if it could not (not loaded yet, muted). */
+  /** Loads a standalone sound file (e.g. a goal sting) playable by name via `play()`. */
+  loadClip(name: string, url: string): void {
+    fetch(url)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('clip missing'))))
+      .then((data) => {
+        this.clipData.set(name, data);
+        this.decodeClip(name);
+      })
+      .catch(() => {
+        /* missing clip: stays silent */
+      });
+  }
+
+  private decodeClip(name: string): void {
+    const ctx = this.ctx;
+    const data = this.clipData.get(name);
+    if (!ctx || !data || this.clips.has(name)) return;
+    this.clipData.delete(name);
+    ctx.decodeAudioData(data.slice(0)).then(
+      (buffer) => {
+        this.clips.set(name, buffer);
+        if (name === '__music') this.startMusic();
+      },
+      () => {
+        /* undecodable */
+      },
+    );
+  }
+
+  /** Loads and loops a background music track on the music bus. */
+  loadMusic(url: string): void {
+    this.loadClip('__music', url);
+  }
+
+  private startMusic(): void {
+    const ctx = this.ctx;
+    const buffer = this.clips.get('__music');
+    if (!ctx || !this.musicBus || !buffer || this.musicSrc) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(this.musicBus);
+    try {
+      src.start();
+      this.musicSrc = src;
+    } catch {
+      /* can't start */
+    }
+  }
+
+  /** Plays one recording of a named sound (from the sheet or a standalone clip). Returns false if it could not. */
   play(name: string, o: PlayOptions = {}): boolean {
     const ctx = this.live;
+    if (!ctx || !this.master) return false;
+    const clip = this.clips.get(name);
+    if (clip) {
+      const src = ctx.createBufferSource();
+      src.buffer = clip;
+      src.playbackRate.value = o.rate ?? 1;
+      const amp = ctx.createGain();
+      amp.gain.value = o.gain ?? 1;
+      src.connect(amp).connect(o.music && this.musicBus ? this.musicBus : this.master);
+      src.start(ctx.currentTime + (o.at ?? 0));
+      return true;
+    }
     const variants = this.index[name];
-    if (!ctx || !this.master || !this.sheet || !variants || variants.length === 0) return false;
+    if (!this.sheet || !variants || variants.length === 0) return false;
     const pick = o.variant !== undefined ? o.variant % variants.length : Math.floor(Math.random() * variants.length);
     const [start, length] = variants[pick];
     const src = ctx.createBufferSource();
@@ -124,8 +190,11 @@ export class AudioManager {
         this.ctx = ctx;
         this.master = master;
         this.decodeSheet();
+        for (const name of Array.from(this.clipData.keys())) this.decodeClip(name);
+        this.startMusic();
       }
       if (this.ctx.state === 'suspended') void this.ctx.resume();
+      this.startMusic();
     } catch {
       this.failed = true;
       this.ctx = null;
@@ -149,7 +218,7 @@ export class AudioManager {
 
   /** The audio clock in seconds, or -1 while sound cannot play. */
   get now(): number {
-    return this.live && this.sheet ? this.live.currentTime : -1;
+    return this.live ? this.live.currentTime : -1;
   }
 
   private get live(): AudioContext | null {

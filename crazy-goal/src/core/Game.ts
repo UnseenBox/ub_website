@@ -1,9 +1,10 @@
 import type { Boost } from '../abilities/Cards';
 import { BOOST_COSTS, coinsFor } from '../abilities/Cards';
 import { AudioManager } from '../audio/AudioManager';
-import { Music } from '../audio/Music';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
+import bgMusicUrl from '../../assets/sfx/bg music.mp3?url';
+import goalSfxUrl from '../../assets/sfx/GOAL.mp3?url';
 import sfxIndex from '../assets/sfx.json';
 import sfxUrl from '../assets/sfx.wav?url';
 import { SoundLibrary } from '../audio/SoundLibrary';
@@ -167,7 +168,6 @@ export class Game {
   readonly camera = new Camera();
   readonly audio = new AudioManager();
   readonly sounds = new SoundLibrary(this.audio);
-  private readonly music = new Music();
   /** The ball the player chose. */
   skin: Skin;
   readonly particles = new ParticleSystem();
@@ -269,6 +269,10 @@ export class Game {
     this.audio.muted = this.save.data.muted;
     this.audio.setVolumes(this.save.data.sound, this.save.data.music);
     this.audio.loadSheet(sfxUrl, sfxIndex);
+    this.audio.loadMusic(bgMusicUrl);
+    this.audio.loadClip('goal', goalSfxUrl);
+    this.audio.loadMusic(bgMusicUrl);
+    this.audio.loadClip('goal', goalSfxUrl);
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       this.camera.shakeScale = 0.3;
       this.particles.reduced = true;
@@ -694,7 +698,6 @@ export class Game {
 
   private frame(realDt: number): void {
     const input = this.input;
-    this.music.update(this.audio);
     if (import.meta.env.DEV && input.consume('debug')) this.debug.toggle();
     if (input.consume('mute')) this.toggleSound();
     if (input.consume('pause')) {

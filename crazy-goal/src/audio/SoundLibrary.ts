@@ -287,23 +287,18 @@ export class SoundLibrary {
   }
 
   /**
-   * The ball hits the net and the houma answers: one warm stand, not a wall of noise.
-   * A single cheer up front with the far side humming under it, a modest bed of applause,
-   * and only a soft referee's whistle for a three-star goal. No horn, no pile-up.
+   * The ball hits the net: play the goal sting (GOAL.mp3, loaded as the 'goal' clip).
    */
   goal(bounces: number, stars = 0, newBest = false): void {
+    void bounces;
+    void stars;
     void newBest;
-    const a = this.audio;
-    // The whole alley takes the impact, then the houma answers.
-    this.boom(1, 0);
-    a.play('net', { gain: 0.8, rate: 0.7 });
-    a.play('net', { gain: 0.5, rate: 0.55, at: 0.06 });
-    a.play('thud_soft', { gain: 0.5, rate: 0.85 });
-    // The stand: one voice now, the far side breathing underneath.
-    a.play('cheer', { gain: 0.55, rate: vary(1, 0.03), variant: 0, at: 0.1 });
-    a.play('cheer', { gain: 0.3, rate: vary(0.9, 0.03), variant: 1, at: 0.3 });
-    a.play('applause', { gain: 0.25 + Math.min(bounces, 6) * 0.04, at: 0.5 });
-    if (stars >= 3) a.play('whistle', { gain: 0.32, rate: vary(1, 0.02), variant: 0, at: 0.7 });
+    this.boom(0.55, 0);
+    if (!this.audio.play('goal', { gain: 1 })) {
+      // Fallback if the clip hasn't loaded: a simple net hit.
+      this.audio.play('net', { gain: 0.8, rate: 0.7 });
+      this.audio.play('thud_soft', { gain: 0.5, rate: 0.85 });
+    }
   }
 
   /** One knock on wood per line of the score card, like chalking it up. */
