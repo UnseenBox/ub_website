@@ -4,7 +4,23 @@ import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
 import bgMusicUrl from '../../assets/sfx/bg music.mp3?url';
+import clickSfxUrl from '../../assets/sfx/click.mp3?url';
+import dropSfxUrl from '../../assets/sfx/drop.mp3?url';
+import fireAbilitySfxUrl from '../../assets/sfx/hrissa ability.mp3?url';
+import funnyMeowSfxUrl from '../../assets/sfx/funny Meow.mp3?url';
+import glassBreakSfxUrl from '../../assets/sfx/glass_break.mp3?url';
+import glassTapSfxUrl from '../../assets/sfx/glass tap.mp3?url';
 import goalSfxUrl from '../../assets/sfx/GOAL.mp3?url';
+import magnetAbilitySfxUrl from '../../assets/sfx/magnet ability.mp3?url';
+import kickBallSfxUrl from '../../assets/sfx/kick the Ball.mp3?url';
+import metalSfxUrl from '../../assets/sfx/metal.mp3?url';
+import plankSfxUrl from '../../assets/sfx/planquw.mp3?url';
+import powerUpSfxUrl from '../../assets/sfx/power up.mp3?url';
+import rubberAbilitySfxUrl from '../../assets/sfx/rubber ability.mp3?url';
+import stoneSfxUrl from '../../assets/sfx/rock.mp3?url';
+import tinSfxUrl from '../../assets/sfx/tin.mp3?url';
+import whistleSfxUrl from '../../assets/sfx/whistle.mp3?url';
+import woodSfxUrl from '../../assets/sfx/wood.mp3?url';
 import sfxIndex from '../assets/sfx.json';
 import sfxUrl from '../assets/sfx.wav?url';
 import { SoundLibrary } from '../audio/SoundLibrary';
@@ -38,7 +54,7 @@ import { ShotAnalyzer } from '../scoring/ShotAnalyzer';
 import { Hud } from '../ui/HUD';
 import { AbilityBar } from '../ui/AbilityBar';
 import { portal, isCrazyGames } from '../portal/Portal';
-import { Overlay } from '../ui/Overlay';
+import { Overlay, setUiClick } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
 import { GameLoop } from './GameLoop';
 import type { GameState } from './GameState';
@@ -269,10 +285,28 @@ export class Game {
     this.audio.muted = this.save.data.muted;
     this.audio.setVolumes(this.save.data.sound, this.save.data.music);
     this.audio.loadSheet(sfxUrl, sfxIndex);
+    // Crowd cheering as background music (loops on the music bus).
     this.audio.loadMusic(bgMusicUrl);
+    // New recordings replace the old sheet sounds (clips take priority in AudioManager.play).
     this.audio.loadClip('goal', goalSfxUrl);
-    this.audio.loadMusic(bgMusicUrl);
-    this.audio.loadClip('goal', goalSfxUrl);
+    this.audio.loadClip('meow', funnyMeowSfxUrl);
+    this.audio.loadClip('click', clickSfxUrl);
+    this.audio.loadClip('drop', dropSfxUrl);
+    this.audio.loadClip('glass_tap', glassTapSfxUrl);
+    this.audio.loadClip('glass_break', glassBreakSfxUrl);
+    this.audio.loadClip('metal', metalSfxUrl);
+    this.audio.loadClip('plank', plankSfxUrl);
+    this.audio.loadClip('stone', stoneSfxUrl);
+    this.audio.loadClip('tin', tinSfxUrl);
+    this.audio.loadClip('whistle', whistleSfxUrl);
+    this.audio.loadClip('wood', woodSfxUrl);
+    // Ability (boost) sounds.
+    this.audio.loadClip('boost_fire', fireAbilitySfxUrl);
+    this.audio.loadClip('boost_magnet', magnetAbilitySfxUrl);
+    this.audio.loadClip('boost_rubber', rubberAbilitySfxUrl);
+    this.audio.loadClip('power_up', powerUpSfxUrl);
+    this.audio.loadClip('kick_ball', kickBallSfxUrl);
+    setUiClick(() => this.sounds.click());
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       this.camera.shakeScale = 0.3;
       this.particles.reduced = true;
@@ -548,7 +582,7 @@ export class Game {
     this.save.data.coins += spare - BOOST_COSTS[id];
     this.armedBoost = id;
     this.save.save();
-    this.sounds.card(true);
+    this.audio.play(`boost_${id}`, { gain: 1 });
   }
 
   /** Back to the title card, on the furthest solo houma reached. */
@@ -665,6 +699,7 @@ export class Game {
 
   /** Between houmas: the portal may take a midgame break first, then the next street loads. */
   nextLevel(): void {
+    this.audio.stop('goal');
     if (this.level.index + 1 >= this.levels.length) {
       this.openLevels();
       return;
@@ -753,11 +788,13 @@ export class Game {
   private beginAim(): void {
     this.shot.begin();
     this.preview.clear();
+    this.sounds.aimStart();
     this.setState('aiming');
     this.events.emit('AIM_STARTED', { x: this.ball.body.x, y: this.ball.body.y });
   }
 
   private cancelAim(): void {
+    this.audio.stop('power_up');
     const wasArmed = this.shot.armed;
     this.shot.cancel();
     this.preview.clear();
@@ -766,6 +803,7 @@ export class Game {
   }
 
   private releaseShot(): void {
+    this.audio.stop('power_up');
     const b = this.ball.body;
     const shot = this.shot.release(b.x, b.y);
     this.preview.clear();

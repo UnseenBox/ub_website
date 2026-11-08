@@ -22,7 +22,7 @@ export interface SaveData {
   coins: number;
 }
 
-const fresh = (): SaveData => ({ version: VERSION, levels: {}, muted: false, sound: 0.8, music: 0.5, skin: 'classic', coins: 0 });
+const fresh = (): SaveData => ({ version: VERSION, levels: {}, muted: false, sound: 0.3, music: 0.2, skin: 'classic', coins: 0 });
 const volume = (v: unknown, fallback: number): number => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;

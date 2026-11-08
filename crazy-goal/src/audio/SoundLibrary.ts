@@ -12,34 +12,21 @@ const rung = (i: number): number => Math.pow(2, LADDER[Math.min(i, LADDER.length
 const vary = (rate = 1, spread = 0.06): number => rate * (1 - spread + Math.random() * spread * 2);
 
 /**
- * Every sound in the game. They are recordings (see src/assets/CREDITS.txt), layered and
- * pitched here: a hard hit is a heavier recording played louder, not the same one turned up.
- * The street reacts too: a goal gets a real cheer, a wide one the whistle. There are no
- * jingles. The only synthesised sounds left are things that are electronic in real life (a car alarm,
- * a scooter horn) and the cat, for which there is no recording yet.
+ * Every sound in the game uses asset recordings (assets/sfx / sfx sheet). No synthetic SFX.
  */
 export class SoundLibrary {
   private lastBounce = -1;
-  private lastPull = 0;
-  private pullSpeed = 0;
 
   constructor(private readonly audio: AudioManager) {}
 
-  /**
-   * The pull: a soft rush of air that follows the hand. It sounds only while the pull is
-   * changing, louder the faster it moves and brighter the more power is wound on, so there
-   * are no steps in it and holding still is silent. Call every frame while aiming.
-   */
+  /** Call every frame while aiming (no synthetic swell; assets only). */
   pull(power: number, dt: number): void {
-    const speed = dt > 0 ? Math.abs(power - this.lastPull) / dt : 0;
-    this.lastPull = power;
-    this.pullSpeed += (Math.min(1, speed / 2.2) - this.pullSpeed) * Math.min(1, dt * 14);
-    this.audio.swell(this.pullSpeed * (0.1 + 0.16 * power), power);
+    void power;
+    void dt;
   }
 
   aimStart(): void {
-    this.lastPull = 0;
-    this.pullSpeed = 0;
+    this.audio.play('power_up', { gain: 1 });
   }
 
   /** Letting go without shooting: the tension just slackens. */
@@ -47,40 +34,27 @@ export class SoundLibrary {
     this.audio.play('cloth', { gain: 0.45, rate: vary(0.9) });
   }
 
-  /**
-   * A short sub-bass body under a loud moment. Not a voice of its own: it is the weight the
-   * recordings cannot carry on small speakers.
-   */
-  private boom(strength: number, at = 0): void {
-    const s = Math.max(0, Math.min(1, strength));
-    this.audio.tone({
-      freq: 96 - 30 * s,
-      glide: 34,
-      glideTime: 0.16 + 0.12 * s,
-      type: 'sine',
-      at,
-      attack: 0.004,
-      decay: 0.18 + 0.18 * s,
-      gain: 0.08 + 0.2 * s,
-    });
+  private boom(_strength: number, _at = 0): void {
+    /* synthetic SFX removed: assets only */
   }
 
-  /** Boot on leather. A firm strike is a heavier recording, with a low thud under it. */
+  /** Boot on leather. */
   kick(power: number): void {
     const a = this.audio;
-    a.play(power > 0.5 ? 'kick' : 'kick_soft', { gain: 0.55 + 0.45 * power, rate: vary(1.05 - 0.12 * power) });
-    a.play('thud_soft', { gain: 0.3 + 0.5 * power, rate: vary(0.9) });
+    if (!a.play('kick_ball', { gain: 0.7 + 0.3 * power, rate: vary(1.0 - 0.06 * power) })) {
+      a.play(power > 0.5 ? 'kick' : 'kick_soft', { gain: 0.55 + 0.45 * power, rate: vary(1.05 - 0.12 * power) });
+      a.play('thud_soft', { gain: 0.3 + 0.5 * power, rate: vary(0.9) });
+      if (power > 0.9) a.play('grit', { gain: 0.22, rate: 0.55, at: 0.01 });
+    }
     // The bigger the pull, the more the street shakes under the boot.
     this.boom(0.25 + 0.7 * power);
-    if (power > 0.9) a.play('grit', { gain: 0.22, rate: 0.55, at: 0.01 });
   }
 
-  /** A soft tick for each step of the power ring, brightening as the pull tightens. */
+  /** A soft tick for each step of the power ring. */
   aimStep(step: number): void {
     this.audio.play('tap', { gain: step >= 10 ? 0.34 : 0.13, rate: 1.5 + step * 0.07, variant: 0 });
     if (step >= 10) {
       this.audio.play('glass_tap', { gain: 0.26, rate: 1.8, variant: 0 });
-      this.audio.tone({ freq: 880, glide: 1320, glideTime: 0.08, type: 'triangle', attack: 0.005, decay: 0.12, gain: 0.035, lowpass: 3000 });
     }
   }
 
@@ -113,7 +87,6 @@ export class SoundLibrary {
         ball(0.7);
         a.play('metal', { gain: 0.45 + 0.5 * s, rate: vary(0.72) });
         a.play('tin', { gain: 0.2 + 0.3 * s, rate: vary(0.6) });
-        this.alarm();
         break;
       case 'crate':
         ball(0.5);
@@ -122,6 +95,7 @@ export class SoundLibrary {
         break;
       case 'cat':
         a.play('thud_soft', { gain: 0.5 + 0.4 * s, rate: vary(1.1) });
+        this.meow();
         break;
       case 'tyre':
       case 'bumper':
@@ -137,24 +111,16 @@ export class SoundLibrary {
         a.play('sand', { gain: 0.3 + 0.3 * s, rate: vary(0.8) });
         break;
       default:
-        // Plaster and stone.
+        // Plaster, stone and walls.
         ball(1);
-        a.play('stone', { gain: 0.2 + 0.5 * s, rate: vary(0.9) });
+        a.play('stone', { gain: 0.2 + 0.5 * s, rate: vary(0.95) });
         if (s > 0.6) a.play('grit', { gain: 0.25 * s, at: 0.03 });
     }
-    // Weight under the hardest contacts. The ball's own thump is the voice; this is the floor.
-    if (s > 0.42 && surface !== 'cat') this.boom(0.12 + 0.62 * s, 0.003);
     // The musical part of a combo: every counted bounce climbs one note.
     if (bounce > 0) a.play('glass_tap', { gain: 0.3, rate: 0.6 * rung(bounce - 1), variant: 0, at: 0.01 });
   }
 
-  /** Two polite beeps of a car alarm. Electronic in life, so electronic here. */
-  private alarm(): void {
-    for (let i = 0; i < 2; i++) {
-      this.audio.tone({ freq: 620, type: 'triangle', at: 0.1 + i * 0.16, attack: 0.01, decay: 0.11, gain: 0.05, lowpass: 1800 });
-      this.audio.tone({ freq: 780, type: 'triangle', at: 0.1 + i * 0.16, attack: 0.01, decay: 0.11, gain: 0.035, lowpass: 1800 });
-    }
-  }
+
 
   /** What each mechanic sounds like when it does its thing. */
   mechanic(kind: MechEventKind, strength: number): void {
@@ -229,18 +195,13 @@ export class SoundLibrary {
       case 'scooter':
         a.play('tin', { gain: 0.6, rate: vary(0.9) });
         a.play('metal', { gain: 0.35, rate: vary(1.1) });
-        // The horn: electronic in life.
-        a.tone({ freq: 494, type: 'triangle', at: 0.06, attack: 0.01, decay: 0.09, gain: 0.08, lowpass: 2200 });
-        a.tone({ freq: 494, type: 'triangle', at: 0.19, attack: 0.01, decay: 0.12, gain: 0.08, lowpass: 2200 });
         break;
     }
   }
 
-  /** No recording of a cat yet, so Mimi's voice is still synthesised. */
+  /** Mimi's voice (funny Meow.mp3 clip). */
   private meow(at = 0): void {
-    const a = this.audio;
-    a.tone({ freq: 620, glide: 880, glideTime: 0.08, type: 'triangle', at, attack: 0.02, decay: 0.12, gain: 0.1, lowpass: 2600 });
-    a.tone({ freq: 880, glide: 520, glideTime: 0.22, type: 'triangle', at: at + 0.09, attack: 0.01, decay: 0.24, gain: 0.1, lowpass: 2400 });
+    this.audio.play('meow', { gain: 1, at });
   }
 
   /** A duel card picked up or put back. */
@@ -253,14 +214,20 @@ export class SoundLibrary {
   boost(kind: Boost): void {
     const a = this.audio;
     if (kind === 'fire') {
-      a.play('cloth', { gain: 1, rate: 0.5 });
-      a.play('sand', { gain: 0.8, rate: 0.55, at: 0.02 });
+      if (!a.play('boost_fire', { gain: 1 })) {
+        a.play('cloth', { gain: 1, rate: 0.5 });
+        a.play('sand', { gain: 0.8, rate: 0.55, at: 0.02 });
+      }
     } else if (kind === 'magnet') {
-      a.play('post', { gain: 0.6, rate: 0.5 });
-      a.play('bell', { gain: 0.25, rate: 2.5, variant: 0 });
+      if (!a.play('boost_magnet', { gain: 1 })) {
+        a.play('post', { gain: 0.6, rate: 0.5 });
+        a.play('bell', { gain: 0.25, rate: 2.5, variant: 0 });
+      }
     } else {
-      a.play('thud', { gain: 0.9, rate: 1.9 });
-      a.play('kick_soft', { gain: 0.6, rate: 1.6, at: 0.04 });
+      if (!a.play('boost_rubber', { gain: 1 })) {
+        a.play('thud', { gain: 0.9, rate: 1.9 });
+        a.play('kick_soft', { gain: 0.6, rate: 1.6, at: 0.04 });
+      }
     }
   }
 
@@ -354,5 +321,10 @@ export class SoundLibrary {
 
   ui(): void {
     this.audio.play('click', { gain: 0.7, variant: 0 });
+  }
+
+  /** Menu/UI button tap. */
+  click(): void {
+    this.audio.play('click', { gain: 0.85, variant: 0 });
   }
 }

@@ -59,7 +59,6 @@ export function boostFeedback(g: Game, dt: number): void {
     emberDebt -= 1;
     g.particles.embers(ball.renderX + g.aimDraw.x, ball.renderY + g.aimDraw.y, moving ? -ball.body.vx / speed : 0, moving ? -ball.body.vy / speed : -1, 1);
   }
-  if (moving) g.audio.swell(0.2, 0.1);
 }
 
 /**

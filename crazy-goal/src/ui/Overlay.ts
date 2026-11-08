@@ -77,6 +77,12 @@ function chapterOf(index: number): string {
   return CHAPTERS[CHAPTERS.length - 1].title;
 }
 
+let uiClick: (() => void) | null = null;
+/** Registers the sound played on menu/UI button taps. */
+export function setUiClick(fn: (() => void) | null): void {
+  uiClick = fn;
+}
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, textContent?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   node.className = className;
@@ -87,7 +93,10 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
 function button(className: string, label: string, onClick: () => void): HTMLButtonElement {
   const b = el('button', className, label);
   b.type = 'button';
-  b.addEventListener('click', onClick);
+  b.addEventListener('click', () => {
+    uiClick?.();
+    onClick();
+  });
   return b;
 }
 

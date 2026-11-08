@@ -24,13 +24,16 @@ export interface PlayOptions {
   variant?: number;
   /** Play on the music bus, which has its own volume. */
   music?: boolean;
+  /** Maximum playback duration in seconds (useful to cut long recordings short). */
+  duration?: number;
 }
 
 /** Where each recording sits in the sound sheet: [start, length] in seconds, per variant. */
 export type SoundIndex = Readonly<Record<string, readonly (readonly number[])[]>>;
 
-/** Music sits under the effects even with its slider at full. */
-const MUSIC_LEVEL = 0.55;
+/** Global level trims so the mix isn't harsh. */
+const MUSIC_LEVEL = 0.3;
+const SFX_LEVEL = 0.45;
 
 /**
  * Owns the AudioContext. Nearly every sound is a recording, cut out of one sound sheet that
@@ -48,11 +51,11 @@ export class AudioManager {
   private clips = new Map<string, AudioBuffer>();
   private clipData = new Map<string, ArrayBuffer>();
   private musicSrc: AudioBufferSourceNode | null = null;
+  private musicLoop: { name: string; variant: number } | null = null;
+  private active = new Map<string, Set<AudioBufferSourceNode>>();
   private musicBus: GainNode | null = null;
-  soundVolume = 0.8;
-  musicVolume = 0.5;
-  private swellAmp: GainNode | null = null;
-  private swellTone: BiquadFilterNode | null = null;
+  soundVolume = 0.3;
+  musicVolume = 0.2;
   muted = false;
 
   /**
@@ -80,6 +83,7 @@ export class AudioManager {
     ctx.decodeAudioData(data).then(
       (buffer) => {
         this.sheet = buffer;
+        this.startMusic();
       },
       () => {
         /* undecodable: stay quiet */
@@ -100,6 +104,49 @@ export class AudioManager {
       });
   }
 
+  /** Trims leading (and, for non-looping clips, trailing) silence so playback starts on the sound. */
+  private trimBuffer(buffer: AudioBuffer, name: string): AudioBuffer {
+    const threshold = 0.004;
+    const channels = buffer.numberOfChannels;
+    const len = buffer.length;
+    let start = 0;
+    let end = len - 1;
+    const scan = (from: number, step: number, limit: number): number => {
+      for (let i = from; step > 0 ? i <= limit : i >= limit; i += step) {
+        for (let c = 0; c < channels; c++) {
+          if (Math.abs(buffer.getChannelData(c)[i]) > threshold) return i;
+        }
+      }
+      return from;
+    };
+    start = scan(0, 1, len - 1);
+    const preroll = Math.min(start, Math.floor(buffer.sampleRate * 0.003));
+    start -= preroll;
+    if (name !== '__music') {
+      end = scan(len - 1, -1, start);
+      end = Math.min(len - 1, end + Math.floor(buffer.sampleRate * 0.02));
+    } else {
+      end = len - 1;
+    }
+    if (start <= 0 && end >= len - 1) return buffer;
+    const frames = Math.max(1, end - start + 1);
+    const ctx = this.ctx;
+    if (!ctx) return buffer;
+    const out = ctx.createBuffer(channels, frames, buffer.sampleRate);
+    for (let c = 0; c < channels; c++) {
+      out.getChannelData(c).set(buffer.getChannelData(c).subarray(start, end + 1));
+    }
+    // Short fade-in to avoid a clipped attack after trimming.
+    const rise = Math.min(frames, Math.floor(buffer.sampleRate * 0.004));
+    if (rise > 1) {
+      for (let c = 0; c < channels; c++) {
+        const d = out.getChannelData(c);
+        for (let i = 0; i < rise; i++) d[i] *= i / (rise - 1);
+      }
+    }
+    return out;
+  }
+
   private decodeClip(name: string): void {
     const ctx = this.ctx;
     const data = this.clipData.get(name);
@@ -107,7 +154,7 @@ export class AudioManager {
     this.clipData.delete(name);
     ctx.decodeAudioData(data.slice(0)).then(
       (buffer) => {
-        this.clips.set(name, buffer);
+        this.clips.set(name, this.trimBuffer(buffer, name));
         if (name === '__music') this.startMusic();
       },
       () => {
@@ -121,20 +168,47 @@ export class AudioManager {
     this.loadClip('__music', url);
   }
 
+  /** Loops a named sound (from the sheet or a clip) on the music bus as background music. */
+  loopMusic(name: string, variant = 0): void {
+    this.musicLoop = { name, variant };
+    this.startMusic();
+  }
+
   private startMusic(): void {
     const ctx = this.ctx;
-    const buffer = this.clips.get('__music');
-    if (!ctx || !this.musicBus || !buffer || this.musicSrc) return;
-    const src = ctx.createBufferSource();
-    src.buffer = buffer;
-    src.loop = true;
-    src.connect(this.musicBus);
-    try {
-      src.start();
-      this.musicSrc = src;
-    } catch {
-      /* can't start */
+    if (!ctx || !this.musicBus || this.musicSrc) return;
+    // Prefer an external music track, else loop a configured sheet/clip sound.
+    const ext = this.clips.get('__music');
+    if (ext) {
+      const src = ctx.createBufferSource();
+      src.buffer = ext;
+      src.loop = true;
+      src.connect(this.musicBus);
+      try { src.start(); this.musicSrc = src; } catch { /* can't start */ }
+      return;
     }
+    const loop = this.musicLoop;
+    if (!loop) return;
+    const clip = this.clips.get(loop.name);
+    if (clip) {
+      const src = ctx.createBufferSource();
+      src.buffer = clip;
+      src.loop = true;
+      src.connect(this.musicBus);
+      try { src.start(); this.musicSrc = src; } catch { /* can't start */ }
+      return;
+    }
+    const variants = this.index[loop.name];
+    if (!this.sheet || !variants || variants.length === 0) return;
+    const pick = Math.min(loop.variant, variants.length - 1);
+    const [start, length] = variants[pick];
+    const src = ctx.createBufferSource();
+    src.buffer = this.sheet;
+    src.loop = true;
+    src.loopStart = start;
+    src.loopEnd = start + length;
+    src.connect(this.musicBus);
+    try { src.start(0, start); this.musicSrc = src; } catch { /* can't start */ }
   }
 
   /** Plays one recording of a named sound (from the sheet or a standalone clip). Returns false if it could not. */
@@ -147,9 +221,12 @@ export class AudioManager {
       src.buffer = clip;
       src.playbackRate.value = o.rate ?? 1;
       const amp = ctx.createGain();
-      amp.gain.value = o.gain ?? 1;
+      amp.gain.value = (o.gain ?? 1) * (o.music ? 1 : SFX_LEVEL);
       src.connect(amp).connect(o.music && this.musicBus ? this.musicBus : this.master);
-      src.start(ctx.currentTime + (o.at ?? 0));
+      this.track(name, src);
+      const when = ctx.currentTime + (o.at ?? 0);
+      if (o.duration !== undefined) src.start(when, 0, Math.max(0.01, o.duration));
+      else src.start(when);
       return true;
     }
     const variants = this.index[name];
@@ -160,10 +237,36 @@ export class AudioManager {
     src.buffer = this.sheet;
     src.playbackRate.value = o.rate ?? 1;
     const amp = ctx.createGain();
-    amp.gain.value = o.gain ?? 1;
+    amp.gain.value = (o.gain ?? 1) * (o.music ? 1 : SFX_LEVEL);
     src.connect(amp).connect(o.music && this.musicBus ? this.musicBus : this.master);
-    src.start(ctx.currentTime + (o.at ?? 0), start, length);
+    this.track(name, src);
+    const dur = o.duration !== undefined ? Math.min(length, Math.max(0.01, o.duration)) : length;
+    src.start(ctx.currentTime + (o.at ?? 0), start, dur);
     return true;
+  }
+
+  private track(name: string, src: AudioBufferSourceNode): void {
+    let set = this.active.get(name);
+    if (!set) {
+      set = new Set();
+      this.active.set(name, set);
+    }
+    set.add(src);
+    src.onended = () => {
+      set.delete(src);
+      if (set.size === 0) this.active.delete(name);
+    };
+  }
+
+  /** Stops any currently playing instances of a named sound. */
+  stop(name: string): void {
+    const set = this.active.get(name);
+    if (!set) return;
+    for (const src of set) {
+      try { src.stop(); } catch { /* already stopped */ }
+      try { src.disconnect(); } catch { /* ignore */ }
+    }
+    this.active.delete(name);
   }
 
   /** Browsers only allow sound after a user gesture; call this from one. */
@@ -225,71 +328,9 @@ export class AudioManager {
     return this.ctx && this.master && !this.muted && this.ctx.state === 'running' ? this.ctx : null;
   }
 
-  /**
-   * A soft rush of air that is steered rather than triggered: call it every frame with how
-   * loud (0 to 1) and how bright (0 to 1) it should be. It glides there, and fades out by
-   * itself as soon as the calls stop.
-   */
-  swell(level: number, brightness: number): void {
-    const ctx = this.live;
-    if (!ctx || !this.master) return;
-    if (!this.swellAmp || !this.swellTone) {
-      // Two seconds of soft noise, looped: with no pitch of its own the loop cannot be heard.
-      const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      let last = 0;
-      for (let i = 0; i < data.length; i++) {
-        last = last * 0.94 + (Math.random() * 2 - 1) * 0.06;
-        data[i] = last * 6;
-      }
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      src.loop = true;
-      const tone = ctx.createBiquadFilter();
-      tone.type = 'bandpass';
-      tone.Q.value = 0.7;
-      const amp = ctx.createGain();
-      amp.gain.value = 0;
-      src.connect(tone).connect(amp).connect(this.master);
-      src.start();
-      this.swellAmp = amp;
-      this.swellTone = tone;
-    }
-    const now = ctx.currentTime;
-    const gain = this.swellAmp.gain;
-    gain.cancelScheduledValues(now);
-    gain.setTargetAtTime(level, now, 0.06);
-    gain.setTargetAtTime(0, now + 0.1, 0.09);
-    this.swellTone.frequency.setTargetAtTime(350 + 1100 * brightness, now, 0.08);
-  }
+  /** Synthetic SFX removed: assets only. */
+  swell(_level: number, _brightness: number): void {}
 
-  tone(o: ToneOptions): void {
-    const ctx = this.live;
-    if (!ctx || !this.master) return;
-    const t0 = ctx.currentTime + (o.at ?? 0);
-    const attack = o.attack ?? 0.004;
-    const end = t0 + attack + o.decay;
-
-    const osc = ctx.createOscillator();
-    osc.type = o.type ?? 'sine';
-    osc.frequency.setValueAtTime(o.freq, t0);
-    if (o.glide !== undefined) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.glide), t0 + (o.glideTime ?? o.decay));
-
-    const amp = ctx.createGain();
-    amp.gain.setValueAtTime(0.0001, t0);
-    amp.gain.linearRampToValueAtTime(o.gain, t0 + attack);
-    amp.gain.exponentialRampToValueAtTime(0.0001, end);
-
-    if (o.lowpass !== undefined) {
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = o.lowpass;
-      osc.connect(lp).connect(amp);
-    } else {
-      osc.connect(amp);
-    }
-    amp.connect(this.master);
-    osc.start(t0);
-    osc.stop(end + 0.03);
-  }
+  /** Synthetic SFX removed: assets only. */
+  tone(_o: ToneOptions): void {}
 }
