@@ -59,6 +59,48 @@ function drawMemos(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], x:
   }
 }
 
+/** Overtime: a red glow and steam off the head; in the final quarter his tie is on fire. */
+function drawFury(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], x: number, y: number, hx: number, hy: number, time: number): void {
+  const script = e.script instanceof ChairmanScript ? e.script : null;
+  if (!script || e.defeated || (e.phaseIndex < 1 && !script.finale)) return;
+  const final = script.finale;
+  const pulse = 0.5 + 0.5 * Math.sin(time * (final ? 11 : 6));
+  const glow = ctx.createRadialGradient(x, y - 36, 6, x, y - 36, 78);
+  glow.addColorStop(0, `rgba(255, 60, 40, ${(final ? 0.34 : 0.2) * (0.6 + 0.4 * pulse)})`);
+  glow.addColorStop(1, 'rgba(255, 40, 30, 0)');
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y - 36, 78, 0, TAU);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  // steam out of both ears
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < 3; k++) {
+      const t = (time * 1.4 + k / 3 + (side > 0 ? 0.17 : 0)) % 1;
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * (1 - t)})`;
+      ctx.beginPath();
+      ctx.arc(hx + side * 12 + side * t * 6, hy - 2 - t * 22, 2 + t * 4, 0, TAU);
+      ctx.fill();
+    }
+  }
+  if (final) {
+    // flames licking up his tie
+    for (let k = 0; k < 5; k++) {
+      const t = (time * 2.4 + k * 0.21) % 1;
+      const fx0 = x + Math.sin(k * 2.1 + time * 6) * 4;
+      const fy0 = y - 42 - t * 22;
+      ctx.fillStyle = k % 2 ? `rgba(255, 210, 63, ${0.9 * (1 - t)})` : `rgba(255, 90, 40, ${0.9 * (1 - t)})`;
+      ctx.beginPath();
+      ctx.moveTo(fx0 - 3.5, fy0 + 6);
+      ctx.quadraticCurveTo(fx0 - 1, fy0 - 4, fx0, fy0 - 9 - t * 6);
+      ctx.quadraticCurveTo(fx0 + 1, fy0 - 4, fx0 + 3.5, fy0 + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
 /** Out of office: loosened tie, a sweat drop or two, stars wheeling over his head. */
 function drawOutOfOffice(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], hx: number, hy: number, time: number): void {
   const script = e.script instanceof ChairmanScript ? e.script : null;
@@ -260,6 +302,7 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
     ctx.fillRect(-4, -14, 8, 9);
     ctx.restore();
   }
+  drawFury(ctx, e, x, b, hx, hy, time);
   drawOutOfOffice(ctx, e, hx, hy, time);
   drawMemos(ctx, e, x, b, time, true);
   ctx.restore();

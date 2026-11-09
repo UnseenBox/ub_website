@@ -4,7 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
-import { BLOCKED_CHIP, COPIERS, ChairmanScript, EXPOSED_BONUS } from '../entities/bossScripts/ChairmanScript';
+import { BLOCKED_CHIP, COPIERS, ChairmanScript, EXPOSED_BONUS, INTERRUPT_DAMAGE, RAM_DAMAGE } from '../entities/bossScripts/ChairmanScript';
 
 /**
  * Endless mode, headless. Same harness as the tutorial flow test —
@@ -406,23 +406,27 @@ it('chairman Q3 PROJECTIONS: the slices hurt, the gaps are safe', { timeout: 60_
   expect(script.stage).toBe('go');
   const bx = boss.body.x;
   const by = boss.body.y;
-  // find the middle of a gap and of a slice, 200px out
-  let gap = 0;
-  let slice = 0;
-  for (let a = 0; a < Math.PI * 2; a += 0.05) {
-    const inside = script.inPie(boss, bx + Math.cos(a) * 200, by + Math.sin(a) * 200);
-    if (!inside && !gap) gap = a;
-    if (inside && !slice) slice = a;
-  }
-  // centre of the first gap found: walk on to its middle
-  const gapMid = gap + 0.52;
+  // find the exact middle of a gap and of a slice, 200px out (the wheel starts at a random angle)
+  const insideAt = (a: number): boolean => script.inPie(boss, bx + Math.cos(a) * 200, by + Math.sin(a) * 200);
+  const middleOf = (want: boolean): number => {
+    let start = -1;
+    let prev = insideAt(0);
+    for (let a = 0.02; a < Math.PI * 4; a += 0.02) {
+      const now = insideAt(a);
+      if (start < 0 && now === want && prev !== want) start = a;
+      else if (start >= 0 && now !== want) return (start + a) / 2;
+      prev = now;
+    }
+    throw new Error('no such sector');
+  };
+  const gapMid = middleOf(false);
+  const sliceMid = middleOf(true);
   game.player.body.x = bx + Math.cos(gapMid) * 200;
   game.player.body.y = by + Math.sin(gapMid) * 200;
   game.player.invulnerable = 0;
   const hp = game.player.hp;
   run(game, 0.2);
   expect(game.player.hp).toBe(hp);
-  const sliceMid = slice + 0.52;
   game.player.body.x = bx + Math.cos(sliceMid) * 200;
   game.player.body.y = by + Math.sin(sliceMid) * 200;
   game.player.body.vx = game.player.body.vy = 0;
@@ -456,4 +460,68 @@ it('chairman: a stun interrupts whatever number he is doing', { timeout: 60_000 
   boss.stun = 1;
   run(game, 0.1);
   expect(script.busy).toBe(false);
+});
+
+it('chairman: a heavy hit during a wind-up interrupts the move and stuns him; a light one does not', { timeout: 60_000 }, () => {
+  const { game, boss, script } = calmChairman();
+  script.beginAttack(game, boss, 'replyAll', false);
+  run(game, 0.2);
+  const hp = boss.hp;
+  boss.damage(game, 3, PUSH); // too light to matter, and the memos filed it
+  expect(script.busy).toBe(true);
+  boss.damage(game, INTERRUPT_DAMAGE + 4, PUSH);
+  expect(script.busy).toBe(false);
+  expect(boss.stun).toBeGreaterThan(1);
+  expect(hp - boss.hp).toBeCloseTo((INTERRUPT_DAMAGE + 4) * 0.6);
+  expect(script.memos).toBe(script.maxMemos); // it got past them, it did not tear one
+
+  // mid-drift he cannot be interrupted, only hurt
+  boss.stun = 0;
+  script.beginAttack(game, boss, 'drift', false);
+  run(game, 1.2);
+  expect(script.stage).toBe('go');
+  boss.damage(game, 30, PUSH);
+  expect(script.busy).toBe(true);
+});
+
+it('chairman: lure the drift through his own photocopier and he rams it', { timeout: 60_000 }, () => {
+  const { game, boss, script } = calmChairman();
+  const copier = script.copier!;
+  boss.body.x = 380;
+  boss.body.y = 300;
+  boss.body.vx = boss.body.vy = 0;
+  copier.body.x = 560;
+  copier.body.y = 300;
+  game.player.body.x = 760;
+  game.player.body.y = 300;
+  const hp = boss.hp;
+  const copierHealth = copier.health;
+  script.beginAttack(game, boss, 'drift', false);
+  run(game, 2.4);
+  run(game, 0.1);
+  expect(copier.health).toBeLessThan(copierHealth);
+  expect(boss.stun).toBeGreaterThan(0.5);
+  expect(hp - boss.hp).toBeGreaterThanOrEqual(boss.maxHp * RAM_DAMAGE * 0.95);
+  expect(script.busy).toBe(false);
+});
+
+it('chairman: things you throw shred his paper planes', { timeout: 60_000 }, () => {
+  const { game, script } = calmChairman();
+  const ball = game.spawnObject('ball', 300, 300)!;
+  ball.thrownByPlayer = true;
+  ball.body.vx = 400;
+  ball.body.vy = 0;
+  script.planes.push({ x: 310, y: 300, vx: 0, vy: 0, life: 4 }, { x: 900, y: 500, vx: 0, vy: 0, life: 4 });
+  run(game, 0.05);
+  expect(script.planes.length).toBe(1);
+});
+
+it('chairman: below a quarter health it is the FINAL QUARTER', { timeout: 60_000 }, () => {
+  const { game, boss, script } = chairmanFight();
+  expect(script.finale).toBe(false);
+  boss.hp = boss.maxHp * 0.2;
+  run(game, 0.1);
+  expect(script.finale).toBe(true);
+  expect(boss.rageMult).toBeGreaterThanOrEqual(1.2);
+  expect(script.maxMemos).toBe(3);
 });

@@ -23,6 +23,11 @@ const TAU = Math.PI * 2;
  *   FORECLOSURE       he stamps SOLD on the things nearest you; unless you are holding one
  *                     when the timer runs out, it is gone. Throw it at him now.
  * Every attack shows you what it will do before it does it, and none of them is the same shape.
+ *
+ * AND IT GOES BOTH WAYS. A heavy hit during a wind-up INTERRUPTS the move and stuns him. Thrown
+ * things SHRED his paper planes. Lure the drift through the PHOTOCOPIER and he rams it: a crash that
+ * hurts him, stuns him and can wreck the machine for good. Below a quarter health it is the
+ * FINAL QUARTER: the whole deck, back to back. And he talks the entire time.
  */
 
 // ── armour tuning ──
@@ -52,12 +57,23 @@ const PIE_SPIN = 0.95;
 const STAMP_SECONDS = 2.6;
 const ATTACK_GAP = 3.6;
 const ATTACK_GAP_OVERTIME = 2.5;
+const ATTACK_GAP_FINALE = 1.3;
+/** A hit this hard while he is winding up breaks the move. */
+export const INTERRUPT_DAMAGE = 16;
+const INTERRUPT_STUN = 1.4;
+/** Share of his health a drift into the copier costs him. */
+export const RAM_DAMAGE = 0.1;
+const RAM_STUN = 2.6;
 
 export type AttackKind = 'drift' | 'replyAll' | 'pie' | 'foreclose';
 type Stage = 'windup' | 'go' | 'recover';
 
 interface Plane { x: number; y: number; vx: number; vy: number; life: number }
 interface Claim { object: PhysicsObject; left: number }
+
+function pickLine(lines: readonly string[]): string {
+  return lines[Math.floor(Math.random() * lines.length)]!;
+}
 
 /** What the copier is doing, for the drawing code to read (keyed by the object). */
 export interface CopierState {
@@ -105,6 +121,13 @@ export class ChairmanScript implements BossScript {
   private spiral = 0;
   pieRot = 0;
   private pieHitCooldown = 0;
+  /** Below a quarter health: the whole deck, back to back. */
+  finale = false;
+  private bypass = false;
+  private tauntAt = -9;
+  private tauntedHalf = false;
+  /** Set for one drift when it has already rammed the copier. */
+  private rammed = false;
   /** What the body should look like: read by the drawing code. */
   get pose(): 'idle' | 'spin' | 'drift' | 'reply' | 'pie' | 'stamp' | 'dizzy' {
     if (this.exposed) return 'dizzy';
@@ -127,8 +150,13 @@ export class ChairmanScript implements BossScript {
       if (!boss.aware) return;
       this.start(game, boss);
     }
-    const overtime = boss.phaseIndex >= 1;
+    if (!this.finale && boss.hp <= boss.maxHp * 0.25) this.startFinale(game, boss);
+    const overtime = boss.phaseIndex >= 1 || this.finale;
     this.maxMemos = overtime ? 3 : 2;
+    if (overtime && !this.tauntedHalf) {
+      this.tauntedHalf = true;
+      this.taunt(game, boss, 'Overtime is MANDATORY.', '#ff9f9f', true);
+    }
 
     this.updateArmour(game, boss, dt, overtime);
     this.updatePlanes(game, dt);
@@ -146,6 +174,12 @@ export class ChairmanScript implements BossScript {
   }
 
   filterDamage(game: Game, boss: Enemy, amount: number, cause: DamageCause): number {
+    if (this.bypass) return amount;
+    // A heavy hit while he is winding up breaks the move, and part of it gets past the memos.
+    if (this.attack && this.stage === 'windup' && !this.exposed && amount >= INTERRUPT_DAMAGE) {
+      this.interrupt(game, boss);
+      return amount * 0.6;
+    }
     if (this.exposed) return amount * EXPOSED_BONUS;
     // Dizzy after a drift: a clean opening.
     if (this.attack === 'drift' && this.stage === 'recover') return amount * 1.3;
@@ -182,6 +216,7 @@ export class ChairmanScript implements BossScript {
     }
     game.particles.burst('scrap', boss.body.x, boss.body.y - 40, 30, 380, { color: '#f4f1ea' });
     game.particles.burst('confetti', boss.body.x, boss.body.y - 40, 24, 320);
+    game.popup("I'll leave you... on read.", boss.body.x, boss.body.y - 132, '#ffffff', 20, 2.6);
   }
 
   // ───────────── the attack director ─────────────
@@ -214,28 +249,89 @@ export class ChairmanScript implements BossScript {
         game.fx.burst('QUICK REVIEW!', boss.body.x, boss.body.y - 96, 1.2, '#ff5a4e', true);
         game.audio.play('alarm', 0.5);
         this.aimDrift(game, boss);
+        this.rammed = false;
+        this.taunt(game, boss, pickLine(["Let's take this offline.", 'Per my last email...', 'Quick review?']));
         break;
       case 'replyAll':
         game.fx.burst('REPLY ALL!', boss.body.x, boss.body.y - 96, 1.25, '#7ee0ff', true);
         game.audio.play('alarm', 0.5);
+        this.taunt(game, boss, pickLine(['Reply ALL.', "Adding you to the thread!", 'See attached.']));
         break;
       case 'pie':
         game.fx.burst('Q3 PROJECTIONS!', boss.body.x, boss.body.y - 96, 1.3, '#ffd23f', true);
         game.audio.play('bossWalk', 1);
         this.pieRot = Math.random() * TAU;
         game.camera.addShake(0.25);
+        this.taunt(game, boss, pickLine(["Let's look at the numbers.", 'Slide 47 of 212.', 'Any questions? No.']));
         break;
       case 'foreclose':
         game.fx.burst('FORECLOSURE!', boss.body.x, boss.body.y - 96, 1.25, '#ff4d6d', true);
         game.audio.play('stamp', 0.9);
+        this.taunt(game, boss, pickLine(['Synergy needs sacrifices.', 'Assets: seized.', "It's nothing personal."]));
         break;
     }
     void overtime;
   }
 
+  /** A heavy hit caught him mid wind-up: the move is cancelled and he is stunned. */
+  private interrupt(game: Game, boss: Enemy): void {
+    const overtime = boss.phaseIndex >= 1 || this.finale;
+    this.endAttack(overtime);
+    this.gap = Math.max(this.gap, 1.8);
+    boss.stun = Math.max(boss.stun, INTERRUPT_STUN);
+    boss.squash = 1;
+    game.fx.burst('INTERRUPTED!', boss.body.x, boss.body.y - 100, 1.35, '#7ee0ff', true);
+    game.fx.ring(boss.body.x, boss.body.y, 8, 100, 0.4, 'rgba(126,224,255,0.9)', 4);
+    game.camera.addShake(0.3);
+    game.hitStop(0.08);
+    this.taunt(game, boss, 'I was MID-SENTENCE!', '#ffd6d6', true);
+  }
+
+  /** The chair slid into his own photocopier: it costs him health, stuns him and maybe kills the machine. */
+  private ram(game: Game, boss: Enemy): void {
+    const copier = this.copier;
+    if (!copier) return;
+    this.rammed = true;
+    const b = boss.body;
+    b.vx = 0;
+    b.vy = 0;
+    game.fx.burst('CRASH!', copier.body.x, copier.body.y - 60, 1.5, '#ffb347', true);
+    game.fx.ring(copier.body.x, copier.body.y, 10, 120, 0.5, 'rgba(255,179,71,0.9)', 5);
+    game.particles.burst('spark', copier.body.x, copier.body.y - 20, 22, 380, { color: '#ffd23f' });
+    game.particles.burst('scrap', copier.body.x, copier.body.y - 20, 18, 300, { color: '#f4f1ea' });
+    game.camera.addShake(0.6);
+    game.hitStop(0.14);
+    game.audio.play('explosion', 0.6);
+    copier.applyDamage(game, 45);
+    this.bypass = true;
+    boss.damage(game, boss.maxHp * RAM_DAMAGE, {
+      type: 'impact', source: copier, chain: null, label: 'his own copier', dirX: -this.driftDirX, dirY: -this.driftDirY,
+    });
+    this.bypass = false;
+    if (boss.defeated) return;
+    boss.stun = Math.max(boss.stun, RAM_STUN);
+    boss.squash = 1;
+    this.endAttack(boss.phaseIndex >= 1 || this.finale);
+    this.taunt(game, boss, 'That was NOT in the budget!', '#ffb347', true);
+  }
+
   private endAttack(overtime: boolean): void {
     this.attack = null;
-    this.gap = overtime ? ATTACK_GAP_OVERTIME : ATTACK_GAP;
+    this.gap = this.finale ? ATTACK_GAP_FINALE : overtime ? ATTACK_GAP_OVERTIME : ATTACK_GAP;
+  }
+
+  private startFinale(game: Game, boss: Enemy): void {
+    this.finale = true;
+    this.attack = null;
+    this.gap = 1.0;
+    boss.rageMult = Math.max(boss.rageMult, 1.2);
+    game.hud.banner('FINAL QUARTER', 'every attack, back to back', 2.6);
+    game.fx.burst('FINAL QUARTER!', boss.body.x, boss.body.y - 110, 1.5, '#ff4d4d', true);
+    game.fx.ring(boss.body.x, boss.body.y, 10, 160, 0.6, 'rgba(255,60,60,0.9)', 6);
+    game.fx.flash('#ff2e2e', 0.2);
+    game.camera.addShake(0.5);
+    game.audio.play('alarm', 1);
+    this.taunt(game, boss, 'NOBODY LEAVES THIS MEETING!', '#ff6b6b', true);
   }
 
   private nextStage(stage: Stage): void {
@@ -254,6 +350,13 @@ export class ChairmanScript implements BossScript {
     }
   }
 
+  /** He is a talker. Rate-limited so the room does not fill with speech; `force` for the big moments. */
+  private taunt(game: Game, boss: Enemy, line: string, color = '#fff3d6', force = false): void {
+    if (!force && game.time - this.tauntAt < 2.6) return;
+    this.tauntAt = game.time;
+    game.popup(line, boss.body.x, boss.body.y - 132, color, 19, 2.2);
+  }
+
   // ── QUICK REVIEW: spin up, then drift across the room bouncing off the walls ──
 
   private aimDrift(game: Game, boss: Enemy): void {
@@ -263,6 +366,10 @@ export class ChairmanScript implements BossScript {
     const d = Math.hypot(dx, dy) || 1;
     this.driftDirX = dx / d;
     this.driftDirY = dy / d;
+  }
+
+  private driftScale(boss: Enemy, overtime = boss.phaseIndex >= 1 || this.finale): number {
+    return this.finale ? 1.7 : overtime ? 1.35 : 1;
   }
 
   private runDrift(game: Game, boss: Enemy, dt: number, overtime: boolean): void {
@@ -284,7 +391,7 @@ export class ChairmanScript implements BossScript {
       return;
     }
     if (this.stage === 'go') {
-      const total = overtime ? DRIFT_TIME * 1.35 : DRIFT_TIME;
+      const total = DRIFT_TIME * this.driftScale(boss, overtime);
       b.vx = this.driftDirX * DRIFT_SPEED;
       b.vy = this.driftDirY * DRIFT_SPEED;
       // bounce off the walls
@@ -305,6 +412,12 @@ export class ChairmanScript implements BossScript {
       if (this.trailT <= 0) {
         this.trailT = 0.035;
         game.particles.burst('scrap', b.x, b.y - 8, 2, 120, { color: '#f4f1ea' });
+      }
+      // slide into his own copier: the player's best counter
+      const c = this.copier;
+      if (c && !this.copierDown && c.alive && !this.rammed && Math.hypot(c.body.x - b.x, c.body.y - b.y) < boss.type.radius + 54) {
+        this.ram(game, boss);
+        return;
       }
       // run you over
       const p = game.player;
@@ -394,11 +507,20 @@ export class ChairmanScript implements BossScript {
     if (this.planes.length === 0) return;
     const bounds = game.world.bounds;
     const p = game.player;
+    // anything the player has thrown that is still flying shreds the planes it meets
+    const flying = game.objects.filter((o) => o.alive && o.thrownByPlayer && o.body.speed() > 160);
     for (let i = this.planes.length - 1; i >= 0; i--) {
       const plane = this.planes[i]!;
       plane.x += plane.vx * dt;
       plane.y += plane.vy * dt;
       plane.life -= dt;
+      const shredder = flying.find((o) => Math.hypot(o.body.x - plane.x, o.body.y - plane.y) < o.body.boundR + 12);
+      if (shredder) {
+        this.planes.splice(i, 1);
+        game.particles.burst('scrap', plane.x, plane.y, 5, 140, { color: '#f4f1ea' });
+        if (Math.random() < 0.35) game.fx.burst('SHREDDED!', plane.x, plane.y - 18, 0.7, '#ffffff', false);
+        continue;
+      }
       const out = plane.x < bounds.x0 || plane.x > bounds.x1 || plane.y < bounds.y0 || plane.y > bounds.y1;
       if (plane.life <= 0 || out) {
         this.planes.splice(i, 1);
@@ -468,7 +590,7 @@ export class ChairmanScript implements BossScript {
     if (this.stage === 'windup') {
       if (this.stageT >= 0.7) {
         this.nextStage('go');
-        this.stampObjects(game, boss, overtime ? 4 : 3);
+        this.stampObjects(game, boss, this.finale ? 5 : overtime ? 4 : 3);
         game.camera.addShake(0.35);
         game.hitStop(0.06);
         game.audio.play('stamp', 1);
@@ -579,6 +701,7 @@ export class ChairmanScript implements BossScript {
     game.fx.ring(boss.body.x, boss.body.y, 10, 110, 0.5, 'rgba(255,210,63,0.9)', 5);
     game.camera.addShake(0.35);
     game.hitStop(0.08);
+    this.taunt(game, boss, pickLine(["I'm... on leave.", 'Is it Friday yet?', 'Who touched my memos?']), '#ffd6d6', true);
     if (this.copierDown) game.hud.banner('NO MORE MEMOS', 'hit him now', 2);
     else game.hud.banner('OUT OF OFFICE', 'hit him before the copier reloads him', 2.4);
   }
@@ -602,6 +725,7 @@ export class ChairmanScript implements BossScript {
     if (state) state.progress = 0;
     game.fx.burst('RELOADED!', boss.body.x, boss.body.y - 92, 1.0, '#7ee0ff', true);
     game.audio.play('stamp', 0.7);
+    this.taunt(game, boss, 'Back in the office.', '#bfefff', true);
     for (let i = 0; i < 10; i++) {
       const t = i / 9;
       game.particles.burst(
@@ -703,7 +827,7 @@ export class ChairmanScript implements BossScript {
     let y = b.y;
     let dx = this.driftDirX;
     let dy = this.driftDirY;
-    let left = DRIFT_SPEED * DRIFT_TIME * (boss.phaseIndex >= 1 ? 1.35 : 1);
+    let left = DRIFT_SPEED * DRIFT_TIME * this.driftScale(boss);
     ctx.lineJoin = 'round';
     for (let leg = 0; leg < 3 && left > 0; leg++) {
       let t = left;
@@ -738,6 +862,24 @@ export class ChairmanScript implements BossScript {
         ctx.lineTo(cx + dx * 4, cy + dy * 4);
         ctx.lineTo(cx - dx * 10 - dy * 14, cy - dy * 10 + dx * 14);
         ctx.stroke();
+      }
+      if (leg === 0 && this.copier && !this.copierDown && this.copier.alive) {
+        // is the copier in the way? then show the player the way to use that
+        const c = this.copier.body;
+        const along = Math.max(0, Math.min(t, (c.x - x) * dx + (c.y - y) * dy));
+        const off = Math.hypot(x + dx * along - c.x, y + dy * along - c.y);
+        if (off < 46) {
+          ctx.strokeStyle = `rgba(126, 224, 255, ${0.5 + 0.5 * pulse})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, 44, 0, TAU);
+          ctx.stroke();
+          ctx.fillStyle = '#7ee0ff';
+          ctx.font = 'bold 13px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('RAM IT!', c.x, c.y - 52);
+          ctx.textAlign = 'start';
+        }
       }
       left -= t;
       x = ex;
