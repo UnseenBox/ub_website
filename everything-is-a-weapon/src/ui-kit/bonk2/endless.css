@@ -134,6 +134,7 @@
   font-size: 0.62em;
   letter-spacing: 0.06em;
   color: var(--b2-ink, #1c1530);
+  text-shadow: none; /* the button's ink outline would swallow dark letters */
   background: var(--b2-lime, #b6f23a);
   border: 2px solid var(--b2-ink, #1c1530);
 }

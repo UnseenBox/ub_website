@@ -342,7 +342,9 @@
 
 .b2-lobby__diffbtn.is-active {
   background: var(--b2-lime);
-  color: var(--b2-ink);
+  /* White letters keep the kit's ink outline, like every other lime button. Dark letters inside
+     that dark outline turned into an unreadable black smear. */
+  color: var(--b2-white);
 }
 
 .b2-lobby__modetitle {
