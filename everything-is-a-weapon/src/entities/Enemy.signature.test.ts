@@ -99,10 +99,12 @@ it('piano spider actually plays a keyboard solo', () => {
 
 it('signatures change the room, boss by boss', () => {
   const game = boot();
+  // The Flusher (like the Chairman) has its own scripted fight, so the generic signature timer never runs.
   const flusher = ready(game, 'flusher');
   tick(game, 0.05);
-  expect(game.zones.zones.some((zone) => zone.zone === 'water'), 'flusher floods').toBe(true);
-  expect(flusher.signatureTimer).toBeGreaterThan(15);
+  expect(flusher.script, 'flusher has its own script').not.toBeNull();
+  // and it is surfing about the room, so take it out of the way of the bosses below
+  flusher.alive = false;
 
   ready(game, 'cables');
   tick(game, 0.05);

@@ -3,6 +3,7 @@ import type { DamageCause } from '../../core/types';
 import type { Enemy } from '../Enemy';
 import type { EnemyTypeId } from '../EnemyTypes';
 import { ChairmanScript } from './ChairmanScript';
+import { FlusherScript } from './FlusherScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -37,6 +38,7 @@ export interface BossScript {
 export function createBossScript(id: EnemyTypeId): BossScript | null {
   switch (id) {
     case 'chairman': return new ChairmanScript();
+    case 'flusher': return new FlusherScript();
     default: return null;
   }
 }

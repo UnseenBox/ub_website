@@ -348,12 +348,11 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'THE FLUSHER', bossBlurb: 'do not stand downstream.',
     signature: { name: 'WHIRLPOOL', sound: 'slams', effect: 'water_ring', trail: 'water' },
     death: { sound: 'slams', effect: 'water_ring' },
-    sucks: { radius: 240, pull: 850 },
-    slams: { radius: 135, damage: 1, cooldown: 7, spawnZone: { kind: 'water', radius: 65, ttl: 10 } },
-    hurls: { range: 440, cooldown: 4, windup: 0.7, spawn: 'plunger' },
+    // His fight lives in bossScripts/FlusherScript.ts (lid armour, whirlpool, geysers, plungers, tidal wave).
+    // The generic suck / slam / plunger-throw he used to share with other bosses are gone.
     phases: [
       {
-        below: 0.5, enrage: 1.25, shockwave: { radius: 160, damage: 1 },
+        below: 0.5, enrage: 1.2,
         announce: 'OVERFLOW',
       },
     ],

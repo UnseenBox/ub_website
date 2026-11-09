@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { FlusherScript, LID_ARMOUR } from '../entities/bossScripts/FlusherScript';
 import { BLOCKED_CHIP, COPIERS, ChairmanScript, EXPOSED_BONUS, INTERRUPT_DAMAGE, RAM_DAMAGE } from '../entities/bossScripts/ChairmanScript';
 
 /**
@@ -565,4 +566,139 @@ it('chairman entrance: untouchable while spinning in, a gavel bang, then the mee
   expect(boss!.aware).toBe(true);
   // the meeting opens with a drift, straight after the gavel
   expect(script.attack).toBe('drift');
+});
+
+function flusherFight(): { game: Game; boss: Game['enemies'][number]; script: FlusherScript } {
+  const game = boot();
+  game.playFrom(2);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'flusher');
+    if (boss && boss.script instanceof FlusherScript) {
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Flusher never arrived');
+}
+
+it('flusher: the lid shrugs hits off; things swallowed by the whirlpool hurt him and lift it', { timeout: 90_000 }, () => {
+  const { game, boss, script } = flusherFight();
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * LID_ARMOUR);
+  expect(script.lidClosed).toBe(true);
+
+  // throw the furniture in
+  boss.body.vx = boss.body.vy = 0;
+  const chair = game.spawnObject('chair', boss.body.x + 140, boss.body.y)!;
+  script.beginAttack(game, boss, 'vortex');
+  run(game, 1.3);
+  expect(script.stage).toBe('go');
+  const hp2 = boss.hp;
+  run(game, 2.2);
+  expect(chair.alive).toBe(false); // swallowed
+  expect(boss.hp).toBeLessThan(hp2);
+  expect(script.lidClosed).toBe(false);
+  const hp3 = boss.hp;
+  boss.damage(game, 10, PUSH); // lid up: full damage
+  expect(hp3 - boss.hp).toBeCloseTo(10);
+});
+
+it('flusher: the whirlpool drags you in', { timeout: 90_000 }, () => {
+  const { game, boss, script } = flusherFight();
+  const bounds = game.world.bounds;
+  boss.body.x = (bounds.x0 + bounds.x1) / 2;
+  boss.body.y = (bounds.y0 + bounds.y1) / 2;
+  boss.body.vx = boss.body.vy = 0;
+  game.player.body.x = boss.body.x - 230;
+  game.player.body.y = boss.body.y;
+  game.player.body.vx = game.player.body.vy = 0;
+  script.beginAttack(game, boss, 'vortex');
+  run(game, 1.15);
+  expect(script.stage).toBe('go');
+  const d0 = Math.hypot(game.player.body.x - boss.body.x, game.player.body.y - boss.body.y);
+  run(game, 0.8);
+  const d1 = Math.hypot(game.player.body.x - boss.body.x, game.player.body.y - boss.body.y);
+  expect(d1).toBeLessThan(d0 - 10);
+});
+
+it('flusher: geysers erupt on the circles they marked and hurt only those standing in them', { timeout: 90_000 }, () => {
+  const { game, boss, script } = flusherFight();
+  game.player.body.x = 400;
+  game.player.body.y = 300;
+  script.beginAttack(game, boss, 'geysers');
+  expect(script.geysers.length).toBeGreaterThanOrEqual(4);
+  // one is always right under you, and you do not move: it hurts
+  const hp = game.player.hp;
+  game.player.invulnerable = 0;
+  run(game, 1.7);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  // a second time, step away from every circle before it fires
+  script.beginAttack(game, boss, 'geysers');
+  run(game, 0.2);
+  const spot = { x: 0, y: 0 };
+  const bounds = game.world.bounds;
+  let best = -1;
+  for (let x = bounds.x0 + 60; x < bounds.x1 - 60; x += 40) {
+    for (let y = bounds.y0 + 60; y < bounds.y1 - 60; y += 40) {
+      const clear = Math.min(...script.geysers.map((g) => Math.hypot(g.x - x, g.y - y)));
+      if (clear > best) {
+        best = clear;
+        spot.x = x;
+        spot.y = y;
+      }
+    }
+  }
+  game.player.body.x = spot.x;
+  game.player.body.y = spot.y;
+  game.player.invulnerable = 0;
+  const hp2 = game.player.hp;
+  run(game, 1.6);
+  expect(game.player.hp).toBe(hp2);
+});
+
+it('flusher: plungers hit and slow you; the tidal wave has one safe gap', { timeout: 90_000 }, () => {
+  const { game, boss, script } = flusherFight();
+  game.player.body.x = boss.body.x - 300;
+  game.player.body.y = boss.body.y;
+  game.player.invulnerable = 0;
+  script.beginAttack(game, boss, 'plungers');
+  run(game, 3.2);
+  expect(game.player.slowTimer > 0 || game.player.hp < 99).toBe(true);
+
+  // wave: stand in the gap, nothing happens; stand outside it and you are hit
+  script.beginAttack(game, boss, 'wave');
+  const horiz = script.waveHoriz;
+  const gapAt = script.waveGapAt;
+  const bounds = game.world.bounds;
+  const px = horiz ? (bounds.x0 + bounds.x1) / 2 : gapAt;
+  const py = horiz ? gapAt : (bounds.y0 + bounds.y1) / 2;
+  game.player.body.x = px;
+  game.player.body.y = py;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  run(game, 4.5);
+  expect(game.player.hp).toBe(hp);
+});
+
+it('flusher entrance: untouchable while surfing in, then FLUSH! and the first geysers', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(2);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'flusher');
+  }
+  const script = boss!.script as FlusherScript;
+  expect(script.pose).toBe('surf');
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(10 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('geysers');
 });

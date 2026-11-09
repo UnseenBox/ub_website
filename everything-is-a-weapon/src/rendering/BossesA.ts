@@ -1,6 +1,7 @@
 import { INK } from '../core/constants';
 import { TAU } from '../core/math';
 import { ChairmanScript } from '../entities/bossScripts/ChairmanScript';
+import { FlusherScript } from '../entities/bossScripts/FlusherScript';
 import {
   blob, bolt, blink, brow, darken, eye, eyePair, fist, gloss, lighten, limb, lin, maw, paint, puffs, rad, raging, rrect, shadeBand, tentacle, wheel,
   type BossBody,
@@ -312,8 +313,18 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
 export const flusher: BossBody = (ctx, e, x, y, time, p) => {
   const { hw, hd, tone, fx, fy, windup } = p;
   const b = y + hd + 1;
-  const suck = e.sucking && !e.defeated;
+  const script = e.script instanceof FlusherScript ? e.script : null;
+  const pose = e.defeated ? 'idle' : script?.pose ?? 'idle';
+  const suck = pose === 'vortex' || (e.sucking && !e.defeated);
+  const lidShut = !!script && script.lidClosed && !e.defeated;
   const rage = raging(e);
+  if (pose === 'surf') {
+    // riding the surge: leaning into it
+    ctx.save();
+    ctx.translate(x, b);
+    ctx.rotate(0.12);
+    ctx.translate(-x, -b);
+  }
   const PORC = (a: number): CanvasGradient => lin(ctx, x - hw, 0, x + hw, 0, tone('#8aa3b8'), tone('#f6fbff'), tone('#b4c9d9'));
   // floor flange and bolts
   ctx.beginPath();
@@ -387,6 +398,25 @@ export const flusher: BossBody = (ctx, e, x, y, time, p) => {
     ctx.stroke();
   }
   gloss(ctx, x - hw * 0.6, b - 15, 3, 7, 0.4, 0.45);
+  if (lidShut) {
+    // the seat lid is down over the bowl: he shrugs hits off until something goes down it
+    ctx.beginPath();
+    ctx.ellipse(x, b - 31, hw + 2, 11.5, 0, 0, TAU);
+    paint(ctx, lin(ctx, x - hw, 0, x + hw, 0, tone('#c4d6e4'), tone('#ffffff'), tone('#c4d6e4')), 3);
+    ctx.beginPath();
+    ctx.ellipse(x, b - 31, hw - 8, 6.5, 0, 0, TAU);
+    ctx.strokeStyle = 'rgba(70, 96, 120, 0.5)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+  } else if (script) {
+    // lid up: the bowl glows
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(80, 220, 255, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(x, b - 30, hw - 4, 8, 0, 0, TAU);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
   // plunger arm and brush arm
   limb(ctx, x - hw + 2, b - 28, x - hw - 11, b - 20 + Math.sin(e.walkPhase) * 2, 4.6, tone('#b4c9d9'));
   limb(ctx, x - hw - 11, b - 20, x - hw - 18, b - 40, 2.4, tone('#c79a5a'));
@@ -402,6 +432,7 @@ export const flusher: BossBody = (ctx, e, x, y, time, p) => {
   ctx.closePath();
   paint(ctx, tone('#e23d3a'), 2.4);
   gloss(ctx, x + hw + 13, b - 54 - lift, 2.4, 1.4, -0.3, 0.5);
+  if (pose === 'surf') ctx.restore();
 };
 
 /** The Sofa Kraken: a chesterfield that grew opinions. Cushion-tipped tentacles, stalk eyes, a seam for a mouth. */
