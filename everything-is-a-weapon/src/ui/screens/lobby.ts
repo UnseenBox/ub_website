@@ -16,6 +16,8 @@ export interface MenuActions {
   continueRun(): void;
   /** Starts today's daily room. */
   daily(): void;
+  /** Starts an endless run. */
+  endless(): void;
   store(): void;
   settings(): void;
   hero(id: HeroId): void;
@@ -147,7 +149,13 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   playIcon.querySelector('path')?.setAttribute('fill', 'currentColor');
   playIcon.querySelector('path')?.setAttribute('stroke', 'none');
   playBtn.append(playIcon, el('span', 'b2-lobby__playlabel', 'PLAY'));
-  playRow.append(playBtn);
+  const endlessBtn = el('button', 'b2-btn b2-btn--blue b2-lobby__endless');
+  endlessBtn.type = 'button';
+  const bestFloor = game.save.data.endlessBestFloor;
+  endlessBtn.append(el('span', 'b2-lobby__playlabel', 'ENDLESS'));
+  if (bestFloor > 0) endlessBtn.append(el('span', 'b2-lobby__endlessbest', `BEST: FLOOR ${bestFloor}`));
+  endlessBtn.addEventListener('click', () => actions.endless());
+  playRow.append(playBtn, endlessBtn);
 
   // ── navigation ──────────────────────────────────────────────────────────
   const nav = el('nav', 'b2-nav b2-lobby__nav');

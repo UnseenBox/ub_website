@@ -56,6 +56,10 @@ export interface SaveData {
   version: number;
   discoveries: string[];
   highScore: number;
+  /** Endless mode records: deepest floor reached, best total score, runs started. */
+  endlessBestFloor: number;
+  endlessBestScore: number;
+  endlessRuns: number;
   /** Longest chain reaction ever pulled off, across all rooms. */
   bestChain: number;
   /** Scrap salvaged from defeated intruders; buys permanent abilities. */
@@ -123,6 +127,9 @@ function defaults(): SaveData {
     version: SAVE_VERSION,
     discoveries: [],
     highScore: 0,
+    endlessBestFloor: 0,
+    endlessBestScore: 0,
+    endlessRuns: 0,
     bestChain: 0,
     scrap: 0,
     abilities: [],
@@ -319,6 +326,9 @@ function sanitize(raw: unknown): SaveData {
     version: SAVE_VERSION,
     discoveries: [...new Set(stringArray(data.discoveries))],
     highScore: Math.max(0, finite(data.highScore, 0)),
+    endlessBestFloor: Math.max(0, Math.floor(finite(data.endlessBestFloor, 0))),
+    endlessBestScore: Math.max(0, Math.floor(finite(data.endlessBestScore, 0))),
+    endlessRuns: Math.max(0, Math.floor(finite(data.endlessRuns, 0))),
     bestChain: Math.max(0, Math.floor(finite(data.bestChain, 0))),
     scrap: Math.max(0, Math.floor(finite(data.scrap, 0))),
     abilities: [...new Set(stringArray(data.abilities).filter((id) => ABILITY_IDS.includes(id)))],

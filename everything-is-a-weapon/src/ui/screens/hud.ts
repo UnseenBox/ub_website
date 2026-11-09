@@ -565,7 +565,7 @@ export class HUD {
     }
 
     const room = game.room;
-    const roomText = room.daily ? 'D' : String(room.index + 1);
+    const roomText = game.endless ? String(game.endless.floor) : room.daily ? 'D' : String(room.index + 1);
     if (roomText !== last.room) {
       last.room = roomText;
       this.roomNum.textContent = roomText;

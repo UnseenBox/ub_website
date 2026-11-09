@@ -1,9 +1,11 @@
 import type { Game, GameState, GameUi, RoomSummary } from '../core/Game';
+import type { EndlessSummary } from '../gameplay/Endless';
 import { HUD } from './HUD';
 import { buildMainMenu } from './MainMenu';
 import { buildPauseMenu, buildSettings } from './PauseMenu';
 import { buildResults } from './ResultsScreen';
 import { buildStore } from './screens/store';
+import { buildEndlessOver } from './screens/endless';
 
 /**
  * Phones get the whole screen and, where the browser allows it, a landscape lock.
@@ -117,6 +119,23 @@ export class UI implements GameUi {
     );
   }
 
+  showEndless(summary: EndlessSummary): void {
+    const game = this.game;
+    this.show(
+      buildEndlessOver(summary, {
+        again: () => {
+          this.hud.reset();
+          game.playEndless();
+        },
+        continueWithReward: () =>
+          void game.continueWithReward().then((revived) => {
+            if (!revived && game.state === 'failed') this.showEndless({ ...summary, canContinue: false, adMissed: true });
+          }),
+        home: () => game.toMenu(),
+      }),
+    );
+  }
+
   private show(screen: HTMLElement | null): void {
     this.screens.replaceChildren();
     this.screens.classList.toggle('active', screen !== null);
@@ -141,6 +160,11 @@ export class UI implements GameUi {
           this.hud.reset();
           goFullscreenOnPhones(game);
           game.continueRun();
+        },
+        endless: () => {
+          this.hud.reset();
+          goFullscreenOnPhones(game);
+          game.playEndless();
         },
         daily: () => {
           this.hud.reset();

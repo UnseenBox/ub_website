@@ -3,6 +3,7 @@ export type AnalyticsEventName =
   | 'room_start'
   | 'room_complete'
   | 'room_fail'
+  | 'endless_over'
   | 'object_grab'
   | 'object_throw'
   | 'object_break'

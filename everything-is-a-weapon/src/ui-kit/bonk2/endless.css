@@ -1,0 +1,115 @@
+/* Endless mode: the run-over card and the menu entry. */
+
+.b2-endless__panel {
+  width: min(92vw, 420px);
+}
+
+.b2-endless__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.b2-endless__reached {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+}
+
+.b2-endless__reachedlabel {
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.b2-endless__floor {
+  font-size: clamp(40px, 9vh, 64px);
+  line-height: 1;
+  color: var(--b2-yellow, #ffd23f);
+  text-shadow: 0 3px 0 var(--b2-ink);
+}
+
+.b2-endless__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.b2-endless__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.b2-endless__row.is-new {
+  background: color-mix(in srgb, var(--b2-lime, #b6f23a) 28%, transparent);
+}
+
+.b2-endless__label {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.b2-endless__value {
+  font-size: 18px;
+}
+
+.b2-endless__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+@media (max-height: 520px) {
+  .b2-endless__panel {
+    width: min(94vw, 560px);
+  }
+  .b2-endless__body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 16px;
+    align-items: start;
+  }
+  .b2-endless__reached {
+    grid-column: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .b2-endless__stats {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .b2-endless__actions {
+    grid-column: 1;
+  }
+  .b2-endless__row {
+    padding: 2px 8px;
+  }
+  .b2-endless__value {
+    font-size: 15px;
+  }
+}
+
+/* menu: the ENDLESS button sits beside PLAY */
+.b2-lobby__play {
+  gap: 8px;
+}
+
+.b2-lobby__endless {
+  width: min(100%, 440px);
+  gap: 10px;
+}
+
+.b2-lobby__endlessbest {
+  opacity: 0.85;
+  font-size: 0.7em;
+  letter-spacing: 0.06em;
+}

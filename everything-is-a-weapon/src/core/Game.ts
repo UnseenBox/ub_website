@@ -20,6 +20,10 @@ import { NavField } from '../gameplay/Navigation';
 import { placePickups, updateRage } from '../gameplay/Pickups';
 import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
+import {
+  BOSS_BONUS, FLOOR_BONUS, endlessBoss, endlessIndex, endlessRoom, healAfter, isBossFloor, newEndlessRun,
+  type EndlessRun, type EndlessSummary,
+} from '../gameplay/Endless';
 import { campaignBossType, RoomManager, type RoomRuntime } from '../gameplay/RoomManager';
 import { roomOutcome } from '../gameplay/RoomOutcome';
 import { endRun, recordClear, recordFail, sanitizeRun, startRun } from '../gameplay/Run';
@@ -131,6 +135,8 @@ export interface GameUi {
   unlock(kicker: string, title: string, sub: string): void;
   stateChanged(state: GameState): void;
   showSummary(summary: RoomSummary): void;
+  /** The end-of-run card for endless mode. */
+  showEndless(summary: EndlessSummary): void;
   /** Slams a rubber stamp across the screen ("CLEARED"). */
   stamp(text: string): void;
   /** The incident arrival card. */
@@ -162,7 +168,7 @@ const FAIL_DELAY = 1.4;
 const MAX_OBJECTS = 90;
 
 const NULL_UI: GameUi = {
-  banner() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, stamp() {}, incoming() {}, frame() {},
+  banner() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, showEndless() {}, stamp() {}, incoming() {}, frame() {},
 };
 
 export class Game {
@@ -213,6 +219,8 @@ export class Game {
   cinema = 0;
 
   private scoreAtRoomStart = 0;
+  /** The endless run in progress (null in the campaign, the daily and the menu). */
+  endless: EndlessRun | null = null;
   private hitStopLeft = 0;
   private slowLeft = 0;
   private slowScale = 1;
@@ -509,6 +517,11 @@ export class Game {
 
   /** One incident per non-tutorial room; survival rooms get only the heat surge. */
   private incidentFor(def: RoomDefinition, index: number, daily: boolean): IncidentSpec | null {
+    if (this.endless) {
+      const boss = endlessBoss(this.endless.floor);
+      if (boss) return headlinerSpec(boss);
+      return def.objective?.kind === 'survive' ? null : enforcerSpec(index);
+    }
     if (daily) return def.objective?.kind === 'survive' ? null : enforcerSpec(0);
     const boss = campaignBossType(index, def);
     if (boss) return headlinerSpec(boss);
@@ -519,6 +532,8 @@ export class Game {
   private enterRoom(def: RoomDefinition, index: number, daily: boolean): void {
     const incident = this.incidentFor(def, index, daily);
     this.loadRoom(def, index, daily, incident);
+    // Endless: hearts carry over from floor to floor.
+    if (this.endless) this.player.hp = Math.max(1, Math.min(this.player.maxHp, this.endless.hp));
     this.heat.reset(this.room);
     this.tutorialSkippedThisRoom = false;
     // Room 1 teaches until it has been sat through once; a replay names its lesson.
@@ -528,7 +543,7 @@ export class Game {
     const firstVisit = !daily && this.save.data.deepest <= index;
     if (def.tutorial && !daily) this.tutorial.begin(lesson);
     else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight, def.teaser);
-    this.portal.setContext({ room: daily ? 'daily' : index + 1, hero: this.hero });
+    this.portal.setContext({ room: this.endless ? `endless-${this.endless.floor}` : daily ? 'daily' : index + 1, hero: this.hero });
     this.setState('playing');
     this.funnelT0 = performance.now();
     this.funnelInput = this.funnelGrab = this.funnelThrow = this.funnelHit = false;
@@ -544,10 +559,106 @@ export class Game {
       const goal = def.objective?.kind === 'survive' ? `survive ${def.objective.seconds}s` : briefing.objective;
       this.hud.banner(`${index + 1} · ${def.name}`, goal, 3);
     }
-    this.analytics.track('room_start', { room: index + 1, daily, generated: index >= this.rooms.handcraftedCount });
+    if (this.endless) {
+      const boss = isBossFloor(this.endless.floor);
+      this.hud.banner(
+        `FLOOR ${this.endless.floor}`,
+        boss ? 'BOSS FLOOR' : `${this.score.score.toLocaleString('en-US')} pts`,
+        2.4,
+      );
+    }
+    this.analytics.track('room_start', { room: index + 1, daily, generated: index >= this.rooms.handcraftedCount, endless: this.endless?.floor ?? 0 });
+  }
+
+  // ───────────── endless ─────────────
+
+  /** Starts a fresh endless run: generated floors, carried hearts, a boss every fifth floor. */
+  playEndless(): void {
+    const save = this.save.data;
+    save.endlessRuns++;
+    this.save.write();
+    this.endless = newEndlessRun(Math.random() * 0x7fffffff, this.difficultyMods.playerHp + maxHealthBonus(save), {
+      bestFloor: save.endlessBestFloor,
+      bestScore: save.endlessBestScore,
+    });
+    this.scoreAtRoomStart = 0;
+    this.tutorialSkippedThisRoom = false;
+    this.consecutiveFailures = 0;
+    this.enterEndlessFloor();
+  }
+
+  private enterEndlessFloor(): void {
+    const run = this.endless;
+    if (!run) return;
+    this.enterRoom(endlessRoom(run), endlessIndex(run.floor), true);
+  }
+
+  /** A floor is cleared: bank it, heal a little, and go straight on. */
+  private async advanceEndless(): Promise<void> {
+    const run = this.endless;
+    if (!run) return;
+    const save = this.save.data;
+    const stats = this.score.stats;
+    const boss = isBossFloor(run.floor);
+    this.score.score += FLOOR_BONUS * run.floor + (boss ? BOSS_BONUS : 0);
+    const scrap = stats.scrap + (boss ? 25 : 0);
+    save.scrap += scrap;
+    run.scrap += scrap;
+    if (boss) run.bosses++;
+    save.totalKills += stats.kills;
+    save.totalChains += stats.chainEvents;
+    save.totalHazardKills += stats.hazardKills;
+    save.bestChain = Math.max(save.bestChain, stats.bestChain);
+    save.endlessBestFloor = Math.max(save.endlessBestFloor, run.floor);
+    save.endlessBestScore = Math.max(save.endlessBestScore, this.score.score);
+    run.hp = Math.min(this.player.maxHp, this.player.hp + healAfter(run.floor));
+    run.floor++;
+    this.scoreAtRoomStart = this.score.score;
+    this.save.write();
+    this.setState('cleared');
+    await this.ads.onRoomComplete();
+    if (this.endless !== run || this.state !== 'cleared') return;
+    this.enterEndlessFloor();
+  }
+
+  /** The hero went down: bank what was earned and show the run's result. */
+  private endEndless(): void {
+    const run = this.endless;
+    if (!run) return;
+    const save = this.save.data;
+    const stats = this.score.stats;
+    save.scrap += stats.scrap;
+    run.scrap += stats.scrap;
+    save.bestChain = Math.max(save.bestChain, stats.bestChain);
+    const reached = run.floor;
+    const score = this.score.score;
+    // The floor you died on counts as reached, not cleared.
+    const newBestFloor = reached - 1 > run.bestFloorAtStart;
+    const newBestScore = score > run.bestScoreAtStart;
+    save.endlessBestScore = Math.max(save.endlessBestScore, score);
+    this.save.write();
+    this.analytics.track('endless_over', { floor: reached, score, bosses: run.bosses });
+    const summary: EndlessSummary = {
+      floor: reached,
+      score,
+      scrap: run.scrap,
+      bosses: run.bosses,
+      bestFloor: save.endlessBestFloor,
+      bestScore: save.endlessBestScore,
+      newBestFloor,
+      newBestScore,
+      canContinue: !this.revived && this.ads.isAvailable('rewarded'),
+    };
+    this.setState('failed');
+    this.hud.showEndless(summary);
   }
 
   restartRoom(): void {
+    // There are no retries in endless: restarting is a new run.
+    if (this.endless) {
+      this.playEndless();
+      return;
+    }
     this.lessonFrom = this.tutorial.resume;
     this.enterRoom(this.room.def, this.room.index, this.room.daily);
   }
@@ -617,6 +728,7 @@ export class Game {
   }
 
   toMenu(): void {
+    this.endless = null;
     if (this.save.data.runOffer.length > 0) {
       this.save.data.runOffer = [];
       this.save.write();
@@ -893,6 +1005,10 @@ export class Game {
       this.funnelClear = true;
       this.analytics.track('first_clear', { ms: Math.round(performance.now() - this.funnelT0) });
     }
+    if (this.endless) {
+      void this.advanceEndless();
+      return;
+    }
     // Finishing the last door for the first time is the one moment worth confetti.
     const lastRoom = !this.room.daily && this.room.index === FINAL_ROOM_INDEX;
     const firstTime = this.save.data.deepest <= this.room.index;
@@ -913,6 +1029,10 @@ export class Game {
     this.audio.play('fail', 1);
     this.bus.emit({ type: 'ROOM_FAIL', room: this.room.index });
     this.analytics.track('room_fail', { room: this.room.index + 1, failures: this.consecutiveFailures });
+    if (this.endless) {
+      this.endEndless();
+      return;
+    }
     const summary = this.summarize(false, 0);
     this.setState('failed');
     this.hud.showSummary(summary);
