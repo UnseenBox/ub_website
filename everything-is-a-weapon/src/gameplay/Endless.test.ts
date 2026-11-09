@@ -37,3 +37,17 @@ it('later floors bring bigger crews', () => {
   const late = [28, 29, 30].reduce((n, f) => n + crew(f), 0);
   expect(late).toBeGreaterThan(early);
 });
+
+it('no generated crew stacks more of one dangerous kind than the cap allows', async () => {
+  const { crewCap } = await import('./RoomGenerator');
+  for (const floor of [3, 8, 15, 30, 40]) {
+    for (let seed = 1; seed <= 40; seed++) {
+      const crew = endlessRoom({ ...newEndlessRun(seed * 7919, 5), floor }).enemies;
+      const depth = Math.min(40, floor);
+      const counts = new Map<string, number>();
+      for (const e of crew) counts.set(e.type, (counts.get(e.type) ?? 0) + 1);
+      // The "always one heavyweight" top-up may add a single kaboom/hurler/helmet beyond a cap.
+      for (const [type, n] of counts) expect(n).toBeLessThanOrEqual(crewCap(type as never, depth) + 1);
+    }
+  }
+});

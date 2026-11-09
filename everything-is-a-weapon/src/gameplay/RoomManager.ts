@@ -1,4 +1,4 @@
-import { bossSoften } from './Pacing';
+import { bossSoften, depthHpScale } from './Pacing';
 import { WALL } from '../core/constants';
 import type { Game } from '../core/Game';
 import { hashString } from '../core/Random';
@@ -261,7 +261,7 @@ export class RoomManager {
         // Depths crew gets tougher with depth (Headliners stay exactly as designed).
         if (!spec.incident && room.index >= game.rooms.handcraftedCount) {
           const depth = depthFor(room.index);
-          enemy.hp = Math.round(enemy.hp * Math.min(1.6, 1 + 0.07 * depth));
+          enemy.hp = Math.round(enemy.hp * depthHpScale(depth));
         }
       }
       // The campaign difficulty leans on the room: tougher intruders hit harder and

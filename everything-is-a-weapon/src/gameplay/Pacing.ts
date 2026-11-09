@@ -38,9 +38,20 @@ export function earlyEase(step: number): Ease {
  * opening stretch. Shorter fights mean less time in their reach. Only the early campaign
  * rooms are softened: the same bosses return at full strength deep in endless.
  */
-const SOFTENED: Readonly<Record<string, number>> = { piano: 0.55, mom: 0.5, house: 0.6 };
+const SOFTENED_EARLY: Readonly<Record<string, number>> = { piano: 0.55, mom: 0.5, house: 0.6 };
 const SOFTEN_UNTIL = 10;
+/** Late bosses that killed bots of every style far more often than the bosses around them. */
+const SOFTENED_ALWAYS: Readonly<Record<string, number>> = { cables: 0.55, cooker: 0.7, vacuumasaurus: 0.8, junk: 0.85 };
 
 export function bossSoften(type: string, step: number): number {
-  return step <= SOFTEN_UNTIL ? (SOFTENED[type] ?? 1) : 1;
+  const early = step <= SOFTEN_UNTIL ? SOFTENED_EARLY[type] : undefined;
+  return early ?? SOFTENED_ALWAYS[type] ?? 1;
+}
+
+/**
+ * Generated crews toughen steadily with depth. This used to stop growing at depth 9 (room 17),
+ * which made rooms 17-49 one long plateau; it now keeps rising until depth 29.
+ */
+export function depthHpScale(depth: number): number {
+  return Math.min(2.3, 1 + 0.045 * Math.max(0, depth));
 }

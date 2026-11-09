@@ -110,6 +110,34 @@ const ENEMY_COST: ReadonlyArray<readonly [EnemyTypeId, number]> = [
   ['electric', 2.5], ['nested', 2.5], ['trolley', 2.5], ['hurler', 2.5], ['heavy', 3], ['bulwark', 3],
 ];
 
+/**
+ * How many of one kind a generated crew may hold. The balance bot showed the walls were not
+ * crews of seven, they were crews with four heavies, three bulwarks or two hurlers at once.
+ * The caps relax with depth so the late rooms still grow teeth.
+ */
+/** The most movers one generated room sends: bigger crews deep in, not just tougher ones. */
+export function crewSize(depth: number): number {
+  return depth >= 35 ? 8 : depth >= 22 ? 7 : 6;
+}
+
+export function crewCap(type: EnemyTypeId, depth: number): number {
+  switch (type) {
+    case 'heavy':
+    case 'bulwark':
+      return depth >= 36 ? 3 : 2;
+    case 'hurler':
+    case 'trolley':
+    case 'kaboom':
+      return depth >= 25 ? 2 : 1;
+    case 'shield':
+    case 'electric':
+    case 'nested':
+      return depth >= 20 ? 3 : 2;
+    default:
+      return 6;
+  }
+}
+
 function weighted<T>(rng: Rng, items: ReadonlyArray<readonly [T, number]>): T {
   let total = 0;
   for (const [, w] of items) total += w;
@@ -543,9 +571,12 @@ export function generateRoom(
   const hasBoss = (index + 1) % 3 === 0;
   const survive = !hasBoss && rng.chance(0.35) ? Math.min(90, 45 + depth * 5) : null;
   let delay = 1.8;
-  while (budget >= 1 && enemies.length < 6) {
-    const affordable = ENEMY_COST.filter(([, cost]) => cost <= budget);
+  const have = new Map<EnemyTypeId, number>();
+  while (budget >= 1 && enemies.length < crewSize(depth)) {
+    const affordable = ENEMY_COST.filter(([id, cost]) => cost <= budget && (have.get(id) ?? 0) < crewCap(id, depth));
+    if (affordable.length === 0) break;
     const [type, cost] = rng.pick(affordable);
+    have.set(type, (have.get(type) ?? 0) + 1);
     budget -= cost;
     // Survival rooms trickle in across the whole clock.
     enemies.push({ type, delay: survive ? 1.8 + rng.next() * Math.max(4, survive - 8) : delay });

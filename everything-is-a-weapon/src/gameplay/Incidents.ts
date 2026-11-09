@@ -59,8 +59,10 @@ export function enforcerSpec(index: number): IncidentSpec {
     name: entry.name,
     line: entry.line,
     baseType: entry.type,
-    hpScale: Math.min(3, 2.2 + depth * 0.1),
-    speedScale: 1.15,
+    // Softened after balance-bot sweeps: at 2.2-3x health and +15% speed the enforcer on top of a
+    // full crew was the common factor in the rooms that beat every style of bot.
+    hpScale: Math.min(2.6, 1.8 + depth * 0.05),
+    speedScale: 1.08,
   };
 }
 

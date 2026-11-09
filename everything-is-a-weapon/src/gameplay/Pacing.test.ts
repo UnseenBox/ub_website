@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { EASE_UNTIL, FULL, bossSoften, earlyEase } from './Pacing';
+import { EASE_UNTIL, FULL, bossSoften, depthHpScale, earlyEase } from './Pacing';
 
 it('the tutorial and everything from the end of the ramp is full strength', () => {
   expect(earlyEase(1)).toEqual(FULL);
@@ -26,4 +26,13 @@ it('only the early campaign copies of the outlier bosses are softened', () => {
   expect(bossSoften('mom', 8)).toBeLessThan(1);
   expect(bossSoften('mom', 35)).toBe(1);
   expect(bossSoften('chairman', 2)).toBe(1);
+  expect(bossSoften('cables', 25)).toBeLessThan(1);
+});
+
+it('crew toughness keeps rising with depth up to a cap', () => {
+  expect(depthHpScale(0)).toBe(1);
+  expect(depthHpScale(9)).toBeLessThan(depthHpScale(20));
+  expect(depthHpScale(20)).toBeGreaterThan(1.8);
+  expect(depthHpScale(35)).toBeGreaterThan(depthHpScale(20));
+  expect(depthHpScale(80)).toBe(2.3);
 });

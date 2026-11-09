@@ -67,6 +67,8 @@ interface Profile { dodge: boolean; kite: boolean; charge: number; }
 const PROFILES: Record<string, Profile> = {
   casual: { dodge: false, kite: false, charge: 0.45 },
   decent: { dodge: true, kite: true, charge: 0.4 },
+  rusher: { dodge: true, kite: false, charge: 0.3 },
+  patient: { dodge: true, kite: true, charge: 0.55 },
 };
 
 interface BotState { charging: boolean; chargeT: number; dodgeCd: number; }
@@ -149,11 +151,14 @@ function botStep(game: Game, st: BotState, profile: Profile, dt: number): void {
   if (d < 90 + target.body.boundR) raw.primaryPresses++;
 }
 
-interface Result { label: string; cleared: boolean; died: boolean; seconds: number; heartsLost: number; enemies: number; hp: number; }
+interface Result { crew: string; label: string; cleared: boolean; died: boolean; seconds: number; heartsLost: number; enemies: number; hp: number; }
 
 function playRoom(game: Game, label: string, profile: Profile): Result {
   const st: BotState = { charging: false, chargeT: 0, dodgeCd: 0 };
   const startHp = game.player.hp;
+  const counts = new Map<string, number>();
+  for (const spec of game.room.pending) counts.set(spec.type, (counts.get(spec.type) ?? 0) + 1);
+  const crewSummary = [...counts].map(([t, n]) => `${n}${t}`).join(',');
   const enemies = game.room.pending.length + game.enemies.length;
   let lowest = game.player.hp;
   const steps = Math.round(CAP / FIXED_DT);
@@ -168,7 +173,7 @@ function playRoom(game: Game, label: string, profile: Profile): Result {
   const cleared = game.room.cleared || game.state === 'cleared';
   const died = !game.player.alive || game.state === 'failed';
   return {
-    label, cleared: cleared && !died, died, seconds: Math.round(game.room.elapsed),
+    crew: crewSummary, label, cleared: cleared && !died, died, seconds: Math.round(game.room.elapsed),
     heartsLost: Math.round((startHp - lowest) * 10) / 10, enemies, hp: game.player.hp,
   };
 }
@@ -208,7 +213,7 @@ it.skipIf(!RUN)('balance sweep', { timeout: 3_600_000 }, () => {
     const r = playRoom(game, label, profile);
     rows.push(r);
     console.log(
-      `BAL ${MODE} ${SKILL} ${label.padEnd(9)} crew ${String(r.enemies).padStart(2)}  ${r.cleared ? 'CLEAR' : r.died ? 'DIED ' : 'TIMEOUT'}  ${String(r.seconds).padStart(3)}s  hearts lost ${r.heartsLost}`,
+      `BAL ${MODE} ${SKILL} ${label.padEnd(9)} crew ${String(r.enemies).padStart(2)}  ${r.cleared ? 'CLEAR' : r.died ? 'DIED ' : 'TIMEOUT'}  ${String(r.seconds).padStart(3)}s  hearts lost ${r.heartsLost}  [${r.crew}]`,
     );
   }
   const cleared = rows.filter((r) => r.cleared).length;

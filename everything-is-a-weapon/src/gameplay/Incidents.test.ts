@@ -21,20 +21,20 @@ describe('Incidents', () => {
     expect(spec.line.length).toBeGreaterThan(0);
   });
 
-  it('enforcerSpec(0) is the Foreman at 2.2 HP', () => {
+  it('enforcerSpec(0) is the Foreman at 1.8 HP', () => {
     const spec = enforcerSpec(0);
     expect(spec.kind).toBe('enforcer');
     expect(spec.name).toBe('THE FOREMAN');
     expect(spec.baseType).toBe('heavy');
-    expect(spec.hpScale).toBeCloseTo(2.2);
+    expect(spec.hpScale).toBeCloseTo(1.8);
   });
 
-  it('enforcerSpec(7) is 2.2', () => {
-    expect(enforcerSpec(7).hpScale).toBeCloseTo(2.2);
+  it('enforcerSpec(7) is 1.8', () => {
+    expect(enforcerSpec(7).hpScale).toBeCloseTo(1.8);
   });
 
-  it('enforcerSpec(20) caps at 3.0', () => {
-    expect(enforcerSpec(20).hpScale).toBe(3);
+  it('enforcerSpec(40) caps at 2.6', () => {
+    expect(enforcerSpec(40).hpScale).toBe(2.6);
   });
 
   it('releaseIncident sets a walk-in delay and marks the room', () => {
