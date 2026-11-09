@@ -4,8 +4,16 @@ const MAX_SHAKE_OFFSET = 13;
 const SHAKE_DECAY = 1.9;
 const HUD_MARGIN_TOP = 58;
 const VIEW_PADDING = 18;
-/** Below this zoom the room is too small to play (phones), so the camera zooms in and follows instead. */
+/** Below this zoom the room is too small to play, so the camera zooms in and follows instead. */
 const MIN_PLAYABLE_SCALE = 0.72;
+/**
+ * Short (landscape phone) screens: the whole room must stay visible because enemies and hazards
+ * off-screen are unfair. Tighter margins, and only follow when the room would be tinier than this.
+ */
+const COMPACT_HEIGHT = 480;
+const COMPACT_HUD_MARGIN_TOP = 34;
+const COMPACT_VIEW_PADDING = 6;
+const COMPACT_MIN_PLAYABLE_SCALE = 0.4;
 
 /**
  * Fits the whole room on screen at any aspect ratio and owns every kind of screen
@@ -35,6 +43,8 @@ export class Camera {
   /** True when the whole room does not fit at a playable size and the view tracks the player. */
   following = false;
   private snap = true;
+  private hudMarginTop = HUD_MARGIN_TOP;
+  private viewPadding = VIEW_PADDING;
 
   // What is actually on screen this frame: the resting centre plus any dramatic push-in.
   private viewX = 0;
@@ -60,14 +70,18 @@ export class Camera {
   }
 
   private fit(): void {
-    const viewW = this.roomW + WALL * 2 + VIEW_PADDING * 2;
-    const viewH = this.roomH + WALL * 2 + VIEW_PADDING * 2 + HUD_MARGIN_TOP;
+    const compact = this.height < COMPACT_HEIGHT;
+    this.hudMarginTop = compact ? COMPACT_HUD_MARGIN_TOP : HUD_MARGIN_TOP;
+    this.viewPadding = compact ? COMPACT_VIEW_PADDING : VIEW_PADDING;
+    const minScale = compact ? COMPACT_MIN_PLAYABLE_SCALE : MIN_PLAYABLE_SCALE;
+    const viewW = this.roomW + WALL * 2 + this.viewPadding * 2;
+    const viewH = this.roomH + WALL * 2 + this.viewPadding * 2 + this.hudMarginTop;
     const fitScale = Math.min(this.width / viewW, this.height / viewH);
-    this.following = fitScale < MIN_PLAYABLE_SCALE;
-    this.scale = this.following ? MIN_PLAYABLE_SCALE : fitScale;
+    this.following = fitScale < minScale;
+    this.scale = this.following ? minScale : fitScale;
     if (!this.following) {
       this.centerX = this.roomW / 2;
-      this.centerY = this.roomH / 2 - HUD_MARGIN_TOP / 2 + 6;
+      this.centerY = this.roomH / 2 - this.hudMarginTop / 2 + 6;
     }
     this.viewX = this.centerX;
     this.viewY = this.centerY;
@@ -78,10 +92,10 @@ export class Camera {
     if (!this.following) return;
     const halfW = this.width / (2 * this.scale);
     const halfH = this.height / (2 * this.scale);
-    const edge = WALL + VIEW_PADDING;
+    const edge = WALL + this.viewPadding;
     const minX = -edge + halfW;
     const maxX = this.roomW + edge - halfW;
-    const minY = -edge - HUD_MARGIN_TOP + halfH;
+    const minY = -edge - this.hudMarginTop + halfH;
     const maxY = this.roomH + edge - halfH;
     const tx = minX > maxX ? this.roomW / 2 : Math.min(maxX, Math.max(minX, x));
     const ty = minY > maxY ? (minY + maxY) / 2 : Math.min(maxY, Math.max(minY, y));

@@ -10,6 +10,7 @@ const MOVE_ZONE = 0.42;
  *   right thumb  — tap to grab the highlighted object; while carrying, hold to charge and
  *                  release to throw. Drag to aim by hand, or just tap/hold and the throw
  *                  goes at the nearest intruder.
+ *   action button — big GRAB/THROW button, bottom right: the same gesture as the right thumb, with a target
  *   buttons      — DODGE, and DROP while carrying
  * The adapter only fills in RawInput; gameplay never knows a touch screen is involved.
  */
@@ -87,6 +88,25 @@ export class TouchInput implements InputSource {
       );
       root.append(node);
     };
+    // The big action button: GRAB when empty-handed, THROW when carrying (label comes from CSS).
+    // Hold to charge, release to throw at the nearest intruder; drag from it to aim by hand.
+    const act = document.createElement('button');
+    act.type = 'button';
+    act.className = 'touch-btn act';
+    act.setAttribute('aria-label', 'Grab or throw');
+    act.addEventListener(
+      'pointerdown',
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.pointerType !== 'touch') return;
+        this.enterTouchMode();
+        const p = this.local(event);
+        this.beginAim(event.pointerId, p.x, p.y);
+      },
+      { signal: this.abort.signal },
+    );
+    root.append(act);
     button('dodge', 'DODGE', () => {
       if (this.raw) this.raw.dodgePresses++;
     });
@@ -128,17 +148,24 @@ export class TouchInput implements InputSource {
       this.moveY = p.y;
       this.place(this.moveBase, p.x, p.y, true);
       this.knob(this.moveKnob, 0, 0);
-    } else if (this.aimId < 0) {
-      this.aimId = event.pointerId;
-      this.aimX = p.x;
-      this.aimY = p.y;
-      raw.aimIdle = true;
-      raw.primaryDown = true;
-      raw.primaryPresses++;
-      this.place(this.aimBase, p.x, p.y, true);
-      this.knob(this.aimKnob, 0, 0);
+    } else {
+      this.beginAim(event.pointerId, p.x, p.y);
     }
   };
+
+  /** Starts the grab / charge-and-throw gesture. Shared by the right half of the screen and the big action button. */
+  private beginAim(pointerId: number, x: number, y: number): void {
+    const raw = this.raw;
+    if (!raw || this.aimId >= 0) return;
+    this.aimId = pointerId;
+    this.aimX = x;
+    this.aimY = y;
+    raw.aimIdle = true;
+    raw.primaryDown = true;
+    raw.primaryPresses++;
+    this.place(this.aimBase, x, y, true);
+    this.knob(this.aimKnob, 0, 0);
+  }
 
   private onMove = (event: PointerEvent): void => {
     const raw = this.raw;

@@ -2831,28 +2831,53 @@ body.touch.playing .touch-ui {
   box-shadow: 0 1px 0 var(--ink);
 }
 
+.touch-btn.act {
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  right: calc(18px + env(safe-area-inset-right));
+  width: 96px;
+  height: 96px;
+  font-size: 19px;
+  background: var(--yellow);
+  opacity: 1;
+}
+
+.touch-btn.act::before {
+  content: 'GRAB';
+}
+
+body.carrying .touch-btn.act::before {
+  content: 'THROW';
+}
+
+body.carrying .touch-btn.act {
+  background: var(--red);
+  color: var(--paper);
+}
+
+/* dodge sits just left of the action button, in the same thumb arc */
 .touch-btn.dodge {
   bottom: calc(18px + env(safe-area-inset-bottom));
-  width: 74px;
-  height: 74px;
+  right: calc(126px + env(safe-area-inset-right));
+  width: 68px;
+  height: 68px;
   background: var(--cyan);
 }
 
 .touch-btn.drop {
-  bottom: calc(104px + env(safe-area-inset-bottom));
-  right: calc(24px + env(safe-area-inset-right));
-  width: 58px;
-  height: 58px;
+  bottom: calc(118px + env(safe-area-inset-bottom));
+  right: calc(30px + env(safe-area-inset-right));
+  width: 56px;
+  height: 56px;
   background: var(--paper);
   display: none;
 }
 
 /* one POWER button for every bought ability: fires the first one ready */
 .touch-btn.power {
-  bottom: calc(174px + env(safe-area-inset-bottom));
-  right: calc(24px + env(safe-area-inset-right));
-  width: 58px;
-  height: 58px;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  right: calc(104px + env(safe-area-inset-right));
+  width: 56px;
+  height: 56px;
   font-size: 12px;
   background: var(--yellow);
   display: none;
