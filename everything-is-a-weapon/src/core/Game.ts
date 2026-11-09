@@ -1526,6 +1526,18 @@ export class Game {
         this.fx.flash('#ffffff', 0.12);
         this.hitStop(0.11);
       }
+      // The player's very first knockout (room 1's throw lesson) is the game's promise kept:
+      // a bigger freeze, a shockwave, a name on the screen and more confetti than any later one.
+      if (this.tutorial.step === 'throw') {
+        this.fx.burst('FIRST BONK!', b.x, b.y - 52, 2.2, '#ffd23f', true);
+        this.fx.ring(b.x, b.y, 12, 150, 0.55, 'rgba(255,210,63,0.95)', 6);
+        this.fx.flash('#ffffff', 0.3);
+        this.camera.addShake(0.3);
+        this.camera.punchZoom(0.06);
+        this.particles.burst('confetti', b.x, b.y - 14, 44, 520);
+        this.particles.ringBurst('star', b.x, b.y - 20, 18, 320, 34);
+        this.hitStop(0.16);
+      }
       this.analytics.track('enemy_defeat', {
         enemy: e.enemy.type.id,
         cause: e.cause.type,

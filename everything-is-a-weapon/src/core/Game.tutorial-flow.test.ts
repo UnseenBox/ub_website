@@ -124,6 +124,25 @@ it('boot → first visit → tutorial room lives and advances lessons honestly',
   expect(game.tutorial.step).toBe('power');
 });
 
+it('only the first knockout gets the FIRST BONK! treatment', () => {
+  const game = new Game(fakeCanvas());
+  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
+  game.start();
+  const burst = vi.spyOn(game.fx, 'burst');
+  const first = () => burst.mock.calls.filter((c) => c[0] === 'FIRST BONK!').length;
+
+  const grabbable = game.objects.find((o) => o.alive && o.def.throwable && !o.def.consume)!;
+  game.bus.emit({ type: 'OBJECT_GRABBED', object: grabbable });
+  waitFor(game, () => game.enemies.length > 0, 8);
+  sweep(game);
+  expect(first()).toBe(1);
+
+  // Every later knockout in the lesson plan is an ordinary one.
+  waitFor(game, () => game.tutorial.step === 'power', 8);
+  waitFor(game, () => { sweep(game); return game.tutorial.step === 'pet'; }, 20);
+  expect(first()).toBe(1);
+});
+
 it('a player who does nothing still gets the first mover within ~10s', () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
