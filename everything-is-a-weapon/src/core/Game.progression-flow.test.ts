@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, expect, it, vi } from 'vitest';
 import { todayKey, yesterdayKey } from '../gameplay/Campaign';
-import { EDGE_BY_ID } from '../gameplay/Edges';
 import { Game } from './Game';
 
 function stub2d(): CanvasRenderingContext2D {
@@ -147,7 +146,7 @@ it('makes a daily replay pure practice', () => {
   expect(game.save.data.totalKills).toBe(kills);
 });
 
-it('grants the day-7 starting Edge instead of a draft', () => {
+it('day 7 of the daily streak pays the big prize and earns a streak freeze (Edges are gone)', () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
@@ -156,13 +155,14 @@ it('grants the day-7 starting Edge instead of a draft', () => {
   game.playDaily();
   game.score.score = 100;
   const daily = summarize(game, true);
-  expect(daily.dailyRareEdgeGranted).toBe(true);
-  expect(game.save.data.dailyRareEdge).toBe(true);
+  expect(daily.dailyBonus).toBe(150);
+  expect(daily.dailyFreezeEarned).toBe(true);
+  expect(daily.dailyRareEdgeGranted).toBe(false);
+  expect(game.save.data.dailyFreezes).toBe(1);
 
+  // Nothing is carried into the next campaign run any more.
   game.playFrom(0);
-  expect(game.save.data.dailyRareEdge).toBe(false);
-  const granted = game.save.data.runBoosts.map((id) => EDGE_BY_ID[id as keyof typeof EDGE_BY_ID]?.rarity);
-  expect(granted.some((rarity) => rarity === 'rare' || rarity === 'legendary')).toBe(true);
+  expect(game.save.data.runBoosts).toEqual([]);
 });
 
 it('drops a stale persisted Edge offer on load', () => {

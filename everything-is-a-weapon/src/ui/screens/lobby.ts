@@ -155,7 +155,32 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   endlessBtn.append(el('span', 'b2-lobby__playlabel', 'ENDLESS'));
   if (bestFloor > 0) endlessBtn.append(el('span', 'b2-lobby__endlessbest', `BEST: FLOOR ${bestFloor}`));
   endlessBtn.addEventListener('click', () => actions.endless());
-  playRow.append(playBtn, endlessBtn);
+  // DAILY: today's shared room, with the week's streak row (ready = a prize is waiting).
+  const view = game.dailyView();
+  const dailyBtn = el('button', `b2-btn b2-btn--lavender b2-lobby__daily${view.doneToday ? ' is-done' : ' is-ready'}`);
+  dailyBtn.type = 'button';
+  dailyBtn.setAttribute(
+    'aria-label',
+    view.doneToday
+      ? `Daily challenge done. Streak ${view.streak} days. Practice again, no reward`
+      : `Daily challenge ready. Day ${view.nextDay} of 7 reward. Streak ${view.streak} days`,
+  );
+  const dailyTop = el('span', 'b2-lobby__dailytop');
+  dailyTop.append(
+    el('span', 'b2-lobby__playlabel', 'DAILY'),
+    el('span', 'b2-lobby__dailychip', view.doneToday ? '✓' : `DAY ${view.nextDay}`),
+  );
+  const pips = el('span', 'b2-lobby__pips');
+  pips.setAttribute('aria-hidden', 'true');
+  for (let i = 1; i <= 7; i++) {
+    const pip = el('span', `b2-lobby__pip${i <= view.pips ? ' is-on' : ''}${i === 3 || i === 7 ? ' is-big' : ''}`);
+    pips.append(pip);
+  }
+  dailyBtn.append(dailyTop, pips);
+  dailyBtn.addEventListener('click', () => actions.daily());
+  const subRow = el('div', 'b2-lobby__subrow');
+  subRow.append(endlessBtn, dailyBtn);
+  playRow.append(playBtn, subRow);
 
   // ── navigation ──────────────────────────────────────────────────────────
   const nav = el('nav', 'b2-nav b2-lobby__nav');

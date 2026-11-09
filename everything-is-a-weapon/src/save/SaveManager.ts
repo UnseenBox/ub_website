@@ -85,6 +85,8 @@ export interface SaveData {
   /** Daily-challenge return hook (new in version 3). */
   lastDaily: string;
   dailyStreak: number;
+  /** One missed day forgiven (earned on day 7 of a streak, at most one kept). */
+  dailyFreezes: number;
   /** Deepest room cleared, 1-based (new in version 4). */
   deepest: number;
   /** A campaign/Depths run is paused, not ended (new in version 5). */
@@ -148,6 +150,7 @@ function defaults(): SaveData {
     bossesBeaten: 0,
     lastDaily: '',
     dailyStreak: 0,
+    dailyFreezes: 0,
     deepest: 0,
     runActive: false,
     runFloor: 0,
@@ -348,6 +351,7 @@ function sanitize(raw: unknown): SaveData {
     bossesBeaten: Math.max(0, Math.floor(finite(data.bossesBeaten, 0))),
     lastDaily: typeof data.lastDaily === 'string' ? data.lastDaily : '',
     dailyStreak: Math.max(0, Math.floor(finite(data.dailyStreak, 0))),
+    dailyFreezes: Math.min(1, Math.max(0, Math.floor(finite(data.dailyFreezes, 0)))),
     deepest: Math.max(0, Math.floor(finite(data.deepest, 0))),
     runActive,
     runFloor: Math.max(0, Math.floor(finite(data.runFloor, 0))),

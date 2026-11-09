@@ -3,6 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
+import { todayKey } from '../gameplay/Campaign';
 
 /**
  * Endless mode, headless. Same harness as the tutorial flow test —
@@ -191,4 +192,64 @@ it('heroes: locked ones cannot be picked, goals unlock them for good, perks appl
   game.setHero('gran');
   game.playEndless();
   expect(game.player.maxHp).toBe(game.difficultyMods.playerHp + 1);
+});
+
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return todayKey(d);
+}
+
+it('daily streak: day 3 pays scrap and opens a hero; replaying the same day is practice', { timeout: 120_000 }, () => {
+  const game = boot();
+  const shown = vi.spyOn(game.hud, 'showSummary');
+  game.save.data.lastDaily = daysAgo(1);
+  game.save.data.dailyStreak = 2;
+  const scrap = game.save.data.scrap;
+  expect(game.dailyView()).toMatchObject({ doneToday: false, streak: 2, nextDay: 3 });
+
+  game.playDaily();
+  clearUntil(game, () => game.state === 'cleared', 150);
+  const first = shown.mock.calls[shown.mock.calls.length - 1]![0];
+  expect(first.daily).toBe(true);
+  expect(first.dailyBonus).toBe(40);
+  expect(first.dailyGift).toContain('NEW HERO');
+  expect(game.save.data.dailyStreak).toBe(3);
+  expect(game.save.data.heroesUnlocked).toContain('flatmate');
+  expect(game.save.data.scrap).toBeGreaterThanOrEqual(scrap + 40);
+  expect(game.dailyView()).toMatchObject({ doneToday: true, streak: 3, nextDay: 4 });
+
+  game.toMenu();
+  game.playDaily();
+  clearUntil(game, () => game.state === 'cleared', 150);
+  const again = shown.mock.calls[shown.mock.calls.length - 1]![0];
+  expect(again.dailyReplay).toBe(true);
+  expect(again.dailyBonus).toBe(0);
+  expect(game.save.data.dailyStreak).toBe(3);
+});
+
+it('daily streak: a freeze forgives one missed day, and day 7 earns the next one', { timeout: 120_000 }, () => {
+  const game = boot();
+  const shown = vi.spyOn(game.hud, 'showSummary');
+  game.save.data.lastDaily = daysAgo(2);
+  game.save.data.dailyStreak = 6;
+  game.save.data.dailyFreezes = 1;
+  game.playDaily();
+  clearUntil(game, () => game.state === 'cleared', 150);
+  const summary = shown.mock.calls[shown.mock.calls.length - 1]![0];
+  expect(game.save.data.dailyStreak).toBe(7);
+  expect(summary.dailyFreezeUsed).toBe(true);
+  expect(summary.dailyFreezeEarned).toBe(true);
+  expect(summary.dailyBonus).toBe(150);
+  expect(game.save.data.dailyFreezes).toBe(1);
+});
+
+it('daily streak: a long gap resets to day 1', { timeout: 120_000 }, () => {
+  const game = boot();
+  game.save.data.lastDaily = daysAgo(5);
+  game.save.data.dailyStreak = 6;
+  expect(game.dailyView()).toMatchObject({ streak: 0, nextDay: 1 });
+  game.playDaily();
+  clearUntil(game, () => game.state === 'cleared', 150);
+  expect(game.save.data.dailyStreak).toBe(1);
 });

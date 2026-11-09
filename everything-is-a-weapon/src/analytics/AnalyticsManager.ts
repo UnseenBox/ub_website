@@ -5,6 +5,7 @@ export type AnalyticsEventName =
   | 'room_fail'
   | 'endless_over'
   | 'hero_unlock'
+  | 'daily_complete'
   | 'object_grab'
   | 'object_throw'
   | 'object_break'

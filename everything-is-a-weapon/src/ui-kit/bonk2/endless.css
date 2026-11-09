@@ -98,18 +98,121 @@
   }
 }
 
-/* menu: the ENDLESS button sits beside PLAY */
+/* menu: ENDLESS and DAILY share a row under PLAY */
 .b2-lobby__play {
   gap: 8px;
 }
 
-.b2-lobby__endless {
+.b2-lobby__subrow {
+  display: flex;
+  gap: 8px;
   width: min(100%, 440px);
-  gap: 10px;
+}
+
+.b2-lobby__endless,
+.b2-lobby__daily {
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .b2-lobby__endlessbest {
   opacity: 0.85;
   font-size: 0.7em;
   letter-spacing: 0.06em;
+}
+
+.b2-lobby__dailytop {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.b2-lobby__dailychip {
+  padding: 1px 7px;
+  font-size: 0.62em;
+  letter-spacing: 0.06em;
+  color: var(--b2-ink, #1c1530);
+  background: var(--b2-lime, #b6f23a);
+  border: 2px solid var(--b2-ink, #1c1530);
+}
+
+.b2-lobby__daily.is-done .b2-lobby__dailychip {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.b2-lobby__pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.b2-lobby__pip {
+  width: 9px;
+  height: 9px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--b2-ink, #1c1530);
+}
+
+.b2-lobby__pip.is-big {
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+}
+
+.b2-lobby__pip.is-on {
+  background: var(--b2-lime, #b6f23a);
+}
+
+.b2-lobby__daily.is-ready {
+  animation: b2-daily-ready 1.6s ease-in-out infinite;
+}
+
+@keyframes b2-daily-ready {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b2-lobby__daily.is-ready {
+    animation: none;
+  }
+}
+
+/* Short screens (landscape phones): keep PLAY, the mode row and the nav all on screen. */
+@media (max-height: 520px) {
+  .b2-lobby__subrow .b2-btn {
+    min-height: 40px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: 17px;
+    gap: 2px;
+  }
+  .b2-lobby__pips {
+    gap: 3px;
+  }
+  .b2-lobby__pip {
+    width: 6px;
+    height: 6px;
+    border-width: 1px;
+  }
+  .b2-lobby__pip.is-big {
+    width: 8px;
+    height: 8px;
+  }
+  .b2-lobby__dailychip {
+    padding: 0 5px;
+    border-width: 1px;
+  }
+}
+
+/* Very short screens: the hero art is too small to matter; room for the buttons matters more. */
+@media (max-height: 420px) {
+  .b2-lobby__hero {
+    display: none;
+  }
+  .b2-lobby__playbtn {
+    min-height: 42px;
+  }
 }

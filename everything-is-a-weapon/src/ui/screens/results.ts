@@ -257,7 +257,9 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
   if (summary.daily) {
     notes.append(noteLine('DAILY STREAK', `${summary.dailyStreak} ${summary.dailyStreak === 1 ? 'DAY' : 'DAYS'}`, 'daily'));
     if (summary.dailyBonus > 0) notes.append(noteLine('DAILY BONUS', `+${summary.dailyBonus} SCRAP`, 'daily'));
-    if (summary.dailyRareEdgeGranted) notes.append(noteLine('LEGENDARY EDGE', 'UNLOCKED', 'daily'));
+    if (summary.dailyGift) notes.append(noteLine('STREAK GIFT', summary.dailyGift, 'daily'));
+    if (summary.dailyFreezeEarned) notes.append(noteLine('STREAK FREEZE', 'EARNED — FORGIVES A MISSED DAY', 'daily'));
+    if (summary.dailyFreezeUsed) notes.append(noteLine('STREAK FREEZE', 'USED — YOUR STREAK SURVIVED', 'daily'));
     if (summary.dailyReplay) notes.append(noteLine('PRACTICE', 'NO REWARD', 'daily'));
   }
   if (notes.childElementCount > 0) marks.append(notes);

@@ -21,6 +21,7 @@ function menuFor(hero: HeroId): HTMLElement {
     discoveries: { total: 131, count: 0 },
     rooms: new RoomManager(),
     hero,
+    dailyView: () => ({ doneToday: false, streak: 0, nextDay: 1, pips: 0, freezes: 0 }),
     isHeroUnlocked: () => true,
     heroProgress: () => ({ deepest: 0, endlessBestFloor: 0, discoveries: 0 }),
   } as unknown as Game;
@@ -58,6 +59,7 @@ it('offers Easy/Normal/Hard on the run-setup sheet and keeps the saved choice', 
     discoveries: { total: 131, count: 0 },
     rooms: new RoomManager(),
     hero: 'kid',
+    dailyView: () => ({ doneToday: false, streak: 0, nextDay: 1, pips: 0, freezes: 0 }),
     isHeroUnlocked: () => true,
     heroProgress: () => ({ deepest: 0, endlessBestFloor: 0, discoveries: 0 }),
   } as unknown as Game;

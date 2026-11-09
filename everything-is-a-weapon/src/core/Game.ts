@@ -7,7 +7,7 @@ import { ENEMY_TYPES, type EnemyType, type EnemyTypeId } from '../entities/Enemy
 import type { PhysicsObject } from '../entities/PhysicsObject';
 import { Player } from '../entities/Player';
 import { ChallengeSystem } from '../gameplay/ChallengeSystem';
-import { actFor, briefingFor, CAMPAIGN_ROOMS, CONTRACTS, FINAL_ROOM_INDEX, starsFor, todayKey, yesterdayKey, totalStars } from '../gameplay/Campaign';
+import { actFor, briefingFor, CAMPAIGN_ROOMS, CONTRACTS, FINAL_ROOM_INDEX, starsFor, todayKey, totalStars } from '../gameplay/Campaign';
 import { extendChain, freshChain } from '../gameplay/Chain';
 import { ABILITIES, AbilitySystem, type AbilityId } from '../gameplay/Abilities';
 import { DiscoverySystem } from '../gameplay/DiscoverySystem';
@@ -34,7 +34,7 @@ import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
 import { buyUpgrade as purchaseUpgrade, maxHealthBonus, upgradePetMultiplier, type UpgradeId } from '../gameplay/Upgrades';
 import { nextUnlock, type UnlockGoal } from '../gameplay/Progression';
-import { isPetOutfitId, PET_OUTFITS } from '../gameplay/PetOutfits';
+import { isPetOutfitId, PET_OUTFITS, PET_OUTFIT_IDS } from '../gameplay/PetOutfits';
 
 import { SOURCE_LEVEL } from '../hazards/Electricity';
 import { ZoneManager } from '../hazards/Zone';
@@ -60,6 +60,7 @@ import { EventBus } from './Events';
 import { GameLoop } from './GameLoop';
 import { HEROES, heroPerk, type HeroId } from './Hero';
 import { newlyUnlocked, type HeroProgress } from '../gameplay/HeroUnlocks';
+import { dailyView, nextStreak, rewardFor, type DailyView } from '../gameplay/DailyStreak';
 import { Rng } from './Random';
 import type { Chain, Thing } from './types';
 
@@ -114,6 +115,10 @@ export interface RoomSummary {
   dailyStreak: number;
   dailyReplay: boolean;
   dailyRareEdgeGranted: boolean;
+  /** Streak extras (new): the gift for today, a freeze earned or spent. */
+  dailyGift?: string;
+  dailyFreezeEarned?: boolean;
+  dailyFreezeUsed?: boolean;
   noSalvage: boolean;
   buildMaxed: boolean;
   run: {
@@ -469,6 +474,28 @@ export class Game {
 
   isHeroUnlocked(hero: HeroId): boolean {
     return this.save.data.heroesUnlocked.includes(hero);
+  }
+
+  /** What the daily menu button shows: streak, the week row and whether today is done. */
+  dailyView(): DailyView {
+    return dailyView(this.save.data, todayKey());
+  }
+
+  /** Day-3 gift: the next locked hero, else a pet outfit not yet owned. Returns its name ('' if none left). */
+  private grantDailyGift(): string {
+    const save = this.save.data;
+    const hero = HEROES.find((info) => !save.heroesUnlocked.includes(info.id));
+    if (hero) {
+      save.heroesUnlocked.push(hero.id);
+      this.analytics.track('hero_unlock', { hero: hero.id, by: 'daily' });
+      return `NEW HERO: ${hero.name.toUpperCase()}`;
+    }
+    const outfit = PET_OUTFIT_IDS.find((id) => !save.petOutfits.includes(id));
+    if (outfit) {
+      save.petOutfits.push(outfit);
+      return `FREE OUTFIT: ${PET_OUTFITS[outfit].name}`;
+    }
+    return '';
   }
 
   /** Banks any hero whose goal has just been met and says so. Called where progress is made. */
@@ -858,6 +885,9 @@ export class Game {
     let isNewBestStars = false;
     let isNewRoomBest = false;
     let dailyRareEdgeGranted = false;
+    let dailyGift: string | undefined;
+    let dailyFreezeEarned = false;
+    let dailyFreezeUsed = false;
     let challengeText = challenge?.text ?? null;
     let challengePassed = challengeBonus > 0;
 
@@ -903,14 +933,22 @@ export class Game {
       // Daily streak: consecutive calendar days pay escalating scrap. A replay is practice.
       if (!dailyReplay) {
         const today = todayKey();
-        if (save.lastDaily !== today) {
-          save.dailyStreak = save.lastDaily === yesterdayKey() ? save.dailyStreak + 1 : 1;
-          save.lastDaily = today;
+        const step = nextStreak(save.lastDaily, save.dailyStreak, save.dailyFreezes, today);
+        save.dailyStreak = step.streak;
+        save.lastDaily = today;
+        if (step.usedFreeze) {
+          save.dailyFreezes = Math.max(0, save.dailyFreezes - 1);
+          dailyFreezeUsed = true;
         }
-        dailyBonus = Math.min(50, 10 + save.dailyStreak * 10);
+        const reward = rewardFor(step.streak);
+        dailyBonus = reward.scrap;
         save.scrap += dailyBonus;
-        dailyRareEdgeGranted = save.dailyStreak > 0 && save.dailyStreak % 7 === 0;
-        if (dailyRareEdgeGranted) save.dailyRareEdge = true;
+        if (reward.freeze && save.dailyFreezes < 1) {
+          save.dailyFreezes = 1;
+          dailyFreezeEarned = true;
+        }
+        if (reward.gift) dailyGift = this.grantDailyGift();
+        this.analytics.track('daily_complete', { streak: step.streak, bonus: dailyBonus });
       }
       if (outcome.countsCounters) {
         save.roomsCleared++;
@@ -1004,6 +1042,9 @@ export class Game {
       dailyStreak: save.dailyStreak,
       dailyReplay,
       dailyRareEdgeGranted,
+      dailyGift,
+      dailyFreezeEarned,
+      dailyFreezeUsed,
       noSalvage: outcome.noSalvage,
       buildMaxed: EDGES.every((edge) => edgeStacks(build, edge.id) >= EDGE_STACK_CAP),
       run: {
