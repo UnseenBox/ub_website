@@ -30,6 +30,8 @@ export interface Guide {
 }
 
 const WAITING = Infinity;
+/** Seconds of walking about / reaching for a weapon before the first mover comes in regardless. */
+const IDLE_RELEASE = 7;
 
 /**
  * Room 1 as a staged lesson plan. One mechanic at a time, each started and finished by
@@ -179,6 +181,12 @@ export class Tutorial {
     switch (step) {
       case 'move':
       case 'grab': {
+        // A slow start must not leave the room dead: after a few seconds the first mover knocks
+        // and comes in anyway, and the throw lesson keeps pointing at the weapon.
+        if (this.stepTime > IDLE_RELEASE) {
+          this.enter('throw');
+          break;
+        }
         const target = this.weapon();
         if (!target) break;
         if (step === 'move') {

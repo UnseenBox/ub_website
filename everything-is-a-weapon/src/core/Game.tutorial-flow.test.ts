@@ -124,6 +124,17 @@ it('boot → first visit → tutorial room lives and advances lessons honestly',
   expect(game.tutorial.step).toBe('power');
 });
 
+it('a player who does nothing still gets the first mover within ~10s', () => {
+  const game = new Game(fakeCanvas());
+  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
+  game.start();
+  expect(game.tutorial.step).toBe('move');
+  expect(game.enemies.length).toBe(0);
+
+  waitFor(game, () => game.enemies.length > 0, 11);
+  expect(game.tutorial.step).toBe('throw');
+});
+
 it('tutorial → clear → results with ledger claim → room 2', async () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
