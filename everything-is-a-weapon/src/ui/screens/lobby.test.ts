@@ -21,6 +21,8 @@ function menuFor(hero: HeroId): HTMLElement {
     discoveries: { total: 131, count: 0 },
     rooms: new RoomManager(),
     hero,
+    isHeroUnlocked: () => true,
+    heroProgress: () => ({ deepest: 0, endlessBestFloor: 0, discoveries: 0 }),
   } as unknown as Game;
   return buildMainMenu(game, {
     play() {},
@@ -56,6 +58,8 @@ it('offers Easy/Normal/Hard on the run-setup sheet and keeps the saved choice', 
     discoveries: { total: 131, count: 0 },
     rooms: new RoomManager(),
     hero: 'kid',
+    isHeroUnlocked: () => true,
+    heroProgress: () => ({ deepest: 0, endlessBestFloor: 0, discoveries: 0 }),
   } as unknown as Game;
   const menu = buildMainMenu(game, {
     play() {},

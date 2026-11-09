@@ -2,6 +2,7 @@ import { ABILITY_IDS } from '../gameplay/Abilities';
 import { EDGE_STACK_CAP, isEdgeId } from '../gameplay/Edges';
 import { UPGRADES } from '../gameplay/Upgrades';
 import { isHeroId, type HeroId } from '../core/Hero';
+import { ownedHeroes } from '../gameplay/HeroUnlocks';
 import type { PortalStorage } from '../platform/Portal';
 import { isPetOutfitId, type PetOutfitId } from '../gameplay/PetOutfits';
 
@@ -111,6 +112,8 @@ export interface SaveData {
   /** Non-campaign mini-bosses defeated (new in version 5). */
   enforcersBeaten: number;
   hero: HeroId;
+  /** Heroes that have been unlocked, for good. The tenant is always in it. */
+  heroesUnlocked: string[];
   /** Campaign difficulty: Easy/Normal/Hard (new in version 7). */
   difficulty: Difficulty;
   /** Room 1's lesson plan: '' not started, a lesson id part-way through, 'done' after. */
@@ -159,6 +162,7 @@ function defaults(): SaveData {
     dailyRareEdge: false,
     enforcersBeaten: 0,
     hero: 'tenant',
+    heroesUnlocked: ['tenant'],
     difficulty: 'normal',
     tutorial: '',
     petOutfits: [],
@@ -359,6 +363,8 @@ function sanitize(raw: unknown): SaveData {
     dailyRareEdge: data.dailyRareEdge === true,
     enforcersBeaten: Math.max(0, Math.floor(finite(data.enforcersBeaten, 0))),
     hero: isHeroId(data.hero) ? data.hero : base.hero,
+    // The hero already picked stays owned, so nobody loses who they are playing.
+    heroesUnlocked: ownedHeroes([...stringArray(data.heroesUnlocked), ...(isHeroId(data.hero) ? [data.hero] : [])]),
     difficulty: difficultyFor(data.difficulty),
     // Saves from before the lesson plan: anyone past room 1 has nothing left to be taught.
     tutorial: typeof data.tutorial === 'string' ? data.tutorial : finite(data.unlockedRoom, 0) > 0 ? 'done' : '',

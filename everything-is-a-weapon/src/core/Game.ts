@@ -58,7 +58,8 @@ import { SaveManager, DIFFICULTY_MODIFIERS, type Difficulty, type DifficultyModi
 import { FIXED_DT, TEXT_VISIBLE } from './constants';
 import { EventBus } from './Events';
 import { GameLoop } from './GameLoop';
-import type { HeroId } from './Hero';
+import { HEROES, heroPerk, type HeroId } from './Hero';
+import { newlyUnlocked, type HeroProgress } from '../gameplay/HeroUnlocks';
 import { Rng } from './Random';
 import type { Chain, Thing } from './types';
 
@@ -425,7 +426,7 @@ export class Game {
       this.save.data.runBoosts = [...this.devEdges];
     }
     this.edges.beginFloor();
-    this.player = new Player(def.playerStart.x, def.playerStart.y, this.difficultyMods.playerHp + maxHealthBonus(this.save.data));
+    this.player = new Player(def.playerStart.x, def.playerStart.y, this.maxHearts());
     this.player.armor = this.edges.armorAtFloorStart();
     this.room = this.rooms.build(this, def, index, daily, incident);
     this.pet = createPet(this.hero, def.playerStart.x - 34, def.playerStart.y + 12);
@@ -455,9 +456,37 @@ export class Game {
     return this.difficultyMods.enemyDamage;
   }
 
+  /** Hearts a fresh run starts with: difficulty, door upgrades and the hero's own perk. */
+  private maxHearts(): number {
+    return this.difficultyMods.playerHp + maxHealthBonus(this.save.data) + heroPerk(this.hero).extraHearts;
+  }
+
+  /** Everything an unlock rule may look at. */
+  heroProgress(): HeroProgress {
+    const save = this.save.data;
+    return { deepest: save.deepest, endlessBestFloor: save.endlessBestFloor, discoveries: save.discoveries.length };
+  }
+
+  isHeroUnlocked(hero: HeroId): boolean {
+    return this.save.data.heroesUnlocked.includes(hero);
+  }
+
+  /** Banks any hero whose goal has just been met and says so. Called where progress is made. */
+  checkHeroUnlocks(): void {
+    const fresh = newlyUnlocked(this.save.data.heroesUnlocked, this.heroProgress());
+    if (fresh.length === 0) return;
+    this.save.data.heroesUnlocked.push(...fresh);
+    this.save.write();
+    for (const id of fresh) {
+      const info = HEROES.find((hero) => hero.id === id)!;
+      this.hud.unlock('NEW HERO', info.name.toUpperCase(), 'pick them in CHARACTERS');
+      this.analytics.track('hero_unlock', { hero: id });
+    }
+  }
+
   /** Picked on the menu; the room behind it is rebuilt so the right pet turns up. */
   setHero(hero: HeroId): void {
-    if (hero === this.hero) return;
+    if (hero === this.hero || !this.isHeroUnlocked(hero)) return;
     this.save.data.hero = hero;
     this.save.write();
     if (this.state === 'menu') this.toMenu();
@@ -577,7 +606,7 @@ export class Game {
     const save = this.save.data;
     save.endlessRuns++;
     this.save.write();
-    this.endless = newEndlessRun(Math.random() * 0x7fffffff, this.difficultyMods.playerHp + maxHealthBonus(save), {
+    this.endless = newEndlessRun(Math.random() * 0x7fffffff, this.maxHearts(), {
       bestFloor: save.endlessBestFloor,
       bestScore: save.endlessBestScore,
     });
@@ -615,6 +644,7 @@ export class Game {
     run.floor++;
     this.scoreAtRoomStart = this.score.score;
     this.save.write();
+    this.checkHeroUnlocks();
     this.setState('cleared');
     await this.ads.onRoomComplete();
     if (this.endless !== run || this.state !== 'cleared') return;
@@ -649,6 +679,7 @@ export class Game {
       newBestScore,
       canContinue: !this.revived && this.ads.isAvailable('rewarded'),
     };
+    this.checkHeroUnlocks();
     this.setState('failed');
     this.hud.showEndless(summary);
   }
@@ -1019,6 +1050,7 @@ export class Game {
       const first = summary.contractsNew[0]!;
       this.hud.unlock('CONTRACT COMPLETE', first.name, `+${first.reward}`);
     }
+    this.checkHeroUnlocks();
     this.setState('cleared');
     this.hud.showSummary(summary);
   }

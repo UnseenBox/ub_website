@@ -1,5 +1,6 @@
 import type { Chain } from '../core/types';
 import type { Game } from '../core/Game';
+import { heroPerk } from '../core/Hero';
 import type { InputFrame } from '../input/InputManager';
 import { angleDiff, clamp, lerp } from '../core/math';
 import { Layer, RigidBody } from '../physics/RigidBody';
@@ -135,7 +136,7 @@ export class Player {
       my /= ml;
     }
 
-    let speed = MOVE_SPEED * game.edges.moveSpeedMultiplier();
+    let speed = MOVE_SPEED * game.edges.moveSpeedMultiplier() * heroPerk(game.hero).speed;
     if (this.rage > 0) speed *= RAGE_SPEED;
     const held = this.held;
     if (held) speed *= held.def.throwable ? 1 / (1 + held.body.mass / 55) : 0.5;
@@ -196,7 +197,7 @@ export class Player {
           game.audio.chargeStart(FULL_CHARGE_SECONDS);
         }
         if (this.charging) {
-          if (input.primaryDown) this.chargeTime += this.rage > 0 ? dt * RAGE_CHARGE : dt;
+          if (input.primaryDown) this.chargeTime += (this.rage > 0 ? dt * RAGE_CHARGE : dt) * heroPerk(game.hero).charge;
           // a rising note at each quarter of charge
           const due = Math.min(4, Math.floor((this.chargeTime / FULL_CHARGE_SECONDS) * 4) + 1);
           if (!this.fullyCharged && this.chargeNotes < due) game.audio.chargeStep(this.chargeNotes++);

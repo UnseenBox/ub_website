@@ -18,3 +18,25 @@ export const HEROES: readonly HeroInfo[] = [
 export function isHeroId(value: unknown): value is HeroId {
   return HEROES.some((hero) => hero.id === value);
 }
+
+/** What each hero is good at. Small and honest: it changes how you play, not whether you can win. */
+export interface HeroPerk {
+  /** One line for the roster card. */
+  readonly text: string;
+  readonly extraHearts: number;
+  readonly speed: number;
+  readonly charge: number;
+}
+
+const NO_PERK: HeroPerk = { text: 'all-rounder', extraHearts: 0, speed: 1, charge: 1 };
+
+export const HERO_PERKS: Readonly<Record<HeroId, HeroPerk>> = {
+  tenant: NO_PERK,
+  flatmate: { text: 'quick feet: +10% speed', extraHearts: 0, speed: 1.1, charge: 1 },
+  gran: { text: 'tough as old boots: +1 heart', extraHearts: 1, speed: 1, charge: 1 },
+  kid: { text: 'wind-up arm: throws charge 20% faster', extraHearts: 0, speed: 1, charge: 1.2 },
+};
+
+export function heroPerk(id: HeroId): HeroPerk {
+  return HERO_PERKS[id] ?? NO_PERK;
+}

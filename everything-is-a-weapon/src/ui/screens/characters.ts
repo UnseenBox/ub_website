@@ -1,5 +1,6 @@
 import type { Game } from '../../core/Game';
-import { HEROES, type HeroId } from '../../core/Hero';
+import { HEROES, heroPerk, type HeroId } from '../../core/Hero';
+import { unlockRule } from '../../gameplay/HeroUnlocks';
 import { el } from '../dom';
 import tenantArt from '../../assets/characters/tenant.png';
 import flatmateArt from '../../assets/characters/flatmate.png';
@@ -65,7 +66,7 @@ export function buildCharactersPane(game: Game, options: CharactersPaneOptions =
       card.classList.toggle('is-selected', on);
       card.setAttribute('aria-checked', String(on));
       const plate = card.querySelector<HTMLElement>('.b2-hero__plate');
-      if (plate) plate.textContent = on ? 'SELECTED' : 'CHOOSE';
+      if (plate) plate.textContent = !game.isHeroUnlocked(otherId) ? 'LOCKED' : on ? 'SELECTED' : 'CHOOSE';
       const crown = card.querySelector<HTMLElement>('.b2-hero__crown');
       if (crown) crown.hidden = !on;
     }
@@ -100,10 +101,33 @@ export function buildCharactersPane(game: Game, options: CharactersPaneOptions =
 
     const name = el('span', 'b2-hero__name b2-display', info.name);
     const note = el('span', 'b2-hero__note', info.note);
+    const perk = el('span', 'b2-hero__perk', heroPerk(info.id).text);
     const plate = el('span', 'b2-hero__plate b2-display', 'CHOOSE');
 
-    card.append(stage, name, note, plate);
+    const unlocked = game.isHeroUnlocked(info.id);
+    const rule = unlockRule(info.id);
+    if (!unlocked && rule) {
+      const have = Math.min(rule.target, rule.current(game.heroProgress()));
+      card.classList.add('is-locked');
+      card.setAttribute('aria-disabled', 'true');
+      card.setAttribute('aria-label', `${info.name}: locked. ${rule.goal}, ${have} of ${rule.target}`);
+      const goal = el('span', 'b2-hero__goal');
+      goal.append(el('span', 'b2-hero__goaltext', rule.goal), el('strong', 'b2-hero__goalcount b2-num', `${have}/${rule.target}`));
+      const meter = el('span', 'b2-hero__goalmeter');
+      const fill = el('span', 'b2-hero__goalfill');
+      fill.style.width = `${(have / rule.target) * 100}%`;
+      meter.append(fill);
+      card.append(stage, name, goal, meter, plate);
+    } else {
+      card.append(stage, name, note, perk, plate);
+    }
     card.addEventListener('click', () => {
+      if (!game.isHeroUnlocked(info.id)) {
+        card.classList.remove('is-nope');
+        void card.offsetWidth;
+        card.classList.add('is-nope');
+        return;
+      }
       paint(info.id);
       if (info.id === game.hero) return;
       options.onPick?.(info.id);

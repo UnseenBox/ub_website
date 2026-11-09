@@ -166,3 +166,29 @@ it('endless: dying ends the run with a result card and a saved best', { timeout:
   game.toMenu();
   expect(game.endless).toBeNull();
 });
+
+it('heroes: locked ones cannot be picked, goals unlock them for good, perks apply', async () => {
+  const game = boot();
+  game.toMenu();
+  expect(game.isHeroUnlocked('flatmate')).toBe(false);
+  game.setHero('flatmate');
+  expect(game.hero).toBe('tenant');
+
+  const unlock = vi.spyOn(game.hud, 'unlock');
+  game.save.data.deepest = 3;
+  game.checkHeroUnlocks();
+  expect(game.isHeroUnlocked('flatmate')).toBe(true);
+  expect(unlock).toHaveBeenCalledTimes(1);
+  game.checkHeroUnlocks(); // already banked: no second announcement
+  expect(unlock).toHaveBeenCalledTimes(1);
+
+  game.setHero('flatmate');
+  expect(game.hero).toBe('flatmate');
+
+  // Gran is sturdier: one heart more than everyone else.
+  game.save.data.endlessBestFloor = 5;
+  game.checkHeroUnlocks();
+  game.setHero('gran');
+  game.playEndless();
+  expect(game.player.maxHp).toBe(game.difficultyMods.playerHp + 1);
+});
