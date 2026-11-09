@@ -99,7 +99,8 @@ export interface BurstOptions {
 /** Comfortably above the busiest moments (massive hits, broken glass, a boss dying). */
 const POOL_SIZE = 900;
 /** Effects are read at a glance; trimming the count keeps the scene legible and cheap. */
-const EMIT_SCALE = 0.72;
+/** Fewer sparks per burst: fights were a blizzard. */
+const EMIT_SCALE = 0.5;
 
 /** Fixed-size pooled particle system. Nothing is allocated after construction. */
 export class ParticleSystem {

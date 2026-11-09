@@ -276,7 +276,10 @@ function chairmanFight(): { game: Game; boss: Game['enemies'][number]; script: C
   for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
     game.tick(FIXED_DT);
     const boss = game.enemies.find((e) => e.type.id === 'chairman');
-    if (boss && boss.script instanceof ChairmanScript && boss.script.copier) return { game, boss, script: boss.script };
+    if (boss && boss.script instanceof ChairmanScript && boss.script.copier) {
+      boss.script.finishIntro(game, boss, false);
+      return { game, boss, script: boss.script };
+    }
   }
   throw new Error('the Chairman never arrived');
 }
@@ -524,4 +527,42 @@ it('chairman: below a quarter health it is the FINAL QUARTER', { timeout: 60_000
   expect(script.finale).toBe(true);
   expect(boss.rageMult).toBeGreaterThanOrEqual(1.2);
   expect(script.maxMemos).toBe(3);
+});
+
+it('chairman entrance: untouchable while spinning in, a gavel bang, then the meeting starts with a drift', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(1);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'chairman');
+  }
+  const script = boss!.script as ChairmanScript;
+  expect(script.busy).toBe(true);
+  expect(script.pose).toBe('spin');
+  const hp = boss!.hp;
+  boss!.damage(game, 60, PUSH); // spinning in: nothing touches him
+  expect(boss!.hp).toBe(hp);
+
+  for (let i = 0; i < Math.round(8 / FIXED_DT) && script.intro === 'spin'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('order');
+  expect(script.copier).not.toBeNull(); // delivered
+  const b = boss!.body;
+  expect(Math.hypot(b.vx, b.vy)).toBeLessThan(5);
+
+  // stand close enough to feel the gavel
+  const player = game.player.body;
+  player.x = b.x + 120;
+  player.y = b.y;
+  player.vx = player.vy = 0;
+  const hurtBefore = game.player.hp;
+  for (let i = 0; i < Math.round(0.8 / FIXED_DT); i++) game.tick(FIXED_DT);
+  expect(player.x).toBeGreaterThan(b.x + 120 + 10); // shoved away from him
+  expect(game.player.hp).toBe(hurtBefore); // but not hurt
+
+  for (let i = 0; i < Math.round(1.5 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(boss!.aware).toBe(true);
+  // the meeting opens with a drift, straight after the gavel
+  expect(script.attack).toBe('drift');
 });

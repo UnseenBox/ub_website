@@ -154,7 +154,7 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
   ctx.save();
   if (pose === 'spin' || pose === 'drift') {
     // spinning chair: squash the whole sprite across itself so his face flips past
-    const speed = pose === 'drift' ? 26 : 8 + Math.min(1, script!.stageT / 1.0) * 24;
+    const speed = script!.spinRate;
     ctx.translate(x, 0);
     ctx.scale(Math.cos(time * speed), 1);
     ctx.translate(-x, 0);
