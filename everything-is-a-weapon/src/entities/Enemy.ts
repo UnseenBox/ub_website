@@ -233,6 +233,11 @@ export class Enemy {
     if (this.defeated) return;
     // The boss's own fight keeps running through stuns and shocks: its timers are not his.
     this.script?.update(game, this, dt);
+    // While a script is performing an attack it drives the body; the shared AI sits it out.
+    if (this.script?.busy) {
+      this.walkPhase += dt * 12;
+      return;
+    }
 
     if (this.shockTimer > 0) {
       this.shockTimer -= dt;
@@ -254,7 +259,7 @@ export class Enemy {
     this.lashCooldown -= dt * this.rageMult;
     // Every boss has one named power, and it is a thing that happens, not a
     // flash: announce it, then run the boss's own mechanic.
-    if (this.type.signature && this.aware && this.ai !== 'entering') {
+    if (this.type.signature && !this.script && this.aware && this.ai !== 'entering') {
       this.signatureTimer -= dt * this.rageMult;
       if (this.signatureTimer <= 0) {
         this.signatureTimer = 20;
@@ -1219,7 +1224,7 @@ export class Enemy {
     }
     // Signature attack: the halfway point buys an extra performance.
     const sig = this.type.signature;
-    if (sig && !this.signatureReleased && this.hp <= this.maxHp * 0.5) {
+    if (sig && !this.script && !this.signatureReleased && this.hp <= this.maxHp * 0.5) {
       this.signatureReleased = true;
       this.signatureTimer = 20;
       this.releaseSignature(game, true);

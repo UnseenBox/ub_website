@@ -326,13 +326,14 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#3a4a5c', shade: '#232e3b', scoreBonus: 400, voice: 120,
     boss: true, bossTitle: 'CHAIRMAN OUSTED', bossDiscovery: 'hostile_takeover',
     bossBanner: 'CHAIRMAN OF CHAOS', bossBlurb: 'your 9 a.m. has been rescheduled. forever.',
-    signature: { name: 'CYCLONE SWEEP', sound: 'bossWalk', effect: 'fan_spread', trail: 'wind' },
+    // His fight lives in bossScripts/ChairmanScript.ts (memos, copier, four signature attacks).
+    // The entry below only names it; a boss with a script skips the generic signature timer.
+    signature: { name: 'QUARTERLY REVIEW', sound: 'bossWalk', effect: 'fan_spread', trail: 'wind' },
     death: { sound: 'bossWalk', effect: 'fan_spread' },
-    hurls: { range: 480, cooldown: 2.4, windup: 0.5, spawn: 'paperball' },
     slams: { radius: 125, damage: 1, cooldown: 8 },
     phases: [
       {
-        below: 0.5, enrage: 1.2, summon: { type: 'mini', count: 2 },
+        below: 0.5, enrage: 1.15, summon: { type: 'mini', count: 2 },
         announce: 'OVERTIME',
       },
     ],

@@ -62,7 +62,7 @@ function drawMemos(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], x:
 /** Out of office: loosened tie, a sweat drop or two, stars wheeling over his head. */
 function drawOutOfOffice(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], hx: number, hy: number, time: number): void {
   const script = e.script instanceof ChairmanScript ? e.script : null;
-  if (!script || !script.exposed || e.defeated) return;
+  if (!script || script.pose !== 'dizzy' || e.defeated) return;
   for (let i = 0; i < 3; i++) {
     const a = time * 4 + (i * TAU) / 3;
     const sx = hx + Math.cos(a) * 14;
@@ -104,6 +104,19 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
   const rage = raging(e);
   const roll = Math.sin(e.walkPhase) * 0.05;
   const CHROME = tone('#cfd8e3');
+  // his performance changes his silhouette: spinning, arms up for REPLY ALL, a stamp slammed down
+  const script = e.script instanceof ChairmanScript ? e.script : null;
+  const pose = dead ? 'idle' : script?.pose ?? 'idle';
+  const armsUp = pose === 'reply' ? 1 : pose === 'pie' ? 0.55 : 0;
+  const stamp = pose === 'stamp' ? (script!.stage === 'windup' ? -1 : script!.stage === 'go' ? 1 : 0) : 0;
+  ctx.save();
+  if (pose === 'spin' || pose === 'drift') {
+    // spinning chair: squash the whole sprite across itself so his face flips past
+    const speed = pose === 'drift' ? 26 : 8 + Math.min(1, script!.stageT / 1.0) * 24;
+    ctx.translate(x, 0);
+    ctx.scale(Math.cos(time * speed), 1);
+    ctx.translate(-x, 0);
+  }
   drawMemos(ctx, e, x, b, time, false);
   // five-star base: back legs first, then front, casters spinning as he glides
   for (const front of [false, true]) {
@@ -218,23 +231,38 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
   ctx.arc(hx - 4, hy + 12.4, 1.8, 0, TAU);
   ctx.fill();
   // stapler arm and the accusing finger (up with the windup)
-  limb(ctx, x - 16, b - 50, x - hw - 8, b - 34, 6.4, tone('#222c3b'));
+  const lift = armsUp * 34;
+  limb(ctx, x - 16, b - 50, x - hw - 8, b - 34 - lift, 6.4, tone('#222c3b'));
   ctx.save();
-  ctx.translate(x - hw - 14, b - 36);
+  ctx.translate(x - hw - 14, b - 36 - lift);
   ctx.rotate(-0.2);
   rrect(ctx, -11, 2, 22, 7, 2);
   paint(ctx, lin(ctx, 0, 2, 0, 9, tone('#ff5a4e'), tone('#a01e22')), 2.2);
   rrect(ctx, -11, -3, 22, 6, 2);
   paint(ctx, lin(ctx, 0, -3, 0, 3, tone('#f2f6fb'), tone('#8a94a6')), 2.2);
   ctx.restore();
-  fist(ctx, x - hw - 8, b - 33, 4.4, tone('#e8b88a'), -1);
-  const px = x + hw + 9 + fx * 5;
-  const py = b - 50 - windup * 14;
+  fist(ctx, x - hw - 8, b - 33 - lift, 4.4, tone('#e8b88a'), -1);
+  const px = x + hw + 9 + fx * 5 + (pose === 'pie' ? 10 : 0);
+  const py = b - 50 - windup * 14 - lift * (pose === 'pie' ? 0.2 : 1) - (stamp < 0 ? 26 : 0) + (stamp > 0 ? 18 : 0);
   limb(ctx, x + 16, b - 50, px, py, 6.4, tone('#222c3b'));
   fist(ctx, px, py, 4.4, tone('#e8b88a'));
   limb(ctx, px + 2, py - 3, px + 7 + fx * 2, py - 9, 2.4, tone('#e8b88a'));
+  if (stamp !== 0) {
+    // the big red rubber stamp in his fist
+    ctx.save();
+    ctx.translate(px + 6, py - 8);
+    ctx.fillStyle = '#c0143c';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.fillRect(-9, -6, 18, 12);
+    ctx.strokeRect(-9, -6, 18, 12);
+    ctx.fillStyle = '#7a0c26';
+    ctx.fillRect(-4, -14, 8, 9);
+    ctx.restore();
+  }
   drawOutOfOffice(ctx, e, hx, hy, time);
   drawMemos(ctx, e, x, b, time, true);
+  ctx.restore();
 };
 
 /** The Flusher: a porcelain throne with a raised lid for a face and the bowl for a mouth. */

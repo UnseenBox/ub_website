@@ -351,3 +351,109 @@ it('chairman: paper burns, so fire strips every memo at once', { timeout: 60_000
   expect(script.memos).toBe(0);
   expect(script.exposed).toBe(true);
 });
+
+/** Starts a Chairman fight with his attack timer parked, so a test can start exactly the move it wants. */
+function calmChairman(): ReturnType<typeof chairmanFight> {
+  const fight = chairmanFight();
+  (fight.script as unknown as { gap: number }).gap = 9999;
+  fight.game.player.hp = 99;
+  return fight;
+}
+
+it('chairman QUICK REVIEW: spins up, locks a lane, drifts across the room and runs you over', { timeout: 60_000 }, () => {
+  const { game, boss, script } = calmChairman();
+  const b = boss.body;
+  b.vx = b.vy = 0;
+  // put the player straight down the lane
+  game.player.body.x = b.x - 220;
+  game.player.body.y = b.y;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  const x0 = b.x;
+  script.beginAttack(game, boss, 'drift', false);
+  expect(script.busy).toBe(true);
+  run(game, 0.9);
+  expect(Math.abs(b.x - x0)).toBeLessThan(5); // still winding up
+  run(game, 0.9);
+  expect(script.stage === 'go' || script.stage === 'recover').toBe(true);
+  expect(game.player.hp).toBeLessThan(hp);
+  run(game, 3);
+  expect(script.busy).toBe(false);
+});
+
+it('chairman REPLY ALL: two rings of paper planes, the second one aimed to catch a player who stands still', { timeout: 60_000 }, () => {
+  const { game, boss, script } = calmChairman();
+  const b = boss.body;
+  b.vx = b.vy = 0;
+  game.player.body.x = b.x + 200;
+  game.player.body.y = b.y;
+  script.beginAttack(game, boss, 'replyAll', false);
+  run(game, 1.0);
+  expect(script.planes.length).toBeGreaterThanOrEqual(10);
+  const hp = game.player.hp;
+  run(game, 2.5);
+  expect(game.player.hp).toBeLessThan(hp);
+  run(game, 6);
+  expect(script.busy).toBe(false);
+  expect(script.planes.length).toBe(0); // they all flew off or hit something
+});
+
+it('chairman Q3 PROJECTIONS: the slices hurt, the gaps are safe', { timeout: 60_000 }, () => {
+  const { game, boss, script } = calmChairman();
+  boss.body.vx = boss.body.vy = 0;
+  script.beginAttack(game, boss, 'pie', true);
+  run(game, 1.6); // past the warning: the wheel is live
+  expect(script.stage).toBe('go');
+  const bx = boss.body.x;
+  const by = boss.body.y;
+  // find the middle of a gap and of a slice, 200px out
+  let gap = 0;
+  let slice = 0;
+  for (let a = 0; a < Math.PI * 2; a += 0.05) {
+    const inside = script.inPie(boss, bx + Math.cos(a) * 200, by + Math.sin(a) * 200);
+    if (!inside && !gap) gap = a;
+    if (inside && !slice) slice = a;
+  }
+  // centre of the first gap found: walk on to its middle
+  const gapMid = gap + 0.52;
+  game.player.body.x = bx + Math.cos(gapMid) * 200;
+  game.player.body.y = by + Math.sin(gapMid) * 200;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  run(game, 0.2);
+  expect(game.player.hp).toBe(hp);
+  const sliceMid = slice + 0.52;
+  game.player.body.x = bx + Math.cos(sliceMid) * 200;
+  game.player.body.y = by + Math.sin(sliceMid) * 200;
+  game.player.body.vx = game.player.body.vy = 0;
+  run(game, 0.3);
+  expect(game.player.hp).toBeLessThan(hp);
+});
+
+it('chairman FORECLOSURE: SOLD things vanish unless you are holding them', { timeout: 60_000 }, () => {
+  const { game, boss, script } = calmChairman();
+  boss.body.vx = boss.body.vy = 0;
+  script.beginAttack(game, boss, 'foreclose', false);
+  run(game, 1.0);
+  expect(script.claims.length).toBeGreaterThan(0);
+  const claimed = script.claims.map((c) => c.object);
+  const kept = claimed[0]!;
+  game.player.body.x = kept.body.x;
+  game.player.body.y = kept.body.y;
+  (game.player as unknown as { grab(g: Game, o: unknown): void }).grab(game, kept);
+  expect(game.player.held).toBe(kept);
+  run(game, 3.5);
+  expect(kept.alive).toBe(true);
+  for (const o of claimed.slice(1)) expect(o.alive).toBe(false);
+  expect(script.claims.length).toBe(0);
+});
+
+it('chairman: a stun interrupts whatever number he is doing', { timeout: 60_000 }, () => {
+  const { game, boss, script } = calmChairman();
+  script.beginAttack(game, boss, 'drift', false);
+  run(game, 0.3);
+  expect(script.busy).toBe(true);
+  boss.stun = 1;
+  run(game, 0.1);
+  expect(script.busy).toBe(false);
+});

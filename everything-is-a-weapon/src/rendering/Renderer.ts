@@ -145,9 +145,11 @@ export class Renderer {
     const catX = cat ? lerp(cat.prevX, cat.x, alpha) : 0;
     const catY = cat ? lerp(cat.prevY, cat.y, alpha) : 0;
     this.drawRings();
+    for (const enemy of game.enemies) enemy.script?.drawFloor?.(ctx, game, enemy, time);
     drawPowerRings(ctx, game, this.bx(pb), this.by(pb), catX, catY, time);
     this.drawShadows();
     this.drawEntities(time);
+    for (const enemy of game.enemies) enemy.script?.drawAir?.(ctx, game, enemy, time);
     drawPowerTags(ctx, game, this.bx(pb), this.by(pb), catX, catY, time);
 
     for (let i = 0; i < zones.length; i++) {

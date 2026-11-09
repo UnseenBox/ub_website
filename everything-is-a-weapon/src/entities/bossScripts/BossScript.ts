@@ -4,21 +4,32 @@ import type { Enemy } from '../Enemy';
 import type { EnemyTypeId } from '../EnemyTypes';
 import { ChairmanScript } from './ChairmanScript';
 
+type Ctx = CanvasRenderingContext2D;
+
 /**
- * A boss's own fight. The shared Enemy code gives every boss walking, lunging, slamming and
- * throwing; a script is where one boss gets something nobody else does. It runs beside that
- * AI (it never replaces it), can see every hit the boss takes, and keeps its own state, which
- * the boss's drawing code reads to show it.
+ * A boss's own fight. The shared Enemy code gives every boss walking, lunging and slamming;
+ * a script is where one boss gets something nobody else does: its own attacks, its own
+ * rules about taking damage, and its own things to draw on the floor and in the air.
+ *
+ * It runs beside the shared AI. While `busy` is true the script is in charge of the boss
+ * (it moves the body itself) and the shared AI sits out; the moment the boss is stunned,
+ * shocked or set alight the script is expected to drop whatever it was doing.
  *
  * To give another boss a script: write a class implementing this, and add it to `createBossScript`.
  */
 export interface BossScript {
   /** Runs every simulation tick while the boss is up and about. */
   update(game: Game, boss: Enemy, dt: number): void;
+  /** True while the script is performing an attack and driving the body itself. */
+  readonly busy?: boolean;
   /** Sees each hit before it lands and returns the damage that actually does. 0 = blocked. */
   filterDamage?(game: Game, boss: Enemy, amount: number, cause: DamageCause): number;
   /** The boss has just fallen. */
   onDefeat?(game: Game, boss: Enemy): void;
+  /** Warnings and zones painted on the floor, under everything standing on it. World coordinates. */
+  drawFloor?(ctx: Ctx, game: Game, boss: Enemy, time: number): void;
+  /** Projectiles and markers drawn over the top. World coordinates. */
+  drawAir?(ctx: Ctx, game: Game, boss: Enemy, time: number): void;
   /** Shown instead of POOF! when the body finally goes. */
   readonly deathText?: string;
 }
