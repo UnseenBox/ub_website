@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { BLOCKED_CHIP, COPIERS, ChairmanScript, EXPOSED_BONUS } from '../entities/bossScripts/ChairmanScript';
 
 /**
  * Endless mode, headless. Same harness as the tutorial flow test —
@@ -267,4 +268,86 @@ it('ease-in: the first boss is softer than designed; the daily is full strength'
   game.playDaily();
   expect(game.pacingStep()).toBe(Infinity);
   expect(game.enemyDamage).toBe(game.difficultyMods.enemyDamage);
+});
+
+function chairmanFight(): { game: Game; boss: Game['enemies'][number]; script: ChairmanScript } {
+  const game = boot();
+  game.playFrom(1);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'chairman');
+    if (boss && boss.script instanceof ChairmanScript && boss.script.copier) return { game, boss, script: boss.script };
+  }
+  throw new Error('the Chairman never arrived');
+}
+
+const run = (game: Game, seconds: number): void => {
+  for (let i = 0; i < Math.round(seconds / FIXED_DT); i++) game.tick(FIXED_DT);
+};
+
+it('chairman: memos soak light hits and tear on real ones; the last one leaves him out of office', { timeout: 60_000 }, () => {
+  const { game, boss, script } = chairmanFight();
+  expect(script.memos).toBe(2);
+  expect(script.copier?.def.id).toBe('photocopier');
+  expect(boss.maxHp).toBeLessThan(boss.type.hp); // ease-in made him softer, and his bar knows it
+  const hp0 = boss.hp;
+
+  boss.damage(game, 2, PUSH); // a paper ball: filed
+  expect(script.memos).toBe(2);
+  expect(boss.hp).toBe(hp0);
+
+  boss.damage(game, 20, PUSH); // a real hit tears one away; a sliver gets through
+  expect(script.memos).toBe(1);
+  expect(boss.hp).toBeCloseTo(hp0 - 20 * BLOCKED_CHIP);
+
+  run(game, 0.4);
+  boss.damage(game, 20, PUSH);
+  expect(script.memos).toBe(0);
+  expect(script.exposed).toBe(true);
+  expect(boss.stun).toBeGreaterThan(0);
+
+  const hp1 = boss.hp;
+  boss.damage(game, 20, PUSH); // out of office: he takes the full hit and more
+  expect(hp1 - boss.hp).toBeCloseTo(20 * EXPOSED_BONUS);
+});
+
+it('chairman: the copier reloads him, jams when hit, and wrecking it ends the reloads', { timeout: 120_000 }, () => {
+  const { game, boss, script } = chairmanFight();
+  const copier = script.copier!;
+  const tear = (): void => {
+    for (let k = 0; k < 4 && script.memos > 0; k++) {
+      boss.damage(game, 20, PUSH);
+      run(game, 0.3);
+    }
+  };
+  tear();
+  expect(script.exposed).toBe(true);
+  run(game, 3);
+  expect(COPIERS.get(copier)!.progress).toBeGreaterThan(0.2);
+
+  // hit the machine mid-print: it jams and the run starts over
+  copier.applyDamage(game, 6);
+  run(game, 0.1);
+  expect(COPIERS.get(copier)!.jammed).toBe(true);
+  expect(script.exposed).toBe(true);
+  run(game, 8 + 7);
+  expect(script.memos).toBe(script.maxMemos); // jam cleared, print finished, memos back
+  expect(script.exposed).toBe(false);
+
+  // wreck it: out of toner, he is enraged and stays bare once the memos are gone
+  copier.breakApart(game);
+  run(game, 0.1);
+  expect(script.copierDown).toBe(true);
+  expect(boss.rageMult).toBeGreaterThanOrEqual(1.25);
+  tear();
+  run(game, 12);
+  expect(script.exposed).toBe(true);
+  expect(script.memos).toBe(0);
+});
+
+it('chairman: paper burns, so fire strips every memo at once', { timeout: 60_000 }, () => {
+  const { game, boss, script } = chairmanFight();
+  boss.damage(game, 6, { ...PUSH, type: 'fire' });
+  expect(script.memos).toBe(0);
+  expect(script.exposed).toBe(true);
 });

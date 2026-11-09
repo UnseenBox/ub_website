@@ -79,6 +79,7 @@ const handlers: EffectHandlers = {
   structuralDamage(ctx, spec) {
     const { target, game } = ctx;
     if (!target || target.kind !== 'object' || target.tipProgress >= 0) return false;
+    if (target.def.playerDamageOnly && !(ctx.source.kind === 'object' && ctx.source.thrownByPlayer)) return false;
     // A standing lamp should topple first and shatter when it lands.
     const standingFactor = target.standing ? 0.25 : 1;
     return target.applyDamage(game, ctx.impulse * spec.scale * target.material.fragility * standingFactor);

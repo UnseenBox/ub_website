@@ -7,6 +7,7 @@ import { extendChain, startChain } from '../gameplay/Chain';
 import { wallAvoidance } from '../gameplay/Navigation';
 import type { EnemyType, EnemyTypeId } from './EnemyTypes';
 import type { PhysicsObject } from './PhysicsObject';
+import { createBossScript, type BossScript } from './bossScripts/BossScript';
 
 type AiState = 'entering' | 'idle' | 'investigate' | 'chase' | 'windup' | 'lunge' | 'recover' | 'hurl' | 'slam' | 'lash';
 
@@ -33,6 +34,8 @@ export class Enemy {
   readonly seed = Math.random() * 100;
 
   hp: number;
+  /** Full health for this particular enemy: scaled by difficulty, ease-in and depth, unlike `type.hp`. */
+  maxHp: number;
   /** False once the body has been removed from the room. */
   alive = true;
   /** True from the killing blow onwards; the body keeps tumbling for a moment. */
@@ -123,6 +126,9 @@ export class Enemy {
   private panicY = 0;
   private panicTimer = 0;
 
+  /** The boss's own fight (memo shield, copier, ...); null for everyone without one. */
+  readonly script: BossScript | null;
+
   helmetHp: number;
   /** Front board HP: blocks frontal hits until it splinters away. */
   shieldHp: number;
@@ -146,6 +152,8 @@ export class Enemy {
   constructor(readonly type: EnemyType, x: number, y: number, entryDirX: number, entryDirY: number) {
     this.label = type.name.toUpperCase();
     this.hp = type.hp;
+    this.maxHp = type.hp;
+    this.script = type.boss ? createBossScript(type.id) : null;
     this.helmetHp = type.helmetHp ?? 0;
     this.shieldHp = type.shieldHp ?? 0;
     this.tags.add(type.id);
@@ -212,7 +220,7 @@ export class Enemy {
         game.particles.burst('peanut', b.x, b.y - 10, 18, 230);
         game.particles.burst('scrap', b.x, b.y - 10, 6, 180, { color: '#c9a070' });
         // Per-boss visual cue / death message (approval: unique per boss)
-        const msg = this.type.id === 'cardboard' ? 'FLAT-PACKED!' : this.type.id === 'cooker' ? 'DEPRESSURIZED!' : this.type.id === 'mom' ? 'BEDTIME!' : 'POOF!';
+        const msg = this.script?.deathText ?? (this.type.id === 'cardboard' ? 'FLAT-PACKED!' : this.type.id === 'cooker' ? 'DEPRESSURIZED!' : this.type.id === 'mom' ? 'BEDTIME!' : 'POOF!');
         const c = this.type.color ?? '#ffd23f';
         game.fx.burst(msg, b.x, b.y - 30, 1.05, c, true);
         game.fx.ring(b.x, b.y, 6, 44, 0.3, 'rgba(255,255,255,0.8)', 3);
@@ -223,6 +231,8 @@ export class Enemy {
 
     if (this.burn > 0) this.updateBurn(game, dt);
     if (this.defeated) return;
+    // The boss's own fight keeps running through stuns and shocks: its timers are not his.
+    this.script?.update(game, this, dt);
 
     if (this.shockTimer > 0) {
       this.shockTimer -= dt;
@@ -690,7 +700,7 @@ export class Enemy {
       const d = Math.hypot(object.body.x - b.x, object.body.y - b.y);
       if (d < this.type.radius + 18) {
         object.destroy(game);
-        this.hp = Math.min(this.type.hp, this.hp + 5);
+        this.hp = Math.min(this.maxHp, this.hp + 5);
         this.squash = Math.max(this.squash, 0.5);
         // VISIBLE CATCH — now unmistakable
         game.fx.burst('MINE!', b.x, b.y - 56, 1.0, '#ffd23f', true);
@@ -1122,7 +1132,7 @@ export class Enemy {
           other.damage(game, 999, {
             type: 'slam', source: this, chain: null, label: 'DIGESTED', dirX: 0, dirY: 0,
           });
-          this.hp = Math.min(this.type.hp, this.hp + 15);
+          this.hp = Math.min(this.maxHp, this.hp + 15);
           game.audio.play('chomp', 1);
           game.fx.burst('TASTY!', b.x, b.y - 52, 1, '#9be564', true);
           game.particles.burst('dust', b.x, b.y - 10, 10, 200);
@@ -1180,7 +1190,7 @@ export class Enemy {
   private applyPhases(game: Game): void {
     const phases = this.type.phases;
     if (!phases) return;
-    while (this.phaseIndex < phases.length && this.hp <= this.type.hp * phases[this.phaseIndex]!.below) {
+    while (this.phaseIndex < phases.length && this.hp <= this.maxHp * phases[this.phaseIndex]!.below) {
       const phase = phases[this.phaseIndex]!;
       this.phaseIndex++;
       if (phase.enrage) this.rageMult *= phase.enrage;
@@ -1209,7 +1219,7 @@ export class Enemy {
     }
     // Signature attack: the halfway point buys an extra performance.
     const sig = this.type.signature;
-    if (sig && !this.signatureReleased && this.hp <= this.type.hp * 0.5) {
+    if (sig && !this.signatureReleased && this.hp <= this.maxHp * 0.5) {
       this.signatureReleased = true;
       this.signatureTimer = 20;
       this.releaseSignature(game, true);
@@ -1741,6 +1751,8 @@ export class Enemy {
     }
     const headline = this.type.boss === true ? game.edges.headlineDamageMultiplier(true) : 1;
     applied *= headline;
+    // A boss with its own fight decides what actually lands (shields, windows, armour).
+    if (this.script?.filterDamage) applied = this.script.filterDamage(game, this, applied, cause);
     if (applied <= 0) return;
     this.hp -= applied;
     if (headline > 1) game.edges.markHeadlineHit();
@@ -1822,6 +1834,7 @@ export class Enemy {
       game.particles.burst('smoke', this.body.x, this.body.y - 6, 10, 230, { color: '#333' });
     }
     this.hp = 0;
+    this.script?.onDefeat?.(game, this);
     this.tags.delete('enemy');
     this.tags.delete('creature');
     this.tags.add('corpse');

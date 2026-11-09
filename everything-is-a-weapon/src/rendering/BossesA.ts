@@ -1,9 +1,93 @@
 import { INK } from '../core/constants';
 import { TAU } from '../core/math';
+import { ChairmanScript } from '../entities/bossScripts/ChairmanScript';
 import {
   blob, bolt, blink, brow, darken, eye, eyePair, fist, gloss, lighten, limb, lin, maw, paint, puffs, rad, raging, rrect, shadeBand, tentacle, wheel,
   type BossBody,
 } from './BossKit';
+
+/**
+ * The Chairman's memos: sheets of paperwork circling him, rejected hits flutter one away,
+ * and a fresh batch swoops in when the copier finishes. Drawn in two halves so they pass
+ * behind and in front of him.
+ */
+function drawMemos(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], x: number, y: number, time: number, front: boolean): void {
+  const script = e.script instanceof ChairmanScript ? e.script : null;
+  if (!script || e.defeated) return;
+  const n = script.memos;
+  const arrive = Math.max(0, 1 - script.reloadedAgo / 0.6);
+  for (let i = 0; i < n; i++) {
+    const a = time * 1.9 + (i * TAU) / Math.max(1, n);
+    const isFront = Math.sin(a) > 0;
+    if (isFront !== front) continue;
+    const spread = 1 + arrive * 1.8;
+    const rx = (26 + 12) * spread;
+    const mx = x + Math.cos(a) * rx;
+    const my = y - 34 + Math.sin(a) * 14 * spread - arrive * 18;
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(Math.cos(a) * 0.35 + Math.sin(time * 3 + i) * 0.1);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(-6, -7, 14, 18);
+    ctx.fillStyle = '#fbf8f0';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.fillRect(-7, -9, 14, 18);
+    ctx.strokeRect(-7, -9, 14, 18);
+    ctx.fillStyle = '#d63a3a';
+    ctx.fillRect(-7, -9, 14, 4);
+    ctx.fillStyle = 'rgba(40, 46, 60, 0.55)';
+    for (let l = 0; l < 3; l++) ctx.fillRect(-5, -3 + l * 4, 10 - (l === 2 ? 4 : 0), 1.4);
+    ctx.restore();
+  }
+  if (!front) return;
+  // a memo he just lost flutters off for a moment
+  if (script.tornAgo < 0.7) {
+    const t = script.tornAgo / 0.7;
+    ctx.save();
+    ctx.globalAlpha = 1 - t;
+    ctx.translate(x + 30 + t * 34, y - 40 - t * 26 + t * t * 60);
+    ctx.rotate(t * 5);
+    ctx.fillStyle = '#fbf8f0';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.4;
+    ctx.fillRect(-7, -9, 14, 18);
+    ctx.strokeRect(-7, -9, 14, 18);
+    ctx.fillStyle = '#d63a3a';
+    ctx.fillRect(-7, -9, 14, 4);
+    ctx.restore();
+  }
+}
+
+/** Out of office: loosened tie, a sweat drop or two, stars wheeling over his head. */
+function drawOutOfOffice(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], hx: number, hy: number, time: number): void {
+  const script = e.script instanceof ChairmanScript ? e.script : null;
+  if (!script || !script.exposed || e.defeated) return;
+  for (let i = 0; i < 3; i++) {
+    const a = time * 4 + (i * TAU) / 3;
+    const sx = hx + Math.cos(a) * 14;
+    const sy = hy - 20 + Math.sin(a) * 4;
+    ctx.fillStyle = '#ffd23f';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let k = 0; k < 10; k++) {
+      const rr = k % 2 === 0 ? 4.4 : 1.9;
+      const aa = (k * Math.PI) / 5 - Math.PI / 2;
+      ctx.lineTo(sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  for (const side of [-1, 1]) {
+    const t = (time * 1.6 + (side > 0 ? 0.5 : 0)) % 1;
+    ctx.fillStyle = 'rgba(150, 215, 255, 0.9)';
+    ctx.beginPath();
+    ctx.ellipse(hx + side * 13, hy - 4 + t * 12, 1.8, 2.6, 0, 0, TAU);
+    ctx.fill();
+  }
+}
 
 function angleDiff(a: number, b: number): number {
   let d = (b - a) % TAU;
@@ -20,6 +104,7 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
   const rage = raging(e);
   const roll = Math.sin(e.walkPhase) * 0.05;
   const CHROME = tone('#cfd8e3');
+  drawMemos(ctx, e, x, b, time, false);
   // five-star base: back legs first, then front, casters spinning as he glides
   for (const front of [false, true]) {
     for (let k = 0; k < 5; k++) {
@@ -148,7 +233,8 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
   limb(ctx, x + 16, b - 50, px, py, 6.4, tone('#222c3b'));
   fist(ctx, px, py, 4.4, tone('#e8b88a'));
   limb(ctx, px + 2, py - 3, px + 7 + fx * 2, py - 9, 2.4, tone('#e8b88a'));
-  void time;
+  drawOutOfOffice(ctx, e, hx, hy, time);
+  drawMemos(ctx, e, x, b, time, true);
 };
 
 /** The Flusher: a porcelain throne with a raised lid for a face and the bowl for a mouth. */

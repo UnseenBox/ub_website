@@ -4,8 +4,7 @@ Every fight = observe → learn → adapt → master. No shared template.
 
 ---
 
-1. **Chairman** — FORM SHIFT (red/yellow/blue ring per form). Walks straight, slams floor (slam), throws paperball (hurl). After 3 hits announces "TANK!"/"CHOPPER!"/"ROBOT!" with different ring color, changes speed/slam/lunge. Death = chair folds flat, `FLAT-PACKED!`
-
+1. **Chairman — THE QUARTERLY REVIEW** (own script: `bossScripts/ChairmanScript.ts`). He arrives wrapped in 2 orbiting MEMOS (3 once OVERTIME starts) that soak every light hit (`REJECTED!`); only a real hit (>= 5 damage, a thrown chair not a paper ball) tears one off, and fire/explosions burn them all at once (`PAPER BURNS!`). Last memo gone = `OUT OF OFFICE!`: he is stunned, dizzy and takes +35% damage while the **photocopier** in the corner prints him a fresh batch (a bar fills over the machine, ~6s). Hit the copier mid-print and it `PAPER JAM`s (restarts after 7s); only player-thrown objects hurt it. Wreck it and it is `OUT OF TONER!`: no more memos, he goes OVERTIME (+25% speed) and is bare whenever the shield is gone. Still slams, lunges and fans paper balls. Death = `TERMINATED!` with a paper storm.
 2. **Flusher** — WHIRLPOOL + SLIP. Slow crawl, creates growing water zone on slam, leaves water floor (slip). Throws plunger. Must stay out of water + dodge plunger. Death = bowl cracks, drain sound
 
 3. **Sofa Kraken** — HUG CONE. Slow crawl, tentacle lash in wide arc (0.9). Pulls objects toward it. Slam is backup. Must stay OUTSIDE cone. Death = tentacles detach, `DEFLATED!`
