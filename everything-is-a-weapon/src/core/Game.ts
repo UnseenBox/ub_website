@@ -60,6 +60,7 @@ import { EventBus } from './Events';
 import { GameLoop } from './GameLoop';
 import { HEROES, heroPerk, type HeroId } from './Hero';
 import { newlyUnlocked, type HeroProgress } from '../gameplay/HeroUnlocks';
+import { earlyEase, type Ease } from '../gameplay/Pacing';
 import { dailyView, nextStreak, rewardFor, type DailyView } from '../gameplay/DailyStreak';
 import { Rng } from './Random';
 import type { Chain, Thing } from './types';
@@ -458,7 +459,19 @@ export class Game {
   }
   /** Hearts a touch costs on the current difficulty. */
   get enemyDamage(): number {
-    return this.difficultyMods.enemyDamage;
+    return this.difficultyMods.enemyDamage * this.ease().damage;
+  }
+
+  /** Progression step for pacing: 1 tutorial, 2 first real room / endless floor 1, ... (daily is full strength). */
+  pacingStep(): number {
+    if (this.endless) return this.endless.floor + 1;
+    if (!this.room || this.room.daily) return Infinity;
+    return this.room.index + 1;
+  }
+
+  /** The ease-in for what is being played now. */
+  ease(): Ease {
+    return earlyEase(this.pacingStep());
   }
 
   /** Hearts a fresh run starts with: difficulty, door upgrades and the hero's own perk. */

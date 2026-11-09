@@ -16,9 +16,13 @@ export const MAX_DEPTH = 40;
 export const BOSS_EVERY = 5;
 export const FLOOR_BONUS = 150;
 export const BOSS_BONUS = 400;
-/** Hearts won back by clearing a floor, and a boss floor. */
+/** Hearts won back by clearing a floor, and a boss floor. Generous while you are still learning. */
 export const HEAL_FLOOR = 1;
 export const HEAL_BOSS = 2;
+export const HEAL_EARLY = 2;
+export const HEAL_EARLY_BOSS = 3;
+/** Floors up to this one use the early heal. */
+export const EARLY_FLOORS = 5;
 
 const BOSS_ORDER: readonly EnemyTypeId[] = [
   'chairman', 'flusher', 'kraken', 'fridgezilla', 'piano', 'mower', 'mom',
@@ -86,5 +90,7 @@ export function endlessRoom(run: EndlessRun): RoomDefinition {
 }
 
 export function healAfter(floor: number): number {
-  return isBossFloor(floor) ? HEAL_BOSS : HEAL_FLOOR;
+  const early = floor <= EARLY_FLOORS;
+  if (isBossFloor(floor)) return early ? HEAL_EARLY_BOSS : HEAL_BOSS;
+  return early ? HEAL_EARLY : HEAL_FLOOR;
 }

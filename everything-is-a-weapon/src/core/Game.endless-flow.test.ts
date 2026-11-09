@@ -128,7 +128,7 @@ it('endless: a cleared floor goes straight to the next one, banks progress and c
   expect(game.state).toBe('playing');
   expect(game.room.def.id).not.toBe(firstRoom);
   expect(game.endless?.floor).toBe(2);
-  expect(game.player.hp).toBe(3);
+  expect(game.player.hp).toBe(4); // 2 left + the early heal of 2
   expect(game.save.data.endlessBestFloor).toBe(1);
   expect(game.save.data.endlessRuns).toBe(1);
   expect(game.score.score).toBeGreaterThan(0);
@@ -252,4 +252,19 @@ it('daily streak: a long gap resets to day 1', { timeout: 120_000 }, () => {
   game.playDaily();
   clearUntil(game, () => game.state === 'cleared', 150);
   expect(game.save.data.dailyStreak).toBe(1);
+});
+
+it('ease-in: the first boss is softer than designed; the daily is full strength', { timeout: 60_000 }, () => {
+  const game = boot();
+  game.playFrom(1);
+  expect(game.pacingStep()).toBe(2);
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !game.enemies.some((e) => e.type.boss); i++) game.tick(FIXED_DT);
+  const boss = game.enemies.find((e) => e.type.boss)!;
+  expect(boss.type.id).toBe('chairman');
+  expect(boss.hp).toBeLessThan(boss.type.hp * 0.6);
+
+  game.toMenu();
+  game.playDaily();
+  expect(game.pacingStep()).toBe(Infinity);
+  expect(game.enemyDamage).toBe(game.difficultyMods.enemyDamage);
 });

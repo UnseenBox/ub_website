@@ -10,6 +10,8 @@ it('every fifth floor has a boss and the roster cycles', () => {
   expect(isBossFloor(16)).toBe(false);
   expect(endlessBoss(5 * 21)).toBe('chairman'); // 20 bosses, then round again
   expect(healAfter(5)).toBeGreaterThan(healAfter(4));
+  expect(healAfter(4)).toBeGreaterThan(healAfter(8)); // gentler while you are learning
+  expect(healAfter(10)).toBeGreaterThan(healAfter(9));
 });
 
 it('floors map to generated depths and stop getting harder at the cap', () => {
