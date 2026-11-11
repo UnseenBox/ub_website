@@ -21,6 +21,10 @@ No game engine and no physics library. TypeScript, Vite, Canvas 2D, Web Audio, a
 
 Not built yet: spin shots, daily and endless modes, cosmetics, a settings screen, music, ads, analytics.
 
+## Free Kicks
+
+A second game mode (GAME MODES on the menu): free-kick physics with a wall, bend, aerial shots, Mimi in goal, a five-stage Street Cup and Quick Five. It lives apart from Classic in `free-kicks/` (plain scripts, not bundled; the Vite plugin in `vite.config.ts` ships them) and is documented in [`docs/FREE_KICKS.md`](docs/FREE_KICKS.md). The CrazyGames edition does not include it.
+
 ## Install, run, build
 
 ```bash
