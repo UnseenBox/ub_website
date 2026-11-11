@@ -564,15 +564,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'KING OF JUNK', bossBlurb: 'your deposit is forfeit. so are you.',
     signature: { name: 'SCRAP CRASH', sound: 'slams', effect: 'scrap_ring', trail: 'junk' },
     death: { sound: 'slams', effect: 'scrap_ring' },
-    sucks: { radius: 170, pull: 500 },
-    hurls: { range: 460, cooldown: 3.5, windup: 0.7, spawn: 'plank' },
-    slams: { radius: 140, damage: 1, cooldown: 8 },
+    // His fight lives in bossScripts/JunkScript.ts: a ring of rubbish for armour that his own attacks thin out.
     phases: [
-      { below: 0.66, summon: { type: 'mini', count: 2 }, announce: 'MORE TRIBUTE' },
-      {
-        below: 0.33, enrage: 1.4, summon: { type: 'mini', count: 2 },
-        shockwave: { radius: 160, damage: 1 }, announce: 'THE KING DEMANDS',
-      },
+      { below: 0.5, enrage: 1.15, announce: 'MORE TRIBUTE' },
     ],
   },
   // THE HOUSE THAT HATES YOU: the building got up. Slow, vast, and throwing

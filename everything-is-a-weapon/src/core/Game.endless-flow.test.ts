@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { JunkScript, RING_STEP, RING_FLOOR, BARE_BONUS } from '../entities/bossScripts/JunkScript';
 import { TrainScript, ARMOUR_CHIP, DERAILED_BONUS } from '../entities/bossScripts/TrainScript';
 import { CookerScript, SEALED_CHIP, VENTED_BONUS } from '../entities/bossScripts/CookerScript';
 import { CablesScript, POWER_STEP, POWER_FLOOR, BLACKOUT_BONUS, CUT_DAMAGE } from '../entities/bossScripts/CablesScript';
@@ -2070,4 +2071,112 @@ it('train entrance: untouchable while he rolls in, then an express with a long w
   for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('express');
+});
+
+function junkFight(): { game: Game; boss: Game['enemies'][number]; script: JunkScript } {
+  const game = boot();
+  game.playFrom(32);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'junk');
+    if (boss && boss.script instanceof JunkScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      (boss.script as unknown as { regrowT: number }).regrowT = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 300;
+      game.player.body.y = boss.body.y;
+      game.player.body.vx = game.player.body.vy = 0;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the King of Junk never arrived');
+}
+
+it('junk: a full ring lets little through; knocking pieces off thins it, and a cleared ring leaves him bare', { timeout: 90_000 }, () => {
+  const { game, boss, script } = junkFight();
+  const n = script.ringCount;
+  expect(n).toBeGreaterThanOrEqual(6);
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * Math.max(RING_FLOOR, 1 - RING_STEP * n));
+
+  // knock one off with a real throw through the ring
+  const target = script.pieces.find((p) => p.state === 'orbit')!;
+  const o = game.spawnObject('chair', target.x - 25, target.y)!;
+  o.thrownByPlayer = true;
+  o.body.vx = 300;
+  o.body.vy = 0;
+  run(game, 0.15);
+  expect(script.ringCount).toBe(n - 1);
+
+  for (const p of [...script.pieces]) if (p.state === 'orbit') script.knock(game, boss, p, 0, 0);
+  expect(script.bare).toBeGreaterThan(0);
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * BARE_BONUS);
+
+  // he calls the junk back
+  run(game, 8);
+  expect(script.bare).toBeLessThanOrEqual(0);
+  expect(script.ringCount).toBeGreaterThanOrEqual(6);
+});
+
+it('junk: a hurl spends a ring piece and hurts on its line; a crash and a tidy hurt in their zones', { timeout: 90_000 }, () => {
+  const { game, boss, script } = junkFight();
+  const n = script.ringCount;
+  game.player.body.x = boss.body.x - 300;
+  game.player.body.y = boss.body.y;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'hurl');
+  run(game, 2.2);
+  expect(game.player.hp).toBeLessThan(hp);
+  expect(script.ringCount).toBe(n - 1);
+
+  run(game, 3);
+  boss.stun = 0;
+  game.player.body.x = boss.body.x + 100;
+  game.player.body.y = boss.body.y;
+  game.player.invulnerable = 0;
+  const hp2 = game.player.hp;
+  script.beginAttack(game, boss, 'crash');
+  run(game, 2);
+  expect(game.player.hp).toBeLessThan(hp2);
+
+  run(game, 3);
+  boss.stun = 0;
+  game.player.body.x = boss.body.x - 250;
+  game.player.body.y = boss.body.y;
+  game.player.body.vx = game.player.body.vy = 0;
+  game.player.invulnerable = 0;
+  const d0 = Math.abs(game.player.body.x - boss.body.x);
+  script.beginAttack(game, boss, 'tidy');
+  run(game, 1.4);
+  expect(Math.abs(game.player.body.x - boss.body.x)).toBeLessThan(d0);
+});
+
+it('junk entrance: untouchable while the rubbish flies in, then a ring of six and a hurl', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(32);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'junk');
+  }
+  const script = boss!.script as JunkScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.ringCount).toBeGreaterThanOrEqual(6);
+  expect(script.attack).toBe('hurl');
 });
