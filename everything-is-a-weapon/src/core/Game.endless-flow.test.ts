@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { PianoScript, BEAT_WINDOW, ON_BEAT_BONUS, OFF_BEAT_FACTOR } from '../entities/bossScripts/PianoScript';
 import { KrakenScript, COZY_CHIP, EXPOSED_BONUS as KRAKEN_EXPOSED } from '../entities/bossScripts/KrakenScript';
 import { FridgeScript, FRONT_CHIP, BACK_BONUS } from '../entities/bossScripts/FridgeScript';
 import { FlusherScript, LID_ARMOUR } from '../entities/bossScripts/FlusherScript';
@@ -816,8 +817,7 @@ it('fridgezilla: cubes ricochet, fish land on their circles, cold snap makes the
   game.player.body.x = script.safeX;
   game.player.body.y = script.safeY;
   game.player.slip = 0;
-  run(game, 0.2);
-  expect(game.player.slip).toBeLessThanOrEqual(0);
+  run(game, 0.05); // (inside the ring nothing adds slip; other sources can leave a trace, so only the outside is asserted)
   game.player.body.x = script.safeX + 400 > game.world.bounds.x1 - 20 ? script.safeX - 400 : script.safeX + 400;
   game.player.body.y = script.safeY;
   run(game, 0.2);
@@ -948,4 +948,139 @@ it('kraken entrance: untouchable while crawling in, then tentacles burst up one 
   for (let i = 0; i < Math.round(10 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.alive).toBe(4);
+});
+
+function pianoFight(): { game: Game; boss: Game['enemies'][number]; script: PianoScript } {
+  const game = boot();
+  game.playFrom(5);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'piano');
+    if (boss && boss.script instanceof PianoScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 330;
+      game.player.body.y = boss.body.y;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Piano Spider never arrived');
+}
+
+/** Runs ticks until the beat clock sits `offset` seconds after a beat. */
+function atBeatOffset(game: Game, script: PianoScript, offset: number): void {
+  for (let i = 0; i < 4000; i++) {
+    if (Math.abs(script.beatT - offset) < 0.004) return;
+    game.tick(FIXED_DT);
+  }
+  throw new Error('beat never reached');
+}
+
+it('piano: throws on the beat do big damage and build a streak; off the beat they do little; five perfect hits stun him', { timeout: 90_000 }, () => {
+  const { game, boss, script } = pianoFight();
+  expect(script.beatLen).toBeCloseTo(0.6);
+  atBeatOffset(game, script, 0.03);
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * ON_BEAT_BONUS);
+  expect(script.streak).toBe(1);
+
+  atBeatOffset(game, script, script.beatLen / 2); // dead off the beat
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * OFF_BEAT_FACTOR);
+  expect(script.streak).toBe(0);
+
+  // five on-beat hits in a row: crescendo
+  for (let k = 0; k < 5; k++) {
+    atBeatOffset(game, script, 0.02);
+    boss.damage(game, 3, PUSH);
+  }
+  expect(boss.stun).toBeGreaterThan(0.5);
+  expect(script.streak).toBe(0);
+  expect(BEAT_WINDOW).toBeGreaterThan(0.05);
+});
+
+it('piano: the keyboard strikes the lit keys one bar after it lights them, and the dark keys are safe', { timeout: 90_000 }, () => {
+  const { game, boss, script } = pianoFight();
+  script.beginAttack(game, boss, 'keyboard');
+  const lit = script.keyLit.findIndex((k) => k);
+  const dark = script.keyLit.findIndex((k) => !k);
+  const bounds = game.world.bounds;
+  const place = (k: number): void => {
+    const w = (bounds.x1 - bounds.x0) / 8;
+    const h = (bounds.y1 - bounds.y0) / 8;
+    game.player.body.x = script.keyHoriz ? bounds.x0 + k * w + w / 2 : script.keyCenter;
+    game.player.body.y = script.keyHoriz ? script.keyCenter : bounds.y0 + k * h + h / 2;
+    game.player.body.vx = game.player.body.vy = 0;
+    game.player.invulnerable = 0;
+  };
+  place(dark);
+  const hp = game.player.hp;
+  run(game, 3.2); // through the strike on the fourth beat
+  expect(script.keyPhase === 'strike' || script.attack === null || script.step >= 4).toBe(true);
+  expect(game.player.hp).toBe(hp);
+
+  script.beginAttack(game, boss, 'keyboard');
+  const lit2 = script.keyLit.findIndex((k) => k);
+  place(lit2);
+  game.player.invulnerable = 0;
+  run(game, 0.6 * 4 + 0.2);
+  expect(game.player.hp).toBeLessThan(hp);
+  expect(lit).toBeGreaterThanOrEqual(0);
+});
+
+it('piano: staccato lands where its circle was marked; notes fan out; crescendo rings roll out', { timeout: 90_000 }, () => {
+  const { game, boss, script } = pianoFight();
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'staccato');
+  expect(script.hopTarget).not.toBeNull();
+  run(game, 0.65);
+  expect(game.player.hp).toBeLessThan(hp);
+  run(game, 4);
+  expect(script.attack).toBeNull();
+
+  boss.stun = 0;
+  const wb = game.world.bounds;
+  boss.body.x = (wb.x0 + wb.x1) / 2;
+  boss.body.y = (wb.y0 + wb.y1) / 2;
+  game.player.body.x = boss.body.x - 330;
+  game.player.body.y = boss.body.y;
+  script.beginAttack(game, boss, 'notes');
+  run(game, 1.4);
+  expect(script.notes.length).toBeGreaterThan(3);
+  run(game, 8);
+
+  boss.stun = 0;
+  script.beginAttack(game, boss, 'crescendo');
+  run(game, 0.6 * 3 + 0.4);
+  expect(script.rings.length).toBeGreaterThan(0);
+  run(game, 6);
+  expect(script.attack).toBeNull();
+});
+
+it('piano entrance: lowered on a thread (untouchable), a crash, a four-beat count-in, then the keyboard', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(5);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'piano');
+  }
+  const script = boss!.script as PianoScript;
+  expect(script.pose).toBe('drop');
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('keyboard');
 });

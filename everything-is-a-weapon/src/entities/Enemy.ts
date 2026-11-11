@@ -267,7 +267,7 @@ export class Enemy {
       }
     }
     // The Piano Spider stops chasing and plays. Everything else can wait.
-    if (this.type.id === 'piano' && this.aware && this.ai !== 'entering' && this.updatePiano(game, dt)) return;
+    if (this.type.id === 'piano' && !this.script && this.aware && this.ai !== 'entering' && this.updatePiano(game, dt)) return;
     if (this.type.sucks) this.updateSuck(game, dt);
     if (this.type.dodges) this.updateDodge(game, dt);
     if (this.type.rearranges) this.updateRearrange(game, dt);

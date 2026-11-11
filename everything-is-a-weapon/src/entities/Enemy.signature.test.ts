@@ -81,20 +81,22 @@ it('has a signature on every boss', () => {
   for (const id of BOSS_IDS) expect(ENEMY_TYPES[id].signature?.name, id).toBeTruthy();
 });
 
-it('piano spider actually plays a keyboard solo', () => {
+it('piano spider plays on a beat: a keyboard is painted on the floor and notes are audible', () => {
   const game = boot();
   const note = vi.spyOn(game.audio, 'pianoNote');
   const boss = ready(game, 'piano');
-  (boss as any).pianoTimer = 0;
-  let sawMusic = false;
-  const steps = Math.round(1.8 / FIXED_DT);
+  const script = boss.script as unknown as { finishIntro(g: unknown, b: unknown): void; keyPhase: string };
+  expect(script, 'piano has its own script').toBeTruthy();
+  script.finishIntro(game, boss);
+  let sawKeys = false;
+  const steps = Math.round(3.4 / FIXED_DT);
   for (let i = 0; i < steps; i++) {
     game.player.hp = 999;
     game.tick(FIXED_DT);
-    if (game.zones.zones.some((zone) => zone.zone === 'music')) sawMusic = true;
+    if (script.keyPhase !== 'off') sawKeys = true;
   }
-  expect(sawMusic, 'the solo leaves music on the floor').toBe(true);
-  expect(note.mock.calls.length, 'each key is audible').toBeGreaterThanOrEqual(2);
+  expect(sawKeys, 'the keyboard lights up').toBe(true);
+  expect(note.mock.calls.length, 'each strike is audible').toBeGreaterThanOrEqual(2);
 });
 
 it('signatures change the room, boss by boss', () => {

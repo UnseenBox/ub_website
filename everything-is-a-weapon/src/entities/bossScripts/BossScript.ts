@@ -6,6 +6,7 @@ import { ChairmanScript } from './ChairmanScript';
 import { FlusherScript } from './FlusherScript';
 import { FridgeScript } from './FridgeScript';
 import { KrakenScript } from './KrakenScript';
+import { PianoScript } from './PianoScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -45,6 +46,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'flusher': return new FlusherScript();
     case 'fridgezilla': return new FridgeScript();
     case 'kraken': return new KrakenScript();
+    case 'piano': return new PianoScript();
     default: return null;
   }
 }

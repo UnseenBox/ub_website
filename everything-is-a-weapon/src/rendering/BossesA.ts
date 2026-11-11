@@ -3,6 +3,7 @@ import { TAU } from '../core/math';
 import { ChairmanScript } from '../entities/bossScripts/ChairmanScript';
 import { FlusherScript } from '../entities/bossScripts/FlusherScript';
 import { FridgeScript } from '../entities/bossScripts/FridgeScript';
+import { PianoScript } from '../entities/bossScripts/PianoScript';
 import {
   blob, bolt, blink, brow, darken, eye, eyePair, fist, gloss, lighten, limb, lin, maw, paint, puffs, rad, raging, rrect, shadeBand, tentacle, wheel,
   type BossBody,
@@ -704,6 +705,17 @@ export const fridgezilla: BossBody = (ctx, e, x, y, time, p) => {
 
 /** The Piano Spider: a grand with eight brass-shod legs, a keyboard grin and an open lid. */
 export const piano: BossBody = (ctx, e, x, y, time, p) => {
+  const pianoScript = e.script instanceof PianoScript ? e.script : null;
+  const dropOffset = pianoScript && !e.defeated ? pianoScript.dropHeight : 0;
+  const hopPose = pianoScript && !e.defeated ? pianoScript.pose : 'idle';
+  ctx.save();
+  if (dropOffset > 0) ctx.translate(0, -dropOffset);
+  if (hopPose === 'crouch') {
+    ctx.translate(x, y);
+    ctx.scale(1.06, 0.9);
+    ctx.translate(-x, -y);
+  }
+  if (hopPose === 'play') ctx.translate(0, Math.sin(time * 14) * 1.2);
   const { hw, hd, tone, fx, fy, windup, hop } = p;
   const b = y + hd + 1;
   const LAC = tone('#17141f');
@@ -808,6 +820,7 @@ export const piano: BossBody = (ctx, e, x, y, time, p) => {
       ctx.stroke();
     }
   }
+  ctx.restore();
 };
 
 void shadeBand;

@@ -402,10 +402,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'PIANO SPIDER', bossBlurb: 'tonight: one night only. every night.',
     signature: { name: 'PIANO ARPEGGIO', sound: 'piano', effect: 'note_ripple', trail: 'note' },
     death: { sound: 'piano', effect: 'note_ripple' },
-    slams: { radius: 170, damage: 1, cooldown: 7 },
+    // His fight lives in bossScripts/PianoScript.ts: everything runs on a beat and your throws are judged on it.
     phases: [
       {
-        below: 0.5, enrage: 1.3, summon: { type: 'gnat', count: 2 },
+        below: 0.5, enrage: 1.15,
         announce: 'THE HIGH NOTES',
       },
     ],
