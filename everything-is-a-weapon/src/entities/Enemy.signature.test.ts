@@ -126,10 +126,11 @@ it('signatures change the room, boss by boss', () => {
   tick(game, 0.05);
   expect(Math.hypot(game.player.body.vx, game.player.body.vy), 'kraken reels you in').toBeGreaterThan(10);
 
-  game.zones.zones.length = 0;
-  ready(game, 'fridgezilla');
+  // Fridgezilla also has a script of its own now (frost plates, the compressor on his back, four attacks).
+  const fridge = ready(game, 'fridgezilla');
   tick(game, 0.05);
-  expect(game.zones.zones.some((zone) => zone.zone === 'slick'), 'fridgezilla ices the floor').toBe(true);
+  expect(fridge.script, 'fridgezilla has its own script').not.toBeNull();
+  fridge.alive = false;
 
   const mower = ready(game, 'mower');
   tick(game, 0.05);

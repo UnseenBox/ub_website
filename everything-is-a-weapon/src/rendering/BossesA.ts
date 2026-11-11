@@ -2,6 +2,7 @@ import { INK } from '../core/constants';
 import { TAU } from '../core/math';
 import { ChairmanScript } from '../entities/bossScripts/ChairmanScript';
 import { FlusherScript } from '../entities/bossScripts/FlusherScript';
+import { FridgeScript } from '../entities/bossScripts/FridgeScript';
 import {
   blob, bolt, blink, brow, darken, eye, eyePair, fist, gloss, lighten, limb, lin, maw, paint, puffs, rad, raging, rrect, shadeBand, tentacle, wheel,
   type BossBody,
@@ -543,6 +544,14 @@ export const fridgezilla: BossBody = (ctx, e, x, y, time, p) => {
   const top = b - 70;
   const bw = hw - 3;
   const rage = raging(e);
+  const script = e.script instanceof FridgeScript ? e.script : null;
+  const pose = e.defeated ? 'idle' : script?.pose ?? 'idle';
+  if (pose === 'skid') {
+    ctx.save();
+    ctx.translate(x, b);
+    ctx.rotate(-0.1);
+    ctx.translate(-x, -b);
+  }
   // chrome feet
   for (const sx of [-bw + 5, bw - 5]) {
     rrect(ctx, x + sx - 5, b - 5, 10, 5, 2);
@@ -591,7 +600,7 @@ export const fridgezilla: BossBody = (ctx, e, x, y, time, p) => {
     ctx.stroke();
   }
   // lower door torn open: glowing cavity, shelves of jar-teeth, icicle fangs, spilling cold light
-  const gape = 2 + windup * 6;
+  const gape = 2 + windup * 6 + (pose === 'open' ? 7 : 0);
   rrect(ctx, x - bw + 5, top + 33, bw * 2 - 10, 30 + gape, 4);
   paint(ctx, rad(ctx, x, top + 50, 2, bw, '#f4ffff', '#7fe0f4', '#1b6f8c'), 3);
   ctx.save();
@@ -655,6 +664,42 @@ export const fridgezilla: BossBody = (ctx, e, x, y, time, p) => {
   limb(ctx, x - bw + 1, top + 30, x - bw - 8, b - 32 - windup * 8, 5.4, tone('#7fb5cf'));
   limb(ctx, x + bw - 1, top + 30, x + bw + 8, b - 30 + Math.sin(e.walkPhase) * 2, 5.4, tone('#7fb5cf'));
   fist(ctx, x + bw + 8, b - 30 + Math.sin(e.walkPhase) * 2, 5.4, tone('#9fd4e8'));
+  if (script && script.plates > 0 && script.thaw <= 0 && !e.defeated) {
+    // frost plates over his front: each one is two good hits
+    const n = script.plates;
+    for (let i = 0; i < n; i++) {
+      const px = x - bw + 8 + (i + 0.5) * ((bw * 2 - 16) / n);
+      const py = top + 24 + (i % 2) * 6;
+      ctx.fillStyle = 'rgba(210, 242, 255, 0.78)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px - 11, py + 22);
+      ctx.lineTo(px - 8, py - 6);
+      ctx.lineTo(px, py - 12);
+      ctx.lineTo(px + 8, py - 6);
+      ctx.lineTo(px + 11, py + 22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(120,190,225,0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(px - 3, py - 6);
+      ctx.lineTo(px + 1, py + 8);
+      ctx.stroke();
+    }
+  } else if (script && script.thaw > 0 && !e.defeated) {
+    // thawed: dripping
+    for (let k = 0; k < 4; k++) {
+      const t = (time * 1.3 + k * 0.27) % 1;
+      ctx.fillStyle = `rgba(150, 215, 255, ${0.9 * (1 - t)})`;
+      ctx.beginPath();
+      ctx.ellipse(x - bw + 12 + k * ((bw * 2 - 24) / 3), top + 30 + t * 40, 2, 3.2, 0, 0, TAU);
+      ctx.fill();
+    }
+  }
+  if (pose === 'skid') ctx.restore();
 };
 
 /** The Piano Spider: a grand with eight brass-shod legs, a keyboard grin and an open lid. */

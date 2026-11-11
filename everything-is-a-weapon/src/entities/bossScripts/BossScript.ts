@@ -4,6 +4,7 @@ import type { Enemy } from '../Enemy';
 import type { EnemyTypeId } from '../EnemyTypes';
 import { ChairmanScript } from './ChairmanScript';
 import { FlusherScript } from './FlusherScript';
+import { FridgeScript } from './FridgeScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -39,6 +40,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
   switch (id) {
     case 'chairman': return new ChairmanScript();
     case 'flusher': return new FlusherScript();
+    case 'fridgezilla': return new FridgeScript();
     default: return null;
   }
 }

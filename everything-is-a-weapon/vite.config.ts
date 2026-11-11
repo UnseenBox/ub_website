@@ -141,6 +141,8 @@ export default defineConfig(({ mode }) => {
     // portal builds, which must stay one file and keep the synthesiser.
     define: { __SAMPLES__: JSON.stringify(portal === null || portal === 'crazygames') },
     publicDir: portal === null ? undefined : false,
+    // Whole-game flow tests take a few seconds each; the default 5s fails them when the suite runs in parallel.
+    test: { testTimeout: 30_000 },
     plugins:
       portal === 'crazygames'
         ? [crazyGamesSdk(), singleFile(), coverSaver()]

@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { FridgeScript, FRONT_CHIP, BACK_BONUS } from '../entities/bossScripts/FridgeScript';
 import { FlusherScript, LID_ARMOUR } from '../entities/bossScripts/FlusherScript';
 import { BLOCKED_CHIP, COPIERS, ChairmanScript, EXPOSED_BONUS, INTERRUPT_DAMAGE, RAM_DAMAGE } from '../entities/bossScripts/ChairmanScript';
 
@@ -701,4 +702,141 @@ it('flusher entrance: untouchable while surfing in, then FLUSH! and the first ge
   for (let i = 0; i < Math.round(10 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('geysers');
+});
+
+function fridgeFight(): { game: Game; boss: Game['enemies'][number]; script: FridgeScript } {
+  const game = boot();
+  game.playFrom(4);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'fridgezilla');
+    if (boss && boss.script instanceof FridgeScript) {
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      // clear the furniture so teleporting him cannot bump anything (a bump stuns him)
+      for (const o of [...game.objects]) o.destroy(game);
+      boss.facing = 0; // facing +x: his back is at -x
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('Fridgezilla never arrived');
+}
+
+it('fridgezilla: front hits crack frost plates; a hit from behind goes straight in; thaw leaves him open', { timeout: 90_000 }, () => {
+  const { game, boss, script } = fridgeFight();
+  expect(script.plates).toBe(3);
+  const hp = boss.hp;
+  // from the front: he faces +x, so something flying -x hits his face
+  boss.damage(game, 10, { ...PUSH, dirX: -1, dirY: 0 });
+  expect(hp - boss.hp).toBeCloseTo(10 * FRONT_CHIP);
+  boss.damage(game, 10, { ...PUSH, dirX: -1, dirY: 0 });
+  expect(script.plates).toBe(2);
+
+  // from behind: flying +x
+  const hp2 = boss.hp;
+  boss.damage(game, 10, { ...PUSH, dirX: 1, dirY: 0 });
+  expect(hp2 - boss.hp).toBeCloseTo(10 * BACK_BONUS);
+  expect(script.plates).toBe(2);
+
+  // a heavy front hit cracks a plate in one go; fire melts what is left and thaws him
+  boss.damage(game, 20, { ...PUSH, dirX: -1, dirY: 0 });
+  expect(script.plates).toBe(1);
+  boss.damage(game, 6, { ...PUSH, type: 'fire', dirX: 0, dirY: 0 });
+  expect(script.plates).toBe(0);
+  expect(script.thaw).toBeGreaterThan(0);
+  expect(boss.stun).toBeGreaterThan(0);
+  run(game, 6);
+  expect(script.plates).toBe(3); // frosted over again
+});
+
+it('fridgezilla: the cone freezes you if you stand in it and misses if you flank', { timeout: 90_000 }, () => {
+  const { game, boss, script } = fridgeFight();
+  const b = boss.body;
+  game.player.body.x = b.x + 220;
+  game.player.body.y = b.y;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  boss.stun = 0;
+  script.beginAttack(game, boss, 'cone');
+  run(game, 1.3);
+  expect(game.player.hp).toBeLessThan(hp);
+  expect(game.player.slowTimer).toBeGreaterThan(0);
+
+  // second time: slip round behind during the wind-up
+  boss.stun = 0;
+  script.beginAttack(game, boss, 'cone');
+  game.player.body.x = b.x - 220;
+  game.player.body.y = b.y;
+  game.player.invulnerable = 0;
+  game.player.slowTimer = 0;
+  const hp2 = game.player.hp;
+  run(game, 1.8);
+  expect(game.player.hp).toBe(hp2);
+});
+
+it('fridgezilla: cubes ricochet, fish land on their circles, cold snap makes the floor slippery outside the ring', { timeout: 90_000 }, () => {
+  const { game, boss, script } = fridgeFight();
+  // the director would start the next number by itself; keep it parked so each check sees only its own
+  const runParked = (seconds: number): void => {
+    for (let k = 0; k < Math.round(seconds / 0.25); k++) {
+      (script as unknown as { gap: number }).gap = 9999;
+      run(game, 0.25);
+    }
+  };
+  boss.stun = 0;
+  script.beginAttack(game, boss, 'cubes');
+  runParked(2.0);
+  expect(script.cubes.length).toBeGreaterThan(0);
+  runParked(8);
+  expect(script.cubes.length).toBe(0);
+
+  game.player.body.x = boss.body.x + 200;
+  game.player.body.y = boss.body.y + 100;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  boss.stun = 0;
+  script.beginAttack(game, boss, 'fish');
+  expect(script.fish.length).toBeGreaterThanOrEqual(3);
+  runParked(1.6);
+  expect(game.player.hp).toBeLessThan(hp); // one lands right under you
+  runParked(3);
+
+  boss.stun = 0;
+  script.beginAttack(game, boss, 'snap');
+  runParked(1.7);
+  expect(script.iceLeft).toBeGreaterThan(0);
+  // outside the safe ring you slide; inside you do not
+  game.player.body.x = script.safeX;
+  game.player.body.y = script.safeY;
+  game.player.slip = 0;
+  run(game, 0.2);
+  expect(game.player.slip).toBeLessThanOrEqual(0);
+  game.player.body.x = script.safeX + 400 > game.world.bounds.x1 - 20 ? script.safeX - 400 : script.safeX + 400;
+  game.player.body.y = script.safeY;
+  run(game, 0.2);
+  expect(game.player.slip).toBeGreaterThan(0);
+});
+
+it('fridgezilla entrance: untouchable while skidding in, then the door opens and the fight starts with the cone', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(4);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'fridgezilla');
+  }
+  const script = boss!.script as FridgeScript;
+  expect(script.pose).toBe('skid');
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(10 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('cone');
 });

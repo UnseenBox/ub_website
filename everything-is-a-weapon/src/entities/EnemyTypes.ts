@@ -384,12 +384,11 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'FRIDGEZILLA', bossBlurb: 'serve chilled. serves you chilled.',
     signature: { name: 'FROST BREATHE', sound: 'freeze', effect: 'frost_ring', trail: 'ice' },
     death: { sound: 'freeze', effect: 'frost_ring' },
-    hurls: { range: 470, cooldown: 3, windup: 0.6, spawn: 'fish' },
-    frost: { radius: 48, interval: 4, ttl: 9 },
-    slams: { radius: 125, damage: 1, cooldown: 8 },
+    // His fight lives in bossScripts/FridgeScript.ts (frost plates, the compressor on his back, four attacks).
+    // The shared fish-throw, frost trail and slam are gone.
     phases: [
       {
-        below: 0.5, enrage: 1.2, summon: { type: 'fragile', count: 2 },
+        below: 0.5, enrage: 1.15,
         announce: 'FROZEN GOODS',
       },
     ],
