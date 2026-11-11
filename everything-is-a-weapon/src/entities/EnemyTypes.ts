@@ -472,10 +472,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'LAUNDRY HYDRA', bossBlurb: 'three heads. no pairs. all angry.',
     signature: { name: 'MULTI HEAD', sound: 'bossWalk', effect: 'multi_burst', trail: 'head' },
     death: { sound: 'bossWalk', effect: 'multi_burst' },
-    lashes: { range: 185, arc: 0.9, cooldown: 3.5, windup: 0.5 },
-    hurls: { range: 420, cooldown: 3, windup: 0.6, spawn: 'ball' },
+    // His fight lives in bossScripts/HydraScript.ts: cut a head and two grow back unless you burn the stump.
     phases: [
-      { below: 0.5, enrage: 1.3, summon: { type: 'gnat', count: 2 }, announce: 'IT MULTIPLIES' },
+      { below: 0.5, enrage: 1.1, announce: 'IT MULTIPLIES' },
     ],
   },
   // FAN-TASTIC NIGHTMARE: a ceiling fan that filed for flight. It hovers, it

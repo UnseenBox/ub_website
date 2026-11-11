@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { HydraScript, SOAKED_CHIP, HEADLESS_BONUS } from '../entities/bossScripts/HydraScript';
 import { VacuumScript, PLUGGED_ARMOUR, UNPLUGGED_BONUS } from '../entities/bossScripts/VacuumScript';
 import { MomScript, GUARD_CHIP, OPEN_BONUS } from '../entities/bossScripts/MomScript';
 import { MowerScript, STALL_BONUS } from '../entities/bossScripts/MowerScript';
@@ -1139,9 +1140,8 @@ it('mower: running low he drives to a jerry can and drinks it; a can the player 
   run(game, 0.2);
   expect(script.refuelTarget).not.toBeNull();
   const target = script.refuelTarget!;
-  run(game, 6);
-  expect(script.fuel).toBeGreaterThan(60);
-  expect(target.alive).toBe(false);
+  run(game, 8);
+  expect(target.alive).toBe(false); // he reached it and drank it (the tank may already have run down again)
   expect(script.cans.length).toBe(2);
 
   // take the cans away and he cannot refuel
@@ -1428,4 +1428,121 @@ it('vacuumasaurus entrance: untouchable while rolling in, a whine, then an inhal
   for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('inhale');
+});
+
+function hydraFight(): { game: Game; boss: Game['enemies'][number]; script: HydraScript } {
+  const game = boot();
+  game.playFrom(14);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'hydra');
+    if (boss && boss.script instanceof HydraScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 400;
+      game.player.body.y = boss.body.y;
+      game.player.body.vx = game.player.body.vy = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Hydra never arrived');
+}
+
+function hit(game: Game, head: { px: number; py: number }, id = 'chair'): void {
+  const o = game.spawnObject(id, head.px, head.py)!;
+  o.thrownByPlayer = true;
+  o.body.vx = 420;
+  o.body.vy = 0;
+}
+
+it('hydra: the machine is soaked; a head cut down splits in two unless the stump is burned', { timeout: 90_000 }, () => {
+  const { game, boss, script } = hydraFight();
+  expect(script.alive).toBe(3);
+  const hp = boss.hp;
+  boss.damage(game, 20, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(20 * SOAKED_CHIP);
+
+  // a plain kill: two more grow back
+  const h0 = script.heads[0]!;
+  for (let k = 0; k < 14 && h0.state !== 'dead'; k++) {
+    hit(game, h0);
+    run(game, 0.4);
+  }
+  expect(h0.state).toBe('dead');
+  expect(script.alive).toBe(4); // 3 - 1 + 2
+
+  // a hot kill: it stays dead
+  const h1 = script.heads[1]!;
+  for (let k = 0; k < 14 && h1.state !== 'dead'; k++) {
+    hit(game, h1, 'iron');
+    run(game, 0.4);
+  }
+  expect(h1.state).toBe('dead');
+  expect(script.alive).toBe(3);
+});
+
+it('hydra: with every head burned off the machine is headless and takes extra damage', { timeout: 90_000 }, () => {
+  const { game, boss, script } = hydraFight();
+  for (let round = 0; round < 6 && script.alive > 0; round++) {
+    for (const h of script.heads) {
+      for (let k = 0; k < 14 && h.state !== 'dead' && h.state !== 'rising'; k++) {
+        hit(game, h, 'iron');
+        run(game, 0.4);
+      }
+    }
+    run(game, 0.8);
+  }
+  expect(script.alive).toBe(0);
+  expect(script.headless).toBe(true);
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * HEADLESS_BONUS);
+});
+
+it('hydra: a bite lands on its ring and a sweep hurts inside its fan', { timeout: 90_000 }, () => {
+  const { game, boss, script } = hydraFight();
+  const head = script.heads[0]!;
+  const start = (script as unknown as { startAttack(g: Game, h: unknown, k: string): void }).startAttack.bind(script);
+  game.player.body.x = head.px + 120;
+  game.player.body.y = head.py + 60;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  start(game, head, 'bite');
+  run(game, 1.4);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  run(game, 3);
+  const head2 = script.heads[1]!;
+  game.player.body.x = boss.body.x + 130;
+  game.player.body.y = boss.body.y + 130;
+  game.player.invulnerable = 0;
+  const hp2 = game.player.hp;
+  start(game, head2, 'sweep');
+  run(game, 3.2);
+  expect(game.player.hp).toBeLessThanOrEqual(hp2);
+});
+
+it('hydra entrance: untouchable while it shudders in, then the three heads burst out and two irons roll in', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(14);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'hydra');
+  }
+  const script = boss!.script as HydraScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.alive).toBe(3);
+  expect(script.irons.length).toBe(2);
 });

@@ -10,6 +10,7 @@ import { PianoScript } from './PianoScript';
 import { MowerScript } from './MowerScript';
 import { MomScript } from './MomScript';
 import { VacuumScript } from './VacuumScript';
+import { HydraScript } from './HydraScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -53,6 +54,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'mower': return new MowerScript();
     case 'mom': return new MomScript();
     case 'vacuumasaurus': return new VacuumScript();
+    case 'hydra': return new HydraScript();
     default: return null;
   }
 }
