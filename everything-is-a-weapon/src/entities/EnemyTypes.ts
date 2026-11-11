@@ -503,10 +503,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'POPCORN APOCALYPSE', bossBlurb: 'fresh, hot, and aimed at you.',
     signature: { name: 'POP BURST', sound: 'slams', effect: 'pop_ring', trail: 'pop' },
     death: { sound: 'slams', effect: 'pop_ring' },
-    teleports: { cooldown: 9, minDist: 220 },
-    hurls: { range: 420, cooldown: 2.8, windup: 0.6, spawn: 'spraycan' },
+    // His fight lives in bossScripts/PopcornScript.ts: fused kernel bombs you throw back at him.
     phases: [
-      { below: 0.4, enrage: 1.4, announce: 'EXTRA BUTTER' },
+      { below: 0.5, enrage: 1.15, announce: 'EXTRA BUTTER' },
     ],
   },
   // CABLE KRAKEN: a nest of live wire with plug tentacles. It lashes, it

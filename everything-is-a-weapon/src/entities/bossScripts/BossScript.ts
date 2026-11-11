@@ -12,6 +12,7 @@ import { MomScript } from './MomScript';
 import { VacuumScript } from './VacuumScript';
 import { HydraScript } from './HydraScript';
 import { FanScript } from './FanScript';
+import { PopcornScript } from './PopcornScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -57,6 +58,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'vacuumasaurus': return new VacuumScript();
     case 'hydra': return new HydraScript();
     case 'fan': return new FanScript();
+    case 'popcorn': return new PopcornScript();
     default: return null;
   }
 }

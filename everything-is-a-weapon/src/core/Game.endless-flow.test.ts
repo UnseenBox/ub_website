@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { PopcornScript, CHIP as POP_CHIP, SPENT_BONUS, BOMB_DAMAGE } from '../entities/bossScripts/PopcornScript';
 import { FanScript, AIRBORNE_GRAZE, GROUNDED_BONUS } from '../entities/bossScripts/FanScript';
 import { HydraScript, SOAKED_CHIP, HEADLESS_BONUS } from '../entities/bossScripts/HydraScript';
 import { VacuumScript, PLUGGED_ARMOUR, UNPLUGGED_BONUS } from '../entities/bossScripts/VacuumScript';
@@ -1637,4 +1638,105 @@ it('fan entrance: untouchable while he drops in, then he opens with a swoop', { 
   for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('swoop');
+});
+
+function popcornFight(): { game: Game; boss: Game['enemies'][number]; script: PopcornScript } {
+  const game = boot();
+  game.playFrom(20);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'popcorn');
+    if (boss && boss.script instanceof PopcornScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 300;
+      game.player.body.y = boss.body.y;
+      game.player.body.vx = game.player.body.vy = 0;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Popcorn never arrived');
+}
+
+it('popcorn: hits chip him; a bomb bursting on him bites hard; an empty tub takes extra', { timeout: 90_000 }, () => {
+  const { game, boss, script } = popcornFight();
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * POP_CHIP);
+
+  // a bomb thrown into him bursts on contact
+  const hp1 = boss.hp;
+  const ball = game.spawnObject('ball', boss.body.x - 80, boss.body.y)!;
+  (script as unknown as { addBomb(g: Game, o: unknown): void }).addBomb(game, ball);
+  ball.thrownByPlayer = true;
+  ball.body.vx = 420;
+  run(game, 0.5);
+  expect(boss.hp).toBeLessThan(hp1 - boss.maxHp * BOMB_DAMAGE * 0.5);
+  expect(script.bombs.length).toBe(0);
+
+  boss.stun = 0;
+  script.spent = 3;
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * SPENT_BONUS);
+});
+
+it('popcorn: a lob makes fused bombs; a left-alone bomb bursts on the player', { timeout: 90_000 }, () => {
+  const { game, boss, script } = popcornFight();
+  script.beginAttack(game, boss, 'lob');
+  for (let i = 0; i < Math.round(4 / FIXED_DT) && script.bombs.length === 0; i++) game.tick(FIXED_DT);
+  expect(script.bombs.length).toBeGreaterThan(0);
+
+  const bomb = script.bombs[0]!;
+  game.player.invulnerable = 0;
+  game.player.body.x = bomb.obj.body.x;
+  game.player.body.y = bomb.obj.body.y;
+  const hp = game.player.hp;
+  bomb.fuse = 0.05;
+  run(game, 0.3);
+  expect(game.player.hp).toBeLessThan(hp);
+});
+
+it('popcorn: the spray hurts inside its cone and the overflow leaves him an empty tub with bombs around', { timeout: 90_000 }, () => {
+  const { game, boss, script } = popcornFight();
+  game.player.body.x = boss.body.x - 200;
+  game.player.body.y = boss.body.y;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'spray');
+  run(game, 2.5);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  boss.stun = 0;
+  game.player.body.x = boss.body.x + 700;
+  game.player.invulnerable = 0;
+  script.beginAttack(game, boss, 'overflow');
+  run(game, 2.2);
+  expect(script.spent).toBeGreaterThan(0);
+  expect(script.bombs.length).toBeGreaterThan(0);
+});
+
+it('popcorn entrance: untouchable while the tub fills, then he opens with a lob', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(20);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'popcorn');
+  }
+  const script = boss!.script as PopcornScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('lob');
 });

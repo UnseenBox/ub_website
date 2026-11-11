@@ -1,5 +1,6 @@
 import { INK } from '../core/constants';
 import { TAU } from '../core/math';
+import { PopcornScript } from '../entities/bossScripts/PopcornScript';
 import {
   blob, bolt, blink, brow, eye, eyePair, fist, gloss, lighten, limb, lin, maw, paint, puffs, rad, raging, rrect, tentacle, wheel,
   type BossBody,
@@ -70,7 +71,10 @@ export const popcorn: BossBody = (ctx, e, x, y, time, p) => {
     [-15, -54, 6], [-6, -59, 7], [4, -56, 6.5], [13, -59, 7],
     [-10, -67, 5.5], [1, -65, 6], [10, -68, 5.5], [-1, -73, 4.5],
   ];
+  const script = e.script instanceof PopcornScript && !e.defeated ? e.script : null;
+  const shown = script ? Math.ceil(script.heap * KERNELS.length - 0.001) : KERNELS.length;
   KERNELS.forEach(([kx, ky, kr], ki) => {
+    if (ki >= shown) return;
     const bob = alive ? Math.sin(time * 3 + ki * 1.3 + e.seed) * 1.4 : 0;
     ctx.beginPath();
     ctx.arc(x + kx, b + ky + bob, kr, 0, TAU);
