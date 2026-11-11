@@ -64,6 +64,8 @@ export interface ObjectDefinition {
   readonly surface?: boolean;
   /** Built in or plumbed in: never moves and cannot be picked up. */
   readonly fixed?: boolean;
+  /** Only things the player threw can hurt it (a boss's own paper must not wreck its own machine). */
+  readonly playerDamageOnly?: boolean;
   /** A signature noise when it hits something. */
   readonly quirk?: 'squeak' | 'gong';
   readonly restitution?: number;

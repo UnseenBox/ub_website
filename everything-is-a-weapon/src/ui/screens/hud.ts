@@ -491,7 +491,7 @@ export class HUD {
       this.lastBossUid = -1;
       return;
     }
-    const maxHp = Math.max(1, boss.type.hp);
+    const maxHp = Math.max(1, boss.maxHp);
     const ratio = Math.max(0, Math.min(1, boss.hp / maxHp));
     const shieldMax = Math.max(0, boss.type.shieldHp ?? 0);
     const shieldRatio = shieldMax > 0 ? Math.max(0, Math.min(1, boss.shieldHp / shieldMax)) : 0;

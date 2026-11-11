@@ -326,13 +326,14 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#3a4a5c', shade: '#232e3b', scoreBonus: 400, voice: 120,
     boss: true, bossTitle: 'CHAIRMAN OUSTED', bossDiscovery: 'hostile_takeover',
     bossBanner: 'CHAIRMAN OF CHAOS', bossBlurb: 'your 9 a.m. has been rescheduled. forever.',
-    signature: { name: 'CYCLONE SWEEP', sound: 'bossWalk', effect: 'fan_spread', trail: 'wind' },
+    // His fight lives in bossScripts/ChairmanScript.ts (memos, copier, four signature attacks).
+    // The entry below only names it; a boss with a script skips the generic signature timer.
+    signature: { name: 'QUARTERLY REVIEW', sound: 'bossWalk', effect: 'fan_spread', trail: 'wind' },
     death: { sound: 'bossWalk', effect: 'fan_spread' },
-    hurls: { range: 480, cooldown: 2.4, windup: 0.5, spawn: 'paperball' },
     slams: { radius: 125, damage: 1, cooldown: 8 },
     phases: [
       {
-        below: 0.5, enrage: 1.2, summon: { type: 'mini', count: 2 },
+        below: 0.5, enrage: 1.15, summon: { type: 'mini', count: 2 },
         announce: 'OVERTIME',
       },
     ],
@@ -347,12 +348,11 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'THE FLUSHER', bossBlurb: 'do not stand downstream.',
     signature: { name: 'WHIRLPOOL', sound: 'slams', effect: 'water_ring', trail: 'water' },
     death: { sound: 'slams', effect: 'water_ring' },
-    sucks: { radius: 240, pull: 850 },
-    slams: { radius: 135, damage: 1, cooldown: 7, spawnZone: { kind: 'water', radius: 65, ttl: 10 } },
-    hurls: { range: 440, cooldown: 4, windup: 0.7, spawn: 'plunger' },
+    // His fight lives in bossScripts/FlusherScript.ts (lid armour, whirlpool, geysers, plungers, tidal wave).
+    // The generic suck / slam / plunger-throw he used to share with other bosses are gone.
     phases: [
       {
-        below: 0.5, enrage: 1.25, shockwave: { radius: 160, damage: 1 },
+        below: 0.5, enrage: 1.2,
         announce: 'OVERFLOW',
       },
     ],
@@ -367,10 +367,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'SOFA KRAKEN', bossBlurb: 'it wants a hug. decline.',
     signature: { name: 'TENTACLE CRUSH', sound: 'bossWalk', effect: 'tentacle_burst', trail: 'ink' },
     death: { sound: 'bossWalk', effect: 'tentacle_burst' },
-    lashes: { range: 200, arc: 0.8, cooldown: 5, windup: 0.6 },
-    slams: { radius: 135, damage: 1, cooldown: 7 },
+    // His fight lives in bossScripts/KrakenScript.ts: a sofa that sits still while four tentacles do the work.
     phases: [
-      { below: 0.5, enrage: 1.3, announce: 'IT HUGS BACK' },
+      { below: 0.5, enrage: 1.2, announce: 'IT HUGS BACK' },
     ],
   },
   // FRIDGEZILLA: walks out of the kitchenette breathing frost. The floor freezes
@@ -384,12 +383,11 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'FRIDGEZILLA', bossBlurb: 'serve chilled. serves you chilled.',
     signature: { name: 'FROST BREATHE', sound: 'freeze', effect: 'frost_ring', trail: 'ice' },
     death: { sound: 'freeze', effect: 'frost_ring' },
-    hurls: { range: 470, cooldown: 3, windup: 0.6, spawn: 'fish' },
-    frost: { radius: 48, interval: 4, ttl: 9 },
-    slams: { radius: 125, damage: 1, cooldown: 8 },
+    // His fight lives in bossScripts/FridgeScript.ts (frost plates, the compressor on his back, four attacks).
+    // The shared fish-throw, frost trail and slam are gone.
     phases: [
       {
-        below: 0.5, enrage: 1.2, summon: { type: 'fragile', count: 2 },
+        below: 0.5, enrage: 1.15,
         announce: 'FROZEN GOODS',
       },
     ],
@@ -404,10 +402,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'PIANO SPIDER', bossBlurb: 'tonight: one night only. every night.',
     signature: { name: 'PIANO ARPEGGIO', sound: 'piano', effect: 'note_ripple', trail: 'note' },
     death: { sound: 'piano', effect: 'note_ripple' },
-    slams: { radius: 170, damage: 1, cooldown: 7 },
+    // His fight lives in bossScripts/PianoScript.ts: everything runs on a beat and your throws are judged on it.
     phases: [
       {
-        below: 0.5, enrage: 1.3, summon: { type: 'gnat', count: 2 },
+        below: 0.5, enrage: 1.15,
         announce: 'THE HIGH NOTES',
       },
     ],
@@ -417,7 +415,8 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   mower: {
     id: 'mower', name: 'Mower Maniac', hp: 560, speed: 95, mass: 540, radius: 52, reaction: 0.5, awareness: 480,
     impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 5, burnFactor: 1.2,
-    lungeRange: 380, lungeSpeed: 720, lungeTime: 0.8, windup: 0.9, recover: 1,
+    // His real charges are the scripted lane passes (bossScripts/MowerScript.ts); the shared lunge is only a short lurch.
+    lungeRange: 200, lungeSpeed: 520, lungeTime: 0.5, windup: 0.9, recover: 1,
     color: '#c23b2e', shade: '#7d241c', scoreBonus: 500, voice: 90,
     boss: true, bossTitle: 'MOWER RETIRED', bossDiscovery: 'mow_no_mo',
     bossBanner: 'LAWN MOWER MANIAC', bossBlurb: 'the grass is always greener. you are the grass.',
@@ -426,7 +425,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     tramples: true,
     phases: [
       {
-        below: 0.5, enrage: 1.3, shockwave: { radius: 140, damage: 1 },
+        below: 0.5, enrage: 1.15,
         announce: 'BACKFIRE',
       },
     ],
@@ -442,14 +441,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'MOM', bossBlurb: 'she found the mess. run.',
     signature: { name: 'HUG STRIKE', sound: 'bossWalk', effect: 'hug_burst', trail: 'hug' },
     death: { sound: 'bossWalk', effect: 'hug_burst' },
-    dodges: { radius: 210, cooldown: 2.5 },
-    rearranges: { cooldown: 14, count: 5 },
-    hurls: { range: 500, cooldown: 3.2, windup: 0.6, spawn: 'shoe' },
-    slams: { radius: 145, damage: 1, cooldown: 7 },
+    // Her fight lives in bossScripts/MomScript.ts: she catches what you throw and makes house rules.
+    // The shared dodge, tidy-up, shoe throw and slam are gone.
     phases: [
-      { below: 0.66, enrage: 1.2, announce: 'GO TO YOUR ROOM' },
-      { below: 0.33, enrage: 1.5, summon: { type: 'gnat', count: 3 }, shockwave: { radius: 150, damage: 1 }, announce: 'NO DESSERT' },
-      { below: 0.15, enrage: 1.8, summon: { type: 'gnat', count: 5 }, shockwave: { radius: 170, damage: 2 }, announce: 'BEDTIME' },
+      { below: 0.5, enrage: 1.15, announce: 'GO TO YOUR ROOM' },
     ],
   },
   // VACUUMASAURUS: the apex predator of dust. Inhales furniture, projectiles
@@ -462,10 +457,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'VACUUMASAURUS', bossBlurb: '65 million years of dust. zero survivors.',
     signature: { name: 'SUCK PULL', sound: 'bossWalk', effect: 'vacuum_ring', trail: 'dust' },
     death: { sound: 'bossWalk', effect: 'vacuum_ring' },
-    sucks: { radius: 260, pull: 1000 }, voracious: true,
-    slams: { radius: 140, damage: 1, cooldown: 8 },
+    // His fight lives in bossScripts/VacuumScript.ts (the plug on the wall, the dust bag, three attacks).
     phases: [
-      { below: 0.5, enrage: 1.3, announce: 'SECONDS' },
+      { below: 0.5, enrage: 1.15, announce: 'SECONDS' },
     ],
   },
   // LAUNDRY HYDRA: one basket, three sock serpents, zero matching pairs. Each
@@ -478,10 +472,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'LAUNDRY HYDRA', bossBlurb: 'three heads. no pairs. all angry.',
     signature: { name: 'MULTI HEAD', sound: 'bossWalk', effect: 'multi_burst', trail: 'head' },
     death: { sound: 'bossWalk', effect: 'multi_burst' },
-    lashes: { range: 185, arc: 0.9, cooldown: 3.5, windup: 0.5 },
-    hurls: { range: 420, cooldown: 3, windup: 0.6, spawn: 'ball' },
+    // His fight lives in bossScripts/HydraScript.ts: cut a head and two grow back unless you burn the stump.
     phases: [
-      { below: 0.5, enrage: 1.3, summon: { type: 'gnat', count: 2 }, announce: 'IT MULTIPLIES' },
+      { below: 0.5, enrage: 1.1, announce: 'IT MULTIPLIES' },
     ],
   },
   // FAN-TASTIC NIGHTMARE: a ceiling fan that filed for flight. It hovers, it
@@ -495,9 +488,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'FAN-TASTIC NIGHTMARE', bossBlurb: 'it puts the air in despair.',
     signature: { name: 'CYCLONE FAN', sound: 'bossWalk', effect: 'fan_burst', trail: 'wind' },
     death: { sound: 'bossWalk', effect: 'fan_burst' },
-    winds: { radius: 90, interval: 3.5, ttl: 4 },
+    // His fight lives in bossScripts/FanScript.ts: a wind that bends your throws, and dives that ground him.
     phases: [
-      { below: 0.5, enrage: 1.4, announce: 'TURBO' },
+      { below: 0.5, enrage: 1.2, announce: 'TURBO' },
     ],
   },
   // POPCORN APOCALYPSE: a microwave wizard that blinks around the room lobbing
@@ -510,10 +503,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'POPCORN APOCALYPSE', bossBlurb: 'fresh, hot, and aimed at you.',
     signature: { name: 'POP BURST', sound: 'slams', effect: 'pop_ring', trail: 'pop' },
     death: { sound: 'slams', effect: 'pop_ring' },
-    teleports: { cooldown: 9, minDist: 220 },
-    hurls: { range: 420, cooldown: 2.8, windup: 0.6, spawn: 'spraycan' },
+    // His fight lives in bossScripts/PopcornScript.ts: fused kernel bombs you throw back at him.
     phases: [
-      { below: 0.4, enrage: 1.4, announce: 'EXTRA BUTTER' },
+      { below: 0.5, enrage: 1.15, announce: 'EXTRA BUTTER' },
     ],
   },
   // CABLE KRAKEN: a nest of live wire with plug tentacles. It lashes, it
@@ -527,10 +519,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'CABLE KRAKEN', bossBlurb: 'do not lick.',
     signature: { name: 'SHOCK ZAP', sound: 'shock', effect: 'zap_ring', trail: 'zap' },
     death: { sound: 'shock', effect: 'zap_ring' },
-    lashes: { range: 170, arc: 0.9, cooldown: 4, windup: 0.6 },
-    zaps: { radius: 170, interval: 3 },
+    // His fight lives in bossScripts/CablesScript.ts: four live sockets feed him; cut the cables.
     phases: [
-      { below: 0.5, enrage: 1.3, announce: 'HIGH VOLTAGE' },
+      { below: 0.5, enrage: 1.15, announce: 'HIGH VOLTAGE' },
     ],
   },
   // PRESSURE COOKER: a boiler with a grudge and a whistle. It sits on you in a
@@ -543,10 +534,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'PRESSURE COOKER', bossBlurb: 'do not remove the lid. it will.',
     signature: { name: 'FLAME BURST', sound: 'burn', effect: 'flame_ring', trail: 'fire' },
     death: { sound: 'burn', effect: 'flame_ring' },
-    slams: { radius: 135, damage: 1, cooldown: 6, spawnZone: { kind: 'steam', radius: 70, ttl: 6 } },
+    // His fight lives in bossScripts/CookerScript.ts: a pressure gauge, a blast, and the lid off.
     phases: [
-      { below: 0.6, enrage: 1.2, announce: 'SIMMERING' },
-      { below: 0.3, enrage: 1.4, shockwave: { radius: 150, damage: 1 }, announce: 'BOILING OVER' },
+      { below: 0.5, enrage: 1.15, announce: 'SIMMERING' },
     ],
   },
   // MIDNIGHT EXPRESS: a runaway train of fused appliances. It picks a track,
@@ -554,15 +544,14 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   train: {
     id: 'train', name: 'Midnight Express', hp: 640, speed: 85, mass: 720, radius: 60, reaction: 0.6, awareness: 520,
     impactFactor: 1, lightObjectFactor: 0.4, staggerFactor: 0.3, turnRate: 3, burnFactor: 1,
-    lungeRange: 500, lungeSpeed: 800, lungeTime: 0.9, windup: 1, recover: 1.2,
     color: '#2e3a55', shade: '#1a2236', scoreBonus: 700, voice: 70,
     boss: true, bossTitle: 'EXPRESS DERAILED', bossDiscovery: 'derailed',
     bossBanner: 'MIDNIGHT EXPRESS', bossBlurb: 'all aboard. no refunds.',
     signature: { name: 'RAIL SLAM', sound: 'bossWalk', effect: 'rail_ring', trail: 'rail' },
     death: { sound: 'bossWalk', effect: 'rail_ring' },
-    tramples: true,
+    // His fight lives in bossScripts/TrainScript.ts: lanes, lamps, and a derail if the rails are blocked.
     phases: [
-      { below: 0.5, enrage: 1.3, announce: 'EXPRESS' },
+      { below: 0.5, enrage: 1.15, announce: 'EXPRESS' },
     ],
   },
   // LANDLORD, KING OF JUNK: eviction day, final form. A tower of wardrobes,
@@ -575,15 +564,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'KING OF JUNK', bossBlurb: 'your deposit is forfeit. so are you.',
     signature: { name: 'SCRAP CRASH', sound: 'slams', effect: 'scrap_ring', trail: 'junk' },
     death: { sound: 'slams', effect: 'scrap_ring' },
-    sucks: { radius: 170, pull: 500 },
-    hurls: { range: 460, cooldown: 3.5, windup: 0.7, spawn: 'plank' },
-    slams: { radius: 140, damage: 1, cooldown: 8 },
+    // His fight lives in bossScripts/JunkScript.ts: a ring of rubbish for armour that his own attacks thin out.
     phases: [
-      { below: 0.66, summon: { type: 'mini', count: 2 }, announce: 'MORE TRIBUTE' },
-      {
-        below: 0.33, enrage: 1.4, summon: { type: 'mini', count: 2 },
-        shockwave: { radius: 160, damage: 1 }, announce: 'THE KING DEMANDS',
-      },
+      { below: 0.5, enrage: 1.15, announce: 'MORE TRIBUTE' },
     ],
   },
   // THE HOUSE THAT HATES YOU: the building got up. Slow, vast, and throwing

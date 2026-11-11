@@ -1,4 +1,5 @@
 import { INK } from '../core/constants';
+import { FanScript } from '../entities/bossScripts/FanScript';
 import { TAU } from '../core/math';
 import {
   blob, bolt, blink, brow, eye, eyePair, fist, gloss, limb, lin, maw, paint, puffs, rad, raging, rrect, tentacle, wheel,
@@ -460,6 +461,22 @@ export const hydra: BossBody = (ctx, e, x, y, time, p) => {
 /** Fan-tastic: a caged pedestal fan with a furious hub, blur blades and a frayed cord. */
 export const fan: BossBody = (ctx, e, x, y, time, p) => {
   const { hw, hd, tone, fx, fy, windup } = p;
+  const script = e.script instanceof FanScript && !e.defeated ? e.script : null;
+  const lift = script ? script.hoverHeight : 0;
+  if (lift > 0) {
+    // a soft shadow stays on the floor while he hovers
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + hd + 1 - 4, 22 - lift * 0.08, 6, 0, 0, TAU);
+    ctx.fill();
+  }
+  ctx.save();
+  if (lift > 0) ctx.translate(0, -lift + Math.sin(time * 3 + e.seed) * 2);
+  if (script && script.attack === 'swoop' && script.stage === 'windup') {
+    ctx.translate(x, y);
+    ctx.rotate(Math.max(-0.3, Math.min(0.3, script.diveDX * 0.25)));
+    ctx.translate(-x, -y);
+  }
   const b = y + hd + 1;
   const cy = b - 50;
   const R = 25;
@@ -573,5 +590,6 @@ export const fan: BossBody = (ctx, e, x, y, time, p) => {
     }
     ctx.lineCap = 'butt';
   }
+  ctx.restore();
   void hw;
 };

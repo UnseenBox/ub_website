@@ -98,6 +98,12 @@ export const HOUSE_OBJECTS: readonly ObjectDefinition[] = [
     health: 26, breakable: true, flammable: false, conductive: false, throwable: false, fixed: true,
   },
   {
+    // The Chairman's memo printer (see bossScripts/ChairmanScript): wreck it and he cannot reload.
+    id: 'photocopier', name: 'Photocopier', material: 'electronic', shape: { kind: 'box', hw: 27, hh: 20 }, mass: 600, height: 36,
+    health: 70, breakable: true, flammable: false, conductive: true, throwable: false, fixed: true, electronic: true, playerDamageOnly: true,
+    perk: 'prints the Chairman new memos',
+  },
+  {
     id: 'bathtub', name: 'Bathtub', material: 'ceramic', shape: { kind: 'box', hw: 62, hh: 27 }, mass: 500, height: 20,
     health: NEVER, breakable: false, flammable: false, conductive: false, throwable: false, fixed: true,
   },

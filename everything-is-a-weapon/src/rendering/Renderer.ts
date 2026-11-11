@@ -11,6 +11,7 @@ import { drawEnemy } from './EnemyArt';
 import { registerGadgetArt } from './GadgetArt';
 import { registerHouseArt } from './HouseArt';
 import { registerMoreArt } from './MoreArt';
+import { registerBossPropArt } from './BossProps';
 import { drawPet } from './PetArt';
 import { registerPickupArt } from './PickupArt';
 import { drawPlayer } from './PlayerArt';
@@ -47,6 +48,7 @@ export class Renderer {
     registerGadgetArt();
     registerPickupArt();
     registerMoreArt();
+    registerBossPropArt();
     window.addEventListener('resize', () => this.resize());
     // Catches size changes that never raise a window resize (container layout, zoom, DPR change).
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.resize()).observe(canvas);
@@ -143,9 +145,11 @@ export class Renderer {
     const catX = cat ? lerp(cat.prevX, cat.x, alpha) : 0;
     const catY = cat ? lerp(cat.prevY, cat.y, alpha) : 0;
     this.drawRings();
+    for (const enemy of game.enemies) enemy.script?.drawFloor?.(ctx, game, enemy, time);
     drawPowerRings(ctx, game, this.bx(pb), this.by(pb), catX, catY, time);
     this.drawShadows();
     this.drawEntities(time);
+    for (const enemy of game.enemies) enemy.script?.drawAir?.(ctx, game, enemy, time);
     drawPowerTags(ctx, game, this.bx(pb), this.by(pb), catX, catY, time);
 
     for (let i = 0; i < zones.length; i++) {

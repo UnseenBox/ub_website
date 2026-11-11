@@ -156,6 +156,8 @@ interface Result { crew: string; label: string; cleared: boolean; died: boolean;
 function playRoom(game: Game, label: string, profile: Profile): Result {
   const st: BotState = { charging: false, chargeT: 0, dodgeCd: 0 };
   const startHp = game.player.hp;
+  const hits = new Map<string, number>();
+  game.bus.on('PLAYER_HIT', (e) => hits.set(String(e.cause), (hits.get(String(e.cause)) ?? 0) + 1));
   const counts = new Map<string, number>();
   for (const spec of game.room.pending) counts.set(spec.type, (counts.get(spec.type) ?? 0) + 1);
   const crewSummary = [...counts].map(([t, n]) => `${n}${t}`).join(',');
@@ -173,7 +175,7 @@ function playRoom(game: Game, label: string, profile: Profile): Result {
   const cleared = game.room.cleared || game.state === 'cleared';
   const died = !game.player.alive || game.state === 'failed';
   return {
-    crew: crewSummary, label, cleared: cleared && !died, died, seconds: Math.round(game.room.elapsed),
+    crew: crewSummary + ' | hits: ' + [...hits].map(([k, v]) => `${k}x${v}`).join(','), label, cleared: cleared && !died, died, seconds: Math.round(game.room.elapsed),
     heartsLost: Math.round((startHp - lowest) * 10) / 10, enemies, hp: game.player.hp,
   };
 }

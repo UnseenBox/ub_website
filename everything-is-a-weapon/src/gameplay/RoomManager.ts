@@ -268,6 +268,7 @@ export class RoomManager {
       // last longer. Bosses keep their designed HP; the bar scales with them.
       const ease = game.ease();
       enemy.hp = Math.max(1, Math.round(enemy.hp * game.difficultyMods.enemyHp * ease.hp * bossSoften(spec.type, game.pacingStep())));
+      enemy.maxHp = enemy.hp;
       enemy.speedMult = game.difficultyMods.enemySpeed * ease.speed;
       enemy.enemyDamage = game.difficultyMods.enemyDamage;
       if (spec.incident) {

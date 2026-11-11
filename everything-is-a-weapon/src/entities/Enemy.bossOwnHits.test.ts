@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { CookerScript } from './bossScripts/CookerScript';
 import { beforeEach, expect, it } from 'vitest';
 import { FIXED_DT } from '../core/constants';
 import { Game } from '../core/Game';
@@ -117,6 +118,8 @@ it('is hurt by the same furniture once the player throws it', () => {
   const game = boot();
   const p = game.player.body;
   const boss = game.spawnEnemy('cooker', p.x + 220, p.y);
+  // skip the entrance: he is untouchable while the lid rattles
+  (boss.script as CookerScript).finishIntro(game, boss, false);
   const object = game.spawnObject('computer', boss.body.x - 40, boss.body.y)!;
   const dealt = objectDamageFrom(game, boss.uid);
 

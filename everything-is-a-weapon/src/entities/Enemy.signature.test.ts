@@ -81,28 +81,32 @@ it('has a signature on every boss', () => {
   for (const id of BOSS_IDS) expect(ENEMY_TYPES[id].signature?.name, id).toBeTruthy();
 });
 
-it('piano spider actually plays a keyboard solo', () => {
+it('piano spider plays on a beat: a keyboard is painted on the floor and notes are audible', () => {
   const game = boot();
   const note = vi.spyOn(game.audio, 'pianoNote');
   const boss = ready(game, 'piano');
-  (boss as any).pianoTimer = 0;
-  let sawMusic = false;
-  const steps = Math.round(1.8 / FIXED_DT);
+  const script = boss.script as unknown as { finishIntro(g: unknown, b: unknown): void; keyPhase: string };
+  expect(script, 'piano has its own script').toBeTruthy();
+  script.finishIntro(game, boss);
+  let sawKeys = false;
+  const steps = Math.round(3.4 / FIXED_DT);
   for (let i = 0; i < steps; i++) {
     game.player.hp = 999;
     game.tick(FIXED_DT);
-    if (game.zones.zones.some((zone) => zone.zone === 'music')) sawMusic = true;
+    if (script.keyPhase !== 'off') sawKeys = true;
   }
-  expect(sawMusic, 'the solo leaves music on the floor').toBe(true);
-  expect(note.mock.calls.length, 'each key is audible').toBeGreaterThanOrEqual(2);
+  expect(sawKeys, 'the keyboard lights up').toBe(true);
+  expect(note.mock.calls.length, 'each strike is audible').toBeGreaterThanOrEqual(2);
 });
 
 it('signatures change the room, boss by boss', () => {
   const game = boot();
+  // The Flusher (like the Chairman) has its own scripted fight, so the generic signature timer never runs.
   const flusher = ready(game, 'flusher');
   tick(game, 0.05);
-  expect(game.zones.zones.some((zone) => zone.zone === 'water'), 'flusher floods').toBe(true);
-  expect(flusher.signatureTimer).toBeGreaterThan(15);
+  expect(flusher.script, 'flusher has its own script').not.toBeNull();
+  // and it is surfing about the room, so take it out of the way of the bosses below
+  flusher.alive = false;
 
   ready(game, 'cables');
   tick(game, 0.05);
@@ -120,22 +124,27 @@ it('signatures change the room, boss by boss', () => {
 
   game.player.body.vx = 0;
   game.player.body.vy = 0;
-  ready(game, 'kraken');
+  // The Sofa Kraken has a script of its own too: tentacles that burst up through the floor.
+  const kraken = ready(game, 'kraken');
   tick(game, 0.05);
-  expect(Math.hypot(game.player.body.vx, game.player.body.vy), 'kraken reels you in').toBeGreaterThan(10);
+  expect(kraken.script, 'kraken has its own script').not.toBeNull();
+  kraken.alive = false;
 
-  game.zones.zones.length = 0;
-  ready(game, 'fridgezilla');
+  // Fridgezilla also has a script of its own now (frost plates, the compressor on his back, four attacks).
+  const fridge = ready(game, 'fridgezilla');
   tick(game, 0.05);
-  expect(game.zones.zones.some((zone) => zone.zone === 'slick'), 'fridgezilla ices the floor').toBe(true);
+  expect(fridge.script, 'fridgezilla has its own script').not.toBeNull();
+  fridge.alive = false;
 
+  // The Mower Maniac has a script of its own too (fuel gauge, jerry cans, lane passes).
   const mower = ready(game, 'mower');
   tick(game, 0.05);
-  expect(mower.ai, 'mower charges').toBe('lunge');
+  expect(mower.script, 'mower has its own script').not.toBeNull();
+  mower.alive = false;
 
   const train = ready(game, 'train');
   tick(game, 0.05);
-  expect(train.ai, 'train charges').toBe('lunge');
+  expect(train.script, 'train has its own script').not.toBeNull();
 
   const cardboard = ready(game, 'cardboard');
   const form = cardboard.form;

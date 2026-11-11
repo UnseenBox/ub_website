@@ -1,7 +1,9 @@
 import { WALL } from '../core/constants';
 
-const MAX_SHAKE_OFFSET = 13;
-const SHAKE_DECAY = 1.9;
+/** Shake was tiring in long fights: a smaller maximum, a faster settle and every kick counted for less. */
+const MAX_SHAKE_OFFSET = 9;
+const SHAKE_DECAY = 2.4;
+const SHAKE_INPUT = 0.8;
 const HUD_MARGIN_TOP = 58;
 const VIEW_PADDING = 18;
 /** Below this zoom the room is too small to play, so the camera zooms in and follows instead. */
@@ -107,7 +109,7 @@ export class Camera {
 
   /** Adds trauma (0..1). Shake amount is trauma squared, so small hits barely register. */
   addShake(amount: number): void {
-    this.trauma = Math.min(1, this.trauma + amount);
+    this.trauma = Math.min(1, this.trauma + amount * SHAKE_INPUT);
   }
 
   /** One-off directional shove, e.g. recoil from a throw. */

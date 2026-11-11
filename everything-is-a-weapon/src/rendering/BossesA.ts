@@ -1,9 +1,138 @@
 import { INK } from '../core/constants';
 import { TAU } from '../core/math';
+import { ChairmanScript } from '../entities/bossScripts/ChairmanScript';
+import { FlusherScript } from '../entities/bossScripts/FlusherScript';
+import { FridgeScript } from '../entities/bossScripts/FridgeScript';
+import { PianoScript } from '../entities/bossScripts/PianoScript';
 import {
   blob, bolt, blink, brow, darken, eye, eyePair, fist, gloss, lighten, limb, lin, maw, paint, puffs, rad, raging, rrect, shadeBand, tentacle, wheel,
   type BossBody,
 } from './BossKit';
+
+/**
+ * The Chairman's memos: sheets of paperwork circling him, rejected hits flutter one away,
+ * and a fresh batch swoops in when the copier finishes. Drawn in two halves so they pass
+ * behind and in front of him.
+ */
+function drawMemos(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], x: number, y: number, time: number, front: boolean): void {
+  const script = e.script instanceof ChairmanScript ? e.script : null;
+  if (!script || e.defeated) return;
+  const n = script.memos;
+  const arrive = Math.max(0, 1 - script.reloadedAgo / 0.6);
+  for (let i = 0; i < n; i++) {
+    const a = time * 1.9 + (i * TAU) / Math.max(1, n);
+    const isFront = Math.sin(a) > 0;
+    if (isFront !== front) continue;
+    const spread = 1 + arrive * 1.8;
+    const rx = (26 + 12) * spread;
+    const mx = x + Math.cos(a) * rx;
+    const my = y - 34 + Math.sin(a) * 14 * spread - arrive * 18;
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(Math.cos(a) * 0.35 + Math.sin(time * 3 + i) * 0.1);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(-6, -7, 14, 18);
+    ctx.fillStyle = '#fbf8f0';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.fillRect(-7, -9, 14, 18);
+    ctx.strokeRect(-7, -9, 14, 18);
+    ctx.fillStyle = '#d63a3a';
+    ctx.fillRect(-7, -9, 14, 4);
+    ctx.fillStyle = 'rgba(40, 46, 60, 0.55)';
+    for (let l = 0; l < 3; l++) ctx.fillRect(-5, -3 + l * 4, 10 - (l === 2 ? 4 : 0), 1.4);
+    ctx.restore();
+  }
+  if (!front) return;
+  // a memo he just lost flutters off for a moment
+  if (script.tornAgo < 0.7) {
+    const t = script.tornAgo / 0.7;
+    ctx.save();
+    ctx.globalAlpha = 1 - t;
+    ctx.translate(x + 30 + t * 34, y - 40 - t * 26 + t * t * 60);
+    ctx.rotate(t * 5);
+    ctx.fillStyle = '#fbf8f0';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.4;
+    ctx.fillRect(-7, -9, 14, 18);
+    ctx.strokeRect(-7, -9, 14, 18);
+    ctx.fillStyle = '#d63a3a';
+    ctx.fillRect(-7, -9, 14, 4);
+    ctx.restore();
+  }
+}
+
+/** Overtime: a red glow and steam off the head; in the final quarter his tie is on fire. */
+function drawFury(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], x: number, y: number, hx: number, hy: number, time: number): void {
+  const script = e.script instanceof ChairmanScript ? e.script : null;
+  if (!script || e.defeated || (e.phaseIndex < 1 && !script.finale)) return;
+  const final = script.finale;
+  const pulse = 0.5 + 0.5 * Math.sin(time * (final ? 11 : 6));
+  const glow = ctx.createRadialGradient(x, y - 36, 6, x, y - 36, 78);
+  glow.addColorStop(0, `rgba(255, 60, 40, ${(final ? 0.34 : 0.2) * (0.6 + 0.4 * pulse)})`);
+  glow.addColorStop(1, 'rgba(255, 40, 30, 0)');
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y - 36, 78, 0, TAU);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  // steam out of both ears
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < 3; k++) {
+      const t = (time * 1.4 + k / 3 + (side > 0 ? 0.17 : 0)) % 1;
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * (1 - t)})`;
+      ctx.beginPath();
+      ctx.arc(hx + side * 12 + side * t * 6, hy - 2 - t * 22, 2 + t * 4, 0, TAU);
+      ctx.fill();
+    }
+  }
+  if (final) {
+    // flames licking up his tie
+    for (let k = 0; k < 5; k++) {
+      const t = (time * 2.4 + k * 0.21) % 1;
+      const fx0 = x + Math.sin(k * 2.1 + time * 6) * 4;
+      const fy0 = y - 42 - t * 22;
+      ctx.fillStyle = k % 2 ? `rgba(255, 210, 63, ${0.9 * (1 - t)})` : `rgba(255, 90, 40, ${0.9 * (1 - t)})`;
+      ctx.beginPath();
+      ctx.moveTo(fx0 - 3.5, fy0 + 6);
+      ctx.quadraticCurveTo(fx0 - 1, fy0 - 4, fx0, fy0 - 9 - t * 6);
+      ctx.quadraticCurveTo(fx0 + 1, fy0 - 4, fx0 + 3.5, fy0 + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+/** Out of office: loosened tie, a sweat drop or two, stars wheeling over his head. */
+function drawOutOfOffice(ctx: CanvasRenderingContext2D, e: Parameters<BossBody>[1], hx: number, hy: number, time: number): void {
+  const script = e.script instanceof ChairmanScript ? e.script : null;
+  if (!script || script.pose !== 'dizzy' || e.defeated) return;
+  for (let i = 0; i < 3; i++) {
+    const a = time * 4 + (i * TAU) / 3;
+    const sx = hx + Math.cos(a) * 14;
+    const sy = hy - 20 + Math.sin(a) * 4;
+    ctx.fillStyle = '#ffd23f';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let k = 0; k < 10; k++) {
+      const rr = k % 2 === 0 ? 4.4 : 1.9;
+      const aa = (k * Math.PI) / 5 - Math.PI / 2;
+      ctx.lineTo(sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  for (const side of [-1, 1]) {
+    const t = (time * 1.6 + (side > 0 ? 0.5 : 0)) % 1;
+    ctx.fillStyle = 'rgba(150, 215, 255, 0.9)';
+    ctx.beginPath();
+    ctx.ellipse(hx + side * 13, hy - 4 + t * 12, 1.8, 2.6, 0, 0, TAU);
+    ctx.fill();
+  }
+}
 
 function angleDiff(a: number, b: number): number {
   let d = (b - a) % TAU;
@@ -20,6 +149,20 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
   const rage = raging(e);
   const roll = Math.sin(e.walkPhase) * 0.05;
   const CHROME = tone('#cfd8e3');
+  // his performance changes his silhouette: spinning, arms up for REPLY ALL, a stamp slammed down
+  const script = e.script instanceof ChairmanScript ? e.script : null;
+  const pose = dead ? 'idle' : script?.pose ?? 'idle';
+  const armsUp = pose === 'reply' ? 1 : pose === 'pie' ? 0.55 : 0;
+  const stamp = pose === 'stamp' ? (script!.stage === 'windup' ? -1 : script!.stage === 'go' ? 1 : 0) : 0;
+  ctx.save();
+  if (pose === 'spin' || pose === 'drift') {
+    // spinning chair: squash the whole sprite across itself so his face flips past
+    const speed = script!.spinRate;
+    ctx.translate(x, 0);
+    ctx.scale(Math.cos(time * speed), 1);
+    ctx.translate(-x, 0);
+  }
+  drawMemos(ctx, e, x, b, time, false);
   // five-star base: back legs first, then front, casters spinning as he glides
   for (const front of [false, true]) {
     for (let k = 0; k < 5; k++) {
@@ -133,30 +276,57 @@ export const chairman: BossBody = (ctx, e, x, y, time, p) => {
   ctx.arc(hx - 4, hy + 12.4, 1.8, 0, TAU);
   ctx.fill();
   // stapler arm and the accusing finger (up with the windup)
-  limb(ctx, x - 16, b - 50, x - hw - 8, b - 34, 6.4, tone('#222c3b'));
+  const lift = armsUp * 34;
+  limb(ctx, x - 16, b - 50, x - hw - 8, b - 34 - lift, 6.4, tone('#222c3b'));
   ctx.save();
-  ctx.translate(x - hw - 14, b - 36);
+  ctx.translate(x - hw - 14, b - 36 - lift);
   ctx.rotate(-0.2);
   rrect(ctx, -11, 2, 22, 7, 2);
   paint(ctx, lin(ctx, 0, 2, 0, 9, tone('#ff5a4e'), tone('#a01e22')), 2.2);
   rrect(ctx, -11, -3, 22, 6, 2);
   paint(ctx, lin(ctx, 0, -3, 0, 3, tone('#f2f6fb'), tone('#8a94a6')), 2.2);
   ctx.restore();
-  fist(ctx, x - hw - 8, b - 33, 4.4, tone('#e8b88a'), -1);
-  const px = x + hw + 9 + fx * 5;
-  const py = b - 50 - windup * 14;
+  fist(ctx, x - hw - 8, b - 33 - lift, 4.4, tone('#e8b88a'), -1);
+  const px = x + hw + 9 + fx * 5 + (pose === 'pie' ? 10 : 0);
+  const py = b - 50 - windup * 14 - lift * (pose === 'pie' ? 0.2 : 1) - (stamp < 0 ? 26 : 0) + (stamp > 0 ? 18 : 0);
   limb(ctx, x + 16, b - 50, px, py, 6.4, tone('#222c3b'));
   fist(ctx, px, py, 4.4, tone('#e8b88a'));
   limb(ctx, px + 2, py - 3, px + 7 + fx * 2, py - 9, 2.4, tone('#e8b88a'));
-  void time;
+  if (stamp !== 0) {
+    // the big red rubber stamp in his fist
+    ctx.save();
+    ctx.translate(px + 6, py - 8);
+    ctx.fillStyle = '#c0143c';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
+    ctx.fillRect(-9, -6, 18, 12);
+    ctx.strokeRect(-9, -6, 18, 12);
+    ctx.fillStyle = '#7a0c26';
+    ctx.fillRect(-4, -14, 8, 9);
+    ctx.restore();
+  }
+  drawFury(ctx, e, x, b, hx, hy, time);
+  drawOutOfOffice(ctx, e, hx, hy, time);
+  drawMemos(ctx, e, x, b, time, true);
+  ctx.restore();
 };
 
 /** The Flusher: a porcelain throne with a raised lid for a face and the bowl for a mouth. */
 export const flusher: BossBody = (ctx, e, x, y, time, p) => {
   const { hw, hd, tone, fx, fy, windup } = p;
   const b = y + hd + 1;
-  const suck = e.sucking && !e.defeated;
+  const script = e.script instanceof FlusherScript ? e.script : null;
+  const pose = e.defeated ? 'idle' : script?.pose ?? 'idle';
+  const suck = pose === 'vortex' || (e.sucking && !e.defeated);
+  const lidShut = !!script && script.lidClosed && !e.defeated;
   const rage = raging(e);
+  if (pose === 'surf') {
+    // riding the surge: leaning into it
+    ctx.save();
+    ctx.translate(x, b);
+    ctx.rotate(0.12);
+    ctx.translate(-x, -b);
+  }
   const PORC = (a: number): CanvasGradient => lin(ctx, x - hw, 0, x + hw, 0, tone('#8aa3b8'), tone('#f6fbff'), tone('#b4c9d9'));
   // floor flange and bolts
   ctx.beginPath();
@@ -230,6 +400,25 @@ export const flusher: BossBody = (ctx, e, x, y, time, p) => {
     ctx.stroke();
   }
   gloss(ctx, x - hw * 0.6, b - 15, 3, 7, 0.4, 0.45);
+  if (lidShut) {
+    // the seat lid is down over the bowl: he shrugs hits off until something goes down it
+    ctx.beginPath();
+    ctx.ellipse(x, b - 31, hw + 2, 11.5, 0, 0, TAU);
+    paint(ctx, lin(ctx, x - hw, 0, x + hw, 0, tone('#c4d6e4'), tone('#ffffff'), tone('#c4d6e4')), 3);
+    ctx.beginPath();
+    ctx.ellipse(x, b - 31, hw - 8, 6.5, 0, 0, TAU);
+    ctx.strokeStyle = 'rgba(70, 96, 120, 0.5)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+  } else if (script) {
+    // lid up: the bowl glows
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(80, 220, 255, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(x, b - 30, hw - 4, 8, 0, 0, TAU);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
   // plunger arm and brush arm
   limb(ctx, x - hw + 2, b - 28, x - hw - 11, b - 20 + Math.sin(e.walkPhase) * 2, 4.6, tone('#b4c9d9'));
   limb(ctx, x - hw - 11, b - 20, x - hw - 18, b - 40, 2.4, tone('#c79a5a'));
@@ -245,6 +434,7 @@ export const flusher: BossBody = (ctx, e, x, y, time, p) => {
   ctx.closePath();
   paint(ctx, tone('#e23d3a'), 2.4);
   gloss(ctx, x + hw + 13, b - 54 - lift, 2.4, 1.4, -0.3, 0.5);
+  if (pose === 'surf') ctx.restore();
 };
 
 /** The Sofa Kraken: a chesterfield that grew opinions. Cushion-tipped tentacles, stalk eyes, a seam for a mouth. */
@@ -355,6 +545,14 @@ export const fridgezilla: BossBody = (ctx, e, x, y, time, p) => {
   const top = b - 70;
   const bw = hw - 3;
   const rage = raging(e);
+  const script = e.script instanceof FridgeScript ? e.script : null;
+  const pose = e.defeated ? 'idle' : script?.pose ?? 'idle';
+  if (pose === 'skid') {
+    ctx.save();
+    ctx.translate(x, b);
+    ctx.rotate(-0.1);
+    ctx.translate(-x, -b);
+  }
   // chrome feet
   for (const sx of [-bw + 5, bw - 5]) {
     rrect(ctx, x + sx - 5, b - 5, 10, 5, 2);
@@ -403,7 +601,7 @@ export const fridgezilla: BossBody = (ctx, e, x, y, time, p) => {
     ctx.stroke();
   }
   // lower door torn open: glowing cavity, shelves of jar-teeth, icicle fangs, spilling cold light
-  const gape = 2 + windup * 6;
+  const gape = 2 + windup * 6 + (pose === 'open' ? 7 : 0);
   rrect(ctx, x - bw + 5, top + 33, bw * 2 - 10, 30 + gape, 4);
   paint(ctx, rad(ctx, x, top + 50, 2, bw, '#f4ffff', '#7fe0f4', '#1b6f8c'), 3);
   ctx.save();
@@ -467,10 +665,57 @@ export const fridgezilla: BossBody = (ctx, e, x, y, time, p) => {
   limb(ctx, x - bw + 1, top + 30, x - bw - 8, b - 32 - windup * 8, 5.4, tone('#7fb5cf'));
   limb(ctx, x + bw - 1, top + 30, x + bw + 8, b - 30 + Math.sin(e.walkPhase) * 2, 5.4, tone('#7fb5cf'));
   fist(ctx, x + bw + 8, b - 30 + Math.sin(e.walkPhase) * 2, 5.4, tone('#9fd4e8'));
+  if (script && script.plates > 0 && script.thaw <= 0 && !e.defeated) {
+    // frost plates over his front: each one is two good hits
+    const n = script.plates;
+    for (let i = 0; i < n; i++) {
+      const px = x - bw + 8 + (i + 0.5) * ((bw * 2 - 16) / n);
+      const py = top + 24 + (i % 2) * 6;
+      ctx.fillStyle = 'rgba(210, 242, 255, 0.78)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px - 11, py + 22);
+      ctx.lineTo(px - 8, py - 6);
+      ctx.lineTo(px, py - 12);
+      ctx.lineTo(px + 8, py - 6);
+      ctx.lineTo(px + 11, py + 22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(120,190,225,0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(px - 3, py - 6);
+      ctx.lineTo(px + 1, py + 8);
+      ctx.stroke();
+    }
+  } else if (script && script.thaw > 0 && !e.defeated) {
+    // thawed: dripping
+    for (let k = 0; k < 4; k++) {
+      const t = (time * 1.3 + k * 0.27) % 1;
+      ctx.fillStyle = `rgba(150, 215, 255, ${0.9 * (1 - t)})`;
+      ctx.beginPath();
+      ctx.ellipse(x - bw + 12 + k * ((bw * 2 - 24) / 3), top + 30 + t * 40, 2, 3.2, 0, 0, TAU);
+      ctx.fill();
+    }
+  }
+  if (pose === 'skid') ctx.restore();
 };
 
 /** The Piano Spider: a grand with eight brass-shod legs, a keyboard grin and an open lid. */
 export const piano: BossBody = (ctx, e, x, y, time, p) => {
+  const pianoScript = e.script instanceof PianoScript ? e.script : null;
+  const dropOffset = pianoScript && !e.defeated ? pianoScript.dropHeight : 0;
+  const hopPose = pianoScript && !e.defeated ? pianoScript.pose : 'idle';
+  ctx.save();
+  if (dropOffset > 0) ctx.translate(0, -dropOffset);
+  if (hopPose === 'crouch') {
+    ctx.translate(x, y);
+    ctx.scale(1.06, 0.9);
+    ctx.translate(-x, -y);
+  }
+  if (hopPose === 'play') ctx.translate(0, Math.sin(time * 14) * 1.2);
   const { hw, hd, tone, fx, fy, windup, hop } = p;
   const b = y + hd + 1;
   const LAC = tone('#17141f');
@@ -575,6 +820,7 @@ export const piano: BossBody = (ctx, e, x, y, time, p) => {
       ctx.stroke();
     }
   }
+  ctx.restore();
 };
 
 void shadeBand;

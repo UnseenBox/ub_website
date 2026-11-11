@@ -2118,9 +2118,9 @@ function drawOverhead(ctx: Ctx, e: Enemy, x: number, time: number, topY: number)
 
 /** The parcel-tape HP strip, shared by boxes and bosses. */
 function drawHpBar(ctx: Ctx, e: Enemy, x: number, y: number, hw: number, hd: number): void {
-  if (e.hp >= e.type.hp) return;
+  if (e.hp >= e.maxHp) return;
   const w = hw * 1.8;
-  const ratio = Math.max(0, e.hp / e.type.hp);
+  const ratio = Math.max(0, e.hp / e.maxHp);
   ctx.fillStyle = INK;
   ctx.fillRect(x - w / 2 - 1.5, y + hd + 9, w + 3, 6);
   ctx.fillStyle = ratio > 0.4 ? TAPE : '#ff5a4e';
@@ -2274,7 +2274,7 @@ function newcomerProps(
     ctx.arc(x, topY - 1, 2.6, 0, TAU);
     ctx.fill();
     ctx.stroke();
-    const worn = 1 - e.hp / e.type.hp;
+    const worn = 1 - e.hp / e.maxHp;
     if (worn > 0.05 && !away) {
       ctx.strokeStyle = 'rgba(26, 14, 52, 0.75)';
       ctx.lineWidth = 1.4;

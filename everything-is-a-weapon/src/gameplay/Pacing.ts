@@ -38,7 +38,7 @@ export function earlyEase(step: number): Ease {
  * opening stretch. Shorter fights mean less time in their reach. Only the early campaign
  * rooms are softened: the same bosses return at full strength deep in endless.
  */
-const SOFTENED_EARLY: Readonly<Record<string, number>> = { piano: 0.55, mom: 0.5, house: 0.6 };
+const SOFTENED_EARLY: Readonly<Record<string, number>> = { flusher: 0.75, piano: 0.55, mom: 0.5, house: 0.6 };
 const SOFTEN_UNTIL = 10;
 /** Late bosses that killed bots of every style far more often than the bosses around them. */
 const SOFTENED_ALWAYS: Readonly<Record<string, number>> = { cables: 0.55, cooker: 0.7, vacuumasaurus: 0.8, junk: 0.85 };
