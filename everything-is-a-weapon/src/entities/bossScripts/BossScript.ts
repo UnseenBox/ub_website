@@ -5,6 +5,7 @@ import type { EnemyTypeId } from '../EnemyTypes';
 import { ChairmanScript } from './ChairmanScript';
 import { FlusherScript } from './FlusherScript';
 import { FridgeScript } from './FridgeScript';
+import { KrakenScript } from './KrakenScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -32,6 +33,8 @@ export interface BossScript {
   drawFloor?(ctx: Ctx, game: Game, boss: Enemy, time: number): void;
   /** Projectiles and markers drawn over the top. World coordinates. */
   drawAir?(ctx: Ctx, game: Game, boss: Enemy, time: number): void;
+  /** Where a throw should be aimed instead of at his body (touch aim assist uses it). null = the body. */
+  aimPoints?(boss: Enemy): ReadonlyArray<{ x: number; y: number }> | null;
   /** Shown instead of POOF! when the body finally goes. */
   readonly deathText?: string;
 }
@@ -41,6 +44,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'chairman': return new ChairmanScript();
     case 'flusher': return new FlusherScript();
     case 'fridgezilla': return new FridgeScript();
+    case 'kraken': return new KrakenScript();
     default: return null;
   }
 }

@@ -122,9 +122,11 @@ it('signatures change the room, boss by boss', () => {
 
   game.player.body.vx = 0;
   game.player.body.vy = 0;
-  ready(game, 'kraken');
+  // The Sofa Kraken has a script of its own too: tentacles that burst up through the floor.
+  const kraken = ready(game, 'kraken');
   tick(game, 0.05);
-  expect(Math.hypot(game.player.body.vx, game.player.body.vy), 'kraken reels you in').toBeGreaterThan(10);
+  expect(kraken.script, 'kraken has its own script').not.toBeNull();
+  kraken.alive = false;
 
   // Fridgezilla also has a script of its own now (frost plates, the compressor on his back, four attacks).
   const fridge = ready(game, 'fridgezilla');

@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { KrakenScript, COZY_CHIP, EXPOSED_BONUS as KRAKEN_EXPOSED } from '../entities/bossScripts/KrakenScript';
 import { FridgeScript, FRONT_CHIP, BACK_BONUS } from '../entities/bossScripts/FridgeScript';
 import { FlusherScript, LID_ARMOUR } from '../entities/bossScripts/FlusherScript';
 import { BLOCKED_CHIP, COPIERS, ChairmanScript, EXPOSED_BONUS, INTERRUPT_DAMAGE, RAM_DAMAGE } from '../entities/bossScripts/ChairmanScript';
@@ -839,4 +840,112 @@ it('fridgezilla entrance: untouchable while skidding in, then the door opens and
   for (let i = 0; i < Math.round(10 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('cone');
+});
+
+function krakenFight(): { game: Game; boss: Game['enemies'][number]; script: KrakenScript } {
+  const game = boot();
+  game.playFrom(3);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'kraken');
+    if (boss && boss.script instanceof KrakenScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 400;
+      game.player.body.y = boss.body.y;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Kraken never arrived');
+}
+
+/** Throws a fast object through a tentacle's tip. */
+function lob(game: Game, t: { px: number; py: number }): void {
+  const o = game.spawnObject('chair', t.px, t.py)!;
+  o.thrownByPlayer = true;
+  o.body.vx = 420;
+  o.body.vy = 0;
+}
+
+it('kraken: the sofa is cozy until every tentacle is down; thrown things cut tentacles; then he is bare', { timeout: 90_000 }, () => {
+  const { game, boss, script } = krakenFight();
+  expect(script.tentacles.length).toBe(4);
+  expect(script.alive).toBe(4);
+  const hp = boss.hp;
+  boss.damage(game, 20, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(20 * COZY_CHIP);
+
+  // a thrown chair through a tentacle hurts it
+  const t0 = script.tentacles[0]!;
+  const before = t0.hp;
+  lob(game, t0);
+  run(game, 0.05);
+  expect(t0.hp).toBeLessThan(before);
+
+  // cut them all down
+  for (const t of script.tentacles) {
+    for (let k = 0; k < 12 && t.state !== 'dead'; k++) {
+      lob(game, t);
+      run(game, 0.4);
+    }
+    expect(t.state).toBe('dead');
+  }
+  expect(script.exposed).toBeGreaterThan(0);
+  const hp2 = boss.hp;
+  boss.damage(game, 20, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(20 * KRAKEN_EXPOSED);
+
+  // and they grow back
+  run(game, 6);
+  expect(script.alive).toBe(4);
+  expect(script.regrowths).toBe(1);
+});
+
+it('kraken: a slam lands where its ring said, a grab holds you until you cut the tentacle', { timeout: 90_000 }, () => {
+  const { game, boss, script } = krakenFight();
+  const t = script.tentacles[0]!;
+  game.player.body.x = t.rx + 120;
+  game.player.body.y = t.ry;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  (script as unknown as { startAttack(g: Game, b: unknown, t: unknown, o: boolean, k: string): void }).startAttack(game, boss, t, false, 'slam');
+  run(game, 1.4);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  // a grab: the player stands inside reach and does not move
+  run(game, 2);
+  const t2 = script.tentacles[1]!;
+  game.player.body.x = t2.rx + 150;
+  game.player.body.y = t2.ry;
+  game.player.invulnerable = 0;
+  (script as unknown as { startAttack(g: Game, b: unknown, t: unknown, o: boolean, k: string): void }).startAttack(game, boss, t2, false, 'grab');
+  run(game, 1.3);
+  expect((script as unknown as { heldBy: unknown }).heldBy).toBe(t2);
+  // hitting the tentacle breaks the hold
+  lob(game, t2);
+  run(game, 0.1);
+  expect((script as unknown as { heldBy: unknown }).heldBy).toBeNull();
+});
+
+it('kraken entrance: untouchable while crawling in, then tentacles burst up one by one', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(3);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'kraken');
+  }
+  const script = boss!.script as KrakenScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(10 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.alive).toBe(4);
 });

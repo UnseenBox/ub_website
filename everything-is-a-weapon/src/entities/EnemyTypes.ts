@@ -367,10 +367,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'SOFA KRAKEN', bossBlurb: 'it wants a hug. decline.',
     signature: { name: 'TENTACLE CRUSH', sound: 'bossWalk', effect: 'tentacle_burst', trail: 'ink' },
     death: { sound: 'bossWalk', effect: 'tentacle_burst' },
-    lashes: { range: 200, arc: 0.8, cooldown: 5, windup: 0.6 },
-    slams: { radius: 135, damage: 1, cooldown: 7 },
+    // His fight lives in bossScripts/KrakenScript.ts: a sofa that sits still while four tentacles do the work.
     phases: [
-      { below: 0.5, enrage: 1.3, announce: 'IT HUGS BACK' },
+      { below: 0.5, enrage: 1.2, announce: 'IT HUGS BACK' },
     ],
   },
   // FRIDGEZILLA: walks out of the kitchenette breathing frost. The floor freezes

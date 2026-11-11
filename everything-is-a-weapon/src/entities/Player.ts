@@ -222,13 +222,18 @@ export class Player {
     let bestD = Infinity;
     for (const enemy of game.enemies) {
       if (enemy.defeated) continue;
-      const dx = enemy.body.x + enemy.body.vx * 0.2 - b.x;
-      const dy = enemy.body.y + enemy.body.vy * 0.2 - b.y;
-      const d = Math.hypot(dx, dy);
-      if (d < bestD && d > 1) {
-        bestD = d;
-        this.aimX = dx / d;
-        this.aimY = dy / d;
+      // a boss with parts (the Sofa Kraken's tentacles) says what to aim at instead of its body
+      const parts = enemy.script?.aimPoints?.(enemy) ?? null;
+      const points = parts ?? [{ x: enemy.body.x + enemy.body.vx * 0.2, y: enemy.body.y + enemy.body.vy * 0.2 }];
+      for (const point of points) {
+        const dx = point.x - b.x;
+        const dy = point.y - b.y;
+        const d = Math.hypot(dx, dy);
+        if (d < bestD && d > 1) {
+          bestD = d;
+          this.aimX = dx / d;
+          this.aimY = dy / d;
+        }
       }
     }
   }
