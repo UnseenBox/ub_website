@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "commonjs",
+  "description": "Free Kicks: browser scripts plus Node tools. CommonJS here because crazy-goal itself is an ES-module package. See docs/FREE_KICKS.md."
+}

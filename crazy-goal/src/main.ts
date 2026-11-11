@@ -5,6 +5,7 @@ import { lang, rtl } from './core/i18n';
 import { installTestHooks } from './debug/TestHooks';
 import { isCrazyGames, portal } from './portal/Portal';
 import './styles.css';
+import './freeKicksAssets';
 
 /** How long the splash stays up at minimum, so it is actually seen. */
 const SPLASH_MIN_MS = 1100;
