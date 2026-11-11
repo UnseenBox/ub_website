@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { VacuumScript, PLUGGED_ARMOUR, UNPLUGGED_BONUS } from '../entities/bossScripts/VacuumScript';
 import { MomScript, GUARD_CHIP, OPEN_BONUS } from '../entities/bossScripts/MomScript';
 import { MowerScript, STALL_BONUS } from '../entities/bossScripts/MowerScript';
 import { PianoScript, BEAT_WINDOW, ON_BEAT_BONUS, OFF_BEAT_FACTOR } from '../entities/bossScripts/PianoScript';
@@ -1324,4 +1325,107 @@ it('mom: slippers fan out along the aim lines; the entrance dims the lights, cli
   expect(ms.intro).toBe('done');
   expect(ms.attack).toBe('rule');
   expect(ms.rule).toBe('still');
+});
+
+function vacuumFight(): { game: Game; boss: Game['enemies'][number]; script: VacuumScript } {
+  const game = boot();
+  game.playFrom(11);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'vacuumasaurus');
+    if (boss && boss.script instanceof VacuumScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 300;
+      game.player.body.y = boss.body.y;
+      game.player.body.vx = game.player.body.vy = 0;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Vacuumasaurus never arrived');
+}
+
+it('vacuumasaurus: armoured while plugged in; a throw through the socket unplugs him and he crawls back', { timeout: 90_000 }, () => {
+  const { game, boss, script } = vacuumFight();
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * PLUGGED_ARMOUR);
+
+  const chair = game.spawnObject('chair', script.socketX + 20, script.socketY)!;
+  chair.thrownByPlayer = true;
+  chair.body.vx = script.socketX < boss.body.x ? -300 : 300;
+  run(game, 0.1);
+  expect(script.plugged).toBe(false);
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * UNPLUGGED_BONUS);
+
+  // he drags himself back to the wall and plugs in again
+  run(game, 12);
+  expect(script.plugged).toBe(true);
+});
+
+it('vacuumasaurus: the inhale swallows small things into the bag, and the spit fires them at you', { timeout: 90_000 }, () => {
+  const { game, boss, script } = vacuumFight();
+  const b = boss.body;
+  const book = game.spawnObject('book', b.x - 140, b.y)!;
+  game.player.body.x = b.x - 300;
+  game.player.body.y = b.y;
+  script.beginAttack(game, boss, 'inhale');
+  const d0 = Math.hypot(game.player.body.x - b.x, game.player.body.y - b.y);
+  run(game, 4);
+  expect(Math.hypot(game.player.body.x - b.x, game.player.body.y - b.y)).toBeLessThan(d0);
+  expect(book.alive).toBe(false);
+  expect(script.bag.length).toBe(1);
+
+  boss.stun = 0;
+  game.player.body.x = b.x - 300;
+  game.player.body.y = b.y;
+  game.player.body.vx = game.player.body.vy = 0;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  const before = game.objects.length;
+  script.beginAttack(game, boss, 'spit');
+  run(game, 1.2);
+  expect(game.objects.length).toBeGreaterThan(before);
+  run(game, 1.5);
+  expect(game.player.hp).toBeLessThan(hp);
+  expect(script.bag.length).toBe(0);
+});
+
+it('vacuumasaurus: the cord whip sweeps an arc that hurts', { timeout: 90_000 }, () => {
+  const { game, boss, script } = vacuumFight();
+  const b = boss.body;
+  game.player.body.x = b.x + 150;
+  game.player.body.y = b.y;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'whip');
+  run(game, 3.2);
+  expect(game.player.hp).toBeLessThan(hp);
+});
+
+it('vacuumasaurus entrance: untouchable while rolling in, a whine, then an inhale', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(11);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'vacuumasaurus');
+  }
+  const script = boss!.script as VacuumScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('inhale');
 });

@@ -9,6 +9,7 @@ import { KrakenScript } from './KrakenScript';
 import { PianoScript } from './PianoScript';
 import { MowerScript } from './MowerScript';
 import { MomScript } from './MomScript';
+import { VacuumScript } from './VacuumScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -51,6 +52,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'piano': return new PianoScript();
     case 'mower': return new MowerScript();
     case 'mom': return new MomScript();
+    case 'vacuumasaurus': return new VacuumScript();
     default: return null;
   }
 }

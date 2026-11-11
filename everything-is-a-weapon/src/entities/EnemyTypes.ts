@@ -457,10 +457,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'VACUUMASAURUS', bossBlurb: '65 million years of dust. zero survivors.',
     signature: { name: 'SUCK PULL', sound: 'bossWalk', effect: 'vacuum_ring', trail: 'dust' },
     death: { sound: 'bossWalk', effect: 'vacuum_ring' },
-    sucks: { radius: 260, pull: 1000 }, voracious: true,
-    slams: { radius: 140, damage: 1, cooldown: 8 },
+    // His fight lives in bossScripts/VacuumScript.ts (the plug on the wall, the dust bag, three attacks).
     phases: [
-      { below: 0.5, enrage: 1.3, announce: 'SECONDS' },
+      { below: 0.5, enrage: 1.15, announce: 'SECONDS' },
     ],
   },
   // LAUNDRY HYDRA: one basket, three sock serpents, zero matching pairs. Each
