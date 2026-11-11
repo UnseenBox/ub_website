@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { TrainScript, ARMOUR_CHIP, DERAILED_BONUS } from '../entities/bossScripts/TrainScript';
 import { CookerScript, SEALED_CHIP, VENTED_BONUS } from '../entities/bossScripts/CookerScript';
 import { CablesScript, POWER_STEP, POWER_FLOOR, BLACKOUT_BONUS, CUT_DAMAGE } from '../entities/bossScripts/CablesScript';
 import { PopcornScript, CHIP as POP_CHIP, SPENT_BONUS, BOMB_DAMAGE } from '../entities/bossScripts/PopcornScript';
@@ -1958,4 +1959,115 @@ it('cooker entrance: untouchable while the lid rattles and pops, then he opens w
   for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('vents');
+});
+
+function trainFight(): { game: Game; boss: Game['enemies'][number]; script: TrainScript } {
+  const game = boot();
+  game.playFrom(29);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'train');
+    if (boss && boss.script instanceof TrainScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 200;
+      game.player.body.y = boss.body.y + 200;
+      game.player.body.vx = game.player.body.vy = 0;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Midnight Express never arrived');
+}
+
+it('train: armoured; a derail leaves him down for bonus damage, then he is back on the rails', { timeout: 90_000 }, () => {
+  const { game, boss, script } = trainFight();
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * ARMOUR_CHIP);
+
+  script.derail(game, boss, boss.body.x, boss.body.y);
+  expect(script.derailed).toBeGreaterThan(0);
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * DERAILED_BONUS);
+  run(game, 6);
+  expect(script.derailed).toBeLessThanOrEqual(0);
+});
+
+it('train: an express runs its lane and hurts on it; a heavy table on the rails derails him', { timeout: 90_000 }, () => {
+  const { game, boss, script } = trainFight();
+  // on the lane: hurt
+  const bounds = game.world.bounds;
+  game.player.body.x = (bounds.x0 + bounds.x1) / 2;
+  game.player.body.y = (bounds.y0 + bounds.y1) / 2;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'express');
+  game.player.body.y = script.laneC;
+  game.player.body.x = script.horizontal ? (bounds.x0 + bounds.x1) / 2 : game.player.body.x;
+  if (!script.horizontal) game.player.body.y = (bounds.y0 + bounds.y1) / 2;
+  run(game, 4);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  // a blocked lane: derail
+  run(game, 3);
+  boss.stun = 0;
+  game.player.body.x = bounds.x0 + 80;
+  game.player.body.y = bounds.y0 + 80;
+  script.beginAttack(game, boss, 'express');
+  const t = game.spawnObject('table', (bounds.x0 + bounds.x1) / 2, (bounds.y0 + bounds.y1) / 2)!;
+  if (script.horizontal) t.body.y = script.laneC;
+  else t.body.x = script.laneC;
+  t.body.vx = t.body.vy = 0;
+  run(game, 5);
+  expect(script.derailed).toBeGreaterThan(0);
+});
+
+it('train: freight cars hurt in a lit lane and the bumper rams along its strip', { timeout: 90_000 }, () => {
+  const { game, boss, script } = trainFight();
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'freight');
+  const lane = script.live[0]!;
+  const r = script.laneRect(game, lane);
+  game.player.body.x = (r.x0 + r.x1) / 2;
+  game.player.body.y = (r.y0 + r.y1) / 2;
+  game.player.body.vx = game.player.body.vy = 0;
+  run(game, 3.5);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  run(game, 3);
+  boss.stun = 0;
+  game.player.invulnerable = 0;
+  game.player.body.x = boss.body.x + 150;
+  game.player.body.y = boss.body.y;
+  const hp2 = game.player.hp;
+  script.beginAttack(game, boss, 'bumper');
+  run(game, 1.4);
+  expect(game.player.hp).toBeLessThan(hp2);
+});
+
+it('train entrance: untouchable while he rolls in, then an express with a long warning', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(29);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'train');
+  }
+  const script = boss!.script as TrainScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('express');
 });

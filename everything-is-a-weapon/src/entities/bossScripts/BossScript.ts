@@ -15,6 +15,7 @@ import { FanScript } from './FanScript';
 import { PopcornScript } from './PopcornScript';
 import { CablesScript } from './CablesScript';
 import { CookerScript } from './CookerScript';
+import { TrainScript } from './TrainScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -63,6 +64,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'popcorn': return new PopcornScript();
     case 'cables': return new CablesScript();
     case 'cooker': return new CookerScript();
+    case 'train': return new TrainScript();
     default: return null;
   }
 }

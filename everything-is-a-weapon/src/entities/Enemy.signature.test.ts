@@ -144,7 +144,7 @@ it('signatures change the room, boss by boss', () => {
 
   const train = ready(game, 'train');
   tick(game, 0.05);
-  expect(train.ai, 'train charges').toBe('lunge');
+  expect(train.script, 'train has its own script').not.toBeNull();
 
   const cardboard = ready(game, 'cardboard');
   const form = cardboard.form;

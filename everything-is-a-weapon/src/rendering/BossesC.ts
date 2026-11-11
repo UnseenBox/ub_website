@@ -2,6 +2,7 @@ import { INK } from '../core/constants';
 import { TAU } from '../core/math';
 import { PopcornScript } from '../entities/bossScripts/PopcornScript';
 import { CookerScript } from '../entities/bossScripts/CookerScript';
+import { TrainScript } from '../entities/bossScripts/TrainScript';
 import {
   blob, bolt, blink, brow, eye, eyePair, fist, gloss, lighten, limb, lin, maw, paint, puffs, rad, raging, rrect, tentacle, wheel,
   type BossBody,
@@ -288,12 +289,22 @@ export const train: BossBody = (ctx, e, x, y, time, p) => {
   const { hw, hd, tone, fx, fy, windup } = p;
   const b = y + hd + 1;
   const dir = fx >= 0 ? 1 : -1;
-  const charging = (e.ai === 'lunge' || e.ai === 'windup') && !e.defeated;
+  const script = e.script instanceof TrainScript && !e.defeated ? e.script : null;
+  const charging = script
+    ? (script.attack === 'express' || script.attack === 'bumper') && script.stage !== 'recover'
+    : (e.ai === 'lunge' || e.ai === 'windup') && !e.defeated;
   const rage = raging(e);
   ctx.save();
   ctx.translate(x, 0);
   ctx.scale(dir, 1);
   ctx.translate(-x, 0);
+  if (script && script.derailed > 0) {
+    // flat on his side: tipped over, wheels in the air, smoking
+    ctx.translate(x, b);
+    ctx.rotate(-0.55 + Math.sin(time * 9) * 0.02);
+    ctx.translate(-x, -b);
+    puffs(ctx, x + 4, b - 40, time, e.seed + 2, '60, 60, 70', 6, 40);
+  }
   const spin = e.walkPhase * (charging ? 5 : 2.5);
   // cars behind: a fridge car, then a lamp car
   const cars: ReadonlyArray<{ c: string; dark: string }> = [{ c: '#5c4a6e', dark: '#3a2c48' }, { c: '#3f5a4c', dark: '#274035' }];

@@ -544,15 +544,14 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   train: {
     id: 'train', name: 'Midnight Express', hp: 640, speed: 85, mass: 720, radius: 60, reaction: 0.6, awareness: 520,
     impactFactor: 1, lightObjectFactor: 0.4, staggerFactor: 0.3, turnRate: 3, burnFactor: 1,
-    lungeRange: 500, lungeSpeed: 800, lungeTime: 0.9, windup: 1, recover: 1.2,
     color: '#2e3a55', shade: '#1a2236', scoreBonus: 700, voice: 70,
     boss: true, bossTitle: 'EXPRESS DERAILED', bossDiscovery: 'derailed',
     bossBanner: 'MIDNIGHT EXPRESS', bossBlurb: 'all aboard. no refunds.',
     signature: { name: 'RAIL SLAM', sound: 'bossWalk', effect: 'rail_ring', trail: 'rail' },
     death: { sound: 'bossWalk', effect: 'rail_ring' },
-    tramples: true,
+    // His fight lives in bossScripts/TrainScript.ts: lanes, lamps, and a derail if the rails are blocked.
     phases: [
-      { below: 0.5, enrage: 1.3, announce: 'EXPRESS' },
+      { below: 0.5, enrage: 1.15, announce: 'EXPRESS' },
     ],
   },
   // LANDLORD, KING OF JUNK: eviction day, final form. A tower of wardrobes,
