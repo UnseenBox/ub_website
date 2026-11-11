@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { CablesScript, POWER_STEP, POWER_FLOOR, BLACKOUT_BONUS, CUT_DAMAGE } from '../entities/bossScripts/CablesScript';
 import { PopcornScript, CHIP as POP_CHIP, SPENT_BONUS, BOMB_DAMAGE } from '../entities/bossScripts/PopcornScript';
 import { FanScript, AIRBORNE_GRAZE, GROUNDED_BONUS } from '../entities/bossScripts/FanScript';
 import { HydraScript, SOAKED_CHIP, HEADLESS_BONUS } from '../entities/bossScripts/HydraScript';
@@ -1739,4 +1740,110 @@ it('popcorn entrance: untouchable while the tub fills, then he opens with a lob'
   for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('lob');
+});
+
+function cablesFight(): { game: Game; boss: Game['enemies'][number]; script: CablesScript } {
+  const game = boot();
+  game.playFrom(23);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'cables');
+    if (boss && boss.script instanceof CablesScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 150;
+      game.player.body.y = boss.body.y + 260;
+      game.player.body.vx = game.player.body.vy = 0;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Cable Kraken never arrived');
+}
+
+it('cables: powered sockets armour him; cutting them thins it, feeds back, and all four cut is a blackout', { timeout: 90_000 }, () => {
+  const { game, boss, script } = cablesFight();
+  expect(script.powered).toBe(4);
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * Math.max(POWER_FLOOR, 1 - POWER_STEP * 4));
+
+  const hp1 = boss.hp;
+  script.cut(game, boss, 0, script.nodes[0]!.x, script.nodes[0]!.y);
+  expect(script.powered).toBe(3);
+  expect(hp1 - boss.hp).toBeCloseTo(boss.maxHp * CUT_DAMAGE, 0);
+
+  script.cut(game, boss, 1, 0, 0);
+  script.cut(game, boss, 2, 0, 0);
+  script.cut(game, boss, 3, 0, 0);
+  expect(script.blackout).toBeGreaterThan(0);
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * BLACKOUT_BONUS);
+
+  // the sockets come back
+  run(game, 12);
+  expect(script.powered).toBeGreaterThan(0);
+});
+
+it('cables: a thrown object through a cable fries its socket', { timeout: 90_000 }, () => {
+  const { game, script } = cablesFight();
+  const n = script.nodes[0]!;
+  const o = game.spawnObject('chair', n.x + 20, n.y + 10)!;
+  o.thrownByPlayer = true;
+  o.body.vx = 200;
+  run(game, 0.2);
+  expect(script.nodes[0]!.powered).toBe(false);
+});
+
+it('cables: the arc is a warning line then burns; the lash and surge hurt in their zones', { timeout: 90_000 }, () => {
+  const { game, boss, script } = cablesFight();
+  script.beginAttack(game, boss, 'arc');
+  expect(script.beams.length).toBeGreaterThan(0);
+  const bm = script.beams[0]!;
+  const a = script.nodes[bm.a]!;
+  const c = script.nodes[bm.b]!;
+  game.player.body.x = (a.x + c.x) / 2;
+  game.player.body.y = (a.y + c.y) / 2;
+  game.player.body.vx = game.player.body.vy = 0;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  run(game, 0.8);
+  expect(game.player.hp).toBe(hp);
+  run(game, 1.2);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  run(game, 3);
+  boss.stun = 0;
+  game.player.body.x = boss.body.x + 100;
+  game.player.body.y = boss.body.y;
+  game.player.invulnerable = 0;
+  const hp2 = game.player.hp;
+  script.beginAttack(game, boss, 'surge');
+  run(game, 2);
+  expect(game.player.hp).toBeLessThan(hp2);
+});
+
+it('cables entrance: untouchable while the sockets ignite one by one, then an arc', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(23);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'cables');
+  }
+  const script = boss!.script as CablesScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('arc');
 });

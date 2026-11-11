@@ -519,10 +519,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'CABLE KRAKEN', bossBlurb: 'do not lick.',
     signature: { name: 'SHOCK ZAP', sound: 'shock', effect: 'zap_ring', trail: 'zap' },
     death: { sound: 'shock', effect: 'zap_ring' },
-    lashes: { range: 170, arc: 0.9, cooldown: 4, windup: 0.6 },
-    zaps: { radius: 170, interval: 3 },
+    // His fight lives in bossScripts/CablesScript.ts: four live sockets feed him; cut the cables.
     phases: [
-      { below: 0.5, enrage: 1.3, announce: 'HIGH VOLTAGE' },
+      { below: 0.5, enrage: 1.15, announce: 'HIGH VOLTAGE' },
     ],
   },
   // PRESSURE COOKER: a boiler with a grudge and a whistle. It sits on you in a
