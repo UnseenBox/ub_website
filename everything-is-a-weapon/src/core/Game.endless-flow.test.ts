@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { MowerScript, STALL_BONUS } from '../entities/bossScripts/MowerScript';
 import { PianoScript, BEAT_WINDOW, ON_BEAT_BONUS, OFF_BEAT_FACTOR } from '../entities/bossScripts/PianoScript';
 import { KrakenScript, COZY_CHIP, EXPOSED_BONUS as KRAKEN_EXPOSED } from '../entities/bossScripts/KrakenScript';
 import { FridgeScript, FRONT_CHIP, BACK_BONUS } from '../entities/bossScripts/FridgeScript';
@@ -1083,4 +1084,136 @@ it('piano entrance: lowered on a thread (untouchable), a crash, a four-beat coun
   for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('keyboard');
+});
+
+function mowerFight(): { game: Game; boss: Game['enemies'][number]; script: MowerScript } {
+  const game = boot();
+  game.playFrom(6);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'mower');
+    if (boss && boss.script instanceof MowerScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear(); // puddles would trip him mid-move
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 300;
+      game.player.body.y = boss.body.y;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Mower never arrived');
+}
+
+it('mower: the tank drains and he stalls at zero (extra damage); an explosion empties it at once', { timeout: 90_000 }, () => {
+  const { game, boss, script } = mowerFight();
+  expect(script.cans.length).toBe(3);
+  script.fuel = 0.3;
+  run(game, 0.3);
+  expect(script.stall).toBeGreaterThan(0);
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * STALL_BONUS);
+  run(game, 5);
+  expect(script.stall).toBeLessThanOrEqual(0); // restarted
+
+  script.fuel = 90;
+  const hp2 = boss.hp;
+  boss.damage(game, 10, { ...PUSH, type: 'explosion' });
+  expect(script.stall).toBeGreaterThan(0);
+  expect(script.fuel).toBe(0);
+  expect(hp2 - boss.hp).toBeGreaterThan(10);
+});
+
+it('mower: running low he drives to a jerry can and drinks it; a can the player grabs is no use to him', { timeout: 90_000 }, () => {
+  const { game, boss, script } = mowerFight();
+  script.fuel = 30;
+  run(game, 0.2);
+  expect(script.refuelTarget).not.toBeNull();
+  const target = script.refuelTarget!;
+  run(game, 6);
+  expect(script.fuel).toBeGreaterThan(60);
+  expect(target.alive).toBe(false);
+  expect(script.cans.length).toBe(2);
+
+  // take the cans away and he cannot refuel
+  for (const c of [...script.cans]) c.destroy(game);
+  script.fuel = 30;
+  run(game, 0.5);
+  expect(script.refuelTarget).toBeNull();
+  expect(boss.hp).toBeGreaterThan(0);
+});
+
+it('mower: the pass runs you over only if you stay in its lane; spin and blow do their work', { timeout: 90_000 }, () => {
+  const { game, boss, script } = mowerFight();
+  const b = game.world.bounds;
+  const reset = (): void => {
+    script.fuel = 100;
+    boss.stun = 0;
+    boss.body.x = (b.x0 + b.x1) / 2;
+    boss.body.y = (b.y0 + b.y1) / 2;
+    boss.body.vx = boss.body.vy = 0;
+  };
+  // in the lane: hit. (The first lane is aimed at where the player is.)
+  game.player.body.x = (b.x0 + b.x1) / 2 + 200;
+  game.player.body.y = (b.y0 + b.y1) / 2;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'pass');
+  run(game, 3);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  // step out of the lane before it goes: safe
+  reset();
+  script.beginAttack(game, boss, 'pass');
+  game.player.body.y = script.laneY + 260 > b.y1 - 30 ? script.laneY - 260 : script.laneY + 260;
+  game.player.body.x = (b.x0 + b.x1) / 2;
+  game.player.invulnerable = 0;
+  const hp2 = game.player.hp;
+  run(game, 1.1);
+  expect(game.player.hp).toBe(hp2);
+});
+
+it('mower: the blade ring hurts inside it, and the leaf blower shoves you away', { timeout: 90_000 }, () => {
+  const spin = mowerFight();
+  spin.game.player.body.x = spin.boss.body.x + 115;
+  spin.game.player.body.y = spin.boss.body.y;
+  spin.game.player.invulnerable = 0;
+  const hp = spin.game.player.hp;
+  spin.script.beginAttack(spin.game, spin.boss, 'spin');
+  run(spin.game, 1.6);
+  expect(spin.game.player.hp).toBeLessThan(hp);
+
+  const blow = mowerFight();
+  blow.game.player.body.x = blow.boss.body.x - 250;
+  blow.game.player.body.y = blow.boss.body.y;
+  const x0 = blow.game.player.body.x;
+  blow.script.beginAttack(blow.game, blow.boss, 'blow');
+  run(blow.game, 1.8);
+  expect(blow.game.player.body.x).toBeLessThan(x0 - 20); // shoved away from him
+});
+
+it('mower entrance: untouchable while drifting in, the engine revs, then the first pass', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(6);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'mower');
+  }
+  const script = boss!.script as MowerScript;
+  expect(script.pose).toBe('drift');
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(10 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('pass');
+  expect(script.cans.length).toBe(3);
 });

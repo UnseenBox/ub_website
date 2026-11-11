@@ -136,9 +136,11 @@ it('signatures change the room, boss by boss', () => {
   expect(fridge.script, 'fridgezilla has its own script').not.toBeNull();
   fridge.alive = false;
 
+  // The Mower Maniac has a script of its own too (fuel gauge, jerry cans, lane passes).
   const mower = ready(game, 'mower');
   tick(game, 0.05);
-  expect(mower.ai, 'mower charges').toBe('lunge');
+  expect(mower.script, 'mower has its own script').not.toBeNull();
+  mower.alive = false;
 
   const train = ready(game, 'train');
   tick(game, 0.05);

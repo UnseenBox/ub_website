@@ -415,7 +415,8 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   mower: {
     id: 'mower', name: 'Mower Maniac', hp: 560, speed: 95, mass: 540, radius: 52, reaction: 0.5, awareness: 480,
     impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.5, turnRate: 5, burnFactor: 1.2,
-    lungeRange: 380, lungeSpeed: 720, lungeTime: 0.8, windup: 0.9, recover: 1,
+    // His real charges are the scripted lane passes (bossScripts/MowerScript.ts); the shared lunge is only a short lurch.
+    lungeRange: 200, lungeSpeed: 520, lungeTime: 0.5, windup: 0.9, recover: 1,
     color: '#c23b2e', shade: '#7d241c', scoreBonus: 500, voice: 90,
     boss: true, bossTitle: 'MOWER RETIRED', bossDiscovery: 'mow_no_mo',
     bossBanner: 'LAWN MOWER MANIAC', bossBlurb: 'the grass is always greener. you are the grass.',
@@ -424,7 +425,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     tramples: true,
     phases: [
       {
-        below: 0.5, enrage: 1.3, shockwave: { radius: 140, damage: 1 },
+        below: 0.5, enrage: 1.15,
         announce: 'BACKFIRE',
       },
     ],
