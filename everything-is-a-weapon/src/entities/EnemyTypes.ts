@@ -534,10 +534,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'PRESSURE COOKER', bossBlurb: 'do not remove the lid. it will.',
     signature: { name: 'FLAME BURST', sound: 'burn', effect: 'flame_ring', trail: 'fire' },
     death: { sound: 'burn', effect: 'flame_ring' },
-    slams: { radius: 135, damage: 1, cooldown: 6, spawnZone: { kind: 'steam', radius: 70, ttl: 6 } },
+    // His fight lives in bossScripts/CookerScript.ts: a pressure gauge, a blast, and the lid off.
     phases: [
-      { below: 0.6, enrage: 1.2, announce: 'SIMMERING' },
-      { below: 0.3, enrage: 1.4, shockwave: { radius: 150, damage: 1 }, announce: 'BOILING OVER' },
+      { below: 0.5, enrage: 1.15, announce: 'SIMMERING' },
     ],
   },
   // MIDNIGHT EXPRESS: a runaway train of fused appliances. It picks a track,

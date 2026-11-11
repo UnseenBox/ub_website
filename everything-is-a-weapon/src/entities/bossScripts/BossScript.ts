@@ -14,6 +14,7 @@ import { HydraScript } from './HydraScript';
 import { FanScript } from './FanScript';
 import { PopcornScript } from './PopcornScript';
 import { CablesScript } from './CablesScript';
+import { CookerScript } from './CookerScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -61,6 +62,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'fan': return new FanScript();
     case 'popcorn': return new PopcornScript();
     case 'cables': return new CablesScript();
+    case 'cooker': return new CookerScript();
     default: return null;
   }
 }

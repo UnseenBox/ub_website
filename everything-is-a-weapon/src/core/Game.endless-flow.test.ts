@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { CookerScript, SEALED_CHIP, VENTED_BONUS } from '../entities/bossScripts/CookerScript';
 import { CablesScript, POWER_STEP, POWER_FLOOR, BLACKOUT_BONUS, CUT_DAMAGE } from '../entities/bossScripts/CablesScript';
 import { PopcornScript, CHIP as POP_CHIP, SPENT_BONUS, BOMB_DAMAGE } from '../entities/bossScripts/PopcornScript';
 import { FanScript, AIRBORNE_GRAZE, GROUNDED_BONUS } from '../entities/bossScripts/FanScript';
@@ -1846,4 +1847,115 @@ it('cables entrance: untouchable while the sockets ignite one by one, then an ar
   for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('arc');
+});
+
+function cookerFight(): { game: Game; boss: Game['enemies'][number]; script: CookerScript } {
+  const game = boot();
+  game.playFrom(26);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'cooker');
+    if (boss && boss.script instanceof CookerScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 300;
+      game.player.body.y = boss.body.y;
+      game.player.body.vx = game.player.body.vy = 0;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Pressure Cooker never arrived');
+}
+
+it('cooker: sealed hits bounce but build pressure; a full gauge blows the lid and leaves him vented', { timeout: 90_000 }, () => {
+  const { game, boss, script } = cookerFight();
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * SEALED_CHIP);
+  expect(script.pressure).toBeGreaterThan(0.04);
+
+  // a big hit fills the gauge, the blast winds up, then the lid is off
+  game.player.body.x = boss.body.x + 700;
+  boss.damage(game, 400, PUSH);
+  run(game, 0.2);
+  expect(script.blowing).toBe(true);
+  run(game, 2.2);
+  expect(script.vented).toBeGreaterThan(0);
+  expect(script.pressure).toBe(0);
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * VENTED_BONUS);
+
+  run(game, 6);
+  expect(script.vented).toBeLessThanOrEqual(0);
+  expect(script.lid).toBe('on');
+});
+
+it('cooker: the blast hurts inside its ring; a vent hurts on its marker', { timeout: 90_000 }, () => {
+  const { game, boss, script } = cookerFight();
+  game.player.body.x = boss.body.x + 120;
+  game.player.body.y = boss.body.y;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  boss.damage(game, 500, PUSH);
+  run(game, 2.5);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  run(game, 6);
+  boss.stun = 0;
+  game.player.invulnerable = 0;
+  game.player.body.x = boss.body.x - 300;
+  game.player.body.vx = game.player.body.vy = 0;
+  const hp2 = game.player.hp;
+  script.beginAttack(game, boss, 'vents');
+  game.player.body.x = script.vents[0]!.x;
+  game.player.body.y = script.vents[0]!.y;
+  run(game, 2);
+  expect(game.player.hp).toBeLessThan(hp2);
+});
+
+it('cooker: the flop lands on its marker and the whistle sends rings that feed the gauge', { timeout: 90_000 }, () => {
+  const { game, boss, script } = cookerFight();
+  game.player.body.x = boss.body.x - 300;
+  game.player.body.y = boss.body.y;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'flop');
+  run(game, 1.0);
+  // stand still on the marker: it locks onto where you were
+  run(game, 1.4);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  run(game, 3);
+  boss.stun = 0;
+  const p0 = script.pressure;
+  script.beginAttack(game, boss, 'whistle');
+  run(game, 1.6);
+  expect(script.rings.length).toBeGreaterThan(0);
+  expect(script.pressure).toBeGreaterThan(p0);
+});
+
+it('cooker entrance: untouchable while the lid rattles and pops, then he opens with vents', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(26);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'cooker');
+  }
+  const script = boss!.script as CookerScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('vents');
 });

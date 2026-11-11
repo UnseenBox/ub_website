@@ -1,6 +1,7 @@
 import { INK } from '../core/constants';
 import { TAU } from '../core/math';
 import { PopcornScript } from '../entities/bossScripts/PopcornScript';
+import { CookerScript } from '../entities/bossScripts/CookerScript';
 import {
   blob, bolt, blink, brow, eye, eyePair, fist, gloss, lighten, limb, lin, maw, paint, puffs, rad, raging, rrect, tentacle, wheel,
   type BossBody,
@@ -201,8 +202,10 @@ export const cables: BossBody = (ctx, e, x, y, time, p) => {
 export const cooker: BossBody = (ctx, e, x, y, time, p) => {
   const { hw, hd, tone, fx, fy, windup } = p;
   const b = y + hd + 1;
-  const boiling = e.phaseIndex > 0 && !e.defeated;
-  const slam = e.ai === 'slam' && !e.defeated;
+  const script = e.script instanceof CookerScript && !e.defeated ? e.script : null;
+  const boiling = (e.phaseIndex > 0 || (script !== null && script.pressure > 0.75)) && !e.defeated;
+  const slam = (e.ai === 'slam' || (script !== null && (script.vented > 0 || script.blowing))) && !e.defeated;
+  const lidOn = !script || script.lid === 'on';
   const rage = raging(e);
   // feet and the pot belly
   for (const side of [-1, 1] as const) {
@@ -225,23 +228,31 @@ export const cooker: BossBody = (ctx, e, x, y, time, p) => {
   ctx.fillText('MAX', x - hw + 7, b - 32);
   for (const side of [-1, 1] as const) limb(ctx, x + side * hw, b - 26, x + side * (hw + 10), b - 30, 4.4, tone('#5c564a'));
   // lid with a rocking weight
-  ctx.beginPath();
-  ctx.ellipse(x, b - 48, hw - 2, 7.5, 0, 0, TAU);
-  paint(ctx, lin(ctx, 0, b - 55, 0, b - 40, tone('#b8b0a0'), tone('#6e675a')), 2.8);
-  const rock = boiling ? Math.sin(time * 14 + e.seed) * 0.4 : Math.sin(time * 3) * 0.08;
-  ctx.save();
-  ctx.translate(x, b - 57);
-  ctx.rotate(rock);
-  rrect(ctx, -4.4, -9, 8.8, 10, 2);
-  paint(ctx, lin(ctx, -4, 0, 4, 0, tone('#8a8478'), tone('#3f3a32')), 2);
-  ctx.restore();
+  if (lidOn) {
+    ctx.beginPath();
+    ctx.ellipse(x, b - 48, hw - 2, 7.5, 0, 0, TAU);
+    paint(ctx, lin(ctx, 0, b - 55, 0, b - 40, tone('#b8b0a0'), tone('#6e675a')), 2.8);
+    const rock = boiling ? Math.sin(time * 14 + e.seed) * 0.4 : Math.sin(time * 3) * 0.08;
+    ctx.save();
+    ctx.translate(x, b - 57);
+    ctx.rotate(rock);
+    rrect(ctx, -4.4, -9, 8.8, 10, 2);
+    paint(ctx, lin(ctx, -4, 0, 4, 0, tone('#8a8478'), tone('#3f3a32')), 2);
+    ctx.restore();
+  } else {
+    // the lid is off: a dark open mouth of the pot with steam pouring out
+    ctx.beginPath();
+    ctx.ellipse(x, b - 48, hw - 4, 6, 0, 0, TAU);
+    paint(ctx, tone('#2a2620'), 2.4);
+    puffs(ctx, x, b - 50, time, e.seed + 1.5, '228, 247, 251', 6, 30);
+  }
   // gauge with a nervous needle
   const gx = x + hw - 13;
   const gy = b - 32;
   ctx.beginPath();
   ctx.arc(gx, gy, 7.4, 0, TAU);
   paint(ctx, rad(ctx, gx - 2, gy - 2, 0.5, 8, tone('#ffffff'), tone('#cfc9ba')), 2.2);
-  const needle = Math.sin(time * (boiling ? 9 : 2) + e.seed) * 0.7 - 0.4;
+  const needle = script ? -1.1 + Math.min(1, script.vented > 0 ? 0 : script.pressure) * 2.2 + Math.sin(time * 18) * 0.04 * script.pressure : Math.sin(time * (boiling ? 9 : 2) + e.seed) * 0.7 - 0.4;
   ctx.strokeStyle = tone('#e5383b');
   ctx.lineWidth = 2;
   ctx.lineCap = 'round';
