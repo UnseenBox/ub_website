@@ -441,14 +441,10 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'MOM', bossBlurb: 'she found the mess. run.',
     signature: { name: 'HUG STRIKE', sound: 'bossWalk', effect: 'hug_burst', trail: 'hug' },
     death: { sound: 'bossWalk', effect: 'hug_burst' },
-    dodges: { radius: 210, cooldown: 2.5 },
-    rearranges: { cooldown: 14, count: 5 },
-    hurls: { range: 500, cooldown: 3.2, windup: 0.6, spawn: 'shoe' },
-    slams: { radius: 145, damage: 1, cooldown: 7 },
+    // Her fight lives in bossScripts/MomScript.ts: she catches what you throw and makes house rules.
+    // The shared dodge, tidy-up, shoe throw and slam are gone.
     phases: [
-      { below: 0.66, enrage: 1.2, announce: 'GO TO YOUR ROOM' },
-      { below: 0.33, enrage: 1.5, summon: { type: 'gnat', count: 3 }, shockwave: { radius: 150, damage: 1 }, announce: 'NO DESSERT' },
-      { below: 0.15, enrage: 1.8, summon: { type: 'gnat', count: 5 }, shockwave: { radius: 170, damage: 2 }, announce: 'BEDTIME' },
+      { below: 0.5, enrage: 1.15, announce: 'GO TO YOUR ROOM' },
     ],
   },
   // VACUUMASAURUS: the apex predator of dust. Inhales furniture, projectiles

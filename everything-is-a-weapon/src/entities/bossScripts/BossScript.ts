@@ -8,6 +8,7 @@ import { FridgeScript } from './FridgeScript';
 import { KrakenScript } from './KrakenScript';
 import { PianoScript } from './PianoScript';
 import { MowerScript } from './MowerScript';
+import { MomScript } from './MomScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -49,6 +50,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'kraken': return new KrakenScript();
     case 'piano': return new PianoScript();
     case 'mower': return new MowerScript();
+    case 'mom': return new MomScript();
     default: return null;
   }
 }

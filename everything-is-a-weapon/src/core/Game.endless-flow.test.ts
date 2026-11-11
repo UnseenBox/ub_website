@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { MomScript, GUARD_CHIP, OPEN_BONUS } from '../entities/bossScripts/MomScript';
 import { MowerScript, STALL_BONUS } from '../entities/bossScripts/MowerScript';
 import { PianoScript, BEAT_WINDOW, ON_BEAT_BONUS, OFF_BEAT_FACTOR } from '../entities/bossScripts/PianoScript';
 import { KrakenScript, COZY_CHIP, EXPOSED_BONUS as KRAKEN_EXPOSED } from '../entities/bossScripts/KrakenScript';
@@ -1216,4 +1217,111 @@ it('mower entrance: untouchable while drifting in, the engine revs, then the fir
   expect(script.intro).toBe('done');
   expect(script.attack).toBe('pass');
   expect(script.cans.length).toBe(3);
+});
+
+function momFight(): { game: Game; boss: Game['enemies'][number]; script: MomScript } {
+  const game = boot();
+  game.playFrom(7);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'mom');
+    if (boss && boss.script instanceof MomScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 320;
+      game.player.body.y = boss.body.y;
+      game.player.body.vx = game.player.body.vy = 0;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('Mom never arrived');
+}
+
+it('mom: she catches and confiscates what you throw; obeying her rule drops her guard', { timeout: 90_000 }, () => {
+  const { game, boss, script } = momFight();
+  const chair = game.spawnObject('chair', boss.body.x - 150, boss.body.y)!;
+  const hp = boss.hp;
+  boss.damage(game, 20, { ...PUSH, source: chair });
+  expect(hp - boss.hp).toBeCloseTo(20 * GUARD_CHIP);
+  expect(chair.alive).toBe(false); // confiscated
+
+  // stand perfectly still for NO RUNNING
+  script.beginRule(game, boss, 'still');
+  game.player.body.vx = game.player.body.vy = 0;
+  run(game, 4.2);
+  expect(script.open).toBeGreaterThan(0);
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * OPEN_BONUS);
+});
+
+it('mom: breaking a rule hurts and she heals; every rule can be obeyed', { timeout: 90_000 }, () => {
+  const { game, boss, script } = momFight();
+  // NO RUNNING, but you run
+  script.beginRule(game, boss, 'still');
+  run(game, 0.5);
+  game.player.body.vx = 400;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  const mom = boss.hp;
+  boss.hp = boss.maxHp * 0.5;
+  run(game, 0.2);
+  expect(game.player.hp).toBeLessThan(hp);
+  expect(boss.hp).toBeGreaterThan(boss.maxHp * 0.5);
+  expect(mom).toBeGreaterThan(0);
+  run(game, 1.2);
+
+  // CORNER: walk into the glowing corner in time
+  boss.stun = 0;
+  game.player.body.vx = game.player.body.vy = 0;
+  script.beginRule(game, boss, 'corner');
+  game.player.body.x = script.cornerX;
+  game.player.body.y = script.cornerY;
+  game.player.body.vx = game.player.body.vy = 0;
+  run(game, 3.9);
+  expect(script.open).toBeGreaterThan(0);
+
+  // TIDY UP: pick something up (passes as soon as you are holding something)
+  script.open = 0;
+  boss.stun = 0;
+  const thing = game.spawnObject('book', game.player.body.x + 40, game.player.body.y)!;
+  script.beginRule(game, boss, 'tidy');
+  (game.player as unknown as { grab(g: Game, o: unknown): void }).grab(game, thing);
+  run(game, 0.3);
+  expect(script.open).toBeGreaterThan(0);
+});
+
+it('mom: slippers fan out along the aim lines; the entrance dims the lights, clicks them on and demands WHO DID THIS', { timeout: 90_000 }, () => {
+  const { game, boss, script } = momFight();
+  const hp = game.player.hp;
+  game.player.invulnerable = 0;
+  (script as unknown as { beginSlippers(g: Game, b: unknown): void }).beginSlippers(game, boss);
+  run(game, 1.3);
+  expect(script.slippers.length).toBeGreaterThan(0);
+  run(game, 3);
+  expect(game.player.hp).toBeLessThan(hp);
+
+  const fresh = boot();
+  fresh.playFrom(7);
+  let m: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !m; i++) {
+    fresh.tick(FIXED_DT);
+    m = fresh.enemies.find((e) => e.type.id === 'mom');
+  }
+  const ms = m!.script as MomScript;
+  const mhp = m!.hp;
+  m!.damage(fresh, 80, PUSH);
+  expect(m!.hp).toBe(mhp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && ms.intro !== 'done'; i++) fresh.tick(FIXED_DT);
+  expect(ms.intro).toBe('done');
+  expect(ms.attack).toBe('rule');
+  expect(ms.rule).toBe('still');
 });
