@@ -11,6 +11,7 @@ import { MowerScript } from './MowerScript';
 import { MomScript } from './MomScript';
 import { VacuumScript } from './VacuumScript';
 import { HydraScript } from './HydraScript';
+import { FanScript } from './FanScript';
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -55,6 +56,7 @@ export function createBossScript(id: EnemyTypeId): BossScript | null {
     case 'mom': return new MomScript();
     case 'vacuumasaurus': return new VacuumScript();
     case 'hydra': return new HydraScript();
+    case 'fan': return new FanScript();
     default: return null;
   }
 }

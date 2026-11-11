@@ -4,6 +4,7 @@ import { FIXED_DT } from './constants';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 import { todayKey } from '../gameplay/Campaign';
+import { FanScript, AIRBORNE_GRAZE, GROUNDED_BONUS } from '../entities/bossScripts/FanScript';
 import { HydraScript, SOAKED_CHIP, HEADLESS_BONUS } from '../entities/bossScripts/HydraScript';
 import { VacuumScript, PLUGGED_ARMOUR, UNPLUGGED_BONUS } from '../entities/bossScripts/VacuumScript';
 import { MomScript, GUARD_CHIP, OPEN_BONUS } from '../entities/bossScripts/MomScript';
@@ -1545,4 +1546,95 @@ it('hydra entrance: untouchable while it shudders in, then the three heads burst
   expect(script.intro).toBe('done');
   expect(script.alive).toBe(3);
   expect(script.irons.length).toBe(2);
+});
+
+function fanFight(): { game: Game; boss: Game['enemies'][number]; script: FanScript } {
+  const game = boot();
+  game.playFrom(17);
+  for (let i = 0; i < Math.round(40 / FIXED_DT); i++) {
+    game.tick(FIXED_DT);
+    const boss = game.enemies.find((e) => e.type.id === 'fan');
+    if (boss && boss.script instanceof FanScript) {
+      for (const o of [...game.objects]) o.destroy(game);
+      game.zones.clear();
+      const b = game.world.bounds;
+      boss.body.x = (b.x0 + b.x1) / 2;
+      boss.body.y = (b.y0 + b.y1) / 2;
+      boss.body.vx = boss.body.vy = 0;
+      boss.script.finishIntro(game, boss, false);
+      (boss.script as unknown as { gap: number }).gap = 9999;
+      game.player.hp = 99;
+      game.player.body.x = boss.body.x - 300;
+      game.player.body.y = boss.body.y;
+      game.player.body.vx = game.player.body.vy = 0;
+      boss.stun = 0;
+      return { game, boss, script: boss.script };
+    }
+  }
+  throw new Error('the Fan never arrived');
+}
+
+it('fan: hits only graze him in the air; a crash landing grounds him for bonus damage', { timeout: 90_000 }, () => {
+  const { game, boss, script } = fanFight();
+  const hp = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp - boss.hp).toBeCloseTo(10 * AIRBORNE_GRAZE);
+
+  script.beginAttack(game, boss, 'swoop');
+  for (let i = 0; i < Math.round(9 / FIXED_DT) && script.grounded <= 0; i++) game.tick(FIXED_DT);
+  expect(script.grounded).toBeGreaterThan(0);
+  const hp2 = boss.hp;
+  boss.damage(game, 10, PUSH);
+  expect(hp2 - boss.hp).toBeCloseTo(10 * GROUNDED_BONUS);
+  run(game, 5);
+  expect(script.grounded).toBeLessThanOrEqual(0);
+});
+
+it('fan: the wind pushes the player and a dive hurts on its lane', { timeout: 90_000 }, () => {
+  const { game, boss, script } = fanFight();
+  script.windBase = 0;
+  const x0 = game.player.body.x;
+  run(game, 1.5);
+  expect(Math.abs(game.player.body.x - x0)).toBeGreaterThan(4);
+
+  boss.stun = 0;
+  game.player.body.x = boss.body.x + 200;
+  game.player.body.y = boss.body.y;
+  game.player.body.vx = game.player.body.vy = 0;
+  game.player.invulnerable = 0;
+  const hp = game.player.hp;
+  script.beginAttack(game, boss, 'swoop');
+  run(game, 1.8);
+  expect(game.player.hp).toBeLessThan(hp);
+});
+
+it('fan: tornadoes form after a warning and cyclone rings roll out', { timeout: 90_000 }, () => {
+  const { game, boss, script } = fanFight();
+  script.beginAttack(game, boss, 'tornado');
+  run(game, 1.6);
+  expect(script.tornadoes.length).toBeGreaterThan(0);
+  run(game, 4);
+  script.tornadoes.length = 0;
+
+  boss.stun = 0;
+  script.beginAttack(game, boss, 'cyclone');
+  run(game, 1.6);
+  expect(script.rings.length).toBeGreaterThan(0);
+});
+
+it('fan entrance: untouchable while he drops in, then he opens with a swoop', { timeout: 90_000 }, () => {
+  const game = boot();
+  game.playFrom(17);
+  let boss: Game['enemies'][number] | undefined;
+  for (let i = 0; i < Math.round(30 / FIXED_DT) && !boss; i++) {
+    game.tick(FIXED_DT);
+    boss = game.enemies.find((e) => e.type.id === 'fan');
+  }
+  const script = boss!.script as FanScript;
+  const hp = boss!.hp;
+  boss!.damage(game, 80, PUSH);
+  expect(boss!.hp).toBe(hp);
+  for (let i = 0; i < Math.round(12 / FIXED_DT) && script.intro !== 'done'; i++) game.tick(FIXED_DT);
+  expect(script.intro).toBe('done');
+  expect(script.attack).toBe('swoop');
 });

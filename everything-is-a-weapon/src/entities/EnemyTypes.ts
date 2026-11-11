@@ -488,9 +488,9 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     bossBanner: 'FAN-TASTIC NIGHTMARE', bossBlurb: 'it puts the air in despair.',
     signature: { name: 'CYCLONE FAN', sound: 'bossWalk', effect: 'fan_burst', trail: 'wind' },
     death: { sound: 'bossWalk', effect: 'fan_burst' },
-    winds: { radius: 90, interval: 3.5, ttl: 4 },
+    // His fight lives in bossScripts/FanScript.ts: a wind that bends your throws, and dives that ground him.
     phases: [
-      { below: 0.5, enrage: 1.4, announce: 'TURBO' },
+      { below: 0.5, enrage: 1.2, announce: 'TURBO' },
     ],
   },
   // POPCORN APOCALYPSE: a microwave wizard that blinks around the room lobbing
