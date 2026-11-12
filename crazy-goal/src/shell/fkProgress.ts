@@ -58,3 +58,13 @@ export function fkStarMax(stages: Record<string, FkStageRecord> = readFkStages()
   const legendOpen = (stages[FK_LAST_CAMPAIGN_STAGE]?.stars ?? 0) >= 1;
   return FK_CAMPAIGN_STAR_MAX + (legendOpen ? FK_LEGEND_STAR_MAX : 0);
 }
+
+/** The Street Cup stage to play next, 1 to 5: one past the furthest stage with a star. */
+export function fkNextStage(stages: Record<string, FkStageRecord> = readFkStages()): number {
+  let best = 0;
+  for (const [id, rec] of Object.entries(stages)) {
+    const m = /^stage-(\d+)-/.exec(id);
+    if (m && rec.stars >= 1) best = Math.max(best, Number(m[1]));
+  }
+  return Math.min(5, best + 1);
+}

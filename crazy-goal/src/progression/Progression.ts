@@ -189,3 +189,12 @@ export function fkStagePayout(stars: number, paid: number): number {
   const worth = s > 0 ? FK_CLEAR_COINS + FK_STAR_COINS * s : 0;
   return Math.max(0, worth - Math.max(0, paid));
 }
+
+/** Free Kicks opens with a goal in this houma (0-based index 2 is houma 3), or for anyone who has already played it. */
+export const FK_UNLOCK_LEVEL = 2;
+
+export function isFreeKicksUnlocked(save: ProgressSave, levels: readonly ProgressLevel[], fkPlayed: boolean): boolean {
+  if (fkPlayed) return true;
+  const gate = levels[FK_UNLOCK_LEVEL];
+  return !!gate && goalsOf(save, gate.id) > 0;
+}

@@ -611,6 +611,15 @@ const AR: Readonly<Record<string, string>> = {
   'BOUNCE IT OFF A WALL. EVERY BOUNCE MULTIPLIES YOUR SCORE.': 'ارتدِ بها عن الحائط. كل ارتداد يضاعف نقاطك.',
   '{label}! USING THE STREET EARNS BONUS POINTS.': '{label}! استعمال الحومة يمنحك نقاطاً إضافية.',
   'THREE DIFFERENT THINGS IN ONE SHOT: CHAIN REACTION.': 'ثلاثة أشياء مختلفة في تسديدة واحدة: تفاعل متسلسل.',
+  // Main menu (2.1).
+  HOUMAS: 'الحومات',
+  'FREE KICKS': 'الركلات الحرة',
+  '{n} / {max}': '{n} / {max}',
+  'STAGE {n}': 'المرحلة {n}',
+  'SCORE IN HOUMA 3': 'سجّل في الحومة 3',
+  'FREE KICKS OPENS WHEN YOU SCORE IN HOUMA 3.': 'تُفتح الركلات الحرة عندما تسجّل في الحومة 3.',
+  'DAILY KICK': 'ركلة اليوم',
+  DAILY: 'اليومية',
 };
 
 function stored(): Lang {

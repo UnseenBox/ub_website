@@ -3,10 +3,10 @@
    --------------------------------------------------------------------------
    Additive UI only. This file never touches the game bundle, its save data,
    physics or level logic. It adds:
-     - a GAME MODES entry in the main menu
-     - a Game Modes chooser (Classic / Free Kicks)
-     - a Free Kicks intro screen and a mount point for the playable arena
-   Classic simply triggers the existing LET'S PLAY flow.
+     - the Free Kicks hub (Daily Kick, Street Cup stages, Quick Five)
+     - a mount point for the playable arena
+   Classic's main menu draws the FREE KICKS tile itself; this file only tells
+   it how to open the hub, through window.CrazyKoraShell.menu.registerModeTile.
    ========================================================================== */
 
 (() => {
@@ -28,20 +28,13 @@
 
   const COPY = {
     en: {
-      gameModes: "GAME MODES",
-      choosePlay: "CHOOSE YOUR PLAY",
-      classic: "CLASSIC",
-      classicDesc: "Master the houma. Take crazy trick shots and find your way to the goal.",
-      kickoff: "KICK OFF",
       freeKicks: "FREE KICKS",
       freeKicksDesc: "Bend it around the wall. Curve the ball through impossible angles. Find the perfect shot!",
       play: "PLAY",
       playNote: "One kick. One chance. Bend it around — or over — the wall.",
       newTag: "NEW",
       mainMenu: "MAIN MENU",
-      backToModes: "GAME MODES",
       back: "BACK",
-      newMode: "NEW GAME MODE",
       fkTagline: "BEND IT AROUND THE WALL",
       challenge: "THE CHALLENGE",
       challengeText: "Curve your shot around the wall and into the net. Pick your angle, bend the ball, and find the perfect path.",
@@ -71,7 +64,6 @@
       resultTooHighNote: "Over the bar! Take a little power off that one.",
       resultMissedNote: "The ball never found the target. Line up another.",
       retry: "TAKE ANOTHER KICK",
-      moreSoon: "MORE CRAZY WAYS TO PLAY, SOON",
       streetCup: "STREET CUP",
       cupRules: "Five kicks per stage. 3 goals clear it, 4 earn 2 stars, 5 earn 3.",
       stageN: "STAGE {n}",
@@ -86,20 +78,13 @@
       quickMeta: "NEW KICKS EVERY TIME",
     },
     ar: {
-      gameModes: "أنماط اللعب",
-      choosePlay: "اختر أسلوبك",
-      classic: "الكلاسيكية",
-      classicDesc: "أتقن الهوما. سدّد تسديدات خارقة واعثر على طريقك إلى المرمى.",
-      kickoff: "ابدأ اللعب",
       freeKicks: "الركلات الحرة",
       freeKicksDesc: "لُفّ الكرة حول الحائط. قوّسها بزوايا مستحيلة. ابحث عن التسديدة المثالية!",
       play: "العب",
       playNote: "ركلة واحدة، فرصة واحدة. لُفّها حول الحائط أو فوقه.",
       newTag: "جديد",
       mainMenu: "القائمة الرئيسية",
-      backToModes: "أنماط اللعب",
       back: "رجوع",
-      newMode: "نمط لعب جديد",
       fkTagline: "لُفّها حول الحائط",
       challenge: "التحدّي",
       challengeText: "قوّس تسديدتك حول الحائط وداخل الشبكة. اختر زاويتك، لُفّ الكرة، واعثر على المسار المثالي.",
@@ -129,7 +114,6 @@
       resultTooHighNote: "فوق العارضة! خفّف القوة قليلًا.",
       resultMissedNote: "لم تصل الكرة إلى المرمى. جهّز ركلة أخرى.",
       retry: "سدّد مرة أخرى",
-      moreSoon: "طرق جنونية أكثر للعب، قريبًا",
       streetCup: "كأس الشارع",
       cupRules: "خمس ركلات في كل مرحلة. 3 أهداف تجتاز المرحلة، و4 تمنح نجمتين، و5 ثلاث نجوم.",
       stageN: "المرحلة {n}",
@@ -159,8 +143,6 @@
 
   const ICONS = {
     back: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 18l-6-6 6-6"/></svg>`,
-    arrow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg>`,
-    modes: `<svg class="gm-entry-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7.6" height="7.6" rx="2.2"/><rect x="13.4" y="3" width="7.6" height="7.6" rx="2.2"/><rect x="3" y="13.4" width="7.6" height="7.6" rx="2.2"/><rect x="13.4" y="13.4" width="7.6" height="7.6" rx="2.2" opacity=".45"/></svg>`,
     target: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></svg>`,
     play: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8.2 5.6a1.3 1.3 0 0 1 2-1.1l9 6.4a1.3 1.3 0 0 1 0 2.2l-9 6.4a1.3 1.3 0 0 1-2-1.1V5.6Z"/></svg>`,
     shuffle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7h4l10 10h4"/><path d="M3 17h4l3-3"/><path d="M14 10l3-3h4"/><path d="M18 4l3 3-3 3"/><path d="M18 14l3 3-3 3"/></svg>`,
@@ -345,10 +327,10 @@
   root.hidden = true;
 
   root.innerHTML = `
-    <section class="gm-screen gm-modes" data-screen="modes" role="dialog" aria-modal="true" aria-labelledby="gm-modes-title" tabindex="-1">
+    <section class="gm-screen gm-fk" data-screen="fk" role="dialog" aria-modal="true" aria-labelledby="gm-fk-title" tabindex="-1" hidden>
       <img class="gm-deco gm-deco--a" src="${ASSETS.star}" alt="" draggable="false" aria-hidden="true">
       <img class="gm-deco gm-deco--b" src="${ASSETS.star}" alt="" draggable="false" aria-hidden="true">
-      <div class="gm-inner">
+      <div class="gm-inner gm-inner--fk">
         <div class="gm-topbar">
           <button type="button" class="gm-back" data-action="back-menu" aria-label="${esc(t("mainMenu"))}">
             ${ICONS.back}<span>${esc(t("mainMenu"))}</span>
@@ -356,62 +338,7 @@
           <span class="gm-brand">CRAZY KORA</span>
         </div>
 
-        <div class="gm-heading">
-          <p class="gm-eyebrow">CRAZY KORA</p>
-          <h2 class="gm-title" id="gm-modes-title">
-            ${starImg()}<span>${esc(t("gameModes"))}</span>${starImg("gm-title-star--flip")}
-          </h2>
-          <p class="gm-subtitle">${esc(t("choosePlay"))}</p>
-        </div>
-
-        <div class="gm-cards">
-          <button type="button" class="gm-card gm-card--classic" data-action="classic"
-            aria-label="${esc(`${t("classic")}. ${t("classicDesc")}`)}">
-            <span class="gm-card-art">
-              <img src="${ASSETS.courtyard}" alt="" draggable="false">
-              <span class="gm-chip">${esc(t("classic"))}</span>
-            </span>
-            <span class="gm-card-body">
-              <span class="gm-card-title">${esc(t("classic"))}</span>
-              <span class="gm-card-desc">${esc(t("classicDesc"))}</span>
-              <span class="gm-card-cta">${esc(t("kickoff"))}${ICONS.arrow}</span>
-            </span>
-          </button>
-
-          <button type="button" class="gm-card gm-card--fk" data-action="free-kicks"
-            aria-label="${esc(`${t("freeKicks")}. ${t("freeKicksDesc")}`)}">
-            <span class="gm-card-art">
-              ${freeKicksScene("gm-card")}
-              <span class="gm-chip gm-chip--new">${esc(t("newTag"))}</span>
-            </span>
-            <span class="gm-card-body">
-              <span class="gm-card-title">${esc(t("freeKicks"))}</span>
-              <span class="gm-card-desc">${esc(t("freeKicksDesc"))}</span>
-              <span class="gm-card-cta">${esc(t("play"))}${ICONS.arrow}</span>
-            </span>
-          </button>
-        </div>
-
-        <p class="gm-modes-foot">
-          <img src="${ASSETS.star}" alt="" draggable="false" aria-hidden="true">
-          ${esc(t("moreSoon"))}
-        </p>
-      </div>
-    </section>
-
-    <section class="gm-screen gm-fk" data-screen="fk" role="dialog" aria-modal="true" aria-labelledby="gm-fk-title" tabindex="-1" hidden>
-      <img class="gm-deco gm-deco--a" src="${ASSETS.star}" alt="" draggable="false" aria-hidden="true">
-      <img class="gm-deco gm-deco--b" src="${ASSETS.star}" alt="" draggable="false" aria-hidden="true">
-      <div class="gm-inner gm-inner--fk">
-        <div class="gm-topbar">
-          <button type="button" class="gm-back" data-action="back-modes" aria-label="${esc(t("backToModes"))}">
-            ${ICONS.back}<span>${esc(t("backToModes"))}</span>
-          </button>
-          <span class="gm-brand">CRAZY KORA</span>
-        </div>
-
         <div class="gm-fk-head">
-          <p class="gm-eyebrow">${esc(t("newMode"))}</p>
           <h2 class="gm-title" id="gm-fk-title">${esc(t("freeKicks"))}</h2>
           <p class="gm-tagline">${esc(t("fkTagline"))}</p>
         </div>
@@ -447,7 +374,6 @@
     </section>
   `;
 
-  const modesScreen = root.querySelector(".gm-modes");
   const fkScreen = root.querySelector(".gm-fk");
   const gameScreen = root.querySelector(".gm-game");
 
@@ -538,13 +464,11 @@
 
   const getMenu = () => document.querySelector(".screen.menu");
   const getOverlay = () => document.getElementById("overlay");
-  const getPlay = () => document.querySelector(".menu-play");
 
   let lastMenuFocus = null;
 
   function showScreen(name, focusTarget) {
-    const active = name === "game" ? gameScreen : name === "fk" ? fkScreen : modesScreen;
-    modesScreen.hidden = active !== modesScreen;
+    const active = name === "game" ? gameScreen : fkScreen;
     fkScreen.hidden = active !== fkScreen;
     gameScreen.hidden = active !== gameScreen;
     root.hidden = false;
@@ -555,12 +479,14 @@
     });
   }
 
-  function openModes() {
+  /* The hub is one tap from Classic's main menu (the FREE KICKS tile). */
+  function openFreeKicks() {
     lastMenuFocus = document.activeElement;
     const menu = getMenu();
     if (menu) menu.hidden = true;
     getOverlay()?.classList.add("is-open");
-    showScreen("modes");
+    renderHub();
+    showScreen("fk");
   }
 
   function backToMainMenu() {
@@ -568,20 +494,11 @@
     const menu = getMenu();
     if (menu) menu.hidden = false;
     getOverlay()?.classList.add("is-open");
-
-    const entry = document.querySelector(".gm-entry");
-    const target = entry || lastMenuFocus;
-    if (target && typeof target.focus === "function") {
-      target.focus({ preventScroll: true });
-    }
+    /* stars and coins may have changed in there: let the menu redraw itself */
+    window.CrazyKoraShell?.menu.refresh();
+    if (lastMenuFocus && typeof lastMenuFocus.focus === "function") lastMenuFocus.focus({ preventScroll: true });
   }
 
-  function openFreeKicks() {
-    renderHub();
-    showScreen("fk");
-  }
-
-  /* A stage id starts that Street Cup stage; no id is free play. */
   /* A finished stage pays through the shell (the shell is the only writer of the Classic save). */
   function onSetEnd(result) {
     const shell = window.CrazyKoraShell;
@@ -592,6 +509,7 @@
     return coins;
   }
 
+  /* A stage id starts that Street Cup stage; no id is free play. */
   function launchFreeKicks(setId) {
     if (!window.CrazyKoraFreeKicks) return;
     const shell = window.CrazyKoraShell;
@@ -621,22 +539,6 @@
     showScreen("fk", primaryBtn.hidden ? fkScreen.querySelector("[data-action='play-free']") : primaryBtn);
   }
 
-  function backToModes() {
-    showScreen("modes", modesScreen.querySelector(".gm-card--fk"));
-  }
-
-  function startClassic() {
-    const menu = getMenu();
-    const play = getPlay();
-
-    root.hidden = true;
-    if (menu) menu.hidden = false;
-    getOverlay()?.classList.add("is-open");
-
-    // The existing LET'S PLAY flow handles the rest: levels, saves, audio, etc.
-    if (play) play.click();
-  }
-
   /* ---------------------------------------------------------------------- */
   /* Keyboard support                                                       */
   /* ---------------------------------------------------------------------- */
@@ -648,14 +550,13 @@
       event.preventDefault();
       event.stopPropagation();
       if (!gameScreen.hidden) exitFreeKicksGame();
-      else if (!fkScreen.hidden) backToModes();
       else backToMainMenu();
       return;
     }
 
     if (event.key !== "Tab") return;
 
-    const section = !gameScreen.hidden ? gameScreen : !fkScreen.hidden ? fkScreen : modesScreen;
+    const section = !gameScreen.hidden ? gameScreen : fkScreen;
     const nodes = [
       ...section.querySelectorAll("button, [href], input, select, [tabindex]:not([tabindex='-1'])"),
     ].filter(
@@ -684,15 +585,6 @@
       case "back-menu":
         backToMainMenu();
         break;
-      case "classic":
-        startClassic();
-        break;
-      case "free-kicks":
-        openFreeKicks();
-        break;
-      case "back-modes":
-        backToModes();
-        break;
       case "play-stage":
         // a locked stage stays focusable (so its hint can be read) but does nothing
         if (trigger.getAttribute("aria-disabled") === "true") break;
@@ -711,45 +603,14 @@
   });
 
   /* ---------------------------------------------------------------------- */
-  /* Main-menu entry + boot                                                 */
+  /* Boot                                                                   */
   /* ---------------------------------------------------------------------- */
-
-  let menuObserver = null;
-
-  function injectMenuEntry() {
-    const actions = document.querySelector(".menu-actions");
-    if (!actions) return false;
-    if (actions.querySelector(".gm-entry")) return true;
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "gm-entry";
-    button.setAttribute("aria-label", t("gameModes"));
-    button.innerHTML = `${ICONS.modes}<span class="gm-entry-label">${esc(t("gameModes"))}</span><span class="gm-entry-dot" aria-hidden="true"></span>`;
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      openModes();
-    });
-
-    const duel = actions.querySelector(".menu-duel");
-    actions.insertBefore(button, duel || null);
-    return true;
-  }
-
-  function watchMenu() {
-    injectMenuEntry();
-    if (menuObserver) return;
-
-    menuObserver = new MutationObserver(() => {
-      injectMenuEntry();
-    });
-    menuObserver.observe(document.body, { childList: true, subtree: true });
-  }
 
   function boot() {
     if (!root.isConnected) document.body.appendChild(root);
-    watchMenu();
+    /* Classic's menu draws the tile; this only says how to open the hub. */
+    const shell = window.CrazyKoraShell;
+    if (shell && shell.menu) shell.menu.registerModeTile("freeKicks", openFreeKicks);
   }
 
   if (document.readyState === "loading") {

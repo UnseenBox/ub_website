@@ -37,7 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
+import { BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, chapterStart, chapterTitle, coinsForGoal, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import { coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -47,7 +47,7 @@ import { FIXED_DT, type ContactListener } from '../physics/PhysicsWorld';
 import type { RigidBody } from '../physics/RigidBody';
 import { aimOffset } from '../rendering/AimArt';
 import { saveSession, loadSession, type SessionScreen } from './session';
-import { fkStars, fkStarMax } from '../shell/fkProgress';
+import { fkNextStage, fkPlayed, fkStarMax, fkStars, readFkStages } from '../shell/fkProgress';
 import { Camera } from '../rendering/Camera';
 import { Renderer } from '../rendering/Renderer';
 import { SaveManager, freshLevelRecord, type LevelRecord } from '../save/SaveManager';
@@ -57,7 +57,7 @@ import { ShotAnalyzer } from '../scoring/ShotAnalyzer';
 import { Hud } from '../ui/HUD';
 import { AbilityBar } from '../ui/AbilityBar';
 import { portal, isCrazyGames } from '../portal/Portal';
-import { Overlay, setUiClick } from '../ui/Overlay';
+import { Overlay, setUiClick, type MenuInfo } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
 import { GameLoop } from './GameLoop';
 import type { GameState } from './GameState';
@@ -353,6 +353,8 @@ export class Game {
         this.sounds.ui();
       },
       stars: () => ({ n: this.totalStars(), max: this.maxStars() }),
+      menuInfo: () => this.menuInfo(),
+      openMode: (id) => this.modeTiles.get(id)?.(),
       resetProgress: () => this.resetProgress(),
       levels: () => this.openLevels(),
       select: (index) => this.selectLevel(index),
@@ -474,7 +476,34 @@ export class Game {
   }
 
   refreshMenu(): void {
-    if (this.state === 'menu') this.overlay.refreshMenu();
+    this.overlay.refreshMenu();
+  }
+
+  /** What the main menu draws: continue target, chapter progress, the Free Kicks tile. */
+  private menuInfo(): MenuInfo {
+    const at = this.furthestUnlocked();
+    const chapter = chapterOf(at);
+    const from = chapterStart(chapter);
+    const to = Math.min(this.levels.length, chapter >= 9 ? this.levels.length : chapterStart(chapter + 1));
+    let chapterStars = 0;
+    for (let i = from; i < to; i++) chapterStars += this.save.level(this.levels[i].id).stars;
+    const stages = readFkStages();
+    return {
+      stars: { n: this.classicStars() + fkStars(stages), max: this.levels.length * 3 + fkStarMax(stages) },
+      coins: this.save.data.coins,
+      continueNumber: at + 1,
+      continueChapter: chapterTitle(chapter),
+      classicStars: this.classicStars(),
+      chapterStars,
+      chapterMax: (to - from) * 3,
+      fk: {
+        available: this.modeTiles.has('freeKicks'),
+        open: isFreeKicksUnlocked(this.save.data, this.levels, fkPlayed(stages)),
+        stage: fkNextStage(stages),
+        daily: false,
+      },
+      newBall: false,
+    };
   }
 
   /** Adds coins to the wallet from outside the houmas (Free Kicks stages, the Daily Kick). */

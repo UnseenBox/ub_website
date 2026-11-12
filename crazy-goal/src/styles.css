@@ -1150,7 +1150,7 @@ body {
   }
 }
 
-/* ---- Main menu: white paper, the Toon Alley diorama, and the new title art ---- */
+/* ---- Main menu: one hero action (continue), two ways to play, a secondary row ---- */
 .menu {
   display: flex;
   flex-direction: column;
@@ -1159,61 +1159,50 @@ body {
     calc(clamp(12px, 2.6vmin, 30px) + env(safe-area-inset-right))
     calc(clamp(12px, 2.6vmin, 30px) + env(safe-area-inset-bottom))
     calc(clamp(12px, 2.6vmin, 30px) + env(safe-area-inset-left));
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   text-align: center;
   background: #fff;
 }
 
 .menu-frame {
   display: grid;
-  flex: 1 1 auto;
-  grid-template-areas:
-    'top'
-    'logo'
-    'hero'
-    'actions';
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  align-items: center;
+  grid-auto-rows: auto;
+  align-content: center;
   justify-items: center;
-  gap: clamp(8px, 1.7vh, 20px);
+  gap: clamp(8px, 1.8vh, 18px);
   width: 100%;
-  max-width: 560px;
-  min-height: 0;
-  margin: 0 auto;
+  max-width: 520px;
+  /* margin:auto centres the stack when there is room and lets the page scroll when there is not. */
+  margin: auto;
 }
 
-/* The wrapper only groups the right-hand column on wide screens. */
+/* The wrapper only groups the stack for the landscape layout below. */
 .menu-panel {
-  display: contents;
+  display: grid;
+  justify-items: center;
+  gap: inherit;
+  width: 100%;
+  min-width: 0;
 }
 
 .menu-top {
-  grid-area: top;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
 }
 
-.menu-top-stack {
+.menu-top-right {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: clamp(6px, 1.2vmin, 10px);
 }
 
-.menu-top-stack-left {
-  align-items: flex-start;
-}
-
-.menu-top-stack-right {
-  align-items: flex-end;
-}
-
 .menu-logo {
-  grid-area: logo;
-  width: min(74vw, 48vh, 420px);
+  width: min(62vw, 24vh, 320px);
   margin: 0;
   line-height: 0;
   animation: mark-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
@@ -1226,19 +1215,10 @@ body {
   filter: drop-shadow(0 8px 10px rgba(27, 37, 64, 0.12));
 }
 
-.menu-hero {
-  grid-area: hero;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  background: url('./assets/ui/courtyard.webp') center / contain no-repeat;
-}
-
 .menu-actions {
-  grid-area: actions;
   display: grid;
-  gap: clamp(8px, 1.5vh, 14px);
-  width: min(360px, 100%);
+  gap: 4px;
+  width: min(340px, 100%);
 }
 
 .menu-play {
@@ -1270,61 +1250,14 @@ body {
   filter: drop-shadow(0 2px 0 rgba(11, 77, 28, 0.14));
 }
 
-.menu-shortcuts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: start;
-  justify-items: center;
-  gap: clamp(14px, 4vw, 34px);
-}
-
-.menu-shortcut-top .menu-shortcut-art {
-  width: clamp(68px, 13.5vmin, 102px);
-}
-
-.menu-shortcut-top .menu-shortcut-label {
-  font-size: clamp(8px, 1.5vmin, 11px);
-  letter-spacing: 0.1em;
-}
-
-.menu-shortcut-goal,
-.menu-shortcut-balls {
-  margin: 0;
-}
-
-.menu-shortcut {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: #0b4d1f;
-  cursor: pointer;
-}
-
-.menu-shortcut-art {
-  display: block;
-  width: clamp(58px, 11vmin, 88px);
-  height: auto;
-  filter: drop-shadow(0 5px 0 rgba(11, 77, 28, 0.12));
-  transition: transform 0.1s ease-out;
-}
-
-.menu-shortcut:hover .menu-shortcut-art {
-  transform: translateY(-3px) rotate(-2deg);
-}
-
-.menu-shortcut:active .menu-shortcut-art {
-  transform: translateY(2px) rotate(0deg);
-}
-
-.menu-shortcut-label {
+/* "HOUMA 7 · NEW GROUNDS": where LET'S PLAY goes. */
+.menu-continue {
+  margin: 4px 0 0;
   font-size: clamp(9px, 1.5vmin, 11px);
   font-weight: 900;
   letter-spacing: 0.14em;
-  line-height: 1.2;
+  line-height: 1.3;
+  color: #0b4d1f;
 }
 
 .menu-gear {
@@ -1360,10 +1293,209 @@ body {
   box-shadow: 0 2px 0 rgba(11, 77, 28, 0.18);
 }
 
+/* The two ways to play: a tile each, art above, name and progress below. */
+.menu-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(8px, 2vmin, 14px);
+  width: min(400px, 100%);
+}
+
+/* Without Free Kicks (the portal build) the houmas take the whole row. */
+.menu-tiles.is-solo {
+  grid-template-columns: 1fr;
+  width: min(220px, 100%);
+}
+
+.menu-tile {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  color: #f4ffe2;
+  text-align: center;
+  cursor: pointer;
+  background: #1fc24c;
+  border: 3px solid #0b4d1f;
+  border-radius: 18px;
+  box-shadow: 0 5px 0 #0b4d1f;
+  transition:
+    transform 0.1s ease-out,
+    box-shadow 0.1s ease-out;
+}
+
+.menu-tile[hidden] {
+  display: none;
+}
+
+.menu-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 #0b4d1f;
+}
+
+.menu-tile:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #0b4d1f;
+}
+
+.menu-tile-art {
+  position: relative;
+  display: block;
+  height: clamp(54px, 12.5vh, 96px);
+  background-position: center;
+  background-size: cover;
+  background-color: #0c5a2a;
+}
+
+.menu-tile-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.menu-tile-body {
+  display: grid;
+  gap: 3px;
+  padding: 7px 8px 9px;
+  background: linear-gradient(180deg, #3fd95f 0%, #1fc24c 45%, #12a53e 100%);
+}
+
+.menu-tile-title {
+  font-size: clamp(10px, 1.7vmin, 13px);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-shadow: 0 1px 0 rgba(8, 58, 23, 0.4);
+}
+
+.menu-tile-meta {
+  font-size: clamp(8px, 1.35vmin, 10px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  color: #ffe9a8;
+}
+
+.menu-tile-bar {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  background: rgba(8, 58, 23, 0.35);
+  border-radius: 999px;
+}
+
+.menu-tile-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: #ffc83a;
+  border-radius: 999px;
+  transition: width 0.4s ease-out;
+}
+
+/* Locked: the art greys out under a padlock and the tile says what opens it. */
+.menu-tile-lock {
+  display: none;
+  position: absolute;
+  inset: 0;
+  place-items: center;
+  color: #fff;
+  background: rgba(16, 26, 48, 0.55);
+}
+
+.menu-tile-lock svg {
+  width: 34%;
+  max-width: 34px;
+  height: auto;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4));
+}
+
+.menu-tile.is-locked .menu-tile-lock {
+  display: grid;
+}
+
+.menu-tile.is-locked .menu-tile-art svg {
+  filter: grayscale(1);
+}
+
+.menu-tile.is-locked .menu-tile-body {
+  background: #d9d1c2;
+  color: rgba(27, 37, 64, 0.75);
+}
+
+.menu-tile.is-locked .menu-tile-title {
+  text-shadow: none;
+}
+
+.menu-tile.is-locked .menu-tile-meta {
+  color: var(--terra);
+}
+
+.menu-tile.is-locked {
+  box-shadow: 0 5px 0 #7a7366;
+  border-color: #7a7366;
+}
+
+.menu-tile.is-shake {
+  animation: tile-shake 0.4s ease-in-out;
+}
+
+@keyframes tile-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+/* "DAILY": today's Daily Kick is waiting. */
+.menu-tile-dot {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 6px;
+  padding: 2px 7px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #fff;
+  background: var(--terra);
+  border-radius: 999px;
+  box-shadow: 0 2px 0 var(--red-deep);
+}
+
+.menu-tile-dot[hidden] {
+  display: none;
+}
+
+.menu-secondary {
+  display: flex;
+  gap: clamp(8px, 2vmin, 14px);
+  width: min(400px, 100%);
+}
+
+.menu-secondary .menu-duel {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .menu-duel {
   width: 100%;
   height: clamp(38px, 6.4vmin, 54px);
-  padding: 0 16px;
+  padding: 0 12px;
   border: 0;
   background: url('./assets/ui/button-blank.png') center / 100% 100% no-repeat;
   color: #e9ffd4;
@@ -1387,8 +1519,24 @@ body {
   filter: none;
 }
 
+/* A ball has unlocked since the player last looked. */
+.menu-new-dot {
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 8px;
+  width: 11px;
+  height: 11px;
+  background: var(--terra);
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+
+.menu-new-dot[hidden] {
+  display: none;
+}
+
 .menu-play:focus-visible,
-.menu-shortcut:focus-visible,
+.menu-tile:focus-visible,
 .menu-gear:focus-visible,
 .menu-duel:focus-visible {
   outline: 3px solid #ffd21c;
@@ -1425,83 +1573,98 @@ body {
   object-fit: contain;
 }
 
-/* Wide screens put the alley on the left and the controls on the right. */
-@media (min-aspect-ratio: 6/5) and (min-width: 760px) {
-  .menu-frame {
-    grid-template-areas: 'hero panel';
-    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
-    grid-template-rows: minmax(0, 1fr);
-    column-gap: clamp(24px, 4vw, 72px);
-    max-width: 1180px;
-  }
-
-  .menu-panel {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(14px, 2.6vh, 30px);
-    min-width: 0;
-  }
-
-  .menu-top,
-  .menu-actions {
-    width: min(380px, 100%);
-  }
-
-  .menu-logo {
-    width: min(60vh, 460px);
-  }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
-/* Short screens trim the stack so the alley still has room to show. */
-@media (max-height: 680px) and (max-aspect-ratio: 6/5) {
+/* Short screens trim the stack so it still fits without scrolling. */
+@media (max-height: 700px) and (max-aspect-ratio: 6/5) {
   .menu-frame {
-    gap: 5px;
+    gap: 6px;
   }
 
   .menu-logo {
-    width: min(52vw, 30vh, 270px);
+    width: min(52vw, 20vh, 240px);
   }
 
   .menu-actions {
-    gap: 6px;
     width: min(280px, 100%);
   }
 
-  .menu-shortcut-art {
-    width: clamp(44px, 9vmin, 58px);
+  .menu-tile-art {
+    height: clamp(40px, 10vh, 64px);
+  }
+
+  .menu-tile-body {
+    padding: 5px 6px 7px;
+    gap: 2px;
+  }
+
+  .menu-duel {
+    height: 34px;
+  }
+}
+
+/* Wide and short (a phone on its side): logo and play on the left, the rest on the right. */
+@media (min-aspect-ratio: 6/5) {
+  .menu-frame {
+    max-width: 880px;
+  }
+
+  .menu-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'logo tiles'
+      'hero tiles'
+      'hero secondary';
+    align-items: center;
+    column-gap: clamp(16px, 4vw, 56px);
+  }
+
+  .menu-panel > .menu-logo {
+    grid-area: logo;
+    width: min(100%, 36vh, 360px);
+    align-self: end;
+  }
+
+  .menu-panel > .menu-actions {
+    grid-area: hero;
+    align-self: start;
+  }
+
+  .menu-panel > .menu-tiles {
+    grid-area: tiles;
+    width: 100%;
+  }
+
+  .menu-panel > .menu-secondary {
+    grid-area: secondary;
+    width: 100%;
+  }
+}
+
+/* Big screens: the same menu, simply larger. */
+@media (min-width: 1100px) and (min-height: 860px) {
+  .menu-frame {
+    zoom: 1.45;
+  }
+}
+
+@media (min-aspect-ratio: 6/5) and (max-height: 520px) {
+  .menu-tile-art {
+    height: clamp(34px, 12vh, 56px);
   }
 
   .menu-duel {
     height: 32px;
-  }
-}
-
-@media (max-height: 520px) and (min-aspect-ratio: 6/5) {
-  .menu-panel {
-    gap: clamp(6px, 1.8vh, 12px);
-  }
-
-  .menu-top,
-  .menu-actions {
-    width: min(320px, 100%);
-  }
-
-  .menu-logo {
-    width: min(54vh, 290px);
-  }
-
-  .menu-actions {
-    gap: 6px;
-  }
-
-  .menu-shortcut-art {
-    width: clamp(44px, 10vmin, 62px);
-  }
-
-  .menu-duel {
-    height: clamp(30px, 8vh, 38px);
   }
 }
 

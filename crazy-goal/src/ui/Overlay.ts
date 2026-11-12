@@ -1,8 +1,8 @@
-import ballsUrl from '../assets/ui/balls.png';
-import levelsUrl from '../assets/ui/levels.png';
 import logoUrl from '../assets/ui/logo.png';
 import playUrl from '../assets/ui/play.png';
 import starUrl from '../assets/ui/arcade-star.png';
+import coinUrl from '../assets/ui/arcade-coin.png';
+import courtyardUrl from '../assets/ui/courtyard.webp';
 import { cardOf } from '../abilities/Cards';
 import { lang, tr, type Lang } from '../core/i18n';
 import { chapterOf, chapterTitle } from '../progression/Progression';
@@ -40,7 +40,35 @@ export interface OverlayHandlers {
   skins(): SkinTile[];
   pickSkin(id: string): void;
   stars(): { n: number; max: number };
+  /** Everything the main menu shows besides its fixed buttons. */
+  menuInfo(): MenuInfo;
+  /** A mode tile on the menu (Free Kicks): opens it, or says why it cannot be opened yet. */
+  openMode(id: 'freeKicks'): void;
   resetProgress(): void;
+}
+
+/** What the main menu draws. The Game fills it in; the Overlay never reads the save. */
+export interface MenuInfo {
+  stars: { n: number; max: number };
+  coins: number;
+  /** The houma LET'S PLAY continues at: its number (1-based) and its chapter's English title. */
+  continueNumber: number;
+  continueChapter: string;
+  /** Stars won in the houmas, and in the chapter the player is in (out of `chapterMax`). */
+  classicStars: number;
+  chapterStars: number;
+  chapterMax: number;
+  fk: {
+    /** The Free Kicks module is present in this build. */
+    available: boolean;
+    open: boolean;
+    /** The Street Cup stage to play next, 1 to 5. */
+    stage: number;
+    /** Today's Daily Kick has not been played yet. */
+    daily: boolean;
+  };
+  /** A ball has unlocked that the player has not been told about. */
+  newBall: boolean;
 }
 
 export interface LevelTile {
@@ -65,6 +93,11 @@ const starSprite = (): HTMLImageElement => {
 };
 
 const GEAR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>`;
+
+const LOCK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9" rx="2.4"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
+
+/** The Free Kicks tile's picture: a goal, a wall of three and a ball curling round it. Pure decoration. */
+const FK_TILE_ART = `<svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><defs><linearGradient id="fkt-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#167a3d"/><stop offset="1" stop-color="#0a5a29"/></linearGradient></defs><rect width="160" height="90" fill="url(#fkt-g)"/><path d="M0 52h160" stroke="#f4ffe2" stroke-opacity=".25" stroke-width="1.5"/><g fill="none" stroke="#f7fbef" stroke-width="3" stroke-linecap="round"><path d="M104 14v30M144 14v30M104 14h40"/></g><path d="M106 18h36v26h-36z" fill="#f4ffe2" fill-opacity=".12"/><g fill="#101a30"><rect x="66" y="42" width="9" height="24" rx="4"/><rect x="78" y="42" width="9" height="24" rx="4"/><rect x="90" y="42" width="9" height="24" rx="4"/></g><path d="M30 74C48 36 92 22 124 34" fill="none" stroke="#ffc83a" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="1 5"/><circle cx="28" cy="74" r="8" fill="#fbf7ee" stroke="#1b2540" stroke-width="1.5"/><path d="M28 69l4 3-1.5 5h-5L24 72z" fill="#1b2540"/></svg>`;
 
 let uiClick: (() => void) | null = null;
 /** Registers the sound played on menu/UI button taps. */
@@ -129,6 +162,16 @@ export class Overlay {
   private readonly skinProgress: HTMLElement;
   private readonly starCount: HTMLElement;
   private readonly starText: HTMLElement;
+  private readonly coinText: HTMLElement;
+  private readonly continueLine: HTMLElement;
+  private readonly houmaMeta: HTMLElement;
+  private readonly houmaBar: HTMLElement;
+  private readonly fkTile: HTMLButtonElement;
+  private readonly fkMeta: HTMLElement;
+  private readonly fkDaily: HTMLElement;
+  private readonly fkStatus: HTMLElement;
+  private readonly ballsDot: HTMLElement;
+  private fkHint = '';
   private readonly sound: HTMLInputElement;
   private readonly music: HTMLInputElement;
   private readonly pauseButton: HTMLButtonElement;
@@ -155,11 +198,23 @@ export class Overlay {
     const gear = button('menu-gear', '', () => this.showSettings());
     gear.setAttribute('aria-label', tr('SETTINGS'));
     gear.innerHTML = GEAR_SVG;
+    const coinPill = el('p', 'star-count coin-count');
+    const coinIcon = el('span', 'star-count-icon');
+    const coinImg = document.createElement('img');
+    coinImg.src = coinUrl;
+    coinImg.alt = '';
+    coinImg.draggable = false;
+    coinIcon.append(coinImg);
+    this.coinText = el('span', 'star-count-text');
+    coinPill.append(coinIcon, this.coinText);
     this.starCount = el('p', 'star-count');
     const starIcon = el('span', 'star-count-icon');
     starIcon.append(starSprite());
     this.starText = el('span', 'star-count-text');
     this.starCount.append(starIcon, this.starText);
+    const topRight = el('div', 'menu-top-right');
+    topRight.append(coinPill, this.starCount);
+    top.append(gear, topRight);
 
     const mark = el('h1', 'menu-logo');
     mark.setAttribute('aria-label', 'Crazy Kora');
@@ -170,32 +225,8 @@ export class Overlay {
     logo.draggable = false;
     mark.append(logo);
 
-    const hero = el('div', 'menu-hero');
-    hero.setAttribute('aria-hidden', 'true');
-
-    const levels = button('menu-shortcut menu-shortcut-top menu-shortcut-goal', '', handlers.levels);
-    levels.setAttribute('aria-label', tr('HOUMA'));
-    const levelsArt = el('img', 'menu-shortcut-art');
-    levelsArt.src = levelsUrl;
-    levelsArt.alt = '';
-    levelsArt.draggable = false;
-    levels.append(levelsArt, el('span', 'menu-shortcut-label', 'HOUMA'));
-
-    const ballsButton = button('menu-shortcut menu-shortcut-top menu-shortcut-balls', '', () => this.showSkins());
-    ballsButton.setAttribute('aria-label', tr('BALLS'));
-    const ballsArt = el('img', 'menu-shortcut-art');
-    ballsArt.src = ballsUrl;
-    ballsArt.alt = '';
-    ballsArt.draggable = false;
-    ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'));
-
-    const leftTop = el('div', 'menu-top-stack menu-top-stack-left');
-    leftTop.append(gear, levels);
-    const rightTop = el('div', 'menu-top-stack menu-top-stack-right');
-    rightTop.append(this.starCount, ballsButton);
-    top.append(leftTop, rightTop);
-
-    const actions = el('div', 'menu-actions');
+    // The hero action: continue the campaign where the player left off.
+    const hero = el('div', 'menu-actions');
     const play = button('menu-play', '', handlers.play);
     play.setAttribute('aria-label', tr('PLAY'));
     this.playButton = play;
@@ -204,14 +235,51 @@ export class Overlay {
     playArt.alt = '';
     playArt.draggable = false;
     play.append(playArt);
+    this.continueLine = el('p', 'menu-continue');
+    hero.append(play, this.continueLine);
 
-    actions.append(play);
-    if (handlers.canDuel()) actions.append(button('menu-duel', 'DUEL A FRIEND', handlers.duel));
+    // Two ways to play, side by side.
+    const tiles = el('div', 'menu-tiles');
+    const houmaTile = button('menu-tile menu-tile-houma', '', handlers.levels);
+    const houmaArt = el('span', 'menu-tile-art');
+    houmaArt.style.backgroundImage = `url(${courtyardUrl})`;
+    const houmaBody = el('span', 'menu-tile-body');
+    this.houmaMeta = el('span', 'menu-tile-meta');
+    const houmaTrack = el('span', 'menu-tile-bar');
+    this.houmaBar = el('span', 'menu-tile-fill');
+    houmaTrack.append(this.houmaBar);
+    houmaBody.append(el('span', 'menu-tile-title', 'HOUMAS'), this.houmaMeta, houmaTrack);
+    houmaTile.append(houmaArt, houmaBody);
+
+    this.fkTile = button('menu-tile menu-tile-fk', '', () => this.tapFreeKicks());
+    const fkArt = el('span', 'menu-tile-art');
+    fkArt.innerHTML = FK_TILE_ART;
+    const lock = el('span', 'menu-tile-lock');
+    lock.innerHTML = LOCK_SVG;
+    fkArt.append(lock);
+    this.fkDaily = el('span', 'menu-tile-dot', 'DAILY');
+    this.fkDaily.hidden = true;
+    const fkBody = el('span', 'menu-tile-body');
+    this.fkMeta = el('span', 'menu-tile-meta');
+    fkBody.append(el('span', 'menu-tile-title', 'FREE KICKS'), this.fkMeta);
+    this.fkTile.append(fkArt, fkBody, this.fkDaily);
+    this.fkStatus = el('span', 'sr-only');
+    this.fkStatus.setAttribute('role', 'status');
+    tiles.append(houmaTile, this.fkTile, this.fkStatus);
+
+    // Secondary row: the balls, and a duel against a friend where the server is reachable.
+    const secondary = el('div', 'menu-secondary');
+    const ballsButton = button('menu-duel menu-balls', 'BALLS', () => this.showSkins());
+    this.ballsDot = el('span', 'menu-new-dot');
+    this.ballsDot.hidden = true;
+    ballsButton.append(this.ballsDot);
+    secondary.append(ballsButton);
+    if (handlers.canDuel()) secondary.append(button('menu-duel', 'DUEL A FRIEND', handlers.duel));
 
     const menuPanel = el('div', 'menu-panel');
-    menuPanel.append(top, mark, actions);
+    menuPanel.append(mark, hero, tiles, secondary);
     const frame = el('div', 'menu-frame');
-    frame.append(hero, menuPanel);
+    frame.append(top, menuPanel);
     this.menu.append(frame);
     this.settingsFrom = this.menu;
 
@@ -328,9 +396,24 @@ export class Overlay {
   }
 
   showMenu(): void {
-    const { n, max } = this.handlers.stars();
-    this.starText.textContent = tr('STARS {n} / {max}', { n, max });
+    this.refreshMenu();
     this.show(this.menu);
+  }
+
+  /** The Free Kicks tile: opens the mode, or shakes and says what unlocks it. */
+  private tapFreeKicks(): void {
+    if (this.fkTile.getAttribute('aria-disabled') === 'true') {
+      this.fkTile.classList.remove('is-shake');
+      void this.fkTile.offsetWidth;
+      this.fkTile.classList.add('is-shake');
+      // Re-set the text so the live region speaks it every time.
+      this.fkStatus.textContent = '';
+      window.setTimeout(() => {
+        this.fkStatus.textContent = this.fkHint;
+      }, 30);
+      return;
+    }
+    this.handlers.openMode('freeKicks');
   }
 
   /** The boost column's one-time introduction; `done` runs when the player dismisses it. */
@@ -361,11 +444,34 @@ export class Overlay {
     this.showSettings();
   }
 
-  /** Redraws the menu's numbers (stars, tiles) while it is on screen. */
+  /** Redraws everything the menu shows from the current save. Cheap; called whenever any of it may have changed. */
   refreshMenu(): void {
-    if (this.menu.hidden) return;
-    const { n, max } = this.handlers.stars();
-    this.starText.textContent = tr('STARS {n} / {max}', { n, max });
+    const info = this.handlers.menuInfo();
+    this.starText.textContent = tr('{n} / {max}', { n: info.stars.n, max: info.stars.max });
+    this.starCount.setAttribute('aria-label', tr('STARS {n} / {max}', { n: info.stars.n, max: info.stars.max }));
+    this.coinText.textContent = String(info.coins);
+    this.coinText.parentElement?.setAttribute('aria-label', tr('{n} COINS', { n: info.coins }));
+    this.continueLine.textContent = `${tr('HOUMA {n}', { n: info.continueNumber })} · ${tr(info.continueChapter)}`;
+    this.playButton.setAttribute('aria-label', `${tr('PLAY')}, ${this.continueLine.textContent}`);
+    this.houmaMeta.textContent = tr('{n} STARS', { n: info.classicStars });
+    this.houmaBar.style.width = `${info.chapterMax > 0 ? Math.round((info.chapterStars / info.chapterMax) * 100) : 0}%`;
+    const fk = info.fk;
+    this.fkTile.hidden = !fk.available;
+    this.fkTile.parentElement?.classList.toggle('is-solo', !fk.available);
+    this.fkTile.classList.toggle('is-locked', !fk.open);
+    if (fk.open) {
+      this.fkTile.removeAttribute('aria-disabled');
+      this.fkMeta.textContent = tr('STAGE {n}', { n: fk.stage });
+      this.fkHint = '';
+      this.fkTile.setAttribute('aria-label', `${tr('FREE KICKS')}, ${this.fkMeta.textContent}${fk.daily ? `, ${tr('DAILY KICK')}` : ''}`);
+    } else {
+      this.fkTile.setAttribute('aria-disabled', 'true');
+      this.fkMeta.textContent = tr('SCORE IN HOUMA 3');
+      this.fkHint = tr('FREE KICKS OPENS WHEN YOU SCORE IN HOUMA 3.');
+      this.fkTile.setAttribute('aria-label', `${tr('FREE KICKS')}, ${tr('LOCKED')}. ${this.fkHint}`);
+    }
+    this.fkDaily.hidden = !(fk.open && fk.daily);
+    this.ballsDot.hidden = !info.newBall;
   }
 
   private showSettings(): void {

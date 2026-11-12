@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, fkStagePayout, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
+import { CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, fkStagePayout, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -170,5 +170,16 @@ describe('fkStagePayout', () => {
   });
   it('pays nothing for no stars', () => {
     expect(fkStagePayout(0, 0)).toBe(0);
+  });
+});
+
+describe('isFreeKicksUnlocked', () => {
+  it('opens with a goal in houma 3, not before', () => {
+    expect(isFreeKicksUnlocked({ levels: {} }, levels, false)).toBe(false);
+    expect(isFreeKicksUnlocked({ levels: { 'houma-01': rec(1), 'houma-02': rec(1) } }, levels, false)).toBe(false);
+    expect(isFreeKicksUnlocked({ levels: { 'houma-03': rec(1) } }, levels, false)).toBe(true);
+  });
+  it('stays open for anyone who has already played Free Kicks', () => {
+    expect(isFreeKicksUnlocked({ levels: {} }, levels, true)).toBe(true);
   });
 });
