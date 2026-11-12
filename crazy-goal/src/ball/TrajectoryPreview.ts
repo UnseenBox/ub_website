@@ -45,7 +45,7 @@ export class TrajectoryPreview {
   }
 
   /** `field`, when given, is applied to the ghost before every step (the magnet's pull). */
-  compute(level: Level, ball: RigidBody, dirX: number, dirY: number, speed: number, power: number, field: ((b: RigidBody) => void) | null = null, kick: { air: boolean; bend: number } = { air: false, bend: 0 }): void {
+  compute(level: Level, ball: RigidBody, dirX: number, dirY: number, speed: number, power: number, field: ((b: RigidBody) => void) | null = null, kick: { air: boolean; bend: number } = { air: false, bend: 0 }, full = false): void {
     const g = this.ghost;
     const world = level.world;
     copyMotion(ball, g);
@@ -61,7 +61,8 @@ export class TrajectoryPreview {
     this.pendingHit = false;
 
     // A lofted shot is shown all the way to where it comes down; a ground shot only to its first touch.
-    const seconds = kick.air ? 1.25 : 0.3 + 0.24 * power;
+    // `full` (the lesson's dotted path) follows the whole shot, bounces included, until it is in the goal or has stopped.
+    const seconds = full ? 2.1 : kick.air ? 1.25 : 0.3 + 0.24 * power;
     const steps = Math.round(seconds / FIXED_DT);
     // After the first touch, show only a stub of the rebound.
     let afterHit = Math.round(0.11 / FIXED_DT);
@@ -70,8 +71,9 @@ export class TrajectoryPreview {
       if (field) field(g);
       world.stepBody(g, FIXED_DT, this.onContact);
       // A lofted shot that has come back down has shown all there is.
-      if (kick.air && g.z <= 0 && i > 20) break;
-      if (this.hasHit && --afterHit <= 0) break;
+      if (kick.air && !full && g.z <= 0 && i > 20) break;
+      if (full && (level.goal.contains(g.x, g.y) || (i > 30 && g.z <= 0 && Math.hypot(g.vx, g.vy) < 20))) break;
+      if (!full && this.hasHit && --afterHit <= 0) break;
       if ((i % STEPS_PER_POINT === 0 || this.pendingHit) && this.count < MAX_POINTS) {
         this.pendingHit = false;
         this.points[this.count * 2] = g.x;

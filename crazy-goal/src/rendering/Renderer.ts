@@ -2,7 +2,7 @@ import type { Game, ShotPath } from '../core/Game';
 import { clamp01, easeOutCubic, smoothstep, TAU } from '../core/math';
 import { Tyre, TYRE_RADIUS } from '../mechanics/Tyre';
 import { BOOST_TRAIL, drawBoostOver, drawBoostUnder, drawMagnetField, drawScorch, drawSmoke } from './AbilityArt';
-import { drawAimGround, drawAimOver, drawTutorialGhost } from './AimArt';
+import { drawAimGround, drawAimOver, drawGuidePath, drawTutorialGhost } from './AimArt';
 import { drawBlock, drawBoundaryJoint, drawCrowdFlashes, paintBackdrop, paintStaticShadows } from './ArenaArt';
 import { drawBall, drawBallAura, drawBallShadow, drawTrail } from './BallArt';
 import { drawCoin } from './CoinArt';
@@ -198,7 +198,17 @@ export class Renderer {
 
     g.particles.draw(ctx);
     if (aiming) drawAimOver(ctx, ball, bx, by, shot, g.preview, time);
-    if (g.state === 'ready' && level.index === 0 && g.record.goals === 0 && g.stateT > 0.5) drawTutorialGhost(ctx, ball, g.stateT - 0.5);
+    // The lesson: a flowing line of light along the shot to make, and a ghost hand showing the pull.
+    const lesson = g.guideGhost();
+    if (lesson && (g.state === 'ready' || aiming)) {
+      drawGuidePath(ctx, g.guidePreview, time, aiming ? 0.35 : 1);
+      if (g.state === 'ready' && g.stateT > 0.4) {
+        // The pull goes the opposite way to the shot, and longer for more power.
+        const a = (lesson.angle * Math.PI) / 180;
+        const len = 62 + 80 * lesson.power;
+        drawTutorialGhost(ctx, ball, g.stateT - 0.4, { x: -Math.cos(a) * len, y: -Math.sin(a) * len });
+      }
+    }
     drawSmoke(ctx, level.def.arena, g.smoke, time);
     g.popups.draw(ctx);
     if (look) {

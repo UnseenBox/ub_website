@@ -37,7 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
+import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import { coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -57,6 +57,9 @@ import { ShotAnalyzer } from '../scoring/ShotAnalyzer';
 import { Hud } from '../ui/HUD';
 import { AbilityBar } from '../ui/AbilityBar';
 import { KickControls } from '../ui/KickControls';
+import { GuideCard, type GuideInfo } from '../ui/GuideCard';
+import { GUIDE_ASSIST_MISSES, guideAssist, guideNeed, guideShot, snapBend, type GuideNeed } from './Guide';
+import type { GuideDef } from '../levels/LevelDefinition';
 import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
 import { portal, isCrazyGames } from '../portal/Portal';
 import { Overlay, setUiClick, type MenuInfo } from '../ui/Overlay';
@@ -207,6 +210,8 @@ export class Game {
   readonly loop: GameLoop;
   readonly ball: Ball;
   readonly preview: TrajectoryPreview;
+  /** The lesson's own dotted path (the shot the ghost hand is about to make). */
+  readonly guidePreview: TrajectoryPreview;
 
   /** These three are replaced whenever a level loads. */
   level: Level;
@@ -267,6 +272,10 @@ export class Game {
   readonly duel: DuelController;
   readonly abilities: AbilityBar;
   readonly kickControls: KickControls;
+  readonly guideCard: GuideCard;
+  /** The lesson has set the controls for the player after missed shots. */
+  private guideAssisted = false;
+  private guideKey = '';
   /** How the next solo shot is struck: along the ground or lofted, and how much it bends (-1 to 1). */
   readonly kick: { type: ShotType; bend: number } = { type: 'ground', bend: 0 };
   private replay: Replay | null = null;
@@ -300,6 +309,7 @@ export class Game {
     const { ballStart } = this.level.def;
     this.ball = new Ball(ballStart.x, ballStart.y);
     this.preview = new TrajectoryPreview(this.ball.radius);
+    this.guidePreview = new TrajectoryPreview(this.ball.radius);
 
     this.renderer = new Renderer(canvas, this.camera);
     this.frameCamera();
@@ -384,6 +394,8 @@ export class Game {
     });
     this.kickControls = new KickControls({
       visible: () => this.kickVisible(),
+      parts: () => this.kickParts(),
+      hint: () => this.guideNeedNow(),
       type: () => this.kick.type,
       bend: () => this.kick.bend,
       setType: (type) => {
@@ -391,10 +403,11 @@ export class Game {
         this.sounds.ui();
       },
       setBend: (bend) => {
-        this.kick.bend = Math.max(-1, Math.min(1, bend));
+        this.kick.bend = snapBend(bend);
       },
     });
-    this.overlay.addFloating(this.abilities.walletEl, this.abilities.el, this.kickControls.el);
+    this.guideCard = new GuideCard({ info: () => this.guideInfo() });
+    this.overlay.addFloating(this.abilities.walletEl, this.abilities.el, this.kickControls.el, this.guideCard.el);
     this.duel = new DuelController(this, this.overlay, canvas.parentElement ?? document.body);
 
     wireFeedback(this);
@@ -524,6 +537,7 @@ export class Game {
       stars: { n: this.totalStars(), max: this.maxStars() },
       coins: this.save.data.coins,
       continueNumber: at + 1,
+      lesson: !!this.levels[at]?.guide,
       continueName: this.levels[at]?.name ?? '',
       newBall: unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).length > 0,
     };
@@ -639,6 +653,13 @@ export class Game {
     this.frameCamera();
     this.renderer.invalidate();
     this.state = 'ready';
+    // A lesson starts from a plain ground shot, so that switching the move on is the lesson.
+    this.guideAssisted = false;
+    this.guideKey = '';
+    if (this.guideDef()) {
+      this.kick.type = 'ground';
+      this.kick.bend = 0;
+    }
     this.resetShot();
   }
 
@@ -664,6 +685,66 @@ export class Game {
 
   showBanner(text: string, good: boolean, seconds = 2.6): void {
     this.banner = { text, good, t: 0, dur: seconds };
+  }
+
+  /** The lesson this level teaches, while it is still the first time through (solo play only). */
+  guideDef(): GuideDef | null {
+    const def = this.level.def.guide;
+    return def && this.shotRule === 'free' && this.record.goals === 0 ? def : null;
+  }
+
+  private guideNeedNow(): GuideNeed {
+    const def = this.guideDef();
+    return def ? guideNeed(def, this.kick) : null;
+  }
+
+  /** What the coach card shows, or null while something else is over the screen. */
+  private guideInfo(): GuideInfo | null {
+    const def = this.guideDef();
+    if (!def || this.paused || this.duel.active) return null;
+    if (this.state === 'menu' || this.state === 'goal' || this.state === 'replay') return null;
+    const lessons = this.levels.filter((l) => l.guide);
+    return { move: def.move, step: lessons.indexOf(this.level.def) + 1, total: lessons.length, need: this.guideNeedNow() };
+  }
+
+  /** The shot the ghost hand and the dotted path show right now, or null (nothing to show yet, or the player is on their own). */
+  guideGhost(): { angle: number; power: number } | null {
+    const def = this.guideDef();
+    if (!def || this.guideNeedNow() !== null) return null;
+    // The last lesson lets the player choose; it only shows a shot once it has had to help.
+    if (def.move === 'free' && !this.guideAssisted) return null;
+    const s = guideShot(def, this.kick);
+    return { angle: s.angle, power: s.power };
+  }
+
+  /** Lesson housekeeping, once a frame: help after misses, and keep the dotted path in step with the controls. */
+  private updateGuide(): void {
+    const def = this.guideDef();
+    if (!def) {
+      this.guideKey = '';
+      return;
+    }
+    if (!this.guideAssisted && this.missStreak >= GUIDE_ASSIST_MISSES && (this.guideNeedNow() !== null || def.move === 'free')) {
+      const a = guideAssist(def);
+      this.kick.type = a.type;
+      this.kick.bend = a.bend;
+      this.guideAssisted = true;
+      this.sounds.ui();
+    }
+    const ghost = this.guideGhost();
+    if (!ghost || this.state !== 'ready') return;
+    const key = `${this.level.index}|${this.kick.type}|${this.kick.bend}|${ghost.angle}|${ghost.power}`;
+    if (key === this.guideKey) return;
+    this.guideKey = key;
+    const s = guideShot(def, this.kick);
+    const a = (s.angle * Math.PI) / 180;
+    const speed = s.air ? airSpeed(s.power) : speedForPower(s.power);
+    this.guidePreview.compute(this.level, this.ball.body, Math.cos(a), Math.sin(a), speed, s.power, null, { air: s.air, bend: s.bend }, true);
+  }
+
+  /** Which free-kick controls to show: a lesson shows only the one it teaches. */
+  private kickParts(): { air: boolean; bend: boolean } {
+    return this.guideDef()?.controls ?? { air: true, bend: true };
   }
 
   /** The free-kick controls: solo play, ball waiting or being aimed, nothing over the screen. */
@@ -745,7 +826,6 @@ export class Game {
   private onLevelEntered(): void {
     if (this.shotRule !== 'free' || this.level.index < 0 || this.paused) return;
     this.events.emit('LEVEL_STARTED', { level: this.level.index + 1, chapter: chapterOf(this.level.index) });
-    if (this.level.index === BANK_TIP_LEVEL && this.record.goals === 0) this.offerTip('bank', 'BOUNCE IT OFF A WALL. EVERY BOUNCE MULTIPLIES YOUR SCORE.');
     if (this.level.index >= BOOST_INTRO_LEVEL && !this.save.data.boostIntro) {
       this.save.data.boostIntro = true;
       this.save.data.freeBoosts.magnet = (this.save.data.freeBoosts.magnet ?? 0) + BOOST_INTRO_FREE_MAGNETS;
@@ -1007,7 +1087,9 @@ export class Game {
       this.simulate(dt);
       this.updateVisuals(dt, realDt);
     }
+    this.updateGuide();
     this.kickControls.refresh();
+    this.guideCard.refresh();
     input.endFrame();
   }
 

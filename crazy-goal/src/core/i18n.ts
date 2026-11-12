@@ -658,6 +658,19 @@ const AR: Readonly<Record<string, string>> = {
   LEFT: 'يسار',
   RIGHT: 'يمين',
   STRAIGHT: 'مستقيم',
+  // The tutorial.
+  'STRAIGHT SHOT': 'تسديدة مستقيمة',
+  'BEND IT': 'لُفّها',
+  'LOB IT': 'ارفعها',
+  'BANK IT': 'من اللوحة',
+  'KICK OFF': 'صافرة البداية',
+  'CURL IT': 'تسديدة ملتوية',
+  'Pull back, let go.': 'اسحب ثم اترك.',
+  'Bend it round the wall.': 'لُفّها حول الحائط.',
+  'Lift it over the wall.': 'ارفعها فوق الحائط.',
+  'Off the board and in.': 'من اللوحة إلى الشباك.',
+  'Beat the wall your way.': 'اهزم الحائط بطريقتك.',
+  'LESSON {n}': 'الدرس {n}',
 };
 
 function stored(): Lang {

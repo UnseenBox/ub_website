@@ -56,6 +56,8 @@ export interface MenuInfo {
   coins: number;
   /** The match LET'S PLAY continues at: its number (1-based) and its stadium's name. */
   continueNumber: number;
+  /** The level Continue goes to is one of the tutorial lessons. */
+  lesson: boolean;
   continueName: string;
   /** A ball has unlocked that the player has not been told about. */
   newBall: boolean;
@@ -459,7 +461,7 @@ export class Overlay {
     this.starCount.setAttribute('aria-label', tr('STARS {n} / {max}', { n: info.stars.n, max: info.stars.max }));
     this.coinText.textContent = String(info.coins);
     this.coinText.parentElement?.setAttribute('aria-label', tr('{n} COINS', { n: info.coins }));
-    this.continueLine.textContent = `${tr('MATCH {n}', { n: info.continueNumber })} · ${tr(info.continueName)}`;
+    this.continueLine.textContent = `${tr(info.lesson ? 'LESSON {n}' : 'MATCH {n}', { n: info.continueNumber })} · ${tr(info.continueName)}`;
     this.playButton.setAttribute('aria-label', `${tr('PLAY')}, ${this.continueLine.textContent}`);
     this.ballsDot.hidden = !info.newBall;
   }

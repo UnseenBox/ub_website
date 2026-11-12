@@ -1,7 +1,8 @@
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from '../../data/levels/matches';
-import { countRoutes, sweepLevel, type Kick } from './sweep';
+import { snapBend } from '../core/Guide';
+import { countRoutes, fireShot, sweepLevel, type Kick } from './sweep';
 
 /**
  * Level validation: every level can be solved, and the ones edited in the variety pass
@@ -56,16 +57,57 @@ if (process.env.LEVEL_TABLE) {
     });
   });
 } else {
-  describe('the free kick in match 1', () => {
-    it('can be beaten both ways: a lob over the wall and a curler round it, with no bounce', { timeout: 300000 }, () => {
-      const def = LEVELS[0];
-      expect(def.walls.some((w) => w.kind === 'defender')).toBe(true);
-      // A real shot at goal: no bounce, aimed forward (not a boomerang looped round behind the ball).
-      const clean = (kick: Kick): number => sweepLevel(def, 0, 1, POWERS, 0, kick).filter((h) => h.bounces === 0 && h.angle > -165 && h.angle < -20 && !h.lines.includes('BOOMERANG')).length;
-      // The wall stops the straight shot along the ground, so only the new moves score without a bank.
-      expect(clean({ air: false, bend: 0 })).toBe(0);
-      expect(clean({ air: true, bend: 0 })).toBeGreaterThan(0);
-      expect(Math.max(clean({ air: false, bend: 1 }), clean({ air: false, bend: -1 }))).toBeGreaterThan(0);
+  describe('the tutorial lessons', () => {
+    // A real shot at goal: no bounce, aimed forward (not a boomerang looped round behind the ball).
+    const forward = (h: { angle: number; lines: string }): boolean => h.angle > -165 && h.angle < -20 && !h.lines.includes('BOOMERANG');
+    const clean = (n: number, kick: Kick): number =>
+      sweepLevel(LEVELS[n - 1], n - 1, 1, POWERS, 0, kick).filter((h) => h.bounces === 0 && forward(h)).length;
+    const guided = LEVELS.map((def, i) => ({ def, i })).filter((l) => l.def.guide);
+
+    it('match 1 is the tutorial, five lessons, the ball at the bottom centre every time', () => {
+      expect(guided.map((l) => l.def.guide?.move)).toEqual(['straight', 'bend', 'air', 'bank', 'free']);
+      for (const { def } of guided) {
+        expect(def.ballStart.x).toBe(def.goal.x);
+        expect(def.ballStart.y).toBeGreaterThan(def.arena.y + def.arena.h - 120);
+      }
+    });
+
+    for (const { def, i } of guided) {
+      const g = def.guide;
+      if (!g) continue;
+      it(`${def.name}: the shot the ghost shows scores${g.move === 'bank' ? ' off a board' : ' with no bounce'}`, { timeout: 60000 }, () => {
+        const hit = fireShot(def, i, g.show.angle, g.show.power, 0, { air: g.show.air, bend: g.show.bend });
+        expect(hit, 'the guide shot misses').not.toBeNull();
+        if (g.move === 'bank') expect(hit?.bounces).toBeGreaterThanOrEqual(1);
+        else expect(hit?.bounces).toBe(0);
+      });
+    }
+
+    it('BEND IT: bending the other way works too, mirrored', () => {
+      const { def, i } = guided[1];
+      const g = def.guide;
+      if (!g) return;
+      const hit = fireShot(def, i, -180 - g.show.angle, g.show.power, 0, { air: false, bend: -g.show.bend });
+      expect(hit).not.toBeNull();
+      expect(hit?.bounces).toBe(0);
+    });
+
+    it('the wall stops a straight ground shot in every lesson after the first', { timeout: 300000 }, () => {
+      expect(clean(1, { air: false, bend: 0 })).toBeGreaterThan(0);
+      for (const n of [2, 3, 4, 5]) expect(clean(n, { air: false, bend: 0 }), `lesson ${n}`).toBe(0);
+    });
+
+    it('the free kick can be beaten by a lob, a curler and a bank', { timeout: 300000 }, () => {
+      expect(clean(5, { air: true, bend: 0 })).toBeGreaterThan(0);
+      expect(Math.max(clean(5, { air: false, bend: 1 }), clean(5, { air: false, bend: -1 }))).toBeGreaterThan(0);
+      const banks = sweepLevel(LEVELS[4], 4, 1, POWERS, 0, { air: false, bend: 0 }).filter((h) => h.bounces >= 1 && forward(h));
+      expect(banks.length).toBeGreaterThan(0);
+    });
+
+    it('snapBend snaps to straight and to full bend', () => {
+      expect(snapBend(0.08)).toBe(0);
+      expect(snapBend(-0.9)).toBe(-1);
+      expect(snapBend(0.5)).toBe(0.5);
     });
   });
 

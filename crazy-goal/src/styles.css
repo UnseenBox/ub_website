@@ -2312,93 +2312,482 @@ body {
   display: none;
 }
 
-/* The free-kick controls: GROUND or AIR, and a bend slider, low in the left corner over the stands. */
-.kick-controls {
+/* ---- The free-kick dock: pictures, no words. Bottom centre on a phone, left side on a wide screen. ---- */
+.kick-dock {
   position: fixed;
-  left: calc(10px + env(safe-area-inset-left));
+  left: 50%;
   bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 20;
-  display: grid;
-  gap: 8px;
-  width: min(176px, 44vw);
-  padding: 9px 10px 8px;
-  color: var(--navy);
-  background: rgba(251, 247, 238, 0.94);
-  border-radius: 16px;
-  box-shadow: 0 4px 0 rgba(11, 77, 28, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 136px);
+  padding: 8px 12px 8px 8px;
+  background: linear-gradient(180deg, rgba(24, 40, 84, 0.9), rgba(11, 20, 48, 0.94));
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 32px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3), 0 0 26px rgba(255, 200, 58, 0.14);
+  transform: translateX(-50%);
+  animation: kick-rise 0.4s cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
 
-.kick-controls[hidden] {
+.kick-dock[hidden],
+.kick-modes[hidden],
+.kick-bend[hidden] {
   display: none;
 }
 
-.kick-seg {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 3px;
-  background: rgba(27, 37, 64, 0.1);
-  border-radius: 12px;
-}
-
-.kick-type {
-  padding: 8px 4px;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  color: var(--navy);
-  background: transparent;
-  border: 0;
-  border-radius: 9px;
-  cursor: pointer;
-}
-
-.kick-type.is-on {
-  color: #fff;
-  background: var(--green-night);
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
-}
-
-.kick-type:focus-visible,
-.kick-range:focus-visible {
-  outline: 3px solid var(--sun);
-  outline-offset: 2px;
-}
-
-.kick-bend {
-  display: grid;
-  gap: 4px;
-}
-
-.kick-head {
+.kick-modes {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  flex: none;
   gap: 6px;
 }
 
-.kick-label,
-.kick-out,
-.kick-ends {
-  font-size: 8.5px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+.kick-mode {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 3px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.14s cubic-bezier(0.2, 1.6, 0.4, 1), background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-.kick-out {
-  color: var(--terra);
+.kick-mode svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.3));
+  opacity: 0.55;
+  transition: opacity 0.2s;
 }
 
-.kick-ends {
-  display: flex;
-  justify-content: space-between;
-  opacity: 0.6;
+.kick-mode.is-on {
+  background: radial-gradient(circle at 50% 30%, #3ce06a, var(--green-deep));
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(76, 225, 108, 0.35), 0 0 22px rgba(76, 225, 108, 0.7);
+  transform: translateY(-3px) scale(1.07);
+}
+
+.kick-mode.is-on svg {
+  opacity: 1;
+}
+
+.kick-mode:active {
+  transform: scale(0.92);
+}
+
+.kick-mode.is-burst::after {
+  position: absolute;
+  inset: -5px;
+  content: '';
+  pointer-events: none;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  animation: kick-burst 0.55s ease-out both;
+}
+
+.kick-bend {
+  position: relative;
+  display: block;
+  flex: 1 1 120px;
+  min-width: 110px;
+  padding: 0 4px;
+  border-radius: 18px;
+  cursor: pointer;
+}
+
+.kick-modes[hidden] + .kick-bend {
+  width: 200px;
+}
+
+.kick-bend::after {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  width: 3px;
+  height: 14px;
+  margin-left: -1.5px;
+  content: '';
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+}
+
+.kick-curve {
+  display: block;
+  width: 100%;
+  height: 42px;
+  overflow: visible;
+  filter: drop-shadow(0 0 7px rgba(255, 200, 58, 0.6));
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.kick-bend.is-bent .kick-curve {
+  opacity: 1;
 }
 
 .kick-range {
+  display: block;
   width: 100%;
-  height: 28px;
+  height: 32px;
   margin: 0;
-  accent-color: var(--green-night);
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.kick-range::-webkit-slider-runnable-track {
+  height: 12px;
+  background: var(--fill, none), rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.kick-range::-moz-range-track {
+  height: 12px;
+  background: var(--fill, none), rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.kick-range::-webkit-slider-thumb {
+  width: 30px;
+  height: 30px;
+  margin-top: -9px;
+  background: radial-gradient(circle, #1b2540 0 22%, #fff 25%);
+  border: 3px solid var(--sun);
+  border-radius: 50%;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35), 0 0 14px rgba(255, 200, 58, 0.75);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.kick-range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle, #1b2540 0 22%, #fff 25%);
+  border: 3px solid var(--sun);
+  border-radius: 50%;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35), 0 0 14px rgba(255, 200, 58, 0.75);
+}
+
+.kick-range:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.kick-mode:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 3px;
+}
+
+/* A lesson points at the control it wants: a pulsing ring and a finger. */
+.kick-finger {
+  position: absolute;
+  right: -8px;
+  bottom: -12px;
+  display: none;
+  width: 34px;
+  height: 34px;
+  pointer-events: none;
+}
+
+.kick-finger svg {
+  width: 100%;
+  height: 100%;
+}
+
+.is-hint {
+  animation: kick-pulse 1s ease-in-out infinite;
+}
+
+.is-hint > .kick-finger {
+  display: block;
+  animation: kick-tap 1s ease-in-out infinite;
+}
+
+.kick-bend.is-hint > .kick-finger {
+  right: auto;
+  bottom: 0;
+  left: 50%;
+  animation: kick-slide 1.6s ease-in-out infinite;
+}
+
+@keyframes kick-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 24px) scale(0.9);
+  }
+}
+
+@keyframes kick-burst {
+  from {
+    opacity: 1;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+@keyframes kick-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 200, 58, 0.9);
+  }
+  50% {
+    box-shadow: 0 0 0 9px rgba(255, 200, 58, 0);
+  }
+}
+
+@keyframes kick-tap {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-5px, -6px) scale(0.88);
+  }
+}
+
+@keyframes kick-slide {
+  0%,
+  100% {
+    transform: translateX(-34px);
+  }
+  50% {
+    transform: translateX(14px);
+  }
+}
+
+/* ---- The coach card: lesson pips, the move as a picture, its name, what to do. ---- */
+.guide-card {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 20;
+  width: min(330px, calc(100vw - 24px));
+  padding: 8px 10px 10px;
+  color: #fff;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(24, 40, 84, 0.95), rgba(11, 20, 48, 0.97));
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 22px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+}
+
+.guide-card[hidden] {
+  display: none;
+}
+
+.guide-card.is-new {
+  animation: guide-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.guide-pips {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+
+.guide-pip {
+  width: 28px;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.guide-pip.is-done {
+  background: var(--green-hi);
+}
+
+.guide-pip.is-now {
+  background: var(--sun);
+  box-shadow: 0 0 10px var(--sun);
+  animation: guide-glow 1.2s ease-in-out infinite;
+}
+
+.guide-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-art {
+  flex: 0 0 48%;
+}
+
+.guide-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.guide-side {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  justify-items: center;
+}
+
+.guide-title {
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--sun);
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+
+.guide-chips {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.guide-chip {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+}
+
+.guide-chip svg {
+  width: 36px;
+  height: 36px;
+}
+
+.guide-chip + .guide-chip::before {
+  position: absolute;
+  top: 50%;
+  left: -12px;
+  width: 7px;
+  height: 7px;
+  content: '';
+  border-top: 3px solid rgba(255, 255, 255, 0.6);
+  border-right: 3px solid rgba(255, 255, 255, 0.6);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.guide-chip.is-now {
+  background: rgba(255, 200, 58, 0.22);
+  box-shadow: 0 0 0 2px var(--sun), 0 0 16px rgba(255, 200, 58, 0.5);
+  animation: guide-bob 1s ease-in-out infinite;
+}
+
+.guide-chip.is-wait {
+  opacity: 0.4;
+}
+
+.guide-chip.is-done {
+  background: rgba(76, 225, 108, 0.25);
+}
+
+.guide-tick {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: #fff;
+  background: var(--green-hi);
+  border-radius: 50%;
+}
+
+.guide-tick svg {
+  width: 13px;
+  height: 13px;
+}
+
+.mv-flow {
+  animation: mv-march 0.7s linear infinite;
+}
+
+@keyframes guide-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -30px) scale(0.92);
+  }
+}
+
+@keyframes guide-glow {
+  50% {
+    box-shadow: 0 0 2px var(--sun);
+  }
+}
+
+@keyframes guide-bob {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes mv-march {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+/* A wide screen has stands on both sides of the pitch: the dock and the card sit over them. */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) {
+  .kick-dock {
+    left: calc(14px + env(safe-area-inset-left));
+    bottom: 14px;
+    flex-direction: column;
+    gap: 6px;
+    width: 188px;
+    max-width: none;
+    padding: 10px 12px;
+    transform: none;
+    animation-name: kick-rise-side;
+  }
+
+  .kick-bend {
+    width: 100%;
+  }
+
+  .guide-card {
+    top: 14px;
+    right: calc(14px + env(safe-area-inset-right));
+    left: auto;
+    width: 270px;
+    transform: none;
+  }
+
+  @keyframes kick-rise-side {
+    from {
+      opacity: 0;
+      transform: translateY(24px) scale(0.9);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kick-dock,
+  .guide-card,
+  .is-hint,
+  .is-hint > .kick-finger,
+  .guide-chip.is-now,
+  .guide-pip.is-now,
+  .mv-flow,
+  .kick-mode.is-burst::after {
+    animation: none;
+  }
 }

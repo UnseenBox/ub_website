@@ -72,7 +72,6 @@ export class Hud {
     }
     if (g.state === 'menu') return;
 
-    if (g.level.index === 0 && g.record.goals === 0 && (g.state === 'ready' || g.state === 'aiming')) this.drawPrompt(ctx, g, u);
     if (g.tip && (g.state === 'ready' || g.state === 'aiming') && !g.paused) this.drawTip(ctx, g, u, g.tip.text);
     // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
     if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active) {
@@ -214,25 +213,6 @@ export class Hud {
     });
   }
 
-  private pill(ctx: CanvasRenderingContext2D, str: string, cx: number, cy: number, size: number, alpha: number): void {
-    str = tr(str);
-    ctx.font = `900 ${size}px ${FONT}`;
-    ctx.letterSpacing = rtl ? '0px' : '1.5px';
-    const w = ctx.measureText(str).width + size * 2.2;
-    const h = size * 2.3;
-    ctx.globalAlpha = alpha;
-    roundRect(ctx, cx - w / 2, cy - h / 2, w, h, h / 2);
-    ctx.fillStyle = C.navy;
-    ctx.fill();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = C.sun;
-    ctx.fillText(str, cx + 0.75, cy + size * 0.06);
-    ctx.globalAlpha = 1;
-    ctx.letterSpacing = '0px';
-    ctx.textBaseline = 'alphabetic';
-  }
-
   /**
    * The star targets: `★ GOAL · ★★ 1,400 · ★★★ 2,600`, the stars already won on this level lit.
    * A row above the goal on a phone, a small card in the left column beside the alley otherwise.
@@ -322,15 +302,6 @@ export class Hud {
     lines.forEach((line, i) => ctx.fillText(line, cx, top + size * 0.55 + lineH * (i + 0.5)));
     ctx.globalAlpha = 1;
     ctx.textBaseline = 'alphabetic';
-  }
-
-  /** The whole tutorial: one line, on the first alley only, that changes with what the player is doing. */
-  private drawPrompt(ctx: CanvasRenderingContext2D, g: Game, u: number): void {
-    const { arena } = g.level.def;
-    const label = g.state === 'ready' ? 'DRAG BACK TO AIM' : g.shot.armed ? 'LET GO TO SHOOT' : 'KEEP PULLING';
-    const bob = Math.sin(g.time.elapsed * 4) * 2;
-    const size = 13 * u;
-    this.pill(ctx, label, arena.x + arena.w / 2, arena.y + arena.h + 30 + size * 1.15 + bob, size, clamp01(g.stateT * 6 + 0.4));
   }
 
   private drawMiss(ctx: CanvasRenderingContext2D, g: Game, u: number): void {

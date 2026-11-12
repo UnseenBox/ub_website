@@ -48,95 +48,101 @@ export function sweepLevel(
   const hits: SweepResult[] = [];
   for (const power of powers) {
     for (let angle = -180; angle < 180; angle += stepDeg) {
-      // A fresh level per shot: nothing a previous shot broke or rang carries over.
-      const level = new Level(def, index);
-      const ghost = createBody({
-        shape: circle(BALL_TUNING.radius),
-        surface: 'ball',
-        x: def.ballStart.x,
-        y: def.ballStart.y,
-        isStatic: false,
-        layer: Layer.Ball,
-        mask: Layer.Solid | Layer.Net,
-        restitution: 1,
-        drag: BALL_TUNING.drag,
-        rollResistance: BALL_TUNING.rollResistance,
-        spinDrag: BALL_TUNING.spinDrag,
-        maxSpeed: BALL_TUNING.maxSpeed,
-      });
-      for (let t = 0; t < delay; t += FIXED_DT) level.step(ghost, FIXED_DT, false, null, null);
-      const a = (angle * Math.PI) / 180;
-      const speed = kick.air ? airSpeed(power) : speedForPower(power);
-      ghost.vx = Math.cos(a) * speed;
-      ghost.vy = Math.sin(a) * speed;
-      ghost.z = kick.air ? 0.01 : 0;
-      ghost.vz = kick.air ? launchVz(power) : 0;
-      ghost.bend = kick.bend;
-      const goal = level.goal;
-      const gx = goal.cx - ghost.x;
-      const gy = goal.lineY - ghost.y;
-      const boomerang = (Math.cos(a) * gx + Math.sin(a) * gy) / (Math.hypot(gx, gy) || 1) < -0.2;
-      let bounces = 0;
-      let distance = 0;
-      let time = 0;
-      let maxHeight = 0;
-      let minGoalDist = goal.distanceToMouth(ghost.x, ghost.y);
-      let lastBody = -1;
-      let lastTime = -1;
-      const touched: Partial<Record<Surface, number>> = {};
-      const did = new Set<MechEventKind>();
-      for (let i = 0; i < 240 * 9; i++) {
-        level.step(
-          ghost,
-          FIXED_DT,
-          true,
-          (_b, other, _c, impact) => {
-            if (other.surface === 'net' || other.surface === 'ball' || impact < 60) return;
-            // The real analyzer folds repeat contacts with one body into a single bounce.
-            if (other.id === lastBody && time - lastTime < 0.08) return;
-            lastBody = other.id;
-            lastTime = time;
-            touched[other.surface] = (touched[other.surface] ?? 0) + 1;
-            bounces++;
-          },
-          (e) => did.add(e.kind),
-        );
-        distance += Math.hypot(ghost.vx, ghost.vy) * FIXED_DT;
-        time += FIXED_DT;
-        if (ghost.z > maxHeight) maxHeight = ghost.z;
-        const d = goal.distanceToMouth(ghost.x, ghost.y);
-        if (d < minGoalDist) minGoalDist = d;
-        if (goal.contains(ghost.x, ghost.y)) {
-          // Over the bar is not a goal.
-          if (ghost.z > KICK.barZ) break;
-          const card = scoreShot(
-            {
-              goal: true,
-              bounces,
-              touched,
-              did,
-              keeper: level.hasKeeper,
-              distance,
-              time,
-              power,
-              entrySpeed: Math.hypot(ghost.vx, ghost.vy),
-              entryOffset: (ghost.x - goal.cx) / (goal.width / 2),
-              boomerang,
-              minGoalDist,
-              maxHeight,
-              turned: ghost.turned,
-            },
-            0,
-            def.stars,
-          );
-          hits.push({ angle, power, bounces, did: [...did].join('+'), seconds: +time.toFixed(2), total: card.total, stars: card.stars, lines: card.lines.map((l) => l.label).join(', '), air: kick.air, bend: kick.bend });
-          break;
-        }
-        if (Math.hypot(ghost.vx, ghost.vy) < 4 && i > 30 && ghost.z <= 0) break;
-      }
+      const hit = fireShot(def, index, angle, power, delay, kick);
+      if (hit) hits.push(hit);
     }
   }
   return hits;
+}
+
+/** One shot at `angle` degrees (-90 is straight up) and `power` on a private copy of the level; null when it does not score. */
+export function fireShot(def: LevelDefinition, index: number, angle: number, power: number, delay = 0, kick: Kick = { air: false, bend: 0 }): SweepResult | null {
+  // A fresh level per shot: nothing a previous shot broke or rang carries over.
+  const level = new Level(def, index);
+  const ghost = createBody({
+    shape: circle(BALL_TUNING.radius),
+    surface: 'ball',
+    x: def.ballStart.x,
+    y: def.ballStart.y,
+    isStatic: false,
+    layer: Layer.Ball,
+    mask: Layer.Solid | Layer.Net,
+    restitution: 1,
+    drag: BALL_TUNING.drag,
+    rollResistance: BALL_TUNING.rollResistance,
+    spinDrag: BALL_TUNING.spinDrag,
+    maxSpeed: BALL_TUNING.maxSpeed,
+  });
+  for (let t = 0; t < delay; t += FIXED_DT) level.step(ghost, FIXED_DT, false, null, null);
+  const a = (angle * Math.PI) / 180;
+  const speed = kick.air ? airSpeed(power) : speedForPower(power);
+  ghost.vx = Math.cos(a) * speed;
+  ghost.vy = Math.sin(a) * speed;
+  ghost.z = kick.air ? 0.01 : 0;
+  ghost.vz = kick.air ? launchVz(power) : 0;
+  ghost.bend = kick.bend;
+  const goal = level.goal;
+  const gx = goal.cx - ghost.x;
+  const gy = goal.lineY - ghost.y;
+  const boomerang = (Math.cos(a) * gx + Math.sin(a) * gy) / (Math.hypot(gx, gy) || 1) < -0.2;
+  let bounces = 0;
+  let distance = 0;
+  let time = 0;
+  let maxHeight = 0;
+  let minGoalDist = goal.distanceToMouth(ghost.x, ghost.y);
+  let lastBody = -1;
+  let lastTime = -1;
+  const touched: Partial<Record<Surface, number>> = {};
+  const did = new Set<MechEventKind>();
+  for (let i = 0; i < 240 * 9; i++) {
+    level.step(
+      ghost,
+      FIXED_DT,
+      true,
+      (_b, other, _c, impact) => {
+        if (other.surface === 'net' || other.surface === 'ball' || impact < 60) return;
+        // The real analyzer folds repeat contacts with one body into a single bounce.
+        if (other.id === lastBody && time - lastTime < 0.08) return;
+        lastBody = other.id;
+        lastTime = time;
+        touched[other.surface] = (touched[other.surface] ?? 0) + 1;
+        bounces++;
+      },
+      (e) => did.add(e.kind),
+    );
+    distance += Math.hypot(ghost.vx, ghost.vy) * FIXED_DT;
+    time += FIXED_DT;
+    if (ghost.z > maxHeight) maxHeight = ghost.z;
+    const d = goal.distanceToMouth(ghost.x, ghost.y);
+    if (d < minGoalDist) minGoalDist = d;
+    if (goal.contains(ghost.x, ghost.y)) {
+      // Over the bar is not a goal.
+      if (ghost.z > KICK.barZ) return null;
+      const card = scoreShot(
+        {
+          goal: true,
+          bounces,
+          touched,
+          did,
+          keeper: level.hasKeeper,
+          distance,
+          time,
+          power,
+          entrySpeed: Math.hypot(ghost.vx, ghost.vy),
+          entryOffset: (ghost.x - goal.cx) / (goal.width / 2),
+          boomerang,
+          minGoalDist,
+          maxHeight,
+          turned: ghost.turned,
+        },
+        0,
+        def.stars,
+      );
+      return { angle, power, bounces, did: [...did].join('+'), seconds: +time.toFixed(2), total: card.total, stars: card.stars, lines: card.lines.map((l) => l.label).join(', '), air: kick.air, bend: kick.bend };
+    }
+    if (Math.hypot(ghost.vx, ghost.vy) < 4 && i > 30 && ghost.z <= 0) return null;
+  }
+  return null;
 }
 
 /**

@@ -193,15 +193,15 @@ export function drawAimOver(ctx: CanvasRenderingContext2D, ball: Ball, x: number
 }
 
 /** A looping ghost of the gesture: press, pull back, let go. Shown until the first goal. */
-export function drawTutorialGhost(ctx: CanvasRenderingContext2D, ball: Ball, time: number): void {
+export function drawTutorialGhost(ctx: CanvasRenderingContext2D, ball: Ball, time: number, reach: { x: number; y: number } = { x: 46, y: 78 }): void {
   const phase = (time % 2.2) / 2.2;
   if (phase > 0.86) return;
   const pull = easeOutCubic(clamp01((phase - 0.12) / 0.45));
   const fade = phase < 0.08 ? phase / 0.08 : phase > 0.72 ? 1 - (phase - 0.72) / 0.14 : 1;
   const x = ball.body.x;
   const y = ball.body.y;
-  const hx = x + 46 * pull;
-  const hy = y + 78 * pull;
+  const hx = x + reach.x * pull;
+  const hy = y + reach.y * pull;
   ctx.globalAlpha = fade * 0.9;
 
   if (pull > 0.05) {
@@ -242,4 +242,44 @@ export function drawTutorialGhost(ctx: CanvasRenderingContext2D, ball: Ball, tim
   ctx.strokeStyle = C.ink;
   ctx.stroke();
   ctx.globalAlpha = 1;
+}
+
+/**
+ * The lesson's shot as a flowing line of light: bright dots running from the ball to the goal along the
+ * real path (over the wall, round it, off the board), each one floating at its height, and a ring
+ * pulsing where it ends. `strength` fades it while the player is aiming for themselves.
+ */
+export function drawGuidePath(ctx: CanvasRenderingContext2D, preview: TrajectoryPreview, time: number, strength: number): void {
+  const n = preview.count;
+  if (n < 2 || strength <= 0.01) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < n; i++) {
+    const px = preview.points[i * 2];
+    const py = preview.points[i * 2 + 1] - preview.zs[i];
+    // A wave of light travels along the dots, from the ball to the goal.
+    const wave = Math.max(0, Math.sin(time * 7 - i * 0.55));
+    const f = i / Math.max(1, n - 1);
+    ctx.globalAlpha = strength * (0.28 + 0.72 * wave) * (1 - 0.35 * f);
+    ctx.fillStyle = '#ffe27a';
+    ctx.beginPath();
+    ctx.arc(px, py, 5 + 5 * wave, 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  const lx = preview.points[(n - 1) * 2];
+  const ly = preview.points[(n - 1) * 2 + 1] - preview.zs[n - 1];
+  const pulse = (time * 1.4) % 1;
+  ctx.globalAlpha = strength * (1 - pulse);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(lx, ly, 14 + 34 * pulse, 0, TAU);
+  ctx.stroke();
+  ctx.globalAlpha = strength;
+  ctx.fillStyle = C.sun;
+  ctx.beginPath();
+  ctx.arc(lx, ly, 8, 0, TAU);
+  ctx.fill();
+  ctx.restore();
 }

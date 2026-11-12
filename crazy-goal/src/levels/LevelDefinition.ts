@@ -174,6 +174,19 @@ export type MechanicDef =
   /** A fan blowing along `angle`: a gusty wind that pushes the ball while it is inside. */
   | { type: 'fan'; x: number; y: number; w: number; h: number; angle: number; strength?: number };
 
+/**
+ * A lesson: the level teaches one move and says so. While the lesson runs (until its first goal) only
+ * the controls it names are shown, the ghost hand and a dotted path show the shot, and the coach card
+ * at the top of the screen shows the move as a picture.
+ */
+export interface GuideDef {
+  move: 'straight' | 'bend' | 'air' | 'bank' | 'free';
+  /** Which free-kick controls the lesson shows. */
+  controls: { air: boolean; bend: boolean };
+  /** The shot the ghost shows: angle in degrees (-90 is straight up), pull power 0 to 1, and how it is struck. */
+  show: { angle: number; power: number; air: boolean; bend: number };
+}
+
 export type Theme = 'street' | 'pitch' | 'stadium' | 'beach' | 'court' | 'clay' | 'roof' | 'snow' | 'sunset' | 'night';
 
 /**
@@ -201,6 +214,8 @@ export interface LevelDefinition {
   surface?: Surface;
   /** Flat landmarks painted on the ground. */
   dressing?: readonly DressingDef[];
+  /** Set on the tutorial levels. */
+  guide?: GuideDef;
   /** Crazy Score needed for the second and third star. Any goal earns the first. */
   stars: readonly [number, number];
 }
