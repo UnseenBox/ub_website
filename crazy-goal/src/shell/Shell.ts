@@ -110,6 +110,7 @@ export function installShell(game: Game): CrazyKoraShell {
           ledger[stageId] = paid + coins;
           game.earnCoins(coins, 'fk-stage');
         }
+        game.events.emit('FK_STAGE_ENDED', { stage: stageId, stars: s, coins });
         // A new star may open a ball or the Legend tile: let the menu and the skins notice.
         game.starsChanged();
         return coins;
@@ -130,6 +131,7 @@ export function installShell(game: Game): CrazyKoraShell {
           game.save.data.daily = out.state;
           game.earnCoins(out.coins, 'daily');
           game.save.save();
+          game.events.emit('DAILY_DONE', { date, goals: Math.max(0, Math.min(5, Math.floor(Number(goals)) || 0)), streak: out.streak, coins: out.coins });
           game.refreshMenu();
         }
         return { already: out.already, streak: out.streak, coins: out.coins };

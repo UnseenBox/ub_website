@@ -18,6 +18,15 @@ export interface GameEvents {
   MECHANIC: MechEvent;
   /** The ball punched a Kora Coin out of the air: wallet only, no score. */
   COIN_SNATCHED: { x: number; y: number };
+  /** Career events for analytics (see src/analytics). Numbers and ids only. */
+  LEVEL_STARTED: { level: number; chapter: number };
+  LEVEL_GOAL: { level: number; stars: number; score: number; attempts: number; firstClear: boolean; bounces: number };
+  LEVEL_GATE_BLOCKED: { level: number; need: number; have: number };
+  FK_STAGE_ENDED: { stage: string; stars: number; coins: number };
+  DAILY_DONE: { date: string; goals: number; streak: number; coins: number };
+  BOOST_USED: { boost: string; free: boolean };
+  AD_OFFERED: { kind: 'stuck' | 'double' | 'pause' };
+  AD_DONE: { kind: 'stuck' | 'double' | 'pause'; granted: boolean };
 }
 
 type Handler<P> = (payload: P) => void;

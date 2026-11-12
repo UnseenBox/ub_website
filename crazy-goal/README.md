@@ -70,7 +70,7 @@ What the portal edition changes, all behind `src/portal/Portal.ts`:
 - **Loading:** `loadingStart` at boot, `loadingStop` on the first painted menu.
 - **Gameplay signals:** `gameplayStart` on PLAY / level select / resume / duel shots, `gameplayStop` on pause / level list / menu / goal / duel waits. First start measures ~6 MB initial download (limit 50, 20 for the mobile homepage).
 - **Midgame ads** at the one natural break: tapping NEXT HOUMA after a goal. The game freezes (no input, muted, shop hidden, no pause card) until `adFinished`/`adError`, then the next street loads. Never in duels, never mid-shot. Too-early requests are ignored by the SDK itself.
-- **Rewarded ads** (+30 coins in the pause menu, with a 90 s cooldown; see 4.1 for the redesigned moments), always with the coin shop standing as the no-ad alternative. No reward on `adError`, ever.
+- **Rewarded ads** at two moments of need (a free MAGNET after four misses on a houma, doubled coins on a first clear; see "Analytics and ads"), with a 90 s cooldown, always with the coin shop standing as the no-ad alternative. No reward on `adError`, ever.
 - **Housekeeping the QA checks:** tab-hide auto-pauses, no external assets (font, sounds and art are all bundled), no `alert`/`prompt`, no custom fullscreen button, English default with Arabic switch, physics on a fixed 240 Hz step (consistent on 144/165 Hz screens).
 
 `npm run dev` serves the plain build. Locally the SDK starts in `local` mode by itself, so ad calls show test overlays; no query parameter is needed.
@@ -206,4 +206,12 @@ The dev server also accepts `POST /__poster/<name>` with a JPEG body and writes 
 
 ## Analytics and ads
 
-Analytics is a subscriber on the `EventBus`; ads sit behind `src/portal/Portal.ts`. Neither calls any SDK outside a portal build. The analytics sink ships with a console provider in development and a no-op in production until a provider is chosen (see 4.3 in the redesign blueprint, `docs/superpowers/plans/2026-11-12-crazy-kora-redesign.md`).
+**Analytics** (`src/analytics/Analytics.ts`) is a subscriber on the `EventBus`. It turns eight career events into a funnel: `level_start`, `level_goal` (stars, score, attempts, first clear), `level_gate_blocked`, `fk_stage_end`, `daily_done`, `boost_used`, `ad_offer` and `ad_done`. Events carry numbers, ids and flags only. A development build logs them to the console (`[analytics] ...`); a production build uses a no-op provider and sends nothing until the owner picks a provider and passes it to `analytics.setProvider`. This is what tunes `GATE_PER_CHAPTER`, the coin values and `STUCK_MISSES`.
+
+**Ads** sit behind `src/portal/Portal.ts` (see "CrazyGames"). Rewarded ads are offered only where a player wants help, only in solo play, never during aiming, flight or a celebration, never in a duel or a Free Kicks run, and they share one 90 second cooldown:
+
+- **Stuck assist.** After 4 misses on one houma (`STUCK_MISSES`), a chip under the boost cards offers a free MAGNET for an ad. The coin shop stays the no-ad way.
+- **x2 COINS.** On the result card of a level's first clear, an ad doubles the coins that clear paid, once.
+- The old pause-menu +30 coins offer is switched off (`PAUSE_REWARD_ENABLED` in `Progression.ts`).
+
+No reward is ever granted on `adError`.

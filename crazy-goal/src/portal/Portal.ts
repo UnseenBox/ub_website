@@ -198,7 +198,7 @@ export class Portal {
    * A rewarded break for coins. `grant` runs only on a finished ad, never on error.
    * Returns false when no ad can be shown (caller should say to try later).
    */
-  rewarded(game: Game, grant: () => void): boolean {
+  rewarded(game: Game, grant: () => void, settled?: (granted: boolean) => void): boolean {
     if (!this.ads || game.duel.active || game.shotRule !== 'free' || this.rewardCooldown() > 0) return false;
     try {
       localStorage.setItem(REWARD_KEY, String(Date.now() / 1000));
@@ -207,13 +207,14 @@ export class Portal {
     }
     this.adOpen = true;
     this.hold(game, true);
-    let settled = false;
+    let done = false;
     const finish = (paid: boolean): void => {
-      if (settled) return;
-      settled = true;
+      if (done) return;
+      done = true;
       this.adOpen = false;
       this.hold(game, false);
       if (paid) grant();
+      settled?.(paid);
     };
     try {
       this.sdk?.ad.requestAd('rewarded', { adFinished: () => finish(true), adError: () => finish(false) });

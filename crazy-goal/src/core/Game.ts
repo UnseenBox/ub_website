@@ -47,6 +47,7 @@ import { FIXED_DT, type ContactListener } from '../physics/PhysicsWorld';
 import type { RigidBody } from '../physics/RigidBody';
 import { aimOffset } from '../rendering/AimArt';
 import { saveSession, loadSession, type SessionScreen } from './session';
+import { analytics, wireAnalytics } from '../analytics/Analytics';
 import { fkNextStage, fkPlayed, fkStarMax, fkStars, readFkStages } from '../shell/fkProgress';
 import { Camera } from '../rendering/Camera';
 import { Renderer } from '../rendering/Renderer';
@@ -259,6 +260,7 @@ export class Game {
   private goalDoubled = false;
   /** Misses on this houma since it loaded or was last scored: the "stuck" offer counts them. */
   private missStreak = 0;
+  private stuckAnnounced = false;
   /** Stars missing for the next ball, as of the last solo goal (the result card shows it). */
   ballGap: number | null = null;
   readonly duel: DuelController;
@@ -381,6 +383,7 @@ export class Game {
     this.duel = new DuelController(this, this.overlay, canvas.parentElement ?? document.body);
 
     wireFeedback(this);
+    wireAnalytics(this.events, analytics);
     this.loop = new GameLoop(
       (dt) => this.frame(dt),
       () => this.renderer.render(this),
@@ -673,6 +676,7 @@ export class Game {
     this.record = record;
     this.placeCoin(level);
     this.missStreak = 0;
+    this.stuckAnnounced = false;
     this.shotTaken = false;
     this.lastScore = 0;
     this.lastPath.clear();
@@ -800,6 +804,7 @@ export class Game {
    */
   private onLevelEntered(): void {
     if (this.shotRule !== 'free' || this.level.index < 0 || this.paused) return;
+    this.events.emit('LEVEL_STARTED', { level: this.level.index + 1, chapter: chapterOf(this.level.index) });
     if (this.level.index === BANK_TIP_LEVEL && this.record.goals === 0) this.offerTip('bank', 'BOUNCE IT OFF A WALL. EVERY BOUNCE MULTIPLIES YOUR SCORE.');
     if (this.level.index >= BOOST_INTRO_LEVEL && !this.save.data.boostIntro) {
       this.save.data.boostIntro = true;
@@ -869,18 +874,29 @@ export class Game {
 
   /** "STUCK? FREE MAGNET": after four misses on a houma, while the ball waits and the boost column is up. */
   private stuckOffer(): boolean {
-    return this.missStreak >= STUCK_MISSES && this.state === 'ready' && this.rewardReady();
+    const due = this.missStreak >= STUCK_MISSES && this.state === 'ready' && this.rewardReady();
+    // Tell analytics once per offer, when the chip first shows.
+    if (due && !this.stuckAnnounced) {
+      this.stuckAnnounced = true;
+      this.events.emit('AD_OFFERED', { kind: 'stuck' });
+    }
+    return due;
   }
 
   private claimStuck(): void {
     if (!this.stuckOffer()) return;
-    portal.rewarded(this, () => {
-      this.save.data.freeBoosts.magnet = (this.save.data.freeBoosts.magnet ?? 0) + 1;
-      this.missStreak = 0;
-      this.save.save();
-      this.sounds.card(true);
-      this.abilities.refresh(BOOST_COSTS);
-    });
+    portal.rewarded(
+      this,
+      () => {
+        this.save.data.freeBoosts.magnet = (this.save.data.freeBoosts.magnet ?? 0) + 1;
+        this.missStreak = 0;
+        this.stuckAnnounced = false;
+        this.save.save();
+        this.sounds.card(true);
+        this.abilities.refresh(BOOST_COSTS);
+      },
+      (granted) => this.events.emit('AD_DONE', { kind: 'stuck', granted }),
+    );
   }
 
   /** "x2 COINS" on the result card of a first clear that paid coins, once. */
@@ -890,14 +906,18 @@ export class Game {
 
   private doubleCoins(): void {
     if (!this.doubleOffer()) return;
-    portal.rewarded(this, () => {
-      this.goalDoubled = true;
-      this.save.data.coins += this.goalCoins;
-      this.goalCoins *= 2;
-      this.save.save();
-      this.sounds.card(true);
-      this.overlay.setDouble(false);
-    });
+    portal.rewarded(
+      this,
+      () => {
+        this.goalDoubled = true;
+        this.save.data.coins += this.goalCoins;
+        this.goalCoins *= 2;
+        this.save.save();
+        this.sounds.card(true);
+        this.overlay.setDouble(false);
+      },
+      (granted) => this.events.emit('AD_DONE', { kind: 'double', granted }),
+    );
   }
 
   /** A rewarded ad for coins, offered in the pause menu while one can be shown. */
@@ -907,12 +927,16 @@ export class Game {
   }
 
   private watchReward(): void {
-    const granted = portal.rewarded(this, () => {
-      this.save.data.coins += REWARD_COINS;
-      this.save.save();
-      this.sounds.card(true);
-      this.overlay.setReward(null);
-    });
+    const granted = portal.rewarded(
+      this,
+      () => {
+        this.save.data.coins += REWARD_COINS;
+        this.save.save();
+        this.sounds.card(true);
+        this.overlay.setReward(null);
+      },
+      (ok) => this.events.emit('AD_DONE', { kind: 'pause', granted: ok }),
+    );
     if (!granted) {
       this.sounds.ui();
       this.overlay.setReward({ label: tr('TRY LATER') });
@@ -986,6 +1010,8 @@ export class Game {
     const next = this.level.index + 1;
     if (!this.isUnlocked(next)) {
       // The chapter's star gate is shut: show the map at the gate instead of a locked level.
+      const gate = gateStatus(this.save.data, this.levels, chapterOf(next));
+      this.events.emit('LEVEL_GATE_BLOCKED', { level: next + 1, need: gate.need, have: gate.have });
       this.openLevels(next);
       return;
     }
@@ -1102,6 +1128,7 @@ export class Game {
     b.vy = shot.dirY * shot.speed;
     b.angVel = shot.spin;
     this.ball.stretch(shot.dirX, shot.dirY, 0.1 + 0.2 * shot.power);
+    if (this.armedBoost && this.shotRule === 'free') this.events.emit('BOOST_USED', { boost: this.armedBoost, free: this.armedFree });
     this.level.arm(this.armedBoost, b);
     this.flightBoost = this.armedBoost;
     this.armedBoost = null;
@@ -1235,6 +1262,7 @@ export class Game {
     this.goalFirstClear = firstClear && this.shotRule === 'free';
     this.goalDoubled = false;
     this.missStreak = 0;
+    this.stuckAnnounced = false;
     this.record.goals++;
     this.lastScore = card.total;
     this.goalCoins = 0;
@@ -1251,6 +1279,7 @@ export class Game {
     if (card.stars > this.record.stars) this.record.stars = card.stars;
     this.save.save();
     this.ballGap = this.shotRule === 'free' ? this.starsToNextBall() : null;
+    if (this.shotRule === 'free') this.events.emit('LEVEL_GOAL', { level: this.level.index + 1, stars: card.stars, score: card.total, attempts: this.record.attempts, firstClear, bounces: card.bounces });
 
     b.drag = NET_DRAG;
     this.goalFlash = 1;
@@ -1433,7 +1462,9 @@ export class Game {
     const want = this.shotRule === 'free' && this.state === 'goal' && this.celebration.active && this.celebration.t >= CELEBRATION_TIMING.buttonsAfter && !this.paused;
     if (want === this.buttonsUp && !force) return;
     this.buttonsUp = want;
-    this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1), want && this.doubleOffer());
+    const double = want && this.doubleOffer();
+    this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1), double);
+    if (double) this.events.emit('AD_OFFERED', { kind: 'double' });
     if (want && !force) {
       this.offerFreeKicks();
       if (!this.paused) this.offerBallToast();
