@@ -259,3 +259,31 @@ All changes are uncommitted. `git status --short` shows 24 modified files plus:
 - `docs/` (new — plan and this report)
 
 No commit, push or branch operation was performed.
+
+
+---
+
+## 9. Variety pass, houmas 2 to 24 (2026-11-12)
+
+**Why.** Before the pass, 95 of the 100 levels used the centred goal and 80 started the ball at (800, 1010); in houmas 2 to 24 only five levels moved the goal (4, 6, 14, 19, 20). The first twenty-four levels are where retention is decided, so seven more moved: goal, ball start, or both. No mechanic moved, no wall moved, no star threshold changed.
+
+**How each edit was judged.** `sweepLevel` (`src/levels/sweep.ts`, the same code behind `__cg.sweep`) fires every angle at five powers at one degree steps. A route is a group of scoring shots with the same bounce count and the same street tricks within six degrees of each other. Rule: at least **3 routes**, and **at least one 3 star shot** at one degree steps. The test `src/levels/levels.validate.test.ts` asserts this for every edited level (`npm test`); `LEVEL_TABLE=1 LEVEL_OUT=table.txt npx vitest run src/levels/levels.validate.test.ts` writes the table for houmas 2 to 24.
+
+| Level | Goal x | Ball start | Hits | Routes | 3 star shots (angles) | Best score |
+|---|---|---|---|---|---|---|
+| 3 FRUIT STAND | 800 → **700** | (800, 1010) → **(880, 1010)** | 115 → 128 | 8 → 9 | 7 (3) → 7 (4) | 6530 → 5850 |
+| 5 PARKED | 800 → **910** | unchanged | 45 → 52 | 10 → 7 | 4 (3) → 4 (4) | 12780 → 6890 |
+| 8 DELIVERY | 800 → **690** | (800, 1010) → **(900, 1010)** | 196 → 154 | 20 → 19 | 12 (10) → 19 (14) | 16910 → 9280 |
+| 10 MADAME'S WINDOW | unchanged | (800, 1010) → **(700, 1010)** | 140 → 137 | 20 → 16 | 44 (29) → 25 (19) | 16630 → 10880 |
+| 13 BEACH DAY | unchanged | (800, 1010) → **(700, 1010)** | 42 → 33 | 11 → 10 | 2 (2) → 5 (5) | 6320 → 6310 |
+| 15 ICE RINK | 800 → **690** | (800, 1010) → **(900, 1010)** | 215 → 197 | 57 → 66 | 96 (52) → 119 (61) | 33340 → 34220 |
+| 21 TYRE PARK | 800 → **900** | unchanged | 21 → 14 | 20 → 14 | 14 (14) → 11 (11) | 30210 → 21560 |
+
+Each goal move also moves the level's `boundary` (the outline is built around the goal, so `goalAt(x)` is passed to both). Star thresholds are unchanged: every edited level still has shots for 2 and 3 stars.
+
+**Tried and dropped.**
+- Houma 21 with the ball start moved to (700, 1010) as well as the goal: **0 scoring shots**, impossible. Only the goal moved.
+- Houma 23 (MARKET DAY) with the ball start moved to (720), (760) or (840): the sweep found a 40-bounce route worth 180,000 to 220,000 points (the best score had been 7,360). Left unchanged.
+- Houma 22 (SEWER LINES) has only 7 scoring shots already, so it was not touched.
+
+**After the pass, houmas 2 to 24 have 10 levels with a moved goal (4, 6, 14, 19, 20 and the five above) and 11 with the ball start 60 or more units off the centre (2, 4, 11, 16, 18, 20 and 3, 8, 10, 13, 15).**
