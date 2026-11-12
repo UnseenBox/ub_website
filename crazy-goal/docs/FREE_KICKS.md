@@ -10,7 +10,7 @@ Free Kicks is the second game mode of CRAZY KORA. Classic is a top-down trick-sh
 - AIR: the ball has a simulated height `z`. Clear the wall, come down under the crossbar.
 - Free play (one ball, endless retries) and the **Street Cup**: five stages of five kicks each, plus **Quick Five** (a seeded random set of five).
 
-It is an isolated module. It never imports from, patches or reads the Classic bundle (`src/**`), and the only Classic data it reads is the sound/mute volume from the save (read-only).
+It is an isolated module. It never imports from, patches or reads the Classic bundle (`src/**`). It talks to Classic only through `window.CrazyKoraShell` (section 2): the shared wallet, star total, chosen ball, sound settings and portal signals. Without the shell (a hand-assembled folder) it runs as before, with the classic ball, default volume and no coins.
 
 ## 2. Project architecture
 
@@ -19,20 +19,22 @@ crazy-goal/
   free-kicks/                  shipped, NOT bundled (plain browser scripts)
     free-kicks.js              the game: physics, cards, runner, progress, renderer, tutorial, audio   (CRLF)
     free-kicks.css             the arena UI (.fk-*)                                                   (CRLF)
-    game-modes.js              menu layer: GAME MODES entry, mode chooser, Street Cup hub (.gm-*)    (LF)
+    game-modes.js              menu layer: the Free Kicks hub (Daily Kick, Street Cup, Quick Five)   (.gm-*)
     game-modes.css
     package.json               {"type":"commonjs"}: crazy-goal is an ES-module package, the tools are CommonJS
     tools/                     offline validator, checks, tests, playtest kit (section 13)
   src/freeKicksAssets.ts       bridge: publishes Vite's hashed asset URLs as window.CrazyKoraAssets
+  src/shell/Shell.ts           bridge: publishes window.CrazyKoraShell (wallet, stars, ball, sound, portal, settings, menu tile)
+  src/shell/fkProgress.ts      read-only view of crazy-kora-fk-progress, for the star total and the menu
   vite.config.ts               plugin freeKicks(): copies the 4 files to dist/assets/ and adds their tags to index.html
 ```
 
-Loading order in the built `index.html`: Classic's module script and stylesheet, then `<link>` for `game-modes.css` and `free-kicks.css`, and at the end of `<body>` `<script defer>` for `game-modes.js` then `free-kicks.js`. Deferred and module scripts run in document order, so `src/main.ts` (which imports `freeKicksAssets.ts`) has set `window.CrazyKoraAssets` before the two scripts run.
+Loading order in the built `index.html`: Classic's module script and stylesheet, then `<link>` for `game-modes.css` and `free-kicks.css`, and at the end of `<body>` `<script defer>` for `game-modes.js` then `free-kicks.js`. Deferred and module scripts run in document order, so `src/main.ts` (which imports `freeKicksAssets.ts` and creates the shell right after the game) has set `window.CrazyKoraAssets` and `window.CrazyKoraShell` before the two scripts run.
 
 - `free-kicks.js` is one IIFE exposing `window.CrazyKoraFreeKicks = { start, stop, setCard, sets, progress, quick, physics }`.
-- `game-modes.js` finds Classic's DOM (`.screen.menu`, `.menu-actions`, `.menu-play`, `#overlay`), adds a GAME MODES entry, and starts the arena with `CrazyKoraFreeKicks.start(mount, { lang, strings, star, sfx, clips, set, onBack })`. Escape handling and the Tab focus trap for the whole mode live here.
+- `game-modes.js` registers the hub with Classic's main menu (`shell.menu.registerModeTile('freeKicks', open)`; Classic draws the FREE KICKS tile and its lock), shows the hub, and starts the arena with `CrazyKoraFreeKicks.start(mount, { lang, strings, star, sfx, clips, skin, audio, gameplay, onSetEnd, onSettings, set, onBack })`. `skin` is the chosen ball's colours, `audio` is `shell.audio` (`muted()`, `volume()`, `onChange(cb)`), `gameplay` is `shell.portal`, `onSetEnd` reports a finished stage to `shell.fk.recordStage` and returns the coins it paid, `onSettings` opens Classic's settings card over the arena. There is no MutationObserver and no Classic class name in this layer except `.screen.menu` and `#overlay`, which it hides and shows around the hub. Escape handling and the Tab focus trap for the whole mode live here.
 - `window.CrazyKoraAssets` = `{ star, courtyard, sfxSheet, clips: { click, glass_tap, goal, kick_ball, meow, metal, power_up, stone, tin, whistle } }`. `game-modes.js` falls back to the old literal file names when it is missing (hand-assembled folder).
-- The CrazyGames edition (`vite build --mode crazygames`) does **not** include Free Kicks: the plugin does nothing in that mode.
+- The CrazyGames edition (`vite build --mode crazygames`) does **not** include Free Kicks yet: the plugin does nothing in that mode, and Classic's menu hides the tile when nothing registers it.
 - Dev server (`npm run dev`): the plugin serves the files from `/free-kicks/`, `CrazyKoraAssets` holds dev URLs, everything works.
 
 ## 3. Gameplay loop
@@ -115,7 +117,7 @@ Free Kicks owns its own `AudioContext` (class `AudioBus`), created in `start()` 
 
 - Sources: the classic sound sheet (`sfx.wav`, offsets in the `SFX` table, the same sheet and offsets as `src/assets/sfx.json`) plus the standalone recordings passed as `opts.clips` (from `window.CrazyKoraAssets.clips`). A clip takes priority over a sheet sound of the same name. If a clip is missing the sound falls back (`SFX_FALLBACK`) to its sheet equivalent, and with neither it is silent: no console errors. Leading and trailing silence of each clip is trimmed like Classic's `AudioManager`.
 - Event to sound: kick `kick_ball` (rate 0.92 for AIR); aim start `power_up` (cut when the ball is let go or the aim is cancelled); wall `thud` + `stone` + `grit`; post `thud` + sheet `post`; bar `thud` + `post` (lower) + `tin`; ball landing `thudSoft`; save `meow` + `thudSoft`; goal sheet `net` + `cloth` + `goal`; wide / too high `thudSoft` + `grit`; missed `thudSoft` + `whistle`; stage cleared `cheer`; every button `click`.
-- Level: `master = volume * 0.8`; `volume` is read once from Classic's save (`crazy-goal-save`: `muted`, `sound`), read-only. `CLIP_GAIN` sets each clip to roughly the loudness of the sheet sound it replaces. Mute works through that volume. There is no music in Free Kicks; Classic's background track (`bg music.mp3`) belongs to Classic's context.
+- Level: `master = volume * 0.8`; `volume` comes from the shell (`shell.audio`: `muted()` and `volume()` when a game starts, and live through `onChange` when Classic mutes or the volume changes, including from the settings card inside the arena). Free Kicks no longer reads `crazy-goal-save` at all. `CLIP_GAIN` sets each clip to roughly the loudness of the sheet sound it replaces. Mute works through that volume. There is no music in Free Kicks; Classic's background track (`bg music.mp3`) belongs to Classic's context.
 - Autoplay: the context is created inside the PLAY click, resumed there, and `unlock()` is called on every aim press.
 - Cleanup: `stop()` stops all sources, clears the clip map and closes the context; decodes that finish after `stop()` are discarded. Verified: four enter/exit cycles leave four closed contexts and no running source.
 - Classic's own sound system (sheet, clips, `bg music.mp3`) is unchanged by this integration. The older generated drum music (`src/audio/Music.ts`) is no longer used by Classic; that was done upstream before this work.
@@ -145,7 +147,7 @@ npm run build        # tsc --noEmit && vite build  -> dist/
 npm run preview      # http://localhost:4191
 ```
 
-Open the game through a server, never `file://`. In the game, GAME MODES -> Free Kicks.
+Open the game through a server, never `file://`. In the game, the FREE KICKS tile on the main menu (locked until a goal in houma 3; to test earlier, put a goal on `houma-03` in the save, or play any Free Kicks stage once).
 
 Tools (`crazy-goal/free-kicks/tools/`, Node, no dependencies):
 
@@ -162,7 +164,7 @@ node validate.js --jitter-only --out cards.v1.jitter.raw.json --workers 5 && nod
 
 After any change to the physics constants or rules, to a card, or to `validate.js`: run the validator and the jitter pair, then `check-quick.js`; the stored metrics contain a fingerprint of the physics behaviour (not of the file text) and refuse to be used when it changed. UI-only edits do not stale them. Never edit the stored numbers to make a check pass.
 
-Verify the deployed build: serve `dist/` (or the deploy folder) with any static server, open GAME MODES -> Free Kicks, play a stage, press Escape, repeat.
+Verify the deployed build: serve `dist/` (or the deploy folder) with any static server, open the FREE KICKS tile, play a stage, press Escape, repeat.
 
 Known limitations:
 - Make rates are modelled; no human playtest has been run, so no tuning on real hands. Real touch hardware and screen readers are untested.
@@ -170,14 +172,14 @@ Known limitations:
 - The AIR preview does not show Mimi. Stage 5 is no harder than stage 4 under the model (the touch odds are about the same).
 - Arabic text is not reviewed by a native speaker (card 5.2 "Pressure" and stage 5 share a word).
 - At 568x320 the hub's PLAY button is partly below the fold (scrolls).
-- Free Kicks plays its own sound context; it does not share Classic's mute button live (volume is read when a game starts).
+- Free Kicks plays its own sound context. Mute and volume are shared with Classic live through `shell.audio.onChange`.
 - `dist/` is built from source; `public/arcade/crazy-goal/` is the synced deploy copy, refresh it after a build.
 
 ## 14. Safety boundaries (do not touch when working on Free Kicks)
 
 - Classic: everything under `src/` except the one import line in `src/main.ts` and `src/freeKicksAssets.ts`, plus `data/levels`, Classic physics, rendering, levels and the duel code.
-- Save data: never write `crazy-goal-save` (Free Kicks only reads `muted` and `sound`), never touch `crazy-goal-lang` (read only), never rename the Classic keys. Free Kicks writes only `crazy-kora-fk-progress` and `crazy-kora-fk-tutorial`.
+- Save data: Free Kicks never reads or writes `crazy-goal-save`; coins, stars and the Daily Kick go through `window.CrazyKoraShell`, and Classic is the only writer of that save. Never touch `crazy-goal-lang` (read only), never rename the Classic keys. Free Kicks writes only `crazy-kora-fk-progress` and `crazy-kora-fk-tutorial`. Classic reads `crazy-kora-fk-progress` read-only (`src/shell/fkProgress.ts`) for the star total.
 - Duels (`/api/duel`) are not used by Free Kicks.
 - The CrazyGames edition must stay Free-Kicks-free unless that is requested explicitly.
-- `free-kicks.js` and `free-kicks.css` use CRLF line endings, `game-modes.*` use LF. Do not run `sed -i` on them (it strips the CRs on Windows); use an editor or a script that keeps the endings.
+- `free-kicks.js` and `free-kicks.css` use CRLF line endings; `game-modes.*` follow the checkout (the working copies on this Windows machine are CRLF too). Do not run `sed -i` on them (it strips the CRs on Windows); use an editor or a script that keeps the endings.
 - The embedded card block in `free-kicks.js` is generated; edit `cards.v1.json` and run `sync-cards.js`.

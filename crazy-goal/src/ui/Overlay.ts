@@ -556,7 +556,7 @@ export class Overlay {
           this.showSkins();
         });
         b.disabled = !skin.open;
-        b.setAttribute('aria-label', `${tr(skin.name)}, ${skin.open ? tr('BEST {n}', { n: '' }).trim() : tr('{n} STARS', { n: skin.need })}`);
+        b.setAttribute('aria-label', `${tr(skin.name)}, ${skin.open ? tr(skin.selected ? 'SELECTED' : 'UNLOCKED') : tr('{n} STARS', { n: skin.need })}`);
         const ball = el('span', 'skin-ball');
         ball.style.setProperty('--base', skin.base);
         ball.style.setProperty('--patch', skin.patch);

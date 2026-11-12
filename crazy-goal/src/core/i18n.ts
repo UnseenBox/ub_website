@@ -628,6 +628,9 @@ const AR: Readonly<Record<string, string>> = {
   // Level map (2.4).
   '{n} STARS TO OPEN. YOU HAVE {have}.': 'تحتاج {n} نجمة للفتح. لديك {have}.',
   'COIN TO COLLECT': 'عملة بانتظارك',
+  // Accessibility (2.6).
+  SELECTED: 'محددة',
+  UNLOCKED: 'مفتوحة',
 };
 
 function stored(): Lang {

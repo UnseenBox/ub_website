@@ -1,6 +1,6 @@
 # CRAZY KORA (formerly Crazy Goal)
 
-Renamed 2026-10-09. The folder, the site slug (`crazy-goal`) and the LocalStorage keys keep the old name so saves, duel identities and links still work. Since the rename: 100 houmas in nine chapters (THE HOUMA 1–12, NEW GROUNDS 13–24, CRAZY LEAGUE 25–36, LEGENDS 37–48, STREET KINGS 49–60, NIGHT LEAGUE 61–72, GOLDEN HOUR 73–84, HALL OF FAME 85–96, THE FINALS 97–100) with ground themes (`theme` on a level: street, pitch, beach, court, clay, roof, snow, sunset, night) and ground mechanics (`grass`, `water`, `ice`, `boost`), plus pinball bumpers (`bumper`), spinning turnstiles (`spinner`), gusty fans (`fan`) and leafy hedges (`hedge` walls), ball skins unlocked by stars (`src/ball/Skins.ts`, 27 skins up to 285 stars), a settings screen (sound and music volume, English or Arabic, reset progress), chaptered level select with progress bars and best scores, HUD chapter labels with attempts and star-progress bars, a drum loop built from the effect recordings (`src/audio/Music.ts`), layered crowd celebrations with whistle and stadium horn on big goals (`src/audio/SoundLibrary.ts`), and translations in `src/core/i18n.ts` (code writes English; `tr()` swaps it; changing language reloads the page).
+Renamed 2026-10-09. The folder, the site slug (`crazy-goal`) and the LocalStorage keys keep the old name so saves, duel identities and links still work. Since the rename: 100 houmas in nine chapters (THE HOUMA 1–12, NEW GROUNDS 13–24, CRAZY LEAGUE 25–36, LEGENDS 37–48, STREET KINGS 49–60, NIGHT LEAGUE 61–72, GOLDEN HOUR 73–84, HALL OF FAME 85–96, THE FINALS 97–100) with ground themes (`theme` on a level: street, pitch, beach, court, clay, roof, snow, sunset, night) and ground mechanics (`grass`, `water`, `ice`, `boost`), plus pinball bumpers (`bumper`), spinning turnstiles (`spinner`), gusty fans (`fan`) and leafy hedges (`hedge` walls), ball skins unlocked by stars (`src/ball/Skins.ts`, 27 skins up to 285 stars), a settings screen (sound and music volume, English or Arabic, reset progress), chaptered level select with progress bars and best scores, HUD chapter labels with attempts and star-progress bars, a looping crowd recording as the music (`assets/sfx/bg music.mp3`, on its own volume bus; `src/audio/Music.ts` is an older generated loop that nothing uses any more), layered crowd celebrations with whistle and stadium horn on big goals (`src/audio/SoundLibrary.ts`), and translations in `src/core/i18n.ts` (code writes English; `tr()` swaps it; changing language reloads the page).
 
 **How crazy can you score?**
 
@@ -19,11 +19,29 @@ No game engine and no physics library. TypeScript, Vite, Canvas 2D, Web Audio, a
 
 - **Duels:** challenge a friend by their ID, a tap on a recent rival, or an invite link. Three ways to play: Classic (ten rounds, cards), Quick Clash (five fast rounds, cards), Pure (ten rounds, no cards). Each round is a different street that is the same for both of you, one shot each per round. In Classic and Quick you each hold six cards to play once: three boost your own shot (HARISSA burns through an obstacle, MAGNET pulls the ball into the goal, RUBBER never loses its bounce) and three land on your friend's next shot (MIMI the cat, a half SHUTTER on the goal, SMOKE over the street). Turn based, so you can play together or hours apart. A VS splash opens every duel, goals burst in the scorer's colours, and incoming tricks flash the screen.
 
-Not built yet: spin shots, daily and endless modes, cosmetics, a settings screen, music, ads, analytics.
+Not built yet: spin shots, an endless mode, online leaderboards, in-app purchases, an analytics provider (the event sink exists; see "Analytics and ads"). Settings, music, portal ads and a Daily Kick (in Free Kicks) are built.
+
+## Modes, progression and economy
+
+One game, one career, two ways to play. Classic and Free Kicks share one wallet (Kora Coins), one star total, one chosen ball, one set of sound settings, one menu and one set of design tokens; they do not share gameplay or physics.
+
+- **Classic** is the campaign: 100 houmas, where the crazier route scores more.
+- **Free Kicks** is the skill arcade (five-kick stages, Quick Five, the Daily Kick). It opens after a goal in houma 3, as a tile on the main menu.
+- **Duels** are the social layer on unseenbox.com; the portal build hides them.
+
+All the rules of progress are pure functions with named constants in `src/progression/Progression.ts`, covered by `npm test`:
+
+- **Stars.** Any goal is 1 star; each level sets the Crazy Scores for 2 and 3 (`stars` in level data). The HUD shows the three targets while you aim, and the result card says what the next star needs.
+- **Coins are for progress, not farming.** The first clear of a level pays `max(10, score / 100)`; each star a level has ever shown pays 10 once (`paidStars` in the save); the coin hanging in each alley pays 10 once ever (`coin` in the save); replaying a level for nothing new pays 0. Duel streets have no coin. Free Kicks pays 20 for clearing a stage and 10 per star, once (`fk.coinsPaid`).
+- **Chapters are gated by stars.** The first level of chapter `c >= 2` also needs `16 x (c - 1)` houma stars; any chapter in which a level already has a goal stays open (grandfathering). Free Kicks stars count toward balls but not toward chapter gates.
+- **Boosts** (HARISSA, MAGNET, RUBBER) are introduced at houma 6 with one free MAGNET; before that the column is hidden.
+- **Balls** unlock by total stars, Classic and Free Kicks together (`src/ball/Skins.ts`).
+
+The save (`crazy-goal-save`) is at version 2 and is never wiped: `src/save/SaveManager.ts` migrates version 1 and keeps the known fields of a newer version. Free Kicks keeps its own `crazy-kora-fk-progress` and `crazy-kora-fk-tutorial`.
 
 ## Free Kicks
 
-A second game mode (GAME MODES on the menu): free-kick physics with a wall, bend, aerial shots, Mimi in goal, a five-stage Street Cup and Quick Five. It lives apart from Classic in `free-kicks/` (plain scripts, not bundled; the Vite plugin in `vite.config.ts` ships them) and is documented in [`docs/FREE_KICKS.md`](docs/FREE_KICKS.md). The CrazyGames edition does not include it.
+The second mode: free-kick physics with a wall, bend, aerial shots, Mimi in goal, a five-stage Street Cup, a Legend stage, Quick Five and the Daily Kick. It lives apart from Classic in `free-kicks/` (plain scripts, not bundled; the Vite plugin in `vite.config.ts` ships them) and is documented in [`docs/FREE_KICKS.md`](docs/FREE_KICKS.md). It never imports `src/**`; it talks to Classic only through `window.CrazyKoraShell` (`src/shell/Shell.ts`), which publishes the wallet, star total, chosen ball, sound settings, portal signals, the settings card and the menu tile. Classic is the only writer of `crazy-goal-save`. The CrazyGames edition does not include it yet.
 
 ## Install, run, build
 
@@ -52,10 +70,10 @@ What the portal edition changes, all behind `src/portal/Portal.ts`:
 - **Loading:** `loadingStart` at boot, `loadingStop` on the first painted menu.
 - **Gameplay signals:** `gameplayStart` on PLAY / level select / resume / duel shots, `gameplayStop` on pause / level list / menu / goal / duel waits. First start measures ~6 MB initial download (limit 50, 20 for the mobile homepage).
 - **Midgame ads** at the one natural break: tapping NEXT HOUMA after a goal. The game freezes (no input, muted, shop hidden, no pause card) until `adFinished`/`adError`, then the next street loads. Never in duels, never mid-shot. Too-early requests are ignored by the SDK itself.
-- **Rewarded ads** for +30 coins, offered only in the pause menu (never on a gameplay screen), with a video glyph, hidden entirely during the 90 s cooldown, and the coin shop standing as the no-ad alternative. No reward on `adError`, ever.
+- **Rewarded ads** (+30 coins in the pause menu, with a 90 s cooldown; see 4.1 for the redesigned moments), always with the coin shop standing as the no-ad alternative. No reward on `adError`, ever.
 - **Housekeeping the QA checks:** tab-hide auto-pauses, no external assets (font, sounds and art are all bundled), no `alert`/`prompt`, no custom fullscreen button, English default with Arabic switch, physics on a fixed 240 Hz step (consistent on 144/165 Hz screens).
 
-`npm run dev` serves the plain build; append `?useLocalSdk=true` on CrazyGames domains is unnecessary — locally the SDK starts in `local` mode by itself and ad calls show test overlays.
+`npm run dev` serves the plain build. Locally the SDK starts in `local` mode by itself, so ad calls show test overlays; no query parameter is needed.
 
 ## Controls
 
@@ -77,6 +95,8 @@ Touch uses the same code path as the mouse through Pointer Events. On screen the
 data/levels/houma.ts   the 100 level definitions (plain data)
 src/
   core/        Game (state machine), GameLoop, Time, EventBus
+  progression/ Progression: every rule of stars, coins, gates and unlocks (pure, tested)
+  shell/       Shell (window.CrazyKoraShell, the bridge Free Kicks uses), fkProgress (read-only view of its stars)
   input/       InputManager + Pointer, Keyboard, Touch
   physics/     RigidBody, Collision, CollisionResolver, SpatialGrid, PhysicsWorld
   ball/        Ball, ShotController, TrajectoryPreview, BallTrail
@@ -184,6 +204,6 @@ __cg.sweep(7)          // every scoring shot on alley 7
 
 The dev server also accepts `POST /__poster/<name>` with a JPEG body and writes it to `.shots/`, which is how the game's own canvas is captured for checking; `POST /__poster` writes `poster.jpg`.
 
-## Connecting ads and analytics
+## Analytics and ads
 
-Neither exists yet and nothing in the game calls an SDK. Analytics is a subscriber on the `EventBus`: every event it would want is already emitted. Ads belong behind an `AdManager` interface with a mock provider, called only at natural breaks (after a result card, never during aiming, flight or a celebration), with portal SDKs as adapters.
+Analytics is a subscriber on the `EventBus`; ads sit behind `src/portal/Portal.ts`. Neither calls any SDK outside a portal build. The analytics sink ships with a console provider in development and a no-op in production until a provider is chosen (see 4.3 in the redesign blueprint, `docs/superpowers/plans/2026-11-12-crazy-kora-redesign.md`).
