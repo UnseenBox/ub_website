@@ -49,7 +49,7 @@ import { aimOffset } from '../rendering/AimArt';
 import { saveSession, loadSession, type SessionScreen } from './session';
 import { Camera } from '../rendering/Camera';
 import { Renderer } from '../rendering/Renderer';
-import { SaveManager, type LevelRecord } from '../save/SaveManager';
+import { SaveManager, freshLevelRecord, type LevelRecord } from '../save/SaveManager';
 import { scoreShot } from '../scoring/ScoreSystem';
 import { ShotAnalyzer } from '../scoring/ShotAnalyzer';
 import { Hud } from '../ui/HUD';
@@ -510,7 +510,7 @@ export class Game {
     this.clearDuelState();
     this.duelLook = null;
     // Index -1: not a numbered alley, so no tutorial and no "next".
-    this.install(new Level(def, -1), { best: 0, attempts: 0, goals: 0, stars: 0 });
+    this.install(new Level(def, -1), freshLevelRecord());
   }
 
   private install(level: Level, record: LevelRecord): void {

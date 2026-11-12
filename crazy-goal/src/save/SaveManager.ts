@@ -1,5 +1,12 @@
+import type { Boost } from '../abilities/Cards';
+import { SKINS } from '../ball/Skins';
+
 const KEY = 'crazy-goal-save';
-const VERSION = 1;
+/**
+ * Version 2 added the economy and onboarding fields. A save is never wiped for being a different
+ * version: older ones are migrated, newer ones keep every field this build understands.
+ */
+export const SAVE_VERSION = 2;
 
 export interface LevelRecord {
   best: number;
@@ -7,6 +14,18 @@ export interface LevelRecord {
   goals: number;
   /** Best star rating so far, 0 to 3. */
   stars: number;
+  /** The level's coin has been collected once, ever. */
+  coin: boolean;
+  /** Stars already paid out in coins (never pay for the same star twice). */
+  paidStars: number;
+}
+
+export interface DailyRecord {
+  /** Local date (YYYY-MM-DD) of the last scored Daily Kick, or ''. */
+  lastDate: string;
+  streak: number;
+  /** date -> five-kick line, kept for the share text. */
+  results: Record<string, string>;
 }
 
 export interface SaveData {
@@ -18,21 +37,58 @@ export interface SaveData {
   music: number;
   /** Id of the chosen ball (see Skins). */
   skin: string;
-  /** Kora Coins: earned per goal in solo play, spent on shot abilities. */
+  /** Kora Coins: earned by progress (first clears, new stars), spent on shot abilities. */
   coins: number;
+  /** One-time tips already shown. */
+  tips: string[];
+  /** The boost column has been introduced. */
+  boostIntro: boolean;
+  /** Free boost charges, spent before any coins. */
+  freeBoosts: Partial<Record<Boost, number>>;
+  /** Free Kicks: coins already paid per stage (the stars-paid ledger). */
+  fk: { coinsPaid: Record<string, number> };
+  daily: DailyRecord;
+  /** Skins the player has already been told about (toast / NEW dot). */
+  seenSkins: string[];
 }
 
-const fresh = (): SaveData => ({ version: VERSION, levels: {}, muted: false, sound: 0.3, music: 0.2, skin: 'classic', coins: 0 });
+const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0 });
+
+const fresh = (): SaveData => ({
+  version: SAVE_VERSION,
+  levels: {},
+  muted: false,
+  sound: 0.3,
+  music: 0.2,
+  skin: 'classic',
+  coins: 0,
+  tips: [],
+  boostIntro: false,
+  freeBoosts: {},
+  fk: { coinsPaid: {} },
+  daily: { lastDate: '', streak: 0, results: {} },
+  seenSkins: [],
+});
+
 const volume = (v: unknown, fallback: number): number => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
+const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
-/** Reads whatever is stored and keeps only what is well formed. Unknown versions start clean. */
-function parse(raw: string | null): SaveData {
+const BOOSTS: readonly Boost[] = ['fire', 'magnet', 'rubber'];
+
+/**
+ * Reads whatever is stored and keeps only what is well formed. Version 1 is migrated, a version
+ * from the future still yields every field this build knows; only unreadable JSON throws.
+ */
+export function parseSave(raw: string | null): SaveData {
   if (!raw) return fresh();
   const data: unknown = JSON.parse(raw);
-  if (!isRecord(data) || data.version !== VERSION) return fresh();
+  if (!isRecord(data)) return fresh();
+  // Only our own saves carry a numeric version; anything else is not ours to migrate.
+  if (typeof data.version !== 'number' || data.version < 1) return fresh();
+  const legacy = data.version === 1;
   const out = fresh();
   out.muted = data.muted === true;
   out.sound = volume(data.sound, out.sound);
@@ -41,8 +97,44 @@ function parse(raw: string | null): SaveData {
   if (typeof data.skin === 'string') out.skin = data.skin;
   if (isRecord(data.levels)) {
     for (const [id, rec] of Object.entries(data.levels)) {
-      if (isRecord(rec)) out.levels[id] = { best: num(rec.best), attempts: num(rec.attempts), goals: num(rec.goals), stars: Math.min(3, num(rec.stars)) };
+      if (!isRecord(rec)) continue;
+      const stars = Math.min(3, num(rec.stars));
+      out.levels[id] = {
+        best: num(rec.best),
+        attempts: num(rec.attempts),
+        goals: num(rec.goals),
+        stars,
+        coin: rec.coin === true,
+        // A v1 star was always paid for in goal coins: migrate as `stars` so nobody is paid twice.
+        paidStars: legacy || rec.paidStars === undefined ? stars : Math.min(3, num(rec.paidStars)),
+      };
     }
+  }
+  out.tips = strings(data.tips);
+  out.boostIntro = data.boostIntro === true;
+  if (isRecord(data.freeBoosts)) {
+    for (const id of BOOSTS) {
+      const n = Math.floor(num(data.freeBoosts[id]));
+      if (n > 0) out.freeBoosts[id] = n;
+    }
+  }
+  if (isRecord(data.fk) && isRecord(data.fk.coinsPaid)) {
+    for (const [id, n] of Object.entries(data.fk.coinsPaid)) out.fk.coinsPaid[id] = num(n);
+  }
+  if (isRecord(data.daily)) {
+    out.daily.lastDate = typeof data.daily.lastDate === 'string' ? data.daily.lastDate : '';
+    out.daily.streak = Math.floor(num(data.daily.streak));
+    if (isRecord(data.daily.results)) {
+      for (const [date, line] of Object.entries(data.daily.results)) if (typeof line === 'string') out.daily.results[date] = line;
+    }
+  }
+  if (legacy) {
+    // Everything a v1 player has already earned is old news, not a surprise to announce.
+    let stars = 0;
+    for (const rec of Object.values(out.levels)) stars += rec.stars;
+    out.seenSkins = SKINS.filter((s) => s.need <= stars).map((s) => s.id);
+  } else {
+    out.seenSkins = strings(data.seenSkins);
   }
   return out;
 }
@@ -54,7 +146,7 @@ export class SaveManager {
   constructor() {
     let data = fresh();
     try {
-      data = parse(localStorage.getItem(KEY));
+      data = parseSave(localStorage.getItem(KEY));
     } catch {
       /* private mode, blocked storage or a corrupt entry: start clean */
     }
@@ -64,7 +156,7 @@ export class SaveManager {
   level(id: string): LevelRecord {
     let rec = this.data.levels[id];
     if (!rec) {
-      rec = { best: 0, attempts: 0, goals: 0, stars: 0 };
+      rec = freshLevel();
       this.data.levels[id] = rec;
     }
     return rec;
@@ -78,3 +170,6 @@ export class SaveManager {
     }
   }
 }
+
+export const freshSaveData = fresh;
+export const freshLevelRecord = freshLevel;
