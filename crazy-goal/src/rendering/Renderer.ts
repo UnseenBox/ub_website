@@ -166,7 +166,7 @@ export class Renderer {
     const boards = level.def.theme === 'stadium';
     const inGoal = ball.renderY < goal.lineY - 2;
     const sortY = Math.max(ball.renderY, goal.lineY + 1);
-    for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b, boards);
+    for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b, boards, time);
     for (const j of level.boundaryJoints) if (!j.kerb && j.y < sortY) drawBoundaryJoint(ctx, j, boards);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY < sortY) drawMechanicSolid(ctx, m, time);
     const patch = look ? look.attacker : g.skin.patch;
@@ -180,7 +180,7 @@ export class Renderer {
     drawNet(ctx, g.net);
     drawGoalFrame(ctx, goal, g.goalFlash, look ? look.defender : C.blue);
     if (!inGoal) paintBall();
-    for (const b of level.blocks) if (b.y >= sortY && !b.gone) drawBlock(ctx, b, boards);
+    for (const b of level.blocks) if (b.y >= sortY && !b.gone) drawBlock(ctx, b, boards, time);
     for (const j of level.boundaryJoints) if (!j.kerb && j.y >= sortY) drawBoundaryJoint(ctx, j, boards);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY >= sortY) drawMechanicSolid(ctx, m, time);
 

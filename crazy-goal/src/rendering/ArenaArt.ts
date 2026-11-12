@@ -2,7 +2,7 @@ import type { Theme } from '../levels/LevelDefinition';
 import { hashString, seededRandom, TAU } from '../core/math';
 import type { Block, Level } from '../levels/Level';
 import type { ViewRect } from './Camera';
-import { roundRect } from './DrawUtils';
+import { roundRect, text } from './DrawUtils';
 import { C, rgba } from './Palette';
 
 /** The sun is up and to the left: a thing of height h throws its shadow this far per unit of h. */
@@ -189,6 +189,28 @@ function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level
     }
   }
   ctx.globalAlpha = 1;
+
+  // The big screen over the goal end: the match name in lights.
+  {
+    const w = 560;
+    const h = 84;
+    const x = arena.x + arena.w / 2 - w / 2;
+    // High in the stands, clear of the star targets that sit above the goal on a phone.
+    const y = arena.y - 330 - h / 2;
+    ctx.fillStyle = rgba('#000000', 0.35);
+    ctx.fillRect(x + 8, y + 10, w, h);
+    ctx.fillStyle = '#0a1128';
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.fill();
+    ctx.strokeStyle = '#8fa2d6';
+    ctx.lineWidth = 4;
+    roundRect(ctx, x + 6, y + 6, w - 12, h - 12, 8);
+    ctx.stroke();
+    // Rows of tiny lamps behind the lettering.
+    ctx.fillStyle = rgba('#ffc83a', 0.1);
+    for (let lx = x + 16; lx < x + w - 14; lx += 9) for (let ly = y + 16; ly < y + h - 14; ly += 9) ctx.fillRect(lx, ly, 4, 4);
+    text(ctx, level.def.name, x + w / 2, y + h / 2 + 2, { size: 38, color: '#ffc83a', align: 'center', baseline: 'middle', weight: 900, spacing: 4 });
+  }
 
   // Floodlights in the four corners: a pool of light and the lamp head.
   const [lx, ly, lw, lh] = ring(first + 2 * step);
@@ -510,7 +532,7 @@ export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: num
 }
 
 /** A solid block in the game's oblique view: footprint on the ground, top face lifted straight up. */
-export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = false): void {
+export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = false, time = 0): void {
   // Recoil away from the ball, easing out with the square of the hit.
   const push = b.hit * b.hit * 5;
   const ox = -b.hitNx * push;
@@ -582,7 +604,8 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = fals
     for (let d = -len / 2, i = 0; d < len / 2; d += panel, i++) {
       const size = Math.min(panel, len / 2 - d) - 4;
       if (size <= 6) continue;
-      ctx.fillStyle = colours[i % colours.length];
+      // LED boards: every few seconds the ads rotate one panel along.
+      ctx.fillStyle = colours[(i + Math.floor(time / 2.6)) % colours.length];
       if (along) ctx.fillRect(d + 2, -wid / 2 + 3, size, wid - 6);
       else ctx.fillRect(-wid / 2 + 3, d + 2, wid - 6, size);
       ctx.fillStyle = rgba('#1b2540', 0.75);
