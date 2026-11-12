@@ -47,6 +47,15 @@ function boot(): Game {
   (game.loop as unknown as { start(): void }).start = () => {};
   game.start();
   game.tutorial.skip();
+  // Room 1 now opens with the pan already in hand. These tests are about a boss
+  // hurting itself with its own furniture, so put the pan well out of the way
+  // instead of letting a chasing boss walk into it and take an unrelated hit.
+  const pan = game.player.held;
+  if (pan) {
+    game.player.release();
+    pan.body.x = -2000;
+    pan.body.y = -2000;
+  }
   return game;
 }
 

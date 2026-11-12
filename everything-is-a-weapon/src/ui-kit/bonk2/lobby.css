@@ -294,6 +294,12 @@
   letter-spacing: 0.08em;
 }
 
+/* An interrupted shift: compact, above PLAY, so a pending door is never lost. */
+.b2-lobby__continue {
+  width: min(100%, 440px);
+  min-height: 40px;
+}
+
 /* --------------------------------------------------------------------------
    Navigation
    -------------------------------------------------------------------------- */

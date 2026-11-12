@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FIXED_DT } from './constants';
+import { FINAL_ROOM_INDEX } from '../gameplay/Campaign';
+import { nextDoorIndices } from '../gameplay/NightShift';
 import { Game } from './Game';
 import type { DamageCause } from './types';
 
@@ -110,18 +112,21 @@ it('boot → first visit → tutorial room lives and advances lessons honestly',
 
   expect(game.state).toBe('playing');
   expect(game.room.index).toBe(0);
-  expect(game.tutorial.step).toBe('move');
-
-  // A first lesson: grabbing anything throwable moves the plan to "throw".
-  const grabbable = game.objects.find((o) => o.alive && o.def.throwable && !o.def.consume)!;
-  game.bus.emit({ type: 'OBJECT_GRABBED', object: grabbable });
+  // Action first: the opening lesson is the throw, and the pan is already in hand.
   expect(game.tutorial.step).toBe('throw');
+  expect(game.player.held?.def.id).toBe('pan');
+  // It must survive the first carry step, not snap back out of reach.
+  game.tick(FIXED_DT);
+  expect(game.player.held?.def.id).toBe('pan');
 
   // The throw lesson lets its mover in; defeating it moves on (the plan's own rule).
   waitFor(game, () => game.enemies.length > 0, 8);
   sweep(game);
   waitFor(game, () => game.tutorial.step === 'power', 8);
   expect(game.tutorial.step).toBe('power');
+  // The power lesson hands over the BIG RED BUTTON, ready to fire.
+  expect(game.save.data.abilities).toContain('blast');
+  expect(game.abilities.ready('blast')).toBe(true);
 });
 
 it('only the first knockout gets the FIRST BONK! treatment', () => {
@@ -131,30 +136,30 @@ it('only the first knockout gets the FIRST BONK! treatment', () => {
   const burst = vi.spyOn(game.fx, 'burst');
   const first = () => burst.mock.calls.filter((c) => c[0] === 'FIRST BONK!').length;
 
-  const grabbable = game.objects.find((o) => o.alive && o.def.throwable && !o.def.consume)!;
-  game.bus.emit({ type: 'OBJECT_GRABBED', object: grabbable });
   waitFor(game, () => game.enemies.length > 0, 8);
   sweep(game);
   expect(first()).toBe(1);
 
-  // Every later knockout in the lesson plan is an ordinary one.
+  // Every later knockout in the lesson plan is an ordinary one. Clearing the
+  // power lesson opens the free brawl and ends the staged plan in the same tick.
   waitFor(game, () => game.tutorial.step === 'power', 8);
-  waitFor(game, () => { sweep(game); return game.tutorial.step === 'pet'; }, 20);
+  waitFor(game, () => { sweep(game); return !game.tutorial.active; }, 20);
   expect(first()).toBe(1);
 });
 
-it('a player who does nothing still gets the first mover within ~10s', () => {
+it('a player who does nothing still gets the first mover within ~2s', () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
-  expect(game.tutorial.step).toBe('move');
+  expect(game.tutorial.step).toBe('throw');
   expect(game.enemies.length).toBe(0);
 
-  waitFor(game, () => game.enemies.length > 0, 11);
+  // The first door is already rattling: no walk, no grab lesson.
+  waitFor(game, () => game.enemies.length > 0, 3);
   expect(game.tutorial.step).toBe('throw');
 });
 
-it('tutorial → clear → results with ledger claim → room 2', async () => {
+it('tutorial → clear → results with ledger claim → door choice → chosen room', async () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
@@ -189,16 +194,27 @@ it('tutorial → clear → results with ledger claim → room 2', async () => {
   const claims = game.save.data.starRewardsClaimed;
   expect(claims, 'the clear must claim its ledger milestone').toContain('scrap_3');
 
-  // Clears go straight to the next room: no draft offer is written.
+  // Clears open doors instead of a fixed next room. No draft offer is written.
   const summary = shown.mock.calls[shown.mock.calls.length - 1]?.[0];
-  expect(summary?.nextRoom?.number).toBe(2);
+  expect(summary?.doorChoice).toBe(true);
   expect(game.save.data.runOffer).toHaveLength(0);
+  expect(game.save.data.runDoors.length).toBeGreaterThan(0);
+  expect(summary?.nextRoom?.number).toBe(game.save.data.runDoors[0]! + 1);
+  // The first choice after the starting room is schedule step 0, not 1.
+  expect(game.save.data.runDoors).toEqual(
+    nextDoorIndices(0, 0, [0], FINAL_ROOM_INDEX, game.save.data.runSeed),
+  );
 
   await game.nextRoom();
-  expect(game.state).toBe('playing');
-  expect(game.room.index).toBe(1);
+  expect(game.state, 'nextRoom opens the door choice').toBe('cleared');
+  expect(game.save.data.runDoors.length).toBeGreaterThan(0);
 
-  // The next room runs: five seconds of sim keep the state machine moving, no crash.
+  const door = game.save.data.runDoors[0]!;
+  game.chooseDoor(door);
+  expect(game.state).toBe('playing');
+  expect(game.room.index).toBe(door);
+
+  // The chosen room runs: five seconds of sim keep the state machine moving, no crash.
   advance(game, 2);
   expect(game.state).toBe('playing');
   advance(game, 3);
@@ -222,11 +238,15 @@ it('a first visit to a later room spotlights its new toys and teaches one line',
   }
   sweep(game);
   waitFor(game, () => game.state === 'cleared', 8);
-  // Straight into the next room; there is no draft to resolve.
+  // Force the office (room 2, 0-based index 1) as the only door: it has a spotlight.
+  game.save.data.runDoors = [1];
+  game.save.data.runPath = [0];
   game.save.data.deepest = 1;
   game.save.write();
   await game.nextRoom();
+  game.chooseDoor(1);
   // Room 2 is a first visit with a spotlight: the teaser rides under the guide.
+  expect(game.room.index).toBe(1);
   expect(game.tutorial.spotStep).toBe(true);
   expect(game.tutorial.spot.length).toBeGreaterThan(0);
   expect(game.tutorial.guide.caption.length).toBeGreaterThan(0);
@@ -238,7 +258,7 @@ it('a first visit to a later room spotlights its new toys and teaches one line',
   expect(game.tutorial.guide.caption).toBe('');
 });
 
-it('results screen builds the simple victory DOM and wires NEXT ROOM', async () => {
+it('results screen builds the simple victory DOM and wires PICK A DOOR', async () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   // The real UI must be attached before the clear completes, so that
@@ -271,15 +291,23 @@ it('results screen builds the simple victory DOM and wires NEXT ROOM', async () 
   expect(document.querySelector('.b2-report__side'), 'no draft side').toBeNull();
   const labels = [...document.querySelectorAll<HTMLElement>('.b2-results__actionlabel')]
     .map((node) => node.textContent);
-  expect(labels).toEqual(['NEXT ROOM', 'REPLAY ROOM', 'HOME']);
+  expect(labels).toEqual(['PICK A DOOR', 'REPLAY ROOM', 'HOME']);
 
   const nextButton = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
   expect(nextButton.disabled).toBe(false);
-  expect(nextButton.textContent).toContain('NEXT ROOM');
+  expect(nextButton.textContent).toContain('PICK A DOOR');
   nextButton.click();
   await awaitFlush(50);
-  expect(game.state, 'NEXT ROOM advances to the next floor').toBe('playing');
-  expect(game.room.index).toBe(1);
+  expect(game.state, 'PICK A DOOR opens the choice').toBe('cleared');
+
+  // Three real doors, each showing the room and the honest reward/risk lines.
+  const cards = [...document.querySelectorAll<HTMLButtonElement>('.b2-door')];
+  expect(cards).toHaveLength(3);
+  const chosen = Number(cards[0]!.dataset.index);
+  expect(game.save.data.runDoors).toContain(chosen);
+  cards[0]!.click();
+  expect(game.state, 'taking a door enters its room').toBe('playing');
+  expect(game.room.index).toBe(chosen);
 }, 40000);
 
 function awaitFlush(millis = 12): Promise<void> {

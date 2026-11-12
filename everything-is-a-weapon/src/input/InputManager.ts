@@ -10,8 +10,8 @@ export interface InputFrame {
   secondaryPressed: boolean;
   dodgePressed: boolean;
   /**
-   * Fires a bought ability: 1..3 for that slot, -1 for the touch POWER button
-   * (first ready ability), 0 for none.
+   * Fires a bought ability: -1 is POWER (the first ready ability) on every device;
+   * 0 means none. Kept as a number so a future device can bind a direct slot.
    */
   abilitySlot: number;
   /** No cursor (touch / gamepad): pick the grab target automatically instead of under a pointer. */

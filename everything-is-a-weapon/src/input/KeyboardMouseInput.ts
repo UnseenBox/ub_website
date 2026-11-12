@@ -64,18 +64,16 @@ export class KeyboardMouseInput implements InputSource {
         this.raw.dodgePresses++;
         event.preventDefault();
         break;
-      case 'Digit1':
-      case 'Digit2':
-      case 'Digit3':
-        // Bought abilities: the last key pressed this tick wins.
-        this.raw.abilitySlot = Number(event.code.slice(-1));
+      case 'KeyP':
+        // POWER: the first ready ability, on every device.
+        this.raw.abilitySlot = -1;
+        event.preventDefault();
         break;
       case 'KeyR':
         this.emit('restart');
         break;
-      case 'KeyP':
       case 'Escape':
-        // Escape also leaves fullscreen in a browser, so P does the same job without that.
+        // Escape also leaves fullscreen in a browser; that is the expected pause gesture.
         this.emit('pause');
         break;
       case 'F3':

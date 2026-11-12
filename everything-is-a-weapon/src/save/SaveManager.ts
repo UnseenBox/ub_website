@@ -1,4 +1,5 @@
 import { ABILITY_IDS } from '../gameplay/Abilities';
+import { FINAL_ROOM_INDEX } from '../gameplay/Campaign';
 import { EDGE_STACK_CAP, isEdgeId } from '../gameplay/Edges';
 import { UPGRADES } from '../gameplay/Upgrades';
 import { isHeroId, type HeroId } from '../core/Hero';
@@ -6,7 +7,7 @@ import { ownedHeroes } from '../gameplay/HeroUnlocks';
 import type { PortalStorage } from '../platform/Portal';
 import { isPetOutfitId, type PetOutfitId } from '../gameplay/PetOutfits';
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 const STORAGE_KEY = 'everything-is-a-weapon/save';
 
 /** Best run on one room, for the level-select wall and replay bragging rights. */
@@ -105,6 +106,14 @@ export interface SaveData {
   upgrades: Record<string, number>;
   /** Up to three offered Edge ids while a draft is pending (new in version 6). */
   runOffer: string[];
+  /** Night Shift route: campaign room indices entered, in order (new in version 9). */
+  runPath: number[];
+  /** Pending Night Shift doors: campaign room indices, up to three (new in version 9). */
+  runDoors: number[];
+  /** Seed for this shift's door choices (new in version 9). */
+  runSeed: number;
+  /** Temporary armour granted by a door, spent on entering the next room (new in version 9). */
+  runArmor: number;
   /** Ledger milestone ids already paid (new in version 5). */
   starRewardsClaimed: string[];
   /** Historical: the player has used SKIP at least once (new in version 5). */
@@ -160,6 +169,10 @@ function defaults(): SaveData {
     runInsuranceUsed: false,
     upgrades: {},
     runOffer: [],
+    runPath: [],
+    runDoors: [],
+    runSeed: 0,
+    runArmor: 0,
     starRewardsClaimed: [],
     tutorialSkipped: false,
     dailyRareEdge: false,
@@ -251,6 +264,14 @@ function migrate(raw: Record<string, unknown>): Record<string, unknown> {
     raw.petOutfit = '';
     version = 8;
   }
+  if (version < 9) {
+    // Version 9 adds the Night Shift route and its pending door choices.
+    raw.runPath = [];
+    raw.runDoors = [];
+    raw.runSeed = 0;
+    raw.runArmor = 0;
+    version = 9;
+  }
   return raw;
 }
 
@@ -321,6 +342,17 @@ function petOutfits(value: unknown): PetOutfitId[] {
   return out;
 }
 
+/** Campaign room indices, clamped and deduped. Order is meaningful for a route. */
+function roomIndices(value: unknown): number[] {
+  const out: number[] = [];
+  for (const raw of Array.isArray(value) ? value : []) {
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) continue;
+    const index = Math.max(0, Math.min(FINAL_ROOM_INDEX, Math.floor(raw)));
+    if (!out.includes(index)) out.push(index);
+  }
+  return out;
+}
+
 function sanitize(raw: unknown): SaveData {
   const base = defaults();
   if (!isRecord(raw)) return base;
@@ -362,6 +394,10 @@ function sanitize(raw: unknown): SaveData {
     runInsuranceUsed: data.runInsuranceUsed === true,
     upgrades: upgradeLevels(data.upgrades),
     runOffer: runOffer(data.runOffer, runActive),
+    runPath: runActive ? roomIndices(data.runPath) : [],
+    runDoors: runActive ? roomIndices(data.runDoors).slice(0, 3) : [],
+    runSeed: Math.max(0, Math.floor(finite(data.runSeed, 0))),
+    runArmor: runActive ? Math.min(3, Math.max(0, Math.floor(finite(data.runArmor, 0)))) : 0,
     starRewardsClaimed: [...new Set(stringArray(data.starRewardsClaimed))],
     tutorialSkipped: data.tutorialSkipped === true,
     dailyRareEdge: data.dailyRareEdge === true,

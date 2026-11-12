@@ -5,6 +5,7 @@ import './ui-kit/bonk2/rooms.css';
 import './ui-kit/bonk2/hud.css';
 import './ui-kit/bonk2/panels.css';
 import './ui-kit/bonk2/results.css';
+import './ui-kit/bonk2/doors.css';
 import './ui-kit/bonk2/endless.css';
 import './ui-kit/bonk2/heroes.css';
 import './ui-kit/diagnostics.css';

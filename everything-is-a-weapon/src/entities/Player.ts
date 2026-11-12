@@ -155,7 +155,7 @@ export class Player {
       game.audio.play('dash', 0.5);
     }
 
-    // Bought abilities: 1/2/3 on desktop, the POWER button on touch.
+    // Bought abilities: P on desktop, the POWER button on touch.
     if (input.abilitySlot !== 0) game.abilities.tryUse(input.abilitySlot);
 
     if (this.dashTime > 0) {
@@ -303,6 +303,22 @@ export class Player {
     game.fx.ring(object.body.x, object.body.y, object.body.boundR + 12, object.body.boundR, 0.18, 'rgba(255,255,255,0.8)', 2);
     game.particles.burst('spark', object.body.x, object.body.y - 10, 3, 130);
     game.bus.emit({ type: 'OBJECT_GRABBED', object });
+  }
+
+  /** Puts an object in the hero's hand without a click (the opening beat). */
+  equip(game: Game, object: PhysicsObject): void {
+    if (this.held || !object.alive || object.held) return;
+    // The opening happens before the first frame: put the pan in the hand rather
+    // than letting the carry spring drag it across the room (and lose its grip).
+    const body = object.body;
+    const reach = PLAYER_RADIUS + body.boundR * 0.75 + 8;
+    body.x = this.body.x + this.aimX * reach;
+    body.y = this.body.y + this.aimY * reach;
+    body.z = CARRY_HEIGHT;
+    body.vx = 0;
+    body.vy = 0;
+    body.vz = 0;
+    this.grab(game, object);
   }
 
   /** Something flew back into an empty hand (a boomerang). */

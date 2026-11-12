@@ -1,9 +1,11 @@
 import type { Game, GameState, GameUi, RoomSummary } from '../core/Game';
 import type { EndlessSummary } from '../gameplay/Endless';
+import type { Door } from '../gameplay/NightShift';
 import { HUD } from './HUD';
 import { buildMainMenu } from './MainMenu';
 import { buildPauseMenu, buildSettings } from './PauseMenu';
 import { buildResults } from './ResultsScreen';
+import { buildDoors } from './screens/doors';
 import { buildStore } from './screens/store';
 import { buildEndlessOver } from './screens/endless';
 
@@ -115,6 +117,16 @@ export class UI implements GameUi {
           }),
         home: () => (summary.runEnded ? game.abandonRun() : game.toMenu()),
         stamped: () => game.audio.play('stamp', 1),
+      }),
+    );
+  }
+
+  showDoors(doors: Door[], step: number, total: number): void {
+    const game = this.game;
+    this.show(
+      buildDoors(doors, step, total, {
+        pick: (index) => game.chooseDoor(index),
+        home: () => game.toMenu(),
       }),
     );
   }

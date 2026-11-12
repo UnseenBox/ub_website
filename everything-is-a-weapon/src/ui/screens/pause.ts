@@ -24,8 +24,9 @@ const controls = (): ReadonlyArray<readonly [string, string]> => [
   ['hold + let go', 'throw'],
   ['right click', 'drop'],
   ['space', 'dodge'],
+  ['P', 'power'],
   ['R', 'restart'],
-  ['P / Esc', 'pause'],
+  ['Esc', 'pause'],
 ];
 
 const TOUCH_CONTROLS: ReadonlyArray<readonly [string, string]> = [

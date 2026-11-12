@@ -114,9 +114,13 @@ function noteLine(kind: string, text: string, variant: string): HTMLElement {
   return row;
 }
 
+function roomCount(rooms: number): string {
+  return `${rooms} ${rooms === 1 ? 'ROOM' : 'ROOMS'}`;
+}
+
 function runChip(summary: RoomSummary): HTMLElement {
   const text = summary.finale
-    ? 'RUN COMPLETE · 50 FLOORS'
+    ? `RUN COMPLETE · ${roomCount(summary.shiftRooms)}`
     : `RUN · FLOOR ${summary.run.floor} · STREAK ${summary.run.streak}`;
   return el('span', 'b2-chip b2-report__run', text);
 }
@@ -183,7 +187,7 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
 
   const primary = summary.daily || summary.finale
     ? null
-    : actionButton('NEXT ROOM', 'lime', actions.next, true);
+    : actionButton(summary.doorChoice ? 'PICK A DOOR' : 'NEXT ROOM', 'lime', actions.next, true);
   if (primary) chevron(primary);
 
   const home = actionButton('HOME', 'lavender', actions.home);
@@ -242,7 +246,7 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
 
   const notes = el('div', 'b2-report__notes');
   if (summary.finale) {
-    notes.append(noteLine('FINALE', `50 FLOORS · ${summary.run.types} TYPES · ${summary.run.stacks} STACKS · ${formatScore(summary.run.score)} RUN SCORE`, 'finale'));
+    notes.append(noteLine('FINALE', `${roomCount(summary.shiftRooms)} · ${summary.run.types} TYPES · ${summary.run.stacks} STACKS · ${formatScore(summary.run.score)} RUN SCORE`, 'finale'));
   }
   if (summary.challengePassed && summary.challengeBonus > 0) {
     notes.append(noteLine('CHALLENGE', `+${formatScore(summary.challengeBonus)}`, 'objective'));

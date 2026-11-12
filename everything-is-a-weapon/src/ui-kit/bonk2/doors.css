@@ -1,0 +1,288 @@
+/* Night Shift door choice — BONK 2.0.
+   The same cream cards, ink borders and cut corners as the floor plan, laid out
+   like three real doors rather than a menu. */
+
+.b2-doors {
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  background-color: var(--b2-navy);
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(37, 133, 255, 0.28), transparent 58%),
+    radial-gradient(ellipse at 50% 100%, rgba(201, 239, 88, 0.1), transparent 55%);
+}
+
+.b2-doors__shell {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2.4vh, 26px);
+  width: min(1180px, 95vw);
+  padding: clamp(12px, 3vh, 34px) 0;
+}
+
+.b2-doors__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.b2-doors__kicker {
+  margin: 0;
+  color: var(--b2-lime);
+  font-size: clamp(11px, 1.5vh, 14px);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.b2-doors__title {
+  margin: 0;
+  color: var(--b2-white);
+  font-size: clamp(38px, 7vh, 66px);
+  line-height: 0.95;
+  text-shadow:
+    0 4px 0 var(--b2-ink), 4px 0 0 var(--b2-ink), -4px 0 0 var(--b2-ink),
+    0 -4px 0 var(--b2-ink), 0 8px 0 rgba(0, 0, 0, 0.35);
+}
+
+.b2-doors__sub {
+  margin: 0;
+  color: var(--b2-cream);
+  font-size: clamp(11px, 1.5vh, 14px);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.b2-doors__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 2vw, 22px);
+  align-items: stretch;
+}
+
+/* The finale is a single door: let it stand alone in the middle. */
+.b2-doors__grid--1 {
+  grid-template-columns: minmax(0, 460px);
+  justify-content: center;
+}
+
+.b2-doors__grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 420px));
+  justify-content: center;
+}
+
+.b2-door {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: clamp(12px, 1.8vw, 18px);
+  background: var(--b2-cream);
+  border: 4px solid var(--b2-ink);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  color: var(--b2-ink);
+  text-align: left;
+  cursor: pointer;
+  filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.4));
+  transition: transform var(--b2-dur) var(--b2-ease), filter var(--b2-dur) var(--b2-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.b2-door:hover {
+  transform: translateY(-6px) rotate(-0.35deg);
+  filter: drop-shadow(0 12px 0 rgba(0, 0, 0, 0.35));
+}
+
+.b2-door:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 4px var(--b2-blue), inset 0 0 0 7px var(--b2-white);
+}
+
+.b2-door__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.b2-door__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 2px 8px;
+  background: var(--b2-ink);
+  color: var(--b2-cream);
+  font-family: var(--b2-display);
+  font-size: clamp(30px, 4vh, 44px);
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.b2-door--scrap .b2-door__num { background: var(--b2-ink); }
+.b2-door--edge .b2-door__num { background: var(--b2-blue-deep); }
+.b2-door--armor .b2-door__num { background: #b8860b; }
+
+.b2-door__act {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+
+.b2-door__actname {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.b2-door__acttag {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  opacity: 0.55;
+}
+
+.b2-door__name {
+  font-family: var(--b2-display);
+  font-size: clamp(22px, 3vw, 31px);
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.b2-door__reward,
+.b2-door__risk {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 2px solid var(--b2-ink);
+}
+
+.b2-door__reward {
+  background: var(--b2-lime);
+}
+
+.b2-door--edge .b2-door__reward {
+  background: var(--b2-blue);
+  color: var(--b2-white);
+}
+
+.b2-door--armor .b2-door__reward {
+  background: var(--b2-yellow);
+}
+
+.b2-door__rewardlabel {
+  font-family: var(--b2-display);
+  font-size: clamp(17px, 2.2vh, 21px);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.b2-door__risk {
+  background: var(--b2-white);
+}
+
+.b2-door__riskchip {
+  color: var(--b2-red);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.b2-door__risk--boss,
+.b2-door__risk--clock {
+  border-color: var(--b2-red);
+}
+
+.b2-door__risk--boss .b2-door__riskchip,
+.b2-door__risk--clock .b2-door__riskchip {
+  color: #b21d2e;
+}
+
+.b2-door__detail {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  opacity: 0.72;
+}
+
+.b2-door__go {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 9px;
+  border-top: 2px dashed rgba(38, 33, 45, 0.28);
+  font-family: var(--b2-display);
+  font-size: clamp(16px, 2vh, 19px);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.b2-door:hover .b2-door__go {
+  color: var(--b2-blue-deep);
+}
+
+.b2-door__chev {
+  font-family: var(--b2-body);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.b2-doors__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.b2-doors__hint {
+  margin: 0;
+  color: var(--b2-cream);
+  font-size: clamp(11px, 1.5vh, 14px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+@media (max-width: 760px) {
+  .b2-doors__grid,
+  .b2-doors__grid--1,
+  .b2-doors__grid--2 {
+    grid-template-columns: 1fr;
+  }
+
+  .b2-door {
+    gap: 8px;
+  }
+
+  .b2-door__name {
+    font-size: 24px;
+  }
+
+  .b2-doors__foot {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b2-door {
+    transition: none;
+  }
+
+  .b2-door:hover {
+    transform: none;
+  }
+}

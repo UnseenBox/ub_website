@@ -4,11 +4,16 @@ import type { PhysicsObject } from '../entities/PhysicsObject';
 
 /** Room 1's lessons, in the order they are taught. */
 export type Lesson = 'move' | 'grab' | 'throw' | 'power' | 'pet' | 'zap' | 'free';
-export const LESSONS: readonly Lesson[] = ['move', 'grab', 'throw', 'power', 'pet', 'zap', 'free'];
+/**
+ * The mandatory opening: pick up (already in hand), throw, power, brawl. The pet and
+ * the wet socket are still in the room, but they are optional toys now — the free
+ * brawl's hint names them once instead of stopping the action.
+ */
+export const LESSONS: readonly Lesson[] = ['throw', 'power', 'free'];
 
 /** Movers each lesson lets through the door. Room 1 lists exactly this many, in this order. */
-/** throw and power send theirs in at once; pet and zap wait for the treat and the live puddle. */
-const MOVERS: Readonly<Record<Lesson, number>> = { move: 0, grab: 0, throw: 1, power: 2, pet: 1, zap: 1, free: 3 };
+/** throw and power send theirs in at once; free opens the rest of the shift. */
+const MOVERS: Readonly<Record<Lesson, number>> = { move: 0, grab: 0, throw: 1, power: 2, pet: 1, zap: 1, free: 5 };
 
 export type GuideIcon = 'move' | 'grab' | 'throw' | 'power';
 
@@ -34,10 +39,11 @@ const WAITING = Infinity;
 const IDLE_RELEASE = 7;
 
 /**
- * Room 1 as a staged lesson plan. One mechanic at a time, each started and finished by
- * something the player really did (bus events and world state, never a bare timer):
- * walk, grab, throw, the power, the pet's treat, water on a socket, then a free brawl.
- * The room's movers wait outside until the lesson that needs them, and nothing in a
+ * Room 1 as a staged lesson plan. The opening is action first: the pan is already
+ * in hand, the first mover is already at the door, and the plan goes throw → power
+ * → free brawl. The pet's treat and water on a socket are still in the room, but
+ * they are optional toys named once in the brawl banner instead of stopping the
+ * action. Movers wait outside until the lesson that needs them, and nothing in a
  * guided lesson can knock the hero out. Progress is saved per lesson.
  */
 export class Tutorial {
@@ -108,15 +114,23 @@ export class Tutorial {
     this.clearGuide();
     document.body.classList.remove('tutorial');
     if (!from) return;
+    // Old saves may point at a retired lesson. Walking and grabbing are already done
+    // by the time the room opens; pet and zap are optional now.
+    const start: Lesson =
+      from === 'throw' || from === 'power' || from === 'free'
+        ? from
+        : from === 'pet' || from === 'zap'
+          ? 'free'
+          : 'throw';
     const room = this.game.room;
     let skipped = 0;
     for (const lesson of LESSONS) {
-      if (lesson === from) break;
+      if (lesson === start) break;
       skipped += MOVERS[lesson];
     }
     room.pending = room.pending.slice(skipped).map((spec) => ({ type: spec.type, delay: WAITING }));
     room.totalEnemies = room.pending.length;
-    this.enter(from);
+    this.enter(start);
   }
 
   /** A first visit to a later room: its new toys glow until one is picked up, and the
@@ -245,7 +259,7 @@ export class Tutorial {
         g.line = 'ring';
         g.tx = cx / n;
         g.ty = cy / n;
-        if (this.stepTime > 10) g.caption = touch ? 'TAP POWER' : 'AIM + 1';
+        if (this.stepTime > 10) g.caption = touch ? 'TAP POWER' : 'AIM + P';
         break;
       }
 
@@ -346,7 +360,7 @@ export class Tutorial {
         if (!game.objects.some((o) => o.alive && o.def.id === 'bottle')) this.dropNear('bottle');
         // ...and nobody comes in until it has.
         this.release(3.5, 5);
-        game.hud.banner('ANYTHING = WEAPON', '', 2);
+        game.hud.banner('ANYTHING = WEAPON', 'treat feeds the pet · water + socket', 3.2);
         this.finish();
         break;
       }

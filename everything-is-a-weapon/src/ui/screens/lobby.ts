@@ -247,6 +247,18 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   // ── PLAY ────────────────────────────────────────────────────────────────
   const playRow = el('div', 'b2-lobby__play');
+  // A shift that was left mid-room (or mid-door) always has a way back to exactly
+  // where it stopped. PLAY stays the "start the room I picked" button.
+  const continueBtn = save.runActive
+    ? el('button', 'b2-btn b2-btn--yellow b2-btn--sm b2-lobby__continue')
+    : null;
+  if (continueBtn) {
+    continueBtn.type = 'button';
+    const where = save.runDoors.length > 0 ? 'PICK A DOOR' : `ROOM ${save.runFloor + 1}`;
+    continueBtn.append(el('span', 'b2-lobby__playlabel', `CONTINUE · ${where}`));
+    continueBtn.addEventListener('click', () => actions.continueRun());
+    playRow.append(continueBtn);
+  }
   const playBtn = el('button', 'b2-btn b2-btn--lime b2-btn--lg b2-lobby__playbtn primary');
   playBtn.type = 'button';
   playBtn.addEventListener('click', () => actions.play(selected));

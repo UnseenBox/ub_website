@@ -17,6 +17,7 @@ import { HeatSystem, type HeatEvent } from '../gameplay/Heat';
 import { enforcerSpec, headlinerSpec, releaseIncident, rushRegulars, type IncidentSpec } from '../gameplay/Incidents';
 import { ImpactSystem } from '../gameplay/ImpactSystem';
 import { NavField } from '../gameplay/Navigation';
+import { buildDoors, nextDoorIndices, shiftPicks, type Door } from '../gameplay/NightShift';
 import { placePickups, updateRage } from '../gameplay/Pickups';
 import type { RoomDefinition } from '../gameplay/Room';
 import { dailyChallenge } from '../gameplay/RoomGenerator';
@@ -62,7 +63,7 @@ import { HEROES, heroPerk, type HeroId } from './Hero';
 import { newlyUnlocked, type HeroProgress } from '../gameplay/HeroUnlocks';
 import { earlyEase, type Ease } from '../gameplay/Pacing';
 import { dailyView, nextStreak, rewardFor, type DailyView } from '../gameplay/DailyStreak';
-import { Rng } from './Random';
+import { Rng, hashString } from './Random';
 import type { Chain, Thing } from './types';
 
 /** What a blast is made of: flames, scalding steam, or a firework going off. */
@@ -99,6 +100,8 @@ export interface RoomSummary {
   story: string;
   /** True when the final room of the campaign was just cleared. */
   finale: boolean;
+  /** Rooms visited this run, including this one (the Night Shift's actual length). */
+  shiftRooms: number;
   /** The player asked for the rewarded ad and none could be shown. */
   adMissed?: boolean;
   /** This failure ended a run (state stays intact until the result action). */
@@ -109,6 +112,8 @@ export interface RoomSummary {
   roomScore: number;
   isNewRoomBest: boolean;
   nextRoom: { number: number; name: string; boss: boolean } | null;
+  /** A Night Shift clear: the next step is a door choice, not a fixed room. */
+  doorChoice: boolean;
   nextGoal: UnlockGoal;
   ledgerNext: LedgerMilestone | null;
   ledgerStars: number;
@@ -142,6 +147,8 @@ export interface GameUi {
   unlock(kicker: string, title: string, sub: string): void;
   stateChanged(state: GameState): void;
   showSummary(summary: RoomSummary): void;
+  /** The three doors after a Night Shift clear. */
+  showDoors(doors: Door[], step: number, total: number): void;
   /** The end-of-run card for endless mode. */
   showEndless(summary: EndlessSummary): void;
   /** Slams a rubber stamp across the screen ("CLEARED"). */
@@ -175,7 +182,7 @@ const FAIL_DELAY = 1.4;
 const MAX_OBJECTS = 90;
 
 const NULL_UI: GameUi = {
-  banner() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, showEndless() {}, stamp() {}, incoming() {}, frame() {},
+  banner() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, showDoors() {}, showEndless() {}, stamp() {}, incoming() {}, frame() {},
 };
 
 export class Game {
@@ -536,6 +543,11 @@ export class Game {
   playFrom(index: number): void {
     const start = Math.max(0, Math.min(FINAL_ROOM_INDEX, Math.floor(index)));
     startRun(this.save.data, start);
+    const save = this.save.data;
+    save.runPath = [start];
+    save.runDoors = [];
+    save.runSeed = Math.floor(Math.random() * 0x7fffffff) || 1;
+    save.runArmor = 0;
     // A day-7 daily streak earns one guaranteed rare starting Edge instead of
     // a post-room choice: the reward is already in hand when the run begins.
     const rarity = startingEdgeRarity(this.save.data) ?? (this.save.data.dailyRareEdge ? 'rare' : null);
@@ -550,12 +562,23 @@ export class Game {
     this.enterRoom(this.rooms.definition(start), start, false);
   }
 
-  /** Picks up the paused run at its current floor. */
+  /** Picks up the paused run at its current floor, or at its pending door choice. */
   continueRun(): void {
     const save = this.save.data;
     if (!save.runActive || save.runFloor > FINAL_ROOM_INDEX) return;
     this.scoreAtRoomStart = save.runScore;
     this.consecutiveFailures = 0;
+    // Quit on the door card: CONTINUE reopens the same three doors, same rewards.
+    if (save.runDoors.length > 0) {
+      this.openDoors();
+      return;
+    }
+    // Older runs never had a route; give them one so the next clear branches.
+    if (save.runPath.length === 0) {
+      save.runPath = [save.runFloor];
+      save.runSeed = save.runSeed || hashString(`bonk-shift-${save.runFloor}`);
+      this.save.write();
+    }
     this.enterRoom(this.rooms.definition(save.runFloor), save.runFloor, false);
   }
 
@@ -603,15 +626,31 @@ export class Game {
     this.loadRoom(def, index, daily, incident);
     // Endless: hearts carry over from floor to floor.
     if (this.endless) this.player.hp = Math.max(1, Math.min(this.player.maxHp, this.endless.hp));
+    // Night Shift: remember the route, and spend any bubble wrap a door promised.
+    if (!daily && !this.endless) {
+      const save = this.save.data;
+      if (save.runActive && !save.runPath.includes(index)) save.runPath.push(index);
+      if (save.runArmor > 0) {
+        this.player.armor += save.runArmor;
+        save.runArmor = 0;
+        this.save.write();
+      }
+    }
     this.heat.reset(this.room);
     this.tutorialSkippedThisRoom = false;
     // Room 1 teaches until it has been sat through once; a replay names its lesson.
     const saved = this.save.data.tutorial;
-    const lesson = this.lessonFrom ?? (saved === 'done' ? null : LESSONS.find((l) => l === saved) ?? 'move');
+    const lesson = this.lessonFrom ?? (saved === 'done' ? null : LESSONS.find((l) => l === saved) ?? 'throw');
     this.lessonFrom = null;
     const firstVisit = !daily && this.save.data.deepest <= index;
-    if (def.tutorial && !daily) this.tutorial.begin(lesson);
-    else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight, def.teaser);
+    if (def.tutorial && !daily) {
+      this.tutorial.begin(lesson);
+      // Action first: the pan is already in hand and the door is already rattling.
+      if (this.tutorial.step === 'throw') {
+        const pan = this.objects.find((o) => o.alive && !o.held && o.def.id === 'pan');
+        if (pan) this.player.equip(this, pan);
+      }
+    } else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight, def.teaser);
     this.portal.setContext({ room: this.endless ? `endless-${this.endless.floor}` : daily ? 'daily' : index + 1, hero: this.hero });
     this.setState('playing');
     this.funnelT0 = performance.now();
@@ -754,13 +793,89 @@ export class Game {
       this.toMenu();
       return;
     }
-    this.scoreAtRoomStart = this.score.score;
-    // A clear records the next floor; never walk past the last door.
-    const next = Math.min(
-      FINAL_ROOM_INDEX,
-      Math.max(this.room.index + 1, this.save.data.runFloor),
+    // Night Shift: a clear opens doors instead of walking a corridor.
+    this.openDoors();
+  }
+
+  /** Shows the pending doors, generating them if the save only stored the route. */
+  private openDoors(): void {
+    if (this.room.daily || this.endless) {
+      this.toMenu();
+      return;
+    }
+    const save = this.save.data;
+    if (this.room.index >= FINAL_ROOM_INDEX) {
+      this.toMenu();
+      return;
+    }
+    const start = save.runPath[0] ?? save.runFloor;
+    const step = save.runPath.length;
+    if (save.runDoors.length === 0) {
+      // The first choice after the starting room is schedule step 0.
+      save.runDoors = nextDoorIndices(Math.max(0, step - 1), start, save.runPath, FINAL_ROOM_INDEX, save.runSeed);
+      this.save.write();
+    }
+    if (save.runDoors.length === 0) {
+      this.toMenu();
+      return;
+    }
+    const doors = buildDoors(
+      save.runDoors,
+      save.runSeed,
+      step,
+      (index) => this.rooms.definition(index),
+      save.runBoosts,
     );
-    this.enterRoom(this.rooms.definition(next), next, false);
+    this.setState('cleared');
+    this.hud.showDoors(doors, step, Math.max(1, shiftPicks(start) + 1));
+  }
+
+  /** Takes a door: bank its reward, then walk into the room behind it. */
+  chooseDoor(index: number): void {
+    if (this.state !== 'cleared') return;
+    const save = this.save.data;
+    if (!save.runActive || !save.runDoors.includes(index)) return;
+    const step = save.runPath.length;
+    const door = buildDoors(
+      save.runDoors,
+      save.runSeed,
+      step,
+      (room) => this.rooms.definition(room),
+      save.runBoosts,
+    ).find((candidate) => candidate.index === index);
+    if (!door) return;
+    save.runDoors = [];
+    if (!save.runPath.includes(index)) save.runPath.push(index);
+    save.runFloor = index;
+    this.applyDoorReward(door);
+    this.scoreAtRoomStart = this.score.score;
+    this.save.write();
+    this.enterRoom(this.rooms.definition(index), index, false);
+    if ((door.reward.scrap ?? 0) > 0 || door.reward.kind !== 'scrap') {
+      this.hud.banner(door.reward.label, door.reward.detail, 2.2);
+    }
+  }
+
+  private applyDoorReward(door: Door): void {
+    const save = this.save.data;
+    if (door.reward.kind === 'scrap') {
+      save.scrap += door.reward.scrap ?? 0;
+      return;
+    }
+    if (door.reward.kind === 'armor') {
+      save.runArmor = Math.min(3, save.runArmor + 1);
+      return;
+    }
+    const id = door.reward.edge;
+    if (!id) return;
+    if (edgeStacks(save.runBoosts, id) < EDGE_STACK_CAP) {
+      save.runBoosts.push(id);
+      return;
+    }
+    // That Edge is maxed: pay out the next one that still fits, or scrap.
+    const fallback = EDGES.find((edge) => edgeStacks(save.runBoosts, edge.id) < EDGE_STACK_CAP);
+    if (fallback) save.runBoosts.push(fallback.id);
+    else save.scrap += 40;
   }
 
   /** Leaves a failed run and returns to the menu. */
@@ -876,6 +991,8 @@ export class Game {
     const save = this.save.data;
     const index = this.room.index;
     const daily = this.room.daily;
+    // Capture the route before a finale calls endRun() and wipes it.
+    const shiftRooms = Math.max(1, save.runPath.length || index + 1);
     const wasDeepest = save.deepest;
     const runStreak = save.runStreak;
     const build = [...save.runBoosts];
@@ -998,6 +1115,18 @@ export class Game {
     runEnded = finale;
     if (finale) endRun(save);
 
+    // Night Shift: generate the next doors while the result card is up. Storing
+    // them means quitting to the menu and pressing CONTINUE reopens the same
+    // choices, with the same rewards.
+    if (outcome.advancesRun && !finale && !daily) {
+      const start = save.runPath[0] ?? index;
+      const step = save.runPath.length;
+      save.runSeed = save.runSeed || hashString(`bonk-shift-${start}`);
+      // The room count is 1-based; the schedule's first choice is step 0.
+      save.runDoors = nextDoorIndices(Math.max(0, step - 1), start, save.runPath, FINAL_ROOM_INDEX, save.runSeed);
+      if (save.runDoors.length === 0) save.runDoors = [FINAL_ROOM_INDEX];
+    }
+
     // Star Ledger: newly crossed milestones pay their scrap at the same desk.
     const ledgerClaims = outcome.awardsStars ? claimLedger(save) : [];
 
@@ -1007,12 +1136,13 @@ export class Game {
 
     this.save.write();
 
-    const nextDef = outcome.advancesRun && !finale ? this.rooms.definition(index + 1) : null;
-    const nextRoom = nextDef
+    const nextIndex = outcome.advancesRun ? save.runDoors[0] : undefined;
+    const nextDef = nextIndex !== undefined ? this.rooms.definition(nextIndex) : null;
+    const nextRoom = nextDef && nextIndex !== undefined
       ? {
-          number: index + 2,
+          number: nextIndex + 1,
           name: nextDef.name,
-          boss: campaignBossType(index + 1, nextDef) !== null,
+          boss: campaignBossType(nextIndex, nextDef) !== null,
         }
       : null;
     const starTotal = totalStars(save.roomStars);
@@ -1043,11 +1173,13 @@ export class Game {
       objective: briefing.objective,
       story: briefing.story,
       finale,
+      shiftRooms,
       runEnded,
       ledgerClaims,
       roomScore,
       isNewRoomBest,
       nextRoom,
+      doorChoice: cleared && !daily && !finale && nextRoom !== null,
       nextGoal: nextUnlock(save, starTotal),
       ledgerNext,
       ledgerStars: Math.min(27, starTotal),
@@ -1062,7 +1194,7 @@ export class Game {
       buildMaxed: EDGES.every((edge) => edgeStacks(build, edge.id) >= EDGE_STACK_CAP),
       run: {
         floor: index + 1,
-        nextFloor: outcome.advancesRun && !finale ? index + 2 : null,
+        nextFloor: nextIndex !== undefined ? nextIndex + 1 : null,
         streak: runStreak,
         score: cleared && !daily ? this.score.score : save.runScore,
         types: new Set(build).size,

@@ -19,7 +19,7 @@ function loadRaw(raw: Record<string, unknown>): SaveData {
   return manager.data;
 }
 
-describe('SaveManager v8', () => {
+describe('SaveManager v9', () => {
   it('migrates a v4 save without losing progress', () => {
     const save = loadRaw({
       version: 4,
@@ -31,9 +31,13 @@ describe('SaveManager v8', () => {
       tutorial: 'done',
     });
 
-    expect(SAVE_VERSION).toBe(8);
+    expect(SAVE_VERSION).toBe(9);
     expect(save.upgrades).toEqual({});
     expect(save.runOffer).toEqual([]);
+    expect(save.runPath).toEqual([]);
+    expect(save.runDoors).toEqual([]);
+    expect(save.runSeed).toBe(0);
+    expect(save.runArmor).toBe(0);
     expect(save.unlockedRoom).toBe(5);
     expect(save.deepest).toBe(6);
     expect(save.scrap).toBe(420);
@@ -57,6 +61,10 @@ describe('SaveManager v8', () => {
 
     expect(save.upgrades).toEqual({});
     expect(save.runOffer).toEqual([]);
+    expect(save.runPath).toEqual([]);
+    expect(save.runDoors).toEqual([]);
+    expect(save.runSeed).toBe(0);
+    expect(save.runArmor).toBe(0);
     expect(save.runActive).toBe(false);
     expect(save.runFloor).toBe(0);
     expect(save.runStreak).toBe(0);
@@ -122,7 +130,7 @@ describe('SaveManager v8', () => {
       runActive: true, runFloor: 4, runStreak: 2, runScore: 4200,
       runBoosts: ['quick_feet'], runOffer: ['heavy_hands'],
     });
-    expect(SAVE_VERSION).toBe(8);
+    expect(SAVE_VERSION).toBe(9);
     expect(save.upgrades).toEqual({});
     expect(save.runOffer).toEqual([]);
     expect(save.roomBests).toEqual({});
@@ -182,7 +190,7 @@ describe('SaveManager v8', () => {
   it('keeps an old save on Normal, the difficulty it was born on', () => {
     const legacy = loadRaw({ version: 5, unlockedRoom: 9 });
     expect(legacy.difficulty).toBe('normal');
-    expect(legacy.version).toBe(8);
+    expect(legacy.version).toBe(9);
   });
 
   it('round-trips difficulty and writes it back', () => {
@@ -211,5 +219,52 @@ describe('SaveManager v8', () => {
 
     const notOwned = loadRaw({ version: 8, petOutfits: [], petOutfit: 'dog_bandana' });
     expect(notOwned.petOutfit).toBe('');
+  });
+
+  it('migrates a v8 run with an empty Night Shift route', () => {
+    const save = loadRaw({
+      version: 8,
+      runActive: true,
+      runFloor: 4,
+      runStreak: 2,
+      runScore: 900,
+      runBoosts: ['heavy_hands'],
+    });
+    expect(save.version).toBe(9);
+    expect(save.runPath).toEqual([]);
+    expect(save.runDoors).toEqual([]);
+    expect(save.runSeed).toBe(0);
+    expect(save.runArmor).toBe(0);
+    expect(save.runActive).toBe(true);
+    expect(save.runFloor).toBe(4);
+    expect(save.runBoosts).toEqual(['heavy_hands']);
+  });
+
+  it('clamps the Night Shift route and doors to real rooms', () => {
+    const save = loadRaw({
+      version: 9,
+      runActive: true,
+      runSeed: -12,
+      runArmor: 9,
+      runPath: [0, 0, 2, 999, -3],
+      runDoors: [1, 1, 49, 50, -2],
+    });
+    expect(save.runPath).toEqual([0, 2, 49]);
+    expect(save.runDoors).toEqual([1, 49, 0]);
+    expect(save.runSeed).toBe(0);
+    expect(save.runArmor).toBe(3);
+  });
+
+  it('clears the Night Shift route when no run is active', () => {
+    const save = loadRaw({
+      version: 9,
+      runActive: false,
+      runPath: [0, 1],
+      runDoors: [2, 3],
+      runArmor: 2,
+    });
+    expect(save.runPath).toEqual([]);
+    expect(save.runDoors).toEqual([]);
+    expect(save.runArmor).toBe(0);
   });
 });

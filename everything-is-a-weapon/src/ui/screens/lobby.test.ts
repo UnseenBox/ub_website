@@ -51,6 +51,38 @@ it.each(HERO_CASES)('shows only the selected %s hero in the main menu', (hero, s
   expect(menu.querySelector('img[src*="bonk-cast"]')).toBeNull();
 });
 
+it('offers CONTINUE for an unfinished shift, reopening a pending door choice', () => {
+  const save = new SaveManager();
+  save.data.runActive = true;
+  save.data.runFloor = 3;
+  save.data.runDoors = [4, 6, 8];
+  const game = {
+    save,
+    discoveries: { total: 131, count: 0 },
+    rooms: new RoomManager(),
+    hero: 'tenant',
+    dailyView: () => ({ doneToday: false, streak: 0, nextDay: 1, pips: 0, freezes: 0 }),
+    isHeroUnlocked: () => true,
+    heroProgress: () => ({ deepest: 0, endlessBestFloor: 0, discoveries: 0 }),
+  } as unknown as Game;
+  const continued: string[] = [];
+  const menu = buildMainMenu(game, {
+    play() {},
+    continueRun: () => continued.push('continue'),
+    daily() {},
+    endless() {},
+    store() {},
+    settings() {},
+    hero() {},
+  });
+  document.body.append(menu);
+
+  const button = menu.querySelector<HTMLButtonElement>('.b2-lobby__continue');
+  expect(button?.textContent).toContain('CONTINUE · PICK A DOOR');
+  button?.click();
+  expect(continued).toEqual(['continue']);
+});
+
 it('offers Easy/Normal/Hard on the run-setup sheet and keeps the saved choice', () => {
   const save = new SaveManager();
   save.data.difficulty = 'hard';

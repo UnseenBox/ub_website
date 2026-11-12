@@ -7,10 +7,11 @@ import type { RoomDefinition } from './Room';
  * doors is wide enough to walk through.
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
-  // 1 — bedroom: the lesson plan (gameplay/Tutorial.ts). The frying pan is a short walk
-  // away, the door is in the top wall with a socket beside it, and the eight movers
-  // wait outside until their lesson: 1 to throw at, 2 for the button, 1 for the pet,
-  // 1 for the wet socket, 3 for the brawl. Replayed untaught, they arrive on the clock.
+  // 1 — bedroom: the lesson plan (gameplay/Tutorial.ts). The frying pan is already in
+  // your hand, the door is in the top wall with a socket beside it, and the eight movers
+  // wait outside until their lesson: 1 for the throw, 2 for the power, 5 for the brawl.
+  // The pet's treat and the wet socket are optional toys. Replayed untaught, they arrive
+  // on the clock.
   {
     id: 'room-1', name: 'THE BEDROOM', theme: 'bedroom', width: 860, height: 500, seed: 101, tutorial: true,
     playerStart: { x: 470, y: 300 },

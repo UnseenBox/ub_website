@@ -20,6 +20,10 @@ function state(overrides: Partial<RunState> = {}): RunState {
     runScore: 0,
     runInsuranceUsed: false,
     runOffer: [],
+    runPath: [],
+    runDoors: [],
+    runSeed: 0,
+    runArmor: 0,
     ...overrides,
   };
 }

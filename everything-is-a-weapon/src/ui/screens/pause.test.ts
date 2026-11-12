@@ -38,8 +38,8 @@ describe('the pause menu', () => {
   it('keeps powers, controls and tutorial replay one tap away', () => {
     const screen = buildPauseMenu(false, fakeGame(true), actions());
     expect(screen.querySelectorAll('.b2-pause__fold .b2-shop-card')).toHaveLength(3);
-    expect(screen.querySelectorAll('.b2-pause__control')).toHaveLength(8);
-    expect(screen.querySelectorAll('.b2-pause__lessons .b2-btn')).toHaveLength(7);
+    expect(screen.querySelectorAll('.b2-pause__control')).toHaveLength(9);
+    expect(screen.querySelectorAll('.b2-pause__lessons .b2-btn')).toHaveLength(3);
     expect(screen.textContent).toContain('current Edges and run score are lost');
   });
 

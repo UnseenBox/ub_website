@@ -369,7 +369,7 @@ export class HUD {
     }
     if (icon === 'move') return [wrap('coach-keys', ...[...moveKeysLabel()].map((c) => el('kbd', '', c)))];
     const mouse = (mode: string): HTMLElement => wrap(`coach-mouse ${mode}`, el('i'));
-    if (icon === 'power') return [wrap('coach-row', mouse('aim'), el('kbd', '', '1'))];
+    if (icon === 'power') return [wrap('coach-row', mouse('aim'), el('kbd', '', 'P'))];
     if (icon === 'throw') return [mouse('hold'), wrap('coach-bar', el('i'))];
     return [mouse('click')];
   }
@@ -652,14 +652,14 @@ export class HUD {
           const chip = el('span', `power-chip power-${a.id} b2-hud__power`);
           chip.setAttribute('role', 'img');
           chip.setAttribute('aria-label', `${a.name}, key ${a.key}, ready`);
-          chip.title = `${a.name} · ${a.key}`;
+          chip.title = `${a.name} · P fires the first ready power`;
           const iconWrap = el('span', 'power-icon b2-hud__powericon');
           const icon = el('img', 'b2-hud__powerart');
           icon.src = POWER_ART[a.id];
           icon.alt = '';
           icon.decoding = 'async';
           iconWrap.append(icon);
-          chip.append(iconWrap, el('span', 'power-sweep'), el('span', 'power-key b2-hud__powerkey', a.key));
+          chip.append(iconWrap, el('span', 'power-sweep'), el('span', 'power-key b2-hud__powerkey'));
           const left = game.abilities.remaining(a.id);
           const cool = game.abilities.cooldownFor(a);
           const t = cool > 0 ? Math.max(0, Math.min(1, left / cool)) : 0;
@@ -678,6 +678,11 @@ export class HUD {
       const cool = game.abilities.cooldownFor(a);
       const t = cool > 0 ? Math.max(0, Math.min(1, left / cool)) : 0;
       const was = this.powerCool.get(a.id) ?? 0;
+      // One key, one ready light: P moves to whichever power is first in line.
+      const firstReady = owned.find((ability) => game.abilities.ready(ability.id))?.id ?? null;
+      const keyNode = chip.querySelector<HTMLElement>('.b2-hud__powerkey');
+      const keyLabel = a.id === firstReady ? 'P' : '';
+      if (keyNode && keyNode.textContent !== keyLabel) keyNode.textContent = keyLabel;
       chip.style.setProperty('--cool', t.toFixed(3));
       chip.classList.toggle('cool', t > 0);
       chip.setAttribute('aria-label', t > 0 ? `${a.name}, recharging` : `${a.name}, ready`);

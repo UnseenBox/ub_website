@@ -10,7 +10,7 @@ export interface AbilityDefinition {
   readonly id: AbilityId;
   /** Shouted on the shop row (the HUD chip is an icon). */
   readonly name: string;
-  /** Keyboard key that fires it (touch uses the single POWER button instead). */
+  /** Display cap for the one POWER key (touch uses the single POWER button). */
   readonly key: string;
   /** One line on the shop row. */
   readonly blurb: string;
@@ -20,10 +20,13 @@ export interface AbilityDefinition {
   readonly cooldown: number;
 }
 
+/** One key for every power: it fires the first one that is ready. */
+export const POWER_KEY = 'P';
+
 export const ABILITIES: readonly AbilityDefinition[] = [
-  { id: 'blast', name: 'BIG RED BUTTON', key: '1', blurb: 'a detonation wherever you point', cost: 150, cooldown: 25 },
-  { id: 'overdrive', name: 'SUGAR RUSH', key: '2', blurb: 'eight seconds of blind rage', cost: 120, cooldown: 30 },
-  { id: 'freeze', name: 'DEEP FREEZE', key: '3', blurb: 'every mover stops for four seconds', cost: 120, cooldown: 30 },
+  { id: 'blast', name: 'BIG RED BUTTON', key: POWER_KEY, blurb: 'a detonation wherever you point', cost: 150, cooldown: 25 },
+  { id: 'overdrive', name: 'SUGAR RUSH', key: POWER_KEY, blurb: 'eight seconds of blind rage', cost: 120, cooldown: 30 },
+  { id: 'freeze', name: 'DEEP FREEZE', key: POWER_KEY, blurb: 'every mover stops for four seconds', cost: 120, cooldown: 30 },
 ];
 
 export const ABILITY_IDS: readonly string[] = ABILITIES.map((a) => a.id);
@@ -85,7 +88,7 @@ export class AbilitySystem {
     return ABILITIES.find((a) => this.ready(a.id)) ?? null;
   }
 
-  /** Slot 1..3 fires that ability; -1 (touch POWER button) fires the first ready one. */
+  /** -1 (P / the POWER button) fires the first ready ability. */
   tryUse(slot: number): boolean {
     const game = this.game;
     if (game.state !== 'playing' || !game.player.alive) return false;

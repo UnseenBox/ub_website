@@ -29,11 +29,13 @@ function summary(overrides: Partial<RoomSummary>): RoomSummary {
     objective: 'evict the king',
     story: 'the last door',
     finale: false,
+    shiftRooms: 10,
     runEnded: false,
     ledgerClaims: [],
     roomScore: 2340,
     isNewRoomBest: false,
     nextRoom: null,
+    doorChoice: false,
     nextGoal: { kind: 'store', kicker: 'READY TO BUY', name: 'EVERYTHING UNLOCKED', detail: 'THE LEASE IS YOURS.', progress: 100, action: null },
     ledgerNext: null,
     ledgerStars: 12,
@@ -73,6 +75,8 @@ it('final victory is simple: replay and home, no next room or cards', () => {
   document.body.append(screen);
 
   expect(screen.querySelector('.b2-panel__title')?.textContent).toBe('FINAL VICTORY');
+  expect(screen.querySelector('.b2-report__run')?.textContent).toBe('RUN COMPLETE · 10 ROOMS');
+  expect(screen.textContent).toContain('10 ROOMS · 3 TYPES');
   expect(screen.querySelector('button.b2-edge')).toBeNull();
   expect(screen.querySelector('.b2-report__next')).toBeNull();
   const labels = [...screen.querySelectorAll<HTMLElement>('.b2-results__actionlabel')]
@@ -87,6 +91,22 @@ it('a normal clear exposes exactly NEXT ROOM, REPLAY ROOM, HOME', () => {
   const labels = [...screen.querySelectorAll<HTMLElement>('.b2-results__actionlabel')]
     .map((node) => node.textContent);
   expect(labels).toEqual(['NEXT ROOM', 'REPLAY ROOM', 'HOME']);
+});
+
+it('a Night Shift clear makes the primary action PICK A DOOR', () => {
+  const screen = buildResults(summary({
+    doorChoice: true,
+    nextRoom: { number: 4, name: 'THE BATHROOM', boss: false },
+    run: { floor: 3, nextFloor: 4, streak: 2, score: 4200, types: 2, stacks: 3, boosts: [], ended: false },
+  }), actions());
+  document.body.append(screen);
+
+  const labels = [...screen.querySelectorAll<HTMLElement>('.b2-results__actionlabel')]
+    .map((node) => node.textContent);
+  expect(labels).toEqual(['PICK A DOOR', 'REPLAY ROOM', 'HOME']);
+  const primary = screen.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
+  expect(primary.disabled).toBe(false);
+  expect(primary.textContent).toContain('PICK A DOOR');
 });
 
 it('shows no edge cards when cleared', () => {
