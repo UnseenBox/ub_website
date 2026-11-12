@@ -30,6 +30,83 @@ let lastRoomPick: number | null = null;
 
 const roomLabel = (index: number): string => `ROOM ${index + 1}`;
 
+const TAGLINES = [
+  'YOUR HOME. YOUR RULES.',
+  'EVERYTHING IS A WEAPON.',
+  'THROW THE FURNITURE.',
+  'THE HOUSE HATES YOU.',
+  'MOM IS WATCHING.',
+  'BONK THEM ALL.',
+] as const;
+
+const BURST_WORDS = ['BONK!', 'POW!', 'WHAM!', 'THWACK!', 'BOING!'] as const;
+const BURST_COLORS = ['#ffcd38', '#2585ff', '#ef4b5e', '#c9ef58', '#b4a0e4'] as const;
+const PARTICLE_SHAPES = ['star', 'diamond', 'dot', 'ring', 'square'] as const;
+
+const reducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** A slow field of drifting confetti behind the menu. Pure CSS animation, a dozen or so nodes. */
+function buildParticles(count: number): HTMLElement {
+  const layer = el('div', 'b2-lobby__fx');
+  layer.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < count; i++) {
+    const p = el('span', `b2-lobby__bit b2-lobby__bit--${PARTICLE_SHAPES[i % PARTICLE_SHAPES.length]}`);
+    const size = 8 + Math.random() * 16;
+    const dur = 16 + Math.random() * 14;
+    p.style.setProperty('--x', `${(Math.random() * 100).toFixed(1)}%`);
+    p.style.setProperty('--size', `${size.toFixed(1)}px`);
+    p.style.setProperty('--dur', `${dur.toFixed(1)}s`);
+    p.style.setProperty('--delay', `${(-Math.random() * dur).toFixed(1)}s`);
+    p.style.setProperty('--sway', `${(Math.random() * 60 - 30).toFixed(0)}px`);
+    p.style.setProperty('--spin', `${(Math.random() * 360 - 180).toFixed(0)}deg`);
+    p.style.setProperty('--col', BURST_COLORS[i % BURST_COLORS.length]!);
+    layer.append(p);
+  }
+  return layer;
+}
+
+/** A comic-book hit: a word and a ring of stars at (x, y) inside `host`. Cleans itself up. */
+function popBurst(host: HTMLElement, x: number, y: number, word: string): void {
+  if (host.querySelectorAll('.b2-lobby__burst').length > 5) return;
+  const burst = el('div', 'b2-lobby__burst');
+  burst.setAttribute('aria-hidden', 'true');
+  burst.style.left = `${x}px`;
+  burst.style.top = `${y}px`;
+  const color = BURST_COLORS[Math.floor(Math.random() * BURST_COLORS.length)]!;
+  const label = el('span', 'b2-lobby__burstword', word);
+  label.style.setProperty('--col', color);
+  label.style.setProperty('--tilt', `${(Math.random() * 16 - 8).toFixed(1)}deg`);
+  burst.append(label);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.random() * 0.4;
+    const spark = el('span', 'b2-lobby__spark');
+    spark.style.setProperty('--dx', `${(Math.cos(a) * (46 + Math.random() * 30)).toFixed(0)}px`);
+    spark.style.setProperty('--dy', `${(Math.sin(a) * (46 + Math.random() * 30)).toFixed(0)}px`);
+    spark.style.setProperty('--col', BURST_COLORS[i % BURST_COLORS.length]!);
+    burst.append(spark);
+  }
+  host.append(burst);
+  window.setTimeout(() => burst.remove(), 1200);
+}
+
+/** Counts a number up from zero so the scrap chip feels earned. */
+function countUp(node: HTMLElement, to: number): void {
+  if (to <= 0 || reducedMotion()) return;
+  const start = performance.now();
+  const dur = 900;
+  const step = (now: number): void => {
+    const u = Math.min(1, (now - start) / dur);
+    node.textContent = String(Math.round(to * (1 - Math.pow(1 - u, 3))));
+    if (u < 1 && node.isConnected) requestAnimationFrame(step);
+    else node.textContent = String(to);
+  };
+  node.textContent = '0';
+  requestAnimationFrame(step);
+}
+
 function svg(path: string): SVGSVGElement {
   const node = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   node.setAttribute('viewBox', '0 0 24 24');
@@ -134,7 +211,36 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   portrait.alt = '';
   portrait.decoding = 'async';
   portrait.draggable = false;
-  center.append(logo, tagline, portrait);
+  const rays = el('div', 'b2-lobby__rays');
+  rays.setAttribute('aria-hidden', 'true');
+  const shadow = el('div', 'b2-lobby__shadow');
+  shadow.setAttribute('aria-hidden', 'true');
+  center.append(rays, logo, tagline, shadow, portrait);
+
+  // Tap the hero: a hop, a hit word and a ring of stars. Tap the logo: it jiggles.
+  const retrigger = (node: HTMLElement, cls: string): void => {
+    node.classList.remove(cls);
+    void node.offsetWidth;
+    node.classList.add(cls);
+  };
+  portrait.addEventListener('animationend', (e) => {
+    if (e.animationName === 'b2-hero-bonk' || e.animationName === 'b2-hero-hop') portrait.classList.remove('is-bonked', 'is-hop');
+  });
+  portrait.addEventListener('pointerdown', (e) => {
+    retrigger(portrait, 'is-bonked');
+    const r = screen.getBoundingClientRect();
+    popBurst(screen, e.clientX - r.left, e.clientY - r.top, BURST_WORDS[Math.floor(Math.random() * BURST_WORDS.length)]!);
+    game.audio.play('boing', 0.7);
+  });
+  logo.addEventListener('pointerdown', (e) => {
+    retrigger(logo, 'is-jiggle');
+    const r = screen.getBoundingClientRect();
+    popBurst(screen, e.clientX - r.left, e.clientY - r.top, 'BONK!');
+    game.audio.play('stamp', 0.6);
+  });
+  logo.addEventListener('animationend', (e) => {
+    if (e.animationName === 'b2-logo-jiggle') logo.classList.remove('is-jiggle');
+  });
 
   const main = el('div', 'b2-lobby__main');
   main.append(left, center);
@@ -173,7 +279,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const pips = el('span', 'b2-lobby__pips');
   pips.setAttribute('aria-hidden', 'true');
   for (let i = 1; i <= 7; i++) {
-    const pip = el('span', `b2-lobby__pip${i <= view.pips ? ' is-on' : ''}${i === 3 || i === 7 ? ' is-big' : ''}`);
+    const pip = el('span', `b2-lobby__pip${i <= view.pips ? ' is-on' : ''}${i === 3 || i === 7 ? ' is-big' : ''}${!view.doneToday && i === view.pips + 1 ? ' is-next' : ''}`);
     pips.append(pip);
   }
   dailyBtn.append(dailyTop, pips);
@@ -384,9 +490,50 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   setModeTab('rooms');
 
+  if (!reducedMotion()) screen.append(buildParticles(14));
   screen.append(top, main, playRow, nav);
   if (warning) screen.append(warning);
   screen.append(mode);
+
+  // ── alive: parallax, rotating tagline, occasional hop, count-up ─────────
+  countUp(scrapValue, save.scrap);
+  if (!reducedMotion()) {
+    let frame = 0;
+    screen.addEventListener('pointermove', (event) => {
+      if (event.pointerType === 'touch' || frame) return;
+      const { clientX, clientY } = event;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const r = screen.getBoundingClientRect();
+        if (r.width === 0) return;
+        screen.style.setProperty('--px', (((clientX - r.left) / r.width - 0.5) * 2).toFixed(3));
+        screen.style.setProperty('--py', (((clientY - r.top) / r.height - 0.5) * 2).toFixed(3));
+      });
+    });
+    screen.addEventListener('pointerleave', () => {
+      screen.style.setProperty('--px', '0');
+      screen.style.setProperty('--py', '0');
+    });
+
+    let tagIndex = 0;
+    let wasConnected = false;
+    const alive = window.setInterval(() => {
+      if (!screen.isConnected) {
+        if (wasConnected) window.clearInterval(alive);
+        return;
+      }
+      wasConnected = true;
+      if (!mode.hidden) return;
+      tagIndex = (tagIndex + 1) % TAGLINES.length;
+      tagline.classList.add('is-out');
+      window.setTimeout(() => {
+        tagline.textContent = TAGLINES[tagIndex]!;
+        tagline.classList.remove('is-out');
+      }, 260);
+      // every other tick the hero does a little hop
+      if (tagIndex % 2 === 0 && !portrait.classList.contains('is-bonked')) retrigger(portrait, 'is-hop');
+    }, 3800);
+  }
 
   // A hero click set this before setHero() rebuilt the menu. Reopen the
   // characters sheet on the new screen, after it has been mounted.
