@@ -306,7 +306,7 @@ export class FlusherScript implements BossScript {
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
     this.lidOpen = Math.max(this.lidOpen, 2.5);
-    game.hud.banner('BURST PIPE', 'everything comes in pairs', 2.6);
+    game.hud.hint('BURST PIPE', 'everything comes in pairs', 2.6);
     game.fx.burst('BURST PIPE!', boss.body.x, boss.body.y - 110, 1.5, '#ff5a4e', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(120,220,255,0.9)', 6);
     game.fx.flash('#5ad7ff', 0.15);

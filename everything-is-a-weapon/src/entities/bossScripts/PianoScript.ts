@@ -275,7 +275,7 @@ export class PianoScript implements BossScript {
     this.attack = null;
     this.gap = 0.5;
     this.deck = ['crescendo', 'notes', 'staccato'];
-    game.hud.banner('KEEP TIME', 'throw as the ring closes on him', 3);
+    game.hint('KEEP TIME', 'throw as the ring closes on him', 3, 'boss:PianoScript');
     this.taunt(game, boss, pickLine(["And a one, and a two...", 'Allegro, please.', "Let's take it from the top."]), '#fff3d6', true);
     if (openWithKeys) this.beginAttack(game, boss, 'keyboard');
   }
@@ -381,7 +381,7 @@ export class PianoScript implements BossScript {
     this.finale = true;
     this.attack = null;
     this.gap = 1.2;
-    game.hud.banner('FORTISSIMO', 'the tempo jumps', 2.6);
+    game.hud.hint('FORTISSIMO', 'the tempo jumps', 2.6);
     game.fx.burst('FORTISSIMO!', boss.body.x, boss.body.y - 112, 1.5, '#ff6b6b', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(255,150,120,0.9)', 6);
     game.fx.flash('#ffe9a8', 0.12);

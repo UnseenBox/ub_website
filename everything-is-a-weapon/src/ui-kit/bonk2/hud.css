@@ -984,6 +984,39 @@ body.touch .b2-hud__powerkey {
   filter: drop-shadow(0 8px 0 rgba(0, 0, 0, 0.4));
 }
 
+/* One-line hint: a rule, a reward or a warning. Small, top-centre, never covers the play area. */
+.b2-hud .b2-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(env(safe-area-inset-top, 0px) + 74px);
+  z-index: 6;
+  max-width: min(70vw, 720px);
+  padding: 6px 14px 7px;
+  background: var(--b2-cream);
+  color: var(--b2-ink);
+  border: 3px solid var(--b2-ink);
+  font-family: var(--b2-display);
+  font-size: clamp(12px, 1.6vw, 18px);
+  line-height: 1.15;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -6px);
+  transition: opacity 0.16s ease-out, transform 0.16s ease-out;
+}
+
+.b2-hud .b2-hint.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b2-hud .b2-hint {
+    transition: none;
+    transform: translate(-50%, 0);
+  }
+}
+
 .b2-hud .chain-strip {
   margin-top: 10px;
 }

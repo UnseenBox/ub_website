@@ -336,7 +336,7 @@ export class FridgeScript implements BossScript {
     game.fx.burst('THAWED!', boss.body.x, boss.body.y - 96, 1.35, '#ffd23f', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 110, 0.5, 'rgba(255,210,63,0.9)', 5);
     game.hitStop(0.08);
-    game.hud.banner('THAWED', 'hit him while the frost is gone', 2.2);
+    game.hud.hint('THAWED', 'hit him while the frost is gone', 2.2);
     this.taunt(game, boss, pickLine(["I'm... defrosting!", 'Who left the door open?']), '#ffe9c4', true);
   }
 
@@ -360,7 +360,7 @@ export class FridgeScript implements BossScript {
     this.attack = null;
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('FREEZER BURN', 'everything in pairs', 2.6);
+    game.hud.hint('FREEZER BURN', 'everything in pairs', 2.6);
     game.fx.burst('FREEZER BURN!', boss.body.x, boss.body.y - 112, 1.5, '#7ee0ff', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(160,225,255,0.9)', 6);
     game.fx.flash('#bfe9ff', 0.15);

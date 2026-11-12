@@ -275,7 +275,7 @@ export class MomScript implements BossScript {
     boss.body.vy = 0;
     const text = RULE_TEXT[kind];
     game.fx.burst(text.shout, boss.body.x, boss.body.y - 100, 1.5, '#ff9fb8', true);
-    game.hud.banner(text.shout, text.sub, this.ruleTotal);
+    game.hud.hint(text.shout, text.sub, this.ruleTotal);
     game.audio.play('alarm', 0.6);
     if (kind === 'corner') this.pickCorner(game);
     this.taunt(game, boss, pickLine(['I will not say it again.', "Don't make me count to three.", 'Young person!']));
@@ -335,7 +335,7 @@ export class MomScript implements BossScript {
     this.gap = this.finale ? GAP_FINALE : boss.phaseIndex >= 1 ? GAP_OVERTIME : GAP;
     game.fx.burst('...FINE.', boss.body.x, boss.body.y - 100, 1.3, '#ffd23f', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 100, 0.45, 'rgba(255,210,63,0.9)', 4);
-    game.hud.banner('GUARD DOWN', 'she is listening: hit her', 2);
+    game.hud.hint('GUARD DOWN', 'she is listening: hit her', 2);
     this.taunt(game, boss, pickLine(['Hmph. Good.', 'Thank you. Was that so hard?']), '#fff3d6', true);
   }
 
@@ -439,7 +439,7 @@ export class MomScript implements BossScript {
     this.gap = 0.8;
     this.slipperNext = false;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('GROUNDED', 'the rules come faster', 2.6);
+    game.hud.hint('GROUNDED', 'the rules come faster', 2.6);
     game.fx.burst('GROUNDED!', boss.body.x, boss.body.y - 112, 1.5, '#ff6b6b', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(255,120,140,0.9)', 6);
     game.fx.flash('#ffb3b3', 0.12);

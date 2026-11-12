@@ -253,7 +253,7 @@ export class CablesScript implements BossScript {
     game.fx.burst('BLACKOUT!', boss.body.x, boss.body.y - 100, 1.5, '#9fd8ff', true);
     game.fx.flash('#9fd8ff', 0.1);
     game.audio.play('alarm', 0.8);
-    game.hud.banner('BLACKOUT', 'hit him while the power is out', 2.4);
+    game.hud.hint('BLACKOUT', 'hit him while the power is out', 2.4);
     this.taunt(game, boss, pickLine(['Who turned off the lights?!', 'My cables!']), '#bfe6ff', true);
   }
 
@@ -287,7 +287,7 @@ export class CablesScript implements BossScript {
       game.audio.play('alarm', 0.6);
       game.camera.punchZoom(0.03);
       game.hitStop(0.05);
-      game.hud.banner('CUT THE CABLES', 'throw things through the cables or into the sockets', 3.6);
+      game.hint('CUT THE CABLES', 'throw things through the cables or into the sockets', 3.6, 'boss:CablesScript');
       this.taunt(game, boss, pickLine(['Feeling charged?', 'Do not lick.', 'Plug in!']), '#fff0a0', true);
       this.finishIntro(game, boss);
     }
@@ -374,7 +374,7 @@ export class CablesScript implements BossScript {
     this.attack = null;
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('HIGH VOLTAGE', 'sockets reboot faster', 2.6);
+    game.hud.hint('HIGH VOLTAGE', 'sockets reboot faster', 2.6);
     game.fx.burst('HIGH VOLTAGE!', boss.body.x, boss.body.y - 112, 1.5, '#ffe066', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(255,224,102,0.9)', 6);
     game.fx.flash('#ffe066', 0.12);

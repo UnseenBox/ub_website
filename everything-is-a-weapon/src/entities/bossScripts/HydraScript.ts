@@ -192,7 +192,7 @@ export class HydraScript implements BossScript {
       game.audio.play('plop', 0.8);
       this.burst++;
       if (this.burst === 1) {
-        game.hud.banner('CUT A HEAD, TWO GROW BACK', 'burn the stump: throw a hot iron', 3.6);
+        game.hint('CUT A HEAD, TWO GROW BACK', 'burn the stump: throw a hot iron', 3.6, 'boss:HydraScript');
         this.taunt(game, boss, pickLine(['Spin cycle: complete.', 'Fresh out of the dryer!']), '#e0f1ff', true);
       }
     }
@@ -466,7 +466,7 @@ export class HydraScript implements BossScript {
     this.headless = true;
     game.fx.burst('HEADLESS!', boss.body.x, boss.body.y - 100, 1.4, '#ffd23f', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 110, 0.5, 'rgba(255,210,63,0.9)', 5);
-    game.hud.banner('HEADLESS', 'now hit the machine', 2.4);
+    game.hud.hint('HEADLESS', 'now hit the machine', 2.4);
     game.hitStop(0.07);
   }
 

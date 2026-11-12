@@ -182,7 +182,7 @@ export class CookerScript implements BossScript {
     boss.body.vy = 0;
     game.fx.burst('PRESSURE!', boss.body.x, boss.body.y - 104, 1.4, '#ff9f9f', true);
     game.audio.play('kettle', 1);
-    game.hud.banner('GET CLEAR', 'the lid is about to blow', 1.9);
+    game.hud.hint('GET CLEAR', 'the lid is about to blow', 1.9);
     this.taunt(game, boss, pickLine(["I can't hold it!", 'STAND BACK!']), '#ff9f7a', true);
   }
 
@@ -215,7 +215,7 @@ export class CookerScript implements BossScript {
     if (p.alive && d < BLOW_RADIUS && p.hurt(game, 1, 'Lid blast')) {
       p.body.applyImpulse((dx / d) * 340 * p.body.mass, (dy / d) * 340 * p.body.mass);
     }
-    game.hud.banner('VENTED', 'the lid is off: hit him now', 2.2);
+    game.hud.hint('VENTED', 'the lid is off: hit him now', 2.2);
     this.taunt(game, boss, 'Phew... that is better.', '#d6efff', true);
   }
 
@@ -268,7 +268,7 @@ export class CookerScript implements BossScript {
       game.fx.burst('PRESSURE COOKER!', b.x, b.y - 104, 1.4, '#e4f7fb', true);
       game.audio.play('gong', 0.8);
       game.hitStop(0.05);
-      game.hud.banner('WATCH THE GAUGE', 'hits build pressure: be outside the blast when it blows', 3.8);
+      game.hint('WATCH THE GAUGE', 'hits build pressure: be outside the blast when it blows', 3.8, 'boss:CookerScript');
       this.taunt(game, boss, pickLine(["Don't open me!", 'Stay calm... STAY CALM!']), '#e4f7fb', true);
       this.finishIntro(game, boss);
     }
@@ -348,7 +348,7 @@ export class CookerScript implements BossScript {
     this.attack = null;
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('BOILING OVER', 'the gauge climbs faster', 2.6);
+    game.hud.hint('BOILING OVER', 'the gauge climbs faster', 2.6);
     game.fx.burst('BOILING OVER!', boss.body.x, boss.body.y - 112, 1.5, '#ff9f7a', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(255,150,120,0.9)', 6);
     game.fx.flash('#ffb08a', 0.12);

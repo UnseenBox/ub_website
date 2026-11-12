@@ -446,7 +446,7 @@ export class ChairmanScript implements BossScript {
     this.attack = null;
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('FINAL QUARTER', 'every attack, back to back', 2.6);
+    game.hud.hint('FINAL QUARTER', 'every attack, back to back', 2.6);
     game.fx.burst('FINAL QUARTER!', boss.body.x, boss.body.y - 110, 1.5, '#ff4d4d', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 160, 0.6, 'rgba(255,60,60,0.9)', 6);
     game.fx.flash('#ff2e2e', 0.2);
@@ -823,8 +823,8 @@ export class ChairmanScript implements BossScript {
     game.camera.addShake(0.16);
     game.hitStop(0.08);
     this.taunt(game, boss, pickLine(["I'm... on leave.", 'Is it Friday yet?', 'Who touched my memos?']), '#ffd6d6', true);
-    if (this.copierDown) game.hud.banner('NO MORE MEMOS', 'hit him now', 2);
-    else game.hud.banner('OUT OF OFFICE', 'hit him before the copier reloads him', 2.4);
+    if (this.copierDown) game.hud.hint('NO MORE MEMOS', 'hit him now', 2);
+    else game.hud.hint('OUT OF OFFICE', 'hit him before the copier reloads him', 2.4);
   }
 
   private tearAll(game: Game, boss: Enemy, word: string, color: string): void {
@@ -884,7 +884,7 @@ export class ChairmanScript implements BossScript {
       game.fx.burst('OUT OF TONER!', copier.body.x, copier.body.y - 46, 1.3, '#7ee0ff', true);
     }
     boss.rageMult = Math.max(boss.rageMult, 1.25);
-    game.hud.banner('OVERTIME', 'the copier is dead', 2.2);
+    game.hud.hint('OVERTIME', 'the copier is dead', 2.2);
     game.camera.addShake(0.18);
   }
 

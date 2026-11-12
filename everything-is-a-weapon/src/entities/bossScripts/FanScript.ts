@@ -256,7 +256,7 @@ export class FanScript implements BossScript {
     b.vy = 0;
     boss.facing = Math.atan2(game.player.body.y - b.y, game.player.body.x - b.x);
     if (this.introT >= 0.4 && this.introT < 0.45) {
-      game.hud.banner('RIDE THE WIND', 'it bends your throws: lead the shot', 3.4);
+      game.hint('RIDE THE WIND', 'it bends your throws: lead the shot', 3.4, 'boss:FanScript');
       this.taunt(game, boss, pickLine(["Let's clear the air.", 'Feeling a draft?', "I'm your biggest fan."]), '#e6f6ff', true);
     }
     if (this.introT >= 1.5) this.finishIntro(game, boss);
@@ -337,7 +337,7 @@ export class FanScript implements BossScript {
     this.attack = null;
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('TURBO', 'a stronger wind', 2.6);
+    game.hud.hint('TURBO', 'a stronger wind', 2.6);
     game.fx.burst('TURBO!', boss.body.x, boss.body.y - 112, 1.5, '#9fd8ff', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(160,220,255,0.9)', 6);
     game.fx.flash('#d6efff', 0.12);
@@ -429,7 +429,7 @@ export class FanScript implements BossScript {
     game.particles.burst('spark', boss.body.x, boss.body.y - 10, 4, 220, { color: '#ffe066' });
     game.audio.play('hiss', 1);
     game.hitStop(0.08);
-    game.hud.banner('GROUNDED', 'hit him while the blades grind', 2.2);
+    game.hud.hint('GROUNDED', 'hit him while the blades grind', 2.2);
     this.taunt(game, boss, pickLine(['Ugh... my blades...', 'Turbulence!']), '#ffe9a8', true);
   }
 

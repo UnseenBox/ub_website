@@ -227,7 +227,7 @@ export class VacuumScript implements BossScript {
       game.audio.play('hiss', 1);
       game.camera.punchZoom(0.03);
       game.hitStop(0.05);
-      game.hud.banner('PULL THE PLUG', 'throw something at the plug on the wall', 3.2);
+      game.hint('PULL THE PLUG', 'throw something at the plug on the wall', 3.2, 'boss:VacuumScript');
       this.taunt(game, boss, pickLine(["I'll suck the life out of this room.", 'What a lovely mess.', 'Dust. Delicious dust.']), '#e6f7da', true);
     }
     if (this.introT >= 1.4) this.finishIntro(game, boss);
@@ -276,7 +276,7 @@ export class VacuumScript implements BossScript {
     game.particles.burst('spark', this.socketX, this.socketY, 4, 220, { color: '#ffe066' });
     game.audio.play('zap', 0.8);
     game.hitStop(0.07);
-    game.hud.banner('UNPLUGGED', 'no suction: hit him while he crawls back', 2.4);
+    game.hud.hint('UNPLUGGED', 'no suction: hit him while he crawls back', 2.4);
     this.taunt(game, boss, pickLine(['NO! My power!', 'Who pulled the plug?!']), '#ffe9a8', true);
   }
 
@@ -338,7 +338,7 @@ export class VacuumScript implements BossScript {
     this.attack = null;
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('FULL SUCTION', 'a 360 degree pull', 2.6);
+    game.hud.hint('FULL SUCTION', 'a 360 degree pull', 2.6);
     game.fx.burst('FULL SUCTION!', boss.body.x, boss.body.y - 112, 1.5, '#d6f0c8', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(214,240,200,0.9)', 6);
     game.fx.flash('#d6f0c8', 0.12);

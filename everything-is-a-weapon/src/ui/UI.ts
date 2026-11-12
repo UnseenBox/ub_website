@@ -54,6 +54,10 @@ export class UI implements GameUi {
     this.hud.banner(title, sub, seconds);
   }
 
+  hint(title: string, sub?: string, seconds?: number): void {
+    this.hud.hint(title, sub, seconds);
+  }
+
   discovery(title: string): void {
     this.hud.discovery(title);
   }

@@ -290,7 +290,7 @@ export class MowerScript implements BossScript {
     game.particles.burst('smoke', boss.body.x, boss.body.y - 40, 4, 100);
     game.hitStop(0.08);
     game.audio.play('hiss', 1);
-    game.hud.banner('STALLED', 'hit him now', 2.2);
+    game.hud.hint('STALLED', 'hit him now', 2.2);
     this.taunt(game, boss, pickLine(["Come on, come on...", 'Not now!', 'Choke... choke...']), '#ffe0b0', true);
   }
 
@@ -401,7 +401,7 @@ export class MowerScript implements BossScript {
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
     this.fuel = Math.max(this.fuel, 70);
-    game.hud.banner('FULL THROTTLE', 'five lanes, faster', 2.6);
+    game.hud.hint('FULL THROTTLE', 'five lanes, faster', 2.6);
     game.fx.burst('FULL THROTTLE!', boss.body.x, boss.body.y - 112, 1.5, '#ff6b5a', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(255,150,100,0.9)', 6);
     game.fx.flash('#ffcf8a', 0.12);

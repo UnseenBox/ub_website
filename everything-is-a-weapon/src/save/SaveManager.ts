@@ -118,6 +118,8 @@ export interface SaveData {
   starRewardsClaimed: string[];
   /** Historical: the player has used SKIP at least once (new in version 5). */
   tutorialSkipped: boolean;
+  /** One-time rule hints already shown, e.g. `boss:TrainScript` (no version bump: missing means none). */
+  hintsSeen: string[];
   /** Day 7 of the daily streak grants a rare Edge on the next offer (new in version 5). */
   dailyRareEdge: boolean;
   /** Non-campaign mini-bosses defeated (new in version 5). */
@@ -175,6 +177,7 @@ function defaults(): SaveData {
     runArmor: 0,
     starRewardsClaimed: [],
     tutorialSkipped: false,
+    hintsSeen: [],
     dailyRareEdge: false,
     enforcersBeaten: 0,
     hero: 'tenant',
@@ -400,6 +403,7 @@ function sanitize(raw: unknown): SaveData {
     runArmor: runActive ? Math.min(3, Math.max(0, Math.floor(finite(data.runArmor, 0)))) : 0,
     starRewardsClaimed: [...new Set(stringArray(data.starRewardsClaimed))],
     tutorialSkipped: data.tutorialSkipped === true,
+    hintsSeen: [...new Set(stringArray(data.hintsSeen))].slice(0, 200),
     dailyRareEdge: data.dailyRareEdge === true,
     enforcersBeaten: Math.max(0, Math.floor(finite(data.enforcersBeaten, 0))),
     hero: isHeroId(data.hero) ? data.hero : base.hero,

@@ -505,7 +505,7 @@ export class KrakenScript implements BossScript {
 
   private bareSofa(game: Game): void {
     this.exposed = EXPOSE_SECONDS;
-    game.hud.banner('BARE SOFA', 'hit him now', 2.2);
+    game.hud.hint('BARE SOFA', 'hit him now', 2.2);
     game.fx.burst('BARE SOFA!', game.player.body.x, game.player.body.y - 90, 1.3, '#ffd23f', true);
     game.hitStop(0.06);
   }
@@ -529,7 +529,7 @@ export class KrakenScript implements BossScript {
   private startFinale(game: Game, boss: Enemy): void {
     this.finale = true;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('SOFA BED', 'six tentacles, no mercy', 2.6);
+    game.hud.hint('SOFA BED', 'six tentacles, no mercy', 2.6);
     game.fx.burst('SOFA BED!', boss.body.x, boss.body.y - 112, 1.5, '#ff7ab8', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(255,122,184,0.9)', 6);
     game.fx.flash('#ffb3d9', 0.12);

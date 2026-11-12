@@ -143,6 +143,8 @@ export interface RoomSummary {
 /** What the simulation needs from the UI layer. Keeps Game free of DOM details. */
 export interface GameUi {
   banner(title: string, sub?: string, seconds?: number): void;
+  /** One short line under the status chips (works while banners are off). */
+  hint(title: string, sub?: string, seconds?: number): void;
   discovery(title: string): void;
   /** The level-up card: something new is yours for good. */
   unlock(kicker: string, title: string, sub: string): void;
@@ -183,7 +185,7 @@ const FAIL_DELAY = 1.4;
 const MAX_OBJECTS = 90;
 
 const NULL_UI: GameUi = {
-  banner() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, showDoors() {}, showEndless() {}, stamp() {}, incoming() {}, frame() {},
+  banner() {}, hint() {}, discovery() {}, unlock() {}, stateChanged() {}, showSummary() {}, showDoors() {}, showEndless() {}, stamp() {}, incoming() {}, frame() {},
 };
 
 export class Game {
@@ -690,10 +692,10 @@ export class Game {
     const briefing = briefingFor(def.id, index);
     const act = actFor(index);
     if (firstVisit && !def.tutorial && index > 0 && act.from === index) {
-      this.hud.banner(act.name, act.tagline, 3.2);
+      this.hud.hint(act.name, act.tagline, 3.2);
     } else if (firstVisit && !def.tutorial) {
       const goal = def.objective?.kind === 'survive' ? `survive ${def.objective.seconds}s` : briefing.objective;
-      this.hud.banner(`${index + 1} · ${def.name}`, goal, 3);
+      this.hud.hint(`${index + 1} · ${def.name}`, goal, 3);
     }
     if (this.endless) {
       const boss = isBossFloor(this.endless.floor);
@@ -881,7 +883,7 @@ export class Game {
     this.save.write();
     this.enterRoom(this.rooms.definition(index), index, false);
     if ((door.reward.scrap ?? 0) > 0 || door.reward.kind !== 'scrap') {
-      this.hud.banner(door.reward.label, door.reward.detail, 2.2);
+      this.hud.hint(door.reward.label, door.reward.detail, 2.6);
     }
   }
 
@@ -916,6 +918,17 @@ export class Game {
       this.save.write();
     }
     this.toMenu();
+  }
+
+  /** A one-line hint. With a key it is shown only the first time, ever (stored in the save). */
+  hint(title: string, sub = '', seconds = 2.8, key?: string): void {
+    if (key) {
+      const seen = this.save.data.hintsSeen;
+      if (seen.includes(key)) return;
+      seen.push(key);
+      this.save.write();
+    }
+    this.hud.hint(title, sub, seconds);
   }
 
   /** SKIP was pressed during this attempt (the save keeps the historical flag too). */
@@ -1750,10 +1763,10 @@ export class Game {
         this.analytics.track('heat_tier', { tier: event.tier, room, seconds: Math.round(this.room.elapsed) });
         if (event.tier === 1) {
           rushRegulars(this.room);
-          this.hud.banner('THEY NOTICED', 'the door is getting louder', 2);
+          this.hud.hint('THEY NOTICED', 'the door is getting louder', 2);
         } else {
           this.incidentSurge(false);
-          this.hud.banner('THE ROOM IS LOSING IT', 'watch the floor', 2);
+          this.hud.hint('THE ROOM IS LOSING IT', 'watch the floor', 2);
         }
         break;
       case 'release':

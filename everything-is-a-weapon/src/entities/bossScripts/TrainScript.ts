@@ -193,7 +193,7 @@ export class TrainScript implements BossScript {
       game.fx.burst('MIDNIGHT EXPRESS!', b.x, b.y - 104, 1.4, '#ffe9a8', true);
       game.audio.play('whistle', 1);
       game.hitStop(0.05);
-      game.hud.banner('BLOCK THE TRACK', 'put something heavy on the rails to derail him', 3.8);
+      game.hint('BLOCK THE TRACK', 'put something heavy on the rails to derail him', 3.8, 'boss:TrainScript');
       this.taunt(game, boss, pickLine(['All aboard!', 'No refunds!', 'Mind the gap!']), '#ffe9a8', true);
       this.finishIntro(game, boss);
     }
@@ -276,7 +276,7 @@ export class TrainScript implements BossScript {
     this.attack = null;
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('NIGHT EXPRESS', 'he doubles back', 2.6);
+    game.hud.hint('NIGHT EXPRESS', 'he doubles back', 2.6);
     game.fx.burst('NIGHT EXPRESS!', boss.body.x, boss.body.y - 112, 1.5, '#ffe9a8', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(255,233,168,0.9)', 6);
     game.fx.flash('#ffe9a8', 0.12);
@@ -435,7 +435,7 @@ export class TrainScript implements BossScript {
     game.audio.play('explosion', 0.9);
     game.hitStop(0.1);
     game.camera.addShake(0.2);
-    game.hud.banner('DERAILED', 'hit him while he is down', 2.4);
+    game.hud.hint('DERAILED', 'hit him while he is down', 2.4);
     this.taunt(game, boss, pickLine(['Ow, my axle!', 'That was NOT on the timetable!']), '#ffe9a8', true);
   }
 

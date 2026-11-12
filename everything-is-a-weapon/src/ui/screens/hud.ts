@@ -85,6 +85,8 @@ export class HUD {
   private last = { room: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', scrap: -1, coach: '', touch: false };
   private shownScore = 0;
   private bannerTimer = 0;
+  private hintTimer = 0;
+  private readonly hintBox: HTMLElement;
   private bannerSeed = 1;
   private stampTimer = 0;
   private toastTimer = 0;
@@ -209,6 +211,8 @@ export class HUD {
 
     // ── announcements ──
     this.bannerBox = el('div', 'hud-banner b2-hud__banner');
+    this.hintBox = el('div', 'hud-hint b2-hint');
+    this.hintBox.setAttribute('role', 'status');
     this.incomingBox = el('div', 'hud-incoming b2-hud__incoming');
     this.stampBox = el('div', 'hud-stamp b2-hud__stamp');
 
@@ -233,6 +237,7 @@ export class HUD {
       top,
       this.powers,
       this.bannerBox,
+      this.hintBox,
       this.incomingBox,
       this.stampBox,
       this.toast,
@@ -306,6 +311,19 @@ export class HUD {
     void box.offsetWidth;
     box.classList.add('show');
     this.bannerTimer = seconds;
+  }
+
+  /** One short line under the status chips: a rule, a reward, a warning. Replaces any hint
+   *  already showing, never covers the play area, and works while banners are off. */
+  hint(title: string, sub = '', seconds = 2.8): void {
+    const text = sub ? `${title}: ${sub}` : title;
+    if (!text.trim()) return;
+    const box = this.hintBox;
+    box.classList.remove('show');
+    box.textContent = text.toUpperCase();
+    void box.offsetWidth;
+    box.classList.add('show');
+    this.hintTimer = seconds;
   }
 
   /** A torn arrival card for the room's Headliner or Enforcer. */
@@ -438,6 +456,8 @@ export class HUD {
 
   reset(): void {
     this.bannerBox.classList.remove('show');
+    this.hintBox.classList.remove('show');
+    this.hintTimer = 0;
     this.incomingBox.classList.remove('show');
     this.bossBox.classList.add('hidden');
     this.heatBox.classList.add('hidden');
@@ -528,6 +548,10 @@ export class HUD {
     if (this.bannerTimer > 0) {
       this.bannerTimer -= dt;
       if (this.bannerTimer <= 0) this.bannerBox.classList.remove('show');
+    }
+    if (this.hintTimer > 0) {
+      this.hintTimer -= dt;
+      if (this.hintTimer <= 0) this.hintBox.classList.remove('show');
     }
     if (this.incomingTimer > 0) {
       this.incomingTimer -= dt;

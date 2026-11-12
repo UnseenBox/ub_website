@@ -360,7 +360,7 @@ export class Tutorial {
         if (!game.objects.some((o) => o.alive && o.def.id === 'bottle')) this.dropNear('bottle');
         // ...and nobody comes in until it has.
         this.release(3.5, 5);
-        game.hud.banner('ANYTHING = WEAPON', 'treat feeds the pet · water + socket', 3.2);
+        game.hud.hint('ANYTHING = WEAPON', 'treat feeds the pet · water + socket', 3.2);
         this.finish();
         break;
       }

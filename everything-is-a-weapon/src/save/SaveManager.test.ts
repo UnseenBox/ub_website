@@ -73,8 +73,14 @@ describe('SaveManager v9', () => {
     expect(save.runInsuranceUsed).toBe(false);
     expect(save.starRewardsClaimed).toEqual([]);
     expect(save.tutorialSkipped).toBe(false);
+    expect(save.hintsSeen).toEqual([]);
     expect(save.dailyRareEdge).toBe(false);
     expect(save.enforcersBeaten).toBe(0);
+  });
+
+  it('loads an old save without hintsSeen and sanitises a bad one', () => {
+    expect(loadRaw({ version: SAVE_VERSION }).hintsSeen).toEqual([]);
+    expect(loadRaw({ version: SAVE_VERSION, hintsSeen: ['boss:TrainScript', 'boss:TrainScript', 7, null] }).hintsSeen).toEqual(['boss:TrainScript']);
   });
 
   it('keeps duplicate run boosts because Edges stack', () => {

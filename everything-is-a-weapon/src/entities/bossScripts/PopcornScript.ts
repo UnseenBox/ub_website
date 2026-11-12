@@ -194,7 +194,7 @@ export class PopcornScript implements BossScript {
       game.audio.play('alarm', 0.6);
       game.camera.punchZoom(0.03);
       game.hitStop(0.05);
-      game.hud.banner('MIND THE FUSE', 'throw the bombs back at him', 3.6);
+      game.hint('MIND THE FUSE', 'throw the bombs back at him', 3.6, 'boss:PopcornScript');
       this.taunt(game, boss, pickLine(['Fresh and HOT!', 'Who ordered extra butter?', 'Movie night!']), '#fff4c2', true);
       this.finishIntro(game, boss);
     }
@@ -283,7 +283,7 @@ export class PopcornScript implements BossScript {
     this.attack = null;
     this.gap = 1.0;
     boss.rageMult = Math.max(boss.rageMult, 1.2);
-    game.hud.banner('EXTRA BUTTER', 'shorter fuses, more bombs', 2.6);
+    game.hud.hint('EXTRA BUTTER', 'shorter fuses, more bombs', 2.6);
     game.fx.burst('EXTRA BUTTER!', boss.body.x, boss.body.y - 112, 1.5, '#ffe08a', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(255,224,138,0.9)', 6);
     game.fx.flash('#ffe08a', 0.12);
@@ -469,7 +469,7 @@ export class PopcornScript implements BossScript {
         this.spent = SPENT_SECONDS;
         this.fill = 0;
         boss.squash = 1;
-        game.hud.banner('EMPTY TUB', 'hit him now, and throw the bombs', 2.4);
+        game.hud.hint('EMPTY TUB', 'hit him now, and throw the bombs', 2.4);
         const n = this.finale ? 3 : 2;
         for (let i = 0; i < n && this.bombs.length < MAX_BOMBS; i++) {
           const a = (i / n) * TAU + Math.random() * 1.2;

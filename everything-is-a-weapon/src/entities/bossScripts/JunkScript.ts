@@ -305,7 +305,7 @@ export class JunkScript implements BossScript {
     game.fx.ring(boss.body.x, boss.body.y, 10, 150, 0.5, 'rgba(255,210,63,0.9)', 5);
     game.audio.play('alarm', 0.8);
     game.hitStop(0.08);
-    game.hud.banner('BARE KING', 'no armour: hit him now', 2.4);
+    game.hud.hint('BARE KING', 'no armour: hit him now', 2.4);
     this.taunt(game, boss, pickLine(['My collection!', 'Who took my junk?!']), '#ffe9a8', true);
   }
 
@@ -343,7 +343,7 @@ export class JunkScript implements BossScript {
       game.audio.play('alarm', 0.6);
       game.camera.punchZoom(0.03);
       game.hitStop(0.05);
-      game.hud.banner('KNOCK HIS JUNK OFF', 'throw things at the ring to thin his armour', 3.8);
+      game.hint('KNOCK HIS JUNK OFF', 'throw things at the ring to thin his armour', 3.8, 'boss:JunkScript');
       this.taunt(game, boss, pickLine(['Your deposit is forfeit!', 'All of this is MINE!']), '#e0c8ff', true);
       this.finishIntro(game, boss);
     }
@@ -437,7 +437,7 @@ export class JunkScript implements BossScript {
     // a bigger ring: two more pieces fly in
     this.spawnPiece(game, boss, 1);
     this.spawnPiece(game, boss, 4);
-    game.hud.banner('THE KING DEMANDS', 'a bigger, faster ring', 2.6);
+    game.hud.hint('THE KING DEMANDS', 'a bigger, faster ring', 2.6);
     game.fx.burst('THE KING DEMANDS!', boss.body.x, boss.body.y - 112, 1.5, '#e0c8ff', true);
     game.fx.ring(boss.body.x, boss.body.y, 10, 170, 0.6, 'rgba(224,200,255,0.9)', 6);
     game.fx.flash('#e0c8ff', 0.12);
