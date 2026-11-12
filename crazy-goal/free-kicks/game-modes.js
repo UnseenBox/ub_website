@@ -429,7 +429,10 @@
   function renderHub() {
     renderDaily();
     const api = window.CrazyKoraFreeKicks;
-    const list = api && api.sets ? api.sets().filter((s) => s.kind === "campaign") : [];
+    /* the five Street Cup stages, then the Legend stage as stage 6 (it opens with a star on stage 5) */
+    const all = api && api.sets ? api.sets() : [];
+    const legend = all.find((s) => s.kind === "legend");
+    const list = all.filter((s) => s.kind === "campaign").concat(legend ? [legend] : []);
     const progress = api && api.progress;
     if (!list.length || !progress) {
       cupEl.hidden = true;
