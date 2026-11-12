@@ -733,3 +733,14 @@ The owner played the five-beat room and said it was boring. Diagnosis (mine, fro
 * FIRST BONK! now fires once (it fired per kill while the throw lesson was active). SKIP now spaces the rest of the shift over at most ~30 s.
 * Tests: Game.tutorial-flow now covers the conga payoff (>= 3 kills from one real throw), the Power hand-over without any player action, and a full clear on the clock alone.
 * **Still not verified by a human.** Whether it is *fun* is a feel question the simulator cannot answer; if it is still flat, the knobs are the delays in `RoomDefinitions.ts` room 1, `FREE_LEAD`/`CROWD_AT`/`POWER_EARLY` in `Tutorial.ts`, and the kaboom blast numbers.
+
+### Revision: "make it wilder" (second pass on room 1)
+
+Measured first (simulator, one real throw at a crowd of six): spraycan 3 kills, jerrycan 3, toolbox 2, tire 2, trash can 1, bowling ball 1, dumbbell 1, water cooler 1, cooker 1, fridge/sofa/boombox/firework 0. **Explosive cans are the only crowd-killer**, and a cluster of 3-4 cans in the movers' path is far better: one thrown pan killed **5 of 8** (4 explosions plus a slam; in the dev browser 5 explosion kills and a "HOW DID THAT WORK?!" chain). So room 1 now has:
+
+* queue of **4** for the wet socket (was 3);
+* **fuel cans**: 3 jerrycans + 1 spraycan land (poof, glow, hint SHOOT THE CANS) 3 s before a crowd of **8** walks through them (`CANS`, `DROP_EARLY`, `CROWD_AT` in `Tutorial.ts`);
+* the BIG RED BUTTON moves to the **finale** (`FINALE_AT`): two Kabooms, four boxes, two Trolleys;
+* 24 movers in total (was 19). New test: the cans appear and one thrown pan kills >= 3 of the crowd by explosion.
+
+Deliberately **not** done: more screen shake, more particles, more flash (owner preference), and no new objects, art or enemy types. Still unverified by a human; the minimum clear time on the clock alone is about 45 s, a real player will take longer.

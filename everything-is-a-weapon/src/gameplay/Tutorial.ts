@@ -18,10 +18,19 @@ const MOVERS: Readonly<Record<Lesson, number>> = { move: 0, grab: 0, throw: 4, p
 
 /** Seconds between the conga being cleared and the first wave of `free` walking in. */
 const FREE_LEAD = 5;
-/** Which of `free`'s movers (0-based, in room order) is the first of the crowd: the Power arrives just before. */
-const CROWD_AT = 3;
-/** Seconds before the crowd walks in that the BIG RED BUTTON is handed over. */
+/** Which of `free`'s movers (0-based, in room order) is the first of the crowd: the fuel cans drop just before. */
+const CROWD_AT = 4;
+/** Which of `free`'s movers is the first of the finale: the BIG RED BUTTON is handed over just before. */
+const FINALE_AT = 12;
+/** Seconds before the crowd walks in that the fuel cans land in its path. */
+const DROP_EARLY = 3;
+/** Seconds before the finale walks in that the BIG RED BUTTON is handed over. */
 const POWER_EARLY = 1.2;
+/** The fuel cans: one thrown anything sets the lot off (measured: 5 of 8 movers from one throw). */
+const CANS: ReadonlyArray<readonly [string, number, number]> = [
+  ['jerrycan', 575, 150], ['spraycan', 600, 130], ['jerrycan', 550, 175], ['jerrycan', 625, 112],
+];
+const CAN_IDS = ['jerrycan', 'spraycan'];
 /** The wave guide for the Power ring lasts this long after the hand-over. */
 const POWER_GUIDE = 14;
 
@@ -77,6 +86,9 @@ export class Tutorial {
   /** Step time at which the Power is handed over in `free` (Infinity: not scheduled). */
   private powerAt = Infinity;
   private powerGiven = -1;
+  /** Step time at which the fuel cans land (Infinity: not scheduled), and whether they have. */
+  private dropAt = Infinity;
+  private dropped = false;
   private socketHinted = false;
   private misses = 0;
   private moved = 0;
@@ -347,6 +359,21 @@ export class Tutorial {
     if (!player.held && this.stepTime < FREE_LEAD + 3) {
       this.focus = game.objects.find((o) => o.alive && !o.held && o.def.id === 'bottle') ?? null;
     }
+    if (!this.dropped && this.stepTime >= this.dropAt) {
+      // Somebody left their fuel in the movers' path. One throw sets off the lot.
+      this.dropped = true;
+      for (const [id, x, y] of CANS) {
+        if (!game.spawnObject(id, x, y, 0)) continue;
+        game.fx.ring(x, y, 4, 40, 0.3, 'rgba(255,255,255,0.85)', 3);
+        game.particles.burst('dust', x, y, 6, 90);
+      }
+      game.audio.play('poof', 0.8);
+      game.hud.hint('SHOOT THE CANS', '', 3.2);
+    }
+    if (this.dropped && this.stepTime < this.dropAt + 9) {
+      this.spot = CAN_IDS;
+      this.spotLeft = 0.5;
+    }
     if (this.powerGiven < 0 && this.stepTime >= this.powerAt) {
       this.powerGiven = this.stepTime;
       this.grantPower(true);
@@ -412,7 +439,9 @@ export class Tutorial {
         room.pending = room.pending.map((spec) =>
           spec.delay === WAITING ? { type: spec.type, delay: room.elapsed + FREE_LEAD + ((orig[k++] ?? base) - base) } : spec,
         );
-        this.powerAt = orig.length > CROWD_AT ? FREE_LEAD + (orig[CROWD_AT]! - base) - POWER_EARLY : Infinity;
+        this.powerAt = orig.length > FINALE_AT ? FREE_LEAD + (orig[FINALE_AT]! - base) - POWER_EARLY : Infinity;
+        this.dropAt = orig.length > CROWD_AT ? FREE_LEAD + (orig[CROWD_AT]! - base) - DROP_EARLY : Infinity;
+        this.dropped = false;
         this.powerGiven = -1;
         this.socketHinted = false;
         // The SKIP chip belongs to the opening, not to a brawl in full swing.

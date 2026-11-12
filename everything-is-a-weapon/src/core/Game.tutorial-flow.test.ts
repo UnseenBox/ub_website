@@ -122,7 +122,7 @@ it('boot → first visit → the opening is one guided throw, then the shift run
   expect(game.player.held?.def.id).toBe('pan');
   game.tick(FIXED_DT);
   expect(game.player.held?.def.id).toBe('pan');
-  expect(game.room.totalEnemies).toBe(19);
+  expect(game.room.totalEnemies).toBe(24);
 
   // The conga is four movers, Kaboom first. Clearing it starts the rampage.
   const seen: string[] = [];
@@ -201,6 +201,31 @@ it('one pan thrown at the red leader takes the whole conga with it', () => {
   for (let k = 0; k < 8; k++) t.step(30);
   expect(kills[0]).toBe('kaboom:impact');
   expect(kills.length, 'the Kaboom blast takes the boxes behind it').toBeGreaterThanOrEqual(3);
+});
+
+it('the fuel cans drop in the path of the crowd and one thrown pan sets off the lot', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = (window as unknown as { __t: { step(n: number): void; throwAt(x: number, y: number, c?: number): void } }).__t;
+  const cans = () => game.objects.filter((o) => o.alive && (o.def.id === 'jerrycan' || o.def.id === 'spraycan'));
+  // Ignore the conga and the queue: they only ever get swept.
+  waitFor(game, () => { if (cans().length === 0) sweep(game); return cans().length > 0; }, 60);
+  expect(cans().length).toBe(4);
+  const kills: string[] = [];
+  game.bus.on('ENEMY_DEFEATED', (e) => kills.push(e.cause.type));
+  const can = cans()[0]!;
+  let thrown = false;
+  for (let i = 0; i < 2400 && !thrown; i++) {
+    t.step(1);
+    const near = game.enemies.filter((e) => !e.defeated && Math.hypot(e.body.x - can.body.x, e.body.y - can.body.y) < 110).length;
+    if (near >= 3) {
+      t.throwAt(can.body.x, can.body.y, 40);
+      thrown = true;
+    }
+  }
+  expect(thrown).toBe(true);
+  for (let k = 0; k < 10; k++) t.step(30);
+  expect(kills.filter((k) => k === 'explosion').length, 'the cans take the crowd').toBeGreaterThanOrEqual(3);
 });
 
 it('the whole shift runs on its own clock and ends in a clear, whatever the player does', () => {

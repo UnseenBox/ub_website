@@ -10,9 +10,10 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // 1 — bedroom: a rampage, not a lesson (gameplay/Tutorial.ts). The frying pan is already
   // in your hand and the door is in the top wall with a socket beside it. The first four
   // movers are a conga line led by a Kaboom (hit the red one and the line goes up); after
-  // that the rest of the shift arrives on a clock with no waiting: a queue of three for the
-  // wet socket (the bottle sits next to you), a crowd of six when the BIG RED BUTTON is
-  // handed over, and a finale of two Kabooms, boxes and a Trolley. The delays below are the
+  // that the rest of the shift arrives on a clock with no waiting: a queue of four for the
+  // wet socket (the bottle sits next to you), a crowd of eight walking into fuel cans that
+  // drop in their path (one throw sets off the lot), and a finale of two Kabooms, boxes and
+  // two Trolleys when the BIG RED BUTTON is handed over. The delays below are the
   // shift's own clock (a replay that skips the tutorial runs on it) and its spacing.
   {
     id: 'room-1', name: 'THE BEDROOM', theme: 'bedroom', width: 860, height: 500, seed: 101, tutorial: true,
@@ -48,20 +49,25 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'basic', delay: 12 },
       { type: 'basic', delay: 12.5 },
       { type: 'basic', delay: 13 },
-      // the crowd (the Power is handed over just before)
+      { type: 'basic', delay: 13.5 },
+      // the crowd of eight, walking into the fuel cans that drop in their path
       { type: 'basic', delay: 21 },
       { type: 'basic', delay: 21.4 },
       { type: 'basic', delay: 21.8 },
       { type: 'basic', delay: 22.2 },
       { type: 'basic', delay: 22.6 },
       { type: 'basic', delay: 23 },
-      // the finale: two Kabooms in a line, then the Trolley
-      { type: 'kaboom', delay: 32 },
-      { type: 'basic', delay: 32.3 },
-      { type: 'basic', delay: 32.6 },
-      { type: 'kaboom', delay: 32.9 },
-      { type: 'basic', delay: 33.2 },
-      { type: 'trolley', delay: 36 },
+      { type: 'basic', delay: 23.4 },
+      { type: 'basic', delay: 23.8 },
+      // the finale (the Power is handed over just before): two Kabooms, four boxes, two Trolleys
+      { type: 'kaboom', delay: 33 },
+      { type: 'kaboom', delay: 33.3 },
+      { type: 'basic', delay: 33.6 },
+      { type: 'basic', delay: 33.9 },
+      { type: 'basic', delay: 34.2 },
+      { type: 'basic', delay: 34.5 },
+      { type: 'trolley', delay: 37 },
+      { type: 'trolley', delay: 39 },
     ],
   },
 
