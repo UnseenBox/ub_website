@@ -56,7 +56,7 @@ export const TUTORIAL_ROOMS: readonly TutorialRoom[] = [
     },
   },
 
-  // 3 — dashing. One mover who runs at you; a chair for afterwards.
+  // 3 — dashing. One mover who charges at you; a chair for afterwards.
   {
     id: 'dash',
     title: 'DASH',
@@ -70,7 +70,9 @@ export const TUTORIAL_ROOMS: readonly TutorialRoom[] = [
         { type: 'shoe', x: 250, y: 70, angle: 0.5 },
       ],
       zones: [],
-      enemies: [{ type: 'basic', delay: 1.2 }],
+      // A Trolley, because it is the one that actually charges: a box only walks, and the
+      // dash is the answer to the charge.
+      enemies: [{ type: 'trolley', delay: 1.2 }],
     },
   },
 

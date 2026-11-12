@@ -321,6 +321,8 @@ export class Tutorial {
       this.say(this.touch ? 'WHEN IT CHARGES, TAP DODGE' : 'WHEN IT CHARGES, PRESS SPACE TO DASH');
       return;
     }
+    // The Trolley has had its charge dodged: anything you throw is enough to finish the lesson.
+    if (enemy) enemy.hp = Math.min(enemy.hp, 15);
     if (player.held && enemy) {
       g.icon = 'throw';
       this.overHead();
@@ -343,7 +345,7 @@ export class Tutorial {
     if (!this.released) this.release(0.12, 0.6);
     this.armed();
     if (!game.abilities.ready('blast')) {
-      this.say('NICE! FINISH THE REST');
+      this.say(game.enemies.some((e) => !e.defeated) ? 'NICE! FINISH THE REST' : 'ONE BUTTON, THE WHOLE CROWD');
       return;
     }
     this.say(this.touch ? 'WHEN THEY BUNCH UP, TAP POWER' : 'AIM AT THE CROWD, PRESS P');

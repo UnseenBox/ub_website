@@ -770,3 +770,13 @@ Owner: "a simple, completely empty room: the player, one object, one enemy; pick
 * `Game.advanceTutorial`: clearing a lesson walks into the next with no results screen; the last hands over to campaign room 1 (the original calm bedroom, 6 movers, restored). SKIP goes straight there with the Power. Old saves that say `free`/`power`... start from lesson 1; `save.tutorial === 'done'` never sees them. The pause menu replays any lesson.
 * Removed: `Opening.ts` (the cellar director). Kept: the Kaboom blast boost.
 * Tests: 311 pass; the lesson tests cover each room's payoff, the fallbacks and the full chain. **Not verified by a human**, and not on a phone.
+
+### Revision 5: polish pass on the five lesson rooms
+
+Played each lesson in the dev browser and the simulator. What held up: 1 (pick up, wake, throw), 2 (bottle on the socket, both movers die in the puddle), 4 (one Power press clears all five), 5 (feed the pet, it fights). Fixed:
+
+* **Lesson 3 lied.** It said "when it charges" but a plain box only walks. The mover is now a `trolley` (0.9 s visible windup, then a fast charge). After the dash its health is capped at 15, so anything thrown finishes it (measured: a thrown chair breaks into planks, and a plank during its recovery kills it).
+* **Lesson 4** card read "FINISH THE REST" with nobody left; it now says "ONE BUTTON, THE WHOLE CROWD".
+* New test: the dash lesson's charger is a Trolley and a hit after the dash clears the lesson. 312 tests pass; build 2.57 MB.
+
+Not changed (judgment calls for the owner): the lesson rooms are deliberately plain; there is no beat between "lesson cleared" and the next room; on an 800x600 window the camera follows the hero in the 600-wide rooms.

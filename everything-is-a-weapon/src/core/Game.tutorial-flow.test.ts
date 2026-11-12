@@ -252,6 +252,31 @@ it('lesson 3: dashing is noticed, then the room says to throw', () => {
   expect(game.tutorial.card?.text).toMatch(/DASHED/);
 });
 
+it('lesson 3: the charger is a Trolley, and after the dash any hit finishes it', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = hooks();
+  game.playLesson('dash');
+  game.tick(FIXED_DT);
+  let seen = '';
+  let dashed = false;
+  for (let i = 0; i < 1500 && game.tutorial.step === 'dash'; i++) {
+    t.step(2);
+    const e = game.enemies.find((x) => !x.defeated);
+    if (!e) continue;
+    seen = e.type.id;
+    if (!dashed && (e as unknown as { ai: string }).ai === 'windup') {
+      t.dodge();
+      dashed = true;
+    }
+    if (dashed && !game.player.held && game.player.dashTime <= 0) (t.fetch('chair') || t.fetch('plank') || t.fetch('shoe'));
+    // A player waits for the charge to end before lining the throw up.
+    if (dashed && game.player.held && (e as unknown as { ai: string }).ai !== 'lunge') t.throwAt(e.body.x, e.body.y, 50);
+  }
+  expect(seen).toBe('trolley');
+  expect(game.tutorial.step, 'any hit after the dash clears the lesson').toBe('power');
+});
+
 it('lesson 4: the Power is handed over on arrival and clears a crowd', () => {
   const game = boot();
   installTestHooks(game);
