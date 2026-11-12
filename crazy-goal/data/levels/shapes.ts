@@ -111,7 +111,7 @@ export const rect = (arena: ArenaDef, goal: GoalDef, cut = 54): BoundaryDef => {
  * walls make each corner a smooth curve, so the ball rolls round it instead of dying in a square pocket.
  * It is the whole wall, post to post, with a low kerb along the near end.
  */
-export const roundedRect = (arena: ArenaDef, goal: GoalDef, radius = 70, steps = 6): BoundaryDef => {
+export const roundedRect = (arena: ArenaDef, goal: GoalDef, radius = 70, steps = 8): BoundaryDef => {
   const f = frame(arena, goal);
   const pts: Pt[] = [{ x: f.C - f.H, y: f.T }];
   // One corner: a quarter turn round (cx, cy), starting at angle `from` and running anticlockwise on the screen.

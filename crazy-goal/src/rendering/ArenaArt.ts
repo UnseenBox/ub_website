@@ -636,7 +636,10 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = fals
 
   // Side faces. Only those turned towards the viewer end up visible; the top covers the rest.
   ctx.fillStyle = look.side;
+  // The ends of a band in one smooth outline are not faces at all: the next band carries on from them.
+  const joined = !!blk.boundary && !!b.trim;
   for (let i = 0; i < 4; i++) {
+    if (joined && (i === 1 || i === 3)) continue;
     const j = (i + 1) % 4;
     ctx.beginPath();
     ctx.moveTo(p[i * 2], p[i * 2 + 1]);
@@ -713,15 +716,23 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = fals
       const g1 = g0 + panel;
       const s0 = Math.max(g0, 0) - len / 2;
       const s1 = Math.min(g1, len) - len / 2;
-      const size = s1 - s0 - 4;
-      if (size <= 6) continue;
+      // A seam only where a panel really ends; where it carries on into the next band the two meet with no gap.
+      const seam0 = g0 >= 0 ? 2 : -0.8;
+      const seam1 = g1 <= len ? 2 : -0.8;
+      const size = s1 - s0 - seam0 - seam1;
+      if (size <= 3) continue;
       // LED boards: every few seconds the ads rotate one panel along.
       ctx.fillStyle = colours[(k + Math.floor(time / 2.6)) % colours.length];
-      if (along) ctx.fillRect(s0 + 2, -wid / 2 + 3, size, wid - 6);
-      else ctx.fillRect(-wid / 2 + 3, s0 + 2, wid - 6, size);
-      ctx.fillStyle = rgba('#1b2540', 0.75);
-      if (along) ctx.fillRect(s0 + 2 + size * 0.18, -2, size * 0.64, 4);
-      else ctx.fillRect(-2, s0 + 2 + size * 0.18, 4, size * 0.64);
+      if (along) ctx.fillRect(s0 + seam0, -wid / 2 + 3, size, wid - 6);
+      else ctx.fillRect(-wid / 2 + 3, s0 + seam0, wid - 6, size);
+      // The dark label in the middle of the panel, in the panel's own span so it lines up across bands.
+      const l0 = Math.max(s0, g0 + panel * 0.18 - len / 2);
+      const l1 = Math.min(s1, g0 + panel * 0.82 - len / 2);
+      if (l1 > l0) {
+        ctx.fillStyle = rgba('#1b2540', 0.75);
+        if (along) ctx.fillRect(l0, -2, l1 - l0, 4);
+        else ctx.fillRect(-2, l0, 4, l1 - l0);
+      }
     }
   } else if (blk.kind === 'wall') {
     // A line of blue tile along the cap.

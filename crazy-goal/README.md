@@ -45,7 +45,7 @@ The free-kick moves are part of the one gameplay style (`src/physics/Flight.ts`)
 
 **The stadium** is `roundedRect` in `data/levels/shapes.ts`: a pitch with rounded corners (an `explicit` boundary, so there is no wedge by the goal), ad boards whose panels run on round the corners, a low kerb along the near end, touchlines and corner flags (`paintPitchLines`), a running track, oval stands with the crowd following the bowl, floodlights, a players' tunnel and the big screen (`paintStands` in `src/rendering/ArenaArt.ts`).
 
-**Layout.** On a narrow screen the camera fits the pitch between a strip for the coach card and coins above it and a strip for the controls below it (`pad` in `Camera.setFrames`), the boosts become a row of chips above the free-kick dock, and the coach card keeps left of the coin counter, so nothing is drawn over the pitch. On a wide screen the controls sit over the stands either side.
+**Layout.** On a narrow screen the camera fits the pitch between a strip for the coach card and coins above it and a strip for the controls below it (`pad` in `Camera.setFrames`), the boosts become a row of chips above the free-kick dock, and the coach card keeps left of the coin counter, so nothing is drawn over the pitch. On a wide screen the controls sit over the stands either side, the coach card top right and the coin counter top left. The stadium and balls sheets (`.sheet`) are never wider than the room inside the screen's padding.
 
 Everything removed is in git: `git checkout kora-houmas-and-freekicks-v1` (the commit just before the reset) has the 100 houmas, the Free Kicks mode, the Daily Kick, `window.CrazyKoraShell` and `docs/FREE_KICKS.md`.
 

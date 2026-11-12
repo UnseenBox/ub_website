@@ -407,8 +407,10 @@ export class Hud {
   }
 
   /** The result card: every style bonus, the combo, the Crazy Score counting up, and the stars. */
-  private drawCard(ctx: CanvasRenderingContext2D, g: Game, u: number): void {
+  private drawCard(ctx: CanvasRenderingContext2D, g: Game, hudU: number): void {
     const cel = g.celebration;
+    // The card is enlarged with the HUD on a small screen, but never wider than the screen.
+    const u = Math.min(hudU, (g.camera.visible.w * 0.94) / CARD_W);
     const card = cel.card;
     if (!card) return;
     const appear = clamp01((cel.t - CELEBRATION_TIMING.cardAt) / 0.22);

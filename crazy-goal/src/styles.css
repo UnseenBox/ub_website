@@ -304,7 +304,7 @@ body {
 }
 
 .sheet {
-  width: min(720px, 94vw);
+  width: min(720px, 100%);
   margin: auto;
 }
 
@@ -1632,7 +1632,8 @@ body {
 /* ---- Crazy Kora expansion: chapters, progress, tips, help ---- */
 
 .sheet-wide {
-  width: min(780px, 96vw);
+  /* Never wider than the room inside the screen's own padding. */
+  width: min(780px, 100%);
   max-height: 88vh;
   overflow-y: auto;
 }
@@ -2738,6 +2739,12 @@ body {
     left: auto;
     width: 270px;
     transform: none;
+  }
+
+  /* The coach card owns the top-right corner here, so the coins go to the top-left, over the stands. */
+  .coin-pill {
+    right: auto;
+    left: calc(14px + env(safe-area-inset-left));
   }
 
   @keyframes kick-rise-side {
