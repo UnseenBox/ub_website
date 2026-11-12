@@ -101,6 +101,8 @@ const POOL_SIZE = 900;
 /** Effects are read at a glance; trimming the count keeps the scene legible and cheap. */
 /** Fewer sparks per burst: fights were a blizzard. */
 const EMIT_SCALE = 0.5;
+/** Quality step 1 and up (core/AdaptiveQuality): half the particles again. */
+const EMIT_SCALE_LOW = 0.25;
 
 /** Fixed-size pooled particle system. Nothing is allocated after construction. */
 export class ParticleSystem {
@@ -127,12 +129,17 @@ export class ParticleSystem {
     for (let i = POOL_SIZE - 1; i >= 0; i--) this.free.push(i);
   }
 
+  /** Set by the adaptive quality: 1 halves the particle count, 3 also drops the single-particle trails. */
+  quality = 0;
+
   burst(kind: ParticleKind, x: number, y: number, count: number, speed: number, options?: BurstOptions): void {
+    // Trails (one particle per frame behind something fast) are the first thing a slow device can live without.
+    if (this.quality >= 3 && count <= 1) return;
     const preset = PRESETS[kind];
     const cone = options?.spread !== undefined;
     const base = cone ? Math.atan2(options?.dirY ?? 0, options?.dirX ?? 1) : 0;
     const spread = options?.spread ?? Math.PI;
-    const n = Math.max(1, Math.round(count * EMIT_SCALE));
+    const n = Math.max(1, Math.round(count * (this.quality >= 1 ? EMIT_SCALE_LOW : EMIT_SCALE)));
     for (let i = 0; i < n; i++) {
       const p = this.acquire();
       const angle = base + (Math.random() * 2 - 1) * spread;

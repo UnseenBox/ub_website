@@ -25,7 +25,6 @@ interface Drawable {
   entity: PhysicsObject | Enemy | Player | Pet;
 }
 
-const MAX_DPR = 2;
 const rayNormal = { nx: 0, ny: 0 };
 
 export class Renderer {
@@ -44,6 +43,8 @@ export class Renderer {
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('Canvas 2D is not available in this browser.');
     this.ctx = ctx;
+    // The adaptive quality lowering the pixel-ratio cap refits the backing store.
+    game.onRenderScale = () => this.resize();
     registerHouseArt();
     registerGadgetArt();
     registerPickupArt();
@@ -57,7 +58,7 @@ export class Renderer {
 
   /** Matches the backing store to the CSS size and device pixel ratio; the camera refits the room. */
   resize(): void {
-    const dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+    const dpr = Math.min(this.game.dprCap, window.devicePixelRatio || 1);
     const width = this.canvas.clientWidth || window.innerWidth;
     const height = this.canvas.clientHeight || window.innerHeight;
     const pw = Math.max(1, Math.round(width * dpr));

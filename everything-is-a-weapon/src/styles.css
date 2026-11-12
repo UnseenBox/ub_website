@@ -2864,7 +2864,7 @@ body.carrying .touch-btn.act {
 }
 
 .touch-btn.drop {
-  bottom: calc(118px + env(safe-area-inset-bottom));
+  bottom: calc(124px + env(safe-area-inset-bottom));
   right: calc(30px + env(safe-area-inset-right));
   width: 56px;
   height: 56px;
@@ -5146,6 +5146,15 @@ body.coach-power .power-chip:first-child {
 }
 
 .coach-skip:hover { opacity: 1; }
+
+/* On a phone the room fills the screen: park SKIP under the pause button, off the floor and clear of both thumbs. */
+body.touch .coach-skip {
+  left: auto;
+  bottom: auto;
+  right: calc(14px + env(safe-area-inset-right));
+  top: calc(62px + env(safe-area-inset-top));
+  transform: rotate(-0.5deg);
+}
 
 body.tutorial.playing .coach-skip {
   display: block;

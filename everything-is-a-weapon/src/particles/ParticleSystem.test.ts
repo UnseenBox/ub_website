@@ -21,3 +21,23 @@ describe('particle pool', () => {
     expect(particles.activeCount).toBeGreaterThan(0);
   });
 });
+
+describe('adaptive quality', () => {
+  it('step 1 halves the burst, step 3 drops single-particle trails', () => {
+  const sys = new ParticleSystem();
+  const live = (): number => sys.pool.filter((p) => p.active).length;
+  sys.burst('dust', 0, 0, 40, 100);
+  const full = live();
+  sys.clear();
+  sys.quality = 1;
+  sys.burst('dust', 0, 0, 40, 100);
+  expect(full).toBe(20);
+  expect(live()).toBe(10);
+  sys.clear();
+  sys.quality = 3;
+  sys.burst('dust', 0, 0, 1, 40);
+  expect(live(), 'a trail particle is skipped').toBe(0);
+  sys.burst('dust', 0, 0, 40, 100);
+  expect(live(), 'a real burst still shows').toBeGreaterThan(0);
+});
+});

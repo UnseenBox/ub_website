@@ -41,7 +41,8 @@ export type AnalyticsEventName =
   | 'death_cause'
   | 'door_pick'
   | 'session_resume'
-  | 'perf_sample';
+  | 'perf_sample'
+  | 'quality_step';
 
 export type AnalyticsParams = Readonly<Record<string, string | number | boolean>>;
 

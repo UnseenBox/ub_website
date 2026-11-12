@@ -51,6 +51,7 @@ import { INTERACTION_RULES } from '../interactions/InteractionRegistry';
 import { InteractionSystem } from '../interactions/InteractionSystem';
 import { createObject } from '../objects/ObjectFactory';
 import { ParticleSystem } from '../particles/ParticleSystem';
+import { AdaptiveQuality } from './AdaptiveQuality';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import { WebPortal, type Portal } from '../platform/Portal';
 import { Camera } from '../rendering/Camera';
@@ -272,6 +273,19 @@ export class Game {
   private lastHitCause = '';
   private perfSamples: number[] = [];
   private perfClock = 0;
+  /** Highest pixel ratio the canvas renders at; the adaptive quality lowers it on slow devices. */
+  dprCap = 2;
+  /** The renderer refits its backing store when the cap changes. */
+  onRenderScale: (() => void) | null = null;
+  /** Steps the visuals down on a device that cannot keep up (1: particles, 2: pixel ratio, 3: trails). */
+  readonly quality = new AdaptiveQuality((step, p95) => {
+    this.particles.quality = step;
+    if (step >= 2) {
+      this.dprCap = 1.5;
+      this.onRenderScale?.();
+    }
+    this.analytics.track('quality_step', { step, p95Ms: p95, dpr: this.dprCap });
+  });
   private devEdges: EdgeId[] = [];
   private objectHeatWindow = 0;
   private objectHeatTimer = 0;
@@ -1284,7 +1298,7 @@ export class Game {
     if (this.perfSamples.length >= 30) {
       const sorted = [...this.perfSamples].sort((a, b) => a - b);
       const avg = sorted.reduce((sum, v) => sum + v, 0) / sorted.length;
-      this.analytics.track('perf_sample', { fpsAvg: Math.round(avg), fpsP5: Math.round(sorted[Math.floor(sorted.length * 0.05)] ?? 0) });
+      this.analytics.track('perf_sample', { fpsAvg: Math.round(avg), fpsP5: Math.round(sorted[Math.floor(sorted.length * 0.05)] ?? 0), quality: this.quality.step });
       this.perfSamples = [];
     }
   }
@@ -1392,7 +1406,7 @@ export class Game {
     if (!this.funnelInput &&
       (input.primaryPressed || input.primaryDown || input.moveX !== 0 || input.moveY !== 0 || input.dodgePressed)) {
       this.funnelInput = true;
-      this.analytics.track('first_input', { room: this.room.index + 1, ms: Math.round(performance.now() - this.funnelT0) });
+      this.analytics.track('first_input', { touch: this.input.touch, room: this.room.index + 1, ms: Math.round(performance.now() - this.funnelT0) });
     }
 
     this.time += dt;
@@ -1494,6 +1508,7 @@ export class Game {
 
   /** Per display frame: real-time effects and drawing. */
   private frame(alpha: number, frameDt: number): void {
+    if (this.state === 'playing') this.quality.frame(frameDt * 1000);
     if (this.hitStopLeft > 0) this.hitStopLeft -= frameDt;
     else if (this.slowLeft > 0) this.slowLeft -= frameDt;
 
@@ -1736,12 +1751,12 @@ export class Game {
     this.bus.on('OBJECT_GRABBED', () => {
       if (this.funnelGrab) return;
       this.funnelGrab = true;
-      this.analytics.track('first_grab', { room: room(), ms: elapsed() });
+      this.analytics.track('first_grab', { touch: this.input.touch, room: room(), ms: elapsed() });
     });
     this.bus.on('OBJECT_THROWN', () => {
       if (this.funnelThrow) return;
       this.funnelThrow = true;
-      this.analytics.track('first_throw', { room: room(), ms: elapsed() });
+      this.analytics.track('first_throw', { touch: this.input.touch, room: room(), ms: elapsed() });
     });
     this.bus.on('PLAYER_HIT', (e) => {
       this.lastHitCause = e.cause;
@@ -1752,7 +1767,7 @@ export class Game {
       }
       if (this.funnelKill) return;
       this.funnelKill = true;
-      this.analytics.track('first_kill', { room: room(), ms: elapsed() });
+      this.analytics.track('first_kill', { touch: this.input.touch, room: room(), ms: elapsed() });
     });
     this.bus.on('CHAIN', (e) => {
       if (this.funnelChain) return;
@@ -1762,7 +1777,7 @@ export class Game {
     this.bus.on('ENEMY_HIT', () => {
       if (this.funnelHit) return;
       this.funnelHit = true;
-      this.analytics.track('first_hit', { room: room(), ms: elapsed() });
+      this.analytics.track('first_hit', { touch: this.input.touch, room: room(), ms: elapsed() });
     });
   }
 
