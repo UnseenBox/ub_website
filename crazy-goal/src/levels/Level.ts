@@ -15,6 +15,7 @@ import { Sand, Slope } from '../mechanics/Zones';
 import { box, Layer, type Surface } from '../physics/Collider';
 import { PhysicsWorld, type ContactListener } from '../physics/PhysicsWorld';
 import { createBody, type RigidBody } from '../physics/RigidBody';
+import { KICK } from '../physics/Flight';
 import type { BoundaryDef, LevelDefinition, MechanicDef, Point, Theme, WallKind } from './LevelDefinition';
 
 export const RAIL_THICKNESS = 26;
@@ -22,7 +23,7 @@ export const RAIL_THICKNESS = 26;
 export type BlockKind = 'rail' | 'kerb' | WallKind;
 
 /** How each kind of block bounces and how tall it is drawn. */
-const BLOCKS: Readonly<Record<BlockKind, { restitution: number; friction: number; lift: number; surface: Surface }>> = {
+const BLOCKS: Readonly<Record<BlockKind, { restitution: number; friction: number; lift: number; surface: Surface; clear?: number }>> = {
   rail: { restitution: 0.8, friction: 0.12, lift: 30, surface: 'rail' },
   // The near edge of the alley is a low kerb, so it never hides the ball.
   kerb: { restitution: 0.8, friction: 0.12, lift: 8, surface: 'kerb' },
@@ -31,6 +32,8 @@ const BLOCKS: Readonly<Record<BlockKind, { restitution: number; friction: number
   crate: { restitution: 0.52, friction: 0.25, lift: 24, surface: 'crate' },
   car: { restitution: 1.12, friction: 0.08, lift: 22, surface: 'car' },
   shutter: { restitution: 0.7, friction: 0.1, lift: 40, surface: 'gate' },
+  // A defender in the wall: a dead thud, and a lofted ball goes over his head.
+  defender: { restitution: 0.52, friction: 0.25, lift: 24, surface: 'crate', clear: KICK.wallClear },
 };
 
 /** How the three shot boosts bend the rules. */
@@ -212,7 +215,7 @@ export class Level {
 
   private addBlock(kind: BlockKind, x: number, y: number, w: number, h: number, angle: number, boundary = false): void {
     const spec = BLOCKS[kind];
-    const body = this.world.addStatic(createBody({ shape: box(w, h), surface: spec.surface, x, y, angle, restitution: spec.restitution, friction: spec.friction }));
+    const body = this.world.addStatic(createBody({ shape: box(w, h), surface: spec.surface, x, y, angle, restitution: spec.restitution, friction: spec.friction, clear: spec.clear }));
     const block: Block = { body, kind, x, y, w, h, angle, lift: spec.lift, hit: 0, hitNx: 0, hitNy: 0, gone: false, boundary, theme: this.def.theme };
     this.blocks.push(block);
     this.blockOf.set(body.id, block);

@@ -33,6 +33,9 @@ export interface ShotResult {
   boomerang: boolean;
   /** Closest the ball came to the open goal mouth. */
   minGoalDist: number;
+  /** The highest the ball got (a lofted shot), and how far the bend turned it in radians. */
+  maxHeight: number;
+  turned: number;
 }
 
 /** Watches a shot from launch to finish and reports what happened. */
@@ -45,6 +48,8 @@ export class ShotAnalyzer {
   private power = 0;
   private boomerang = false;
   private minGoalDist = Infinity;
+  private maxHeight = 0;
+  private turned = 0;
   private lastBody = -1;
   private lastTime = -1;
 
@@ -60,6 +65,8 @@ export class ShotAnalyzer {
     this.time = 0;
     this.power = shot.power;
     this.minGoalDist = goal.distanceToMouth(shot.launchX, shot.launchY);
+    this.maxHeight = 0;
+    this.turned = 0;
     this.lastBody = -1;
     this.lastTime = -1;
     const gx = goal.cx - shot.launchX;
@@ -87,6 +94,8 @@ export class ShotAnalyzer {
     this.distance += Math.hypot(ball.vx, ball.vy) * dt;
     const d = goal.distanceToMouth(ball.x, ball.y);
     if (d < this.minGoalDist) this.minGoalDist = d;
+    if (ball.z > this.maxHeight) this.maxHeight = ball.z;
+    if (ball.turned > this.turned) this.turned = ball.turned;
   }
 
   finish(scored: boolean, ball: RigidBody, goal: Goal, keeper: boolean): ShotResult {
@@ -103,6 +112,8 @@ export class ShotAnalyzer {
       entryOffset: scored ? (ball.x - goal.cx) / (goal.width / 2) : 0,
       boomerang: this.boomerang,
       minGoalDist: this.minGoalDist,
+      maxHeight: this.maxHeight,
+      turned: this.turned,
     };
   }
 }

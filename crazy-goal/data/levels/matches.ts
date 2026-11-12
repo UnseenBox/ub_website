@@ -1,4 +1,4 @@
-import type { ArenaDef, GoalDef, LevelDefinition } from '../../src/levels/LevelDefinition';
+import type { ArenaDef, GoalDef, LevelDefinition, WallDef } from '../../src/levels/LevelDefinition';
 import { rect } from './shapes';
 
 /**
@@ -14,20 +14,48 @@ import { rect } from './shapes';
 const ARENA: ArenaDef = { x: 450, y: 170, w: 700, h: 940 };
 const GOAL: GoalDef = { x: 800, lineY: 170, width: 220, depth: 64 };
 
+/**
+ * A wall of defenders between the ball and the goal, square to the line of the kick: `men` of them,
+ * `distance` units in front of the ball, each a little wider than a man with a gap a ball cannot use.
+ */
+function wallOf(ball: { x: number; y: number }, goal: GoalDef, distance: number, men: number): WallDef[] {
+  const dx = goal.x - ball.x;
+  const dy = goal.lineY - ball.y;
+  const len = Math.hypot(dx, dy);
+  const ux = dx / len;
+  const uy = dy / len;
+  const cx = ball.x + ux * distance;
+  const cy = ball.y + uy * distance;
+  // Along the wall, at right angles to the kick.
+  const angle = Math.atan2(uy, ux) + Math.PI / 2;
+  const sx = Math.cos(angle);
+  const sy = Math.sin(angle);
+  const step = 62;
+  const out: WallDef[] = [];
+  for (let i = 0; i < men; i++) {
+    const k = (i - (men - 1) / 2) * step;
+    out.push({ x: Math.round(cx + sx * k), y: Math.round(cy + sy * k), w: 52, h: 34, angle, kind: 'defender' });
+  }
+  return out;
+}
+
+/** The free kick: outside the box and off to one side, as a free kick is. */
+const FREE_KICK = { x: 960, y: 720 };
+
 export const LEVELS: readonly LevelDefinition[] = [
   {
     id: 'match-01',
     name: 'OPENING NIGHT',
-    hint: 'Drag back, let go. Then try it off the boards.',
+    hint: 'Beat the wall: bend it round, or lift it over.',
     arena: ARENA,
-    ballStart: { x: 800, y: 1000 },
+    ballStart: FREE_KICK,
     goal: GOAL,
     boundary: rect(ARENA, GOAL, 54),
     surface: 'turf',
     theme: 'stadium',
     dressing: [],
-    walls: [],
+    walls: wallOf(FREE_KICK, GOAL, 260, 3),
     mechanics: [],
-    stars: [1400, 2600],
+    stars: [2500, 4400],
   },
 ];

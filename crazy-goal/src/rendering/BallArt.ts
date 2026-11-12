@@ -10,9 +10,11 @@ const FIFTH = TAU / 5;
 export function drawBallShadow(ctx: CanvasRenderingContext2D, ball: Ball, x: number, y: number): void {
   const r = ball.radius * easeOutBack(ball.spawn);
   if (r <= 0) return;
-  ctx.fillStyle = rgba(C.shadow, SHADOW_ALPHA + 0.06);
+  // A lofted ball's shadow stays on the ground, smaller and paler the higher it flies.
+  const high = Math.min(1, ball.body.z / 90);
+  ctx.fillStyle = rgba(C.shadow, (SHADOW_ALPHA + 0.06) * (1 - 0.45 * high));
   ctx.beginPath();
-  ctx.ellipse(x + 9, y + 9, r * 1.02, r * 0.8, 0, 0, TAU);
+  ctx.ellipse(x + 9, y + 9, r * (1.02 - 0.3 * high), r * (0.8 - 0.25 * high), 0, 0, TAU);
   ctx.fill();
 }
 

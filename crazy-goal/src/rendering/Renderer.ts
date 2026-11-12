@@ -165,16 +165,28 @@ export class Renderer {
     // In a stadium the boundary walls are advertising boards.
     const boards = level.def.theme === 'stadium';
     const inGoal = ball.renderY < goal.lineY - 2;
-    const sortY = Math.max(ball.renderY, goal.lineY + 1);
+    // A lofted ball above the blocks is drawn over all of them; on the ground it sorts by its place in the street.
+    const lift = ball.body.z;
+    const sortY = lift > 26 ? Number.POSITIVE_INFINITY : Math.max(ball.renderY, goal.lineY + 1);
     for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b, boards, time);
     for (const j of level.boundaryJoints) if (!j.kerb && j.y < sortY) drawBoundaryJoint(ctx, j, boards);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY < sortY) drawMechanicSolid(ctx, m, time);
     const patch = look ? look.attacker : g.skin.patch;
     const paintBall = (): void => {
-      drawBallAura(ctx, ball, bx, by, auraColour, aura);
-      if (lit) drawBoostUnder(ctx, ball, bx, by, lit, time);
-      drawBall(ctx, ball, bx, by, patch, g.skin.base);
-      if (lit) drawBoostOver(ctx, ball, bx, by, lit, time);
+      // Up in the air the ball is drawn higher on the screen, a little bigger, above its shadow.
+      const cy = by - lift;
+      ctx.save();
+      if (lift > 0) {
+        ctx.translate(bx, cy);
+        const k = 1 + Math.min(0.28, lift / 380);
+        ctx.scale(k, k);
+        ctx.translate(-bx, -cy);
+      }
+      drawBallAura(ctx, ball, bx, cy, auraColour, aura);
+      if (lit) drawBoostUnder(ctx, ball, bx, cy, lit, time);
+      drawBall(ctx, ball, bx, cy, patch, g.skin.base);
+      if (lit) drawBoostOver(ctx, ball, bx, cy, lit, time);
+      ctx.restore();
     };
     if (inGoal) paintBall();
     drawNet(ctx, g.net);

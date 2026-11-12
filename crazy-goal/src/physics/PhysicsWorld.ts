@@ -1,6 +1,7 @@
 import { circleVsBody, emptyContact, type Contact } from './Collision';
 import { resolveCircleStatic } from './CollisionResolver';
 import type { RigidBody } from './RigidBody';
+import { bendStep, flyStep, KICK } from './Flight';
 import { SpatialGrid } from './SpatialGrid';
 
 export type ContactListener = (body: RigidBody, other: RigidBody, contact: Contact, impact: number) => void;
@@ -54,10 +55,14 @@ export class PhysicsWorld {
       for (let i = 0; i < n; i++) {
         const o = this.candidates[i];
         if ((o.layer & b.mask) === 0) continue;
+        // A lofted ball flies over anything lower than it is.
+        if (b.z > 0 && o.clear < b.z) continue;
         if (!circleVsBody(b.x, b.y, r, o, c)) continue;
         touched = true;
         const impact = resolveCircleStatic(b, r, o, c);
         if (impact > 0) {
+          // The first touch ends the bend.
+          b.bend = 0;
           this.contactCount++;
           if (listener) listener(b, o, c, impact);
         }
@@ -83,6 +88,8 @@ export class PhysicsWorld {
 }
 
 function integrate(b: RigidBody, dt: number): void {
+  flyStep(b, dt);
+  bendStep(b, dt);
   b.vx += b.ax * dt;
   b.vy += b.ay * dt;
   b.ax = 0;
@@ -92,7 +99,9 @@ function integrate(b: RigidBody, dt: number): void {
   if (speed > 0) {
     // Rolling resistance takes a fixed bite, drag a proportional one. Together they give a
     // ball that keeps its pace when struck hard and still dies quickly once it is slow.
-    const after = (speed - b.rollResistance * dt) * Math.exp(-b.drag * dt);
+    // Up in the air there is less to slow the ball and nothing rolling under it.
+    const air = b.z > KICK.airborne;
+    const after = (speed - (air ? 0 : b.rollResistance) * dt) * Math.exp(-(air ? b.drag * KICK.airDragScale : b.drag) * dt);
     if (after <= 0) {
       b.vx = 0;
       b.vy = 0;

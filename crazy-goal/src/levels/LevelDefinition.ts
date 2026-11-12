@@ -25,7 +25,7 @@ export interface GoalDef {
  * wall: low whitewashed wall. crate: orange crates, a dull bounce. car: the parked taxi, a
  * lively one. shutter: a roller shutter pulled across part of a goal (a duel trick).
  */
-export type WallKind = 'wall' | 'crate' | 'car' | 'shutter' | 'hedge';
+export type WallKind = 'wall' | 'crate' | 'car' | 'shutter' | 'hedge' | 'defender';
 
 /** A solid block, placed by its centre. */
 export interface WallDef {

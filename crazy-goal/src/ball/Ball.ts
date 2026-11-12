@@ -77,6 +77,10 @@ export class Ball {
     b.angVel = 0;
     b.drag = BALL_TUNING.drag;
     b.rollResistance = BALL_TUNING.rollResistance;
+    b.z = 0;
+    b.vz = 0;
+    b.bend = 0;
+    b.turned = 0;
     this.prevX = this.renderX = x;
     this.prevY = this.renderY = y;
     this.squash = 0;

@@ -9,7 +9,7 @@ import { circle, Layer } from '../physics/Collider';
 import { FIXED_DT } from '../physics/PhysicsWorld';
 import { createBody } from '../physics/RigidBody';
 import { portal } from '../portal/Portal';
-import { sweepLevel, type SweepResult } from '../levels/sweep';
+import { sweepLevel, type Kick, type SweepResult } from '../levels/sweep';
 
 type SweepHit = SweepResult;
 
@@ -28,7 +28,7 @@ interface TestApi {
    * Fires every angle at every power at a private copy of a level and lists the shots that
    * score. `delay` lets the street run for that many seconds first (scooters, the cat).
    */
-  sweep(levelNumber?: number, stepDeg?: number, powers?: number[], delay?: number): SweepHit[];
+  sweep(levelNumber?: number, stepDeg?: number, powers?: number[], delay?: number, kick?: Kick): SweepHit[];
   /**
    * How many test shots score on a duel street (by template id), optionally with a boost on
    * the ball and a trick in the street. The sweep fires four powers at every `stepDeg` degrees.
@@ -188,6 +188,6 @@ export function installTestHooks(game: Game): void {
         path,
       };
     },
-    sweep: (levelNumber = game.level.index + 1, stepDeg = 1, powers = [0.4, 0.55, 0.7, 0.85, 1], delay = 0) => sweepLevel(game.levels[levelNumber - 1], levelNumber - 1, stepDeg, powers, delay),
+    sweep: (levelNumber = game.level.index + 1, stepDeg = 1, powers = [0.4, 0.55, 0.7, 0.85, 1], delay = 0, kick = { air: false, bend: 0 }) => sweepLevel(game.levels[levelNumber - 1], levelNumber - 1, stepDeg, powers, delay, kick),
   };
 }

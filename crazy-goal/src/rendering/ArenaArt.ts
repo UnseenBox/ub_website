@@ -500,6 +500,7 @@ const LOOKS: Readonly<Record<Block['kind'], BlockLook>> = {
   crate: { top: C.wood, side: C.woodDark },
   car: { top: C.sun, side: C.sunDark },
   shutter: { top: C.blueLite, side: C.blueDark },
+  defender: { top: '#1b2540', side: '#101a30' },
 };
 
 /** A pillar cap for a shared boundary vertex: shadow, blue body, white cap, blue band. */
@@ -594,6 +595,20 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = fals
         ctx.fill();
       }
     }
+  } else if (blk.kind === 'defender') {
+    // A man in the wall seen from above: broad shoulders in club colours and a head.
+    ctx.fillStyle = '#2b3b6b';
+    ctx.fillRect(-hw + 2, -hh + 2, blk.w - 4, blk.h - 4);
+    ctx.fillStyle = rgba(C.greenHi, 0.55);
+    ctx.fillRect(-hw + 2, -3, blk.w - 4, 6);
+    ctx.fillStyle = '#e0b48f';
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(hw, hh) * 0.5, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#101a30';
+    ctx.beginPath();
+    ctx.arc(0, -1.5, Math.min(hw, hh) * 0.42, Math.PI, 0);
+    ctx.fill();
   } else if (board) {
     // Advertising boards: panels of colour along the face, separated by a thin dark seam.
     const along = blk.w >= blk.h;

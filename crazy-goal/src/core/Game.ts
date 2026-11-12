@@ -56,6 +56,8 @@ import { STREET_LABELS } from '../scoring/StyleRecognizer';
 import { ShotAnalyzer } from '../scoring/ShotAnalyzer';
 import { Hud } from '../ui/HUD';
 import { AbilityBar } from '../ui/AbilityBar';
+import { KickControls } from '../ui/KickControls';
+import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
 import { portal, isCrazyGames } from '../portal/Portal';
 import { Overlay, setUiClick, type MenuInfo } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
@@ -264,6 +266,9 @@ export class Game {
   ballGap: number | null = null;
   readonly duel: DuelController;
   readonly abilities: AbilityBar;
+  readonly kickControls: KickControls;
+  /** How the next solo shot is struck: along the ground or lofted, and how much it bends (-1 to 1). */
+  readonly kick: { type: ShotType; bend: number } = { type: 'ground', bend: 0 };
   private replay: Replay | null = null;
 
   private path = new ShotPath();
@@ -377,7 +382,19 @@ export class Game {
       canShow: () => this.shopVisible(),
       buy: (id) => this.buyAbility(id),
     });
-    this.overlay.addFloating(this.abilities.walletEl, this.abilities.el);
+    this.kickControls = new KickControls({
+      visible: () => this.kickVisible(),
+      type: () => this.kick.type,
+      bend: () => this.kick.bend,
+      setType: (type) => {
+        this.kick.type = type;
+        this.sounds.ui();
+      },
+      setBend: (bend) => {
+        this.kick.bend = Math.max(-1, Math.min(1, bend));
+      },
+    });
+    this.overlay.addFloating(this.abilities.walletEl, this.abilities.el, this.kickControls.el);
     this.duel = new DuelController(this, this.overlay, canvas.parentElement ?? document.body);
 
     wireFeedback(this);
@@ -647,6 +664,21 @@ export class Game {
 
   showBanner(text: string, good: boolean, seconds = 2.6): void {
     this.banner = { text, good, t: 0, dur: seconds };
+  }
+
+  /** The free-kick controls: solo play, ball waiting or being aimed, nothing over the screen. */
+  private kickVisible(): boolean {
+    return this.shotRule === 'free' && !this.duelScore && !this.duel.active && !this.paused && (this.state === 'ready' || this.state === 'aiming');
+  }
+
+  /** The speed of a shot: a lofted one uses its own, gentler range. */
+  private kickSpeed(groundSpeed: number, power: number): number {
+    return this.currentKick().air ? airSpeed(power) : groundSpeed;
+  }
+
+  /** How a solo shot is struck; duels play with a plain ground ball. */
+  private currentKick(): { air: boolean; bend: number } {
+    return this.shotRule === 'free' ? { air: this.kick.type === 'air', bend: this.kick.bend } : { air: false, bend: 0 };
   }
 
   /** The solo ability shop is for free play only, while the ball waits to be struck. */
@@ -975,6 +1007,7 @@ export class Game {
       this.simulate(dt);
       this.updateVisuals(dt, realDt);
     }
+    this.kickControls.refresh();
     input.endFrame();
   }
 
@@ -994,7 +1027,7 @@ export class Game {
     if (stepped) this.events.emit('AIM_STEP', { step: this.shot.step });
     this.sounds.pull(this.shot.power, realDt);
     if (this.shot.armed) {
-      this.preview.compute(this.level, this.ball.body, this.shot.dirX, this.shot.dirY, this.shot.speed, this.shot.power, this.armedBoost === 'magnet' ? this.magnetField : null);
+      this.preview.compute(this.level, this.ball.body, this.shot.dirX, this.shot.dirY, this.kickSpeed(this.shot.speed, this.shot.power), this.shot.power, this.armedBoost === 'magnet' ? this.magnetField : null, this.currentKick());
     } else {
       this.preview.clear();
     }
@@ -1031,9 +1064,15 @@ export class Game {
 
   private launch(shot: Shot): void {
     const b = this.ball.body;
-    b.vx = shot.dirX * shot.speed;
-    b.vy = shot.dirY * shot.speed;
+    const speed = this.kickSpeed(shot.speed, shot.power);
+    b.vx = shot.dirX * speed;
+    b.vy = shot.dirY * speed;
     b.angVel = shot.spin;
+    const kick = this.currentKick();
+    b.z = kick.air ? 0.01 : 0;
+    b.vz = kick.air ? launchVz(shot.power) : 0;
+    b.bend = kick.bend;
+    b.turned = 0;
     this.ball.stretch(shot.dirX, shot.dirY, 0.1 + 0.2 * shot.power);
     if (this.armedBoost && this.shotRule === 'free') this.events.emit('BOOST_USED', { boost: this.armedBoost, free: this.armedFree });
     this.level.arm(this.armedBoost, b);
@@ -1057,7 +1096,7 @@ export class Game {
     this.record.attempts++;
     this.save.save();
     this.setState('flight');
-    this.events.emit('BALL_LAUNCHED', { x: b.x, y: b.y, dirX: shot.dirX, dirY: shot.dirY, power: shot.power, speed: shot.speed });
+    this.events.emit('BALL_LAUNCHED', { x: b.x, y: b.y, dirX: shot.dirX, dirY: shot.dirY, power: shot.power, speed });
   }
 
   private simulate(dt: number): void {
@@ -1100,8 +1139,10 @@ export class Game {
       this.juice.approach();
     }
     if (goal.contains(ball.body.x, ball.body.y)) {
-      this.scoreGoal();
-    } else if (ball.speed < STILL_SPEED || this.flightFor > MAX_FLIGHT) {
+      // A lofted ball above the crossbar goes over, not in.
+      if (ball.body.z > KICK.barZ) this.missShot('over');
+      else this.scoreGoal();
+    } else if ((ball.speed < STILL_SPEED && ball.body.z <= 0) || this.flightFor > MAX_FLIGHT) {
       this.stillFor += FIXED_DT;
       if (this.stillFor >= STILL_SECONDS) this.missShot();
     } else {
@@ -1216,12 +1257,15 @@ export class Game {
     }
   }
 
-  private missShot(): void {
+  private missShot(forced?: MissKind): void {
     const b = this.ball.body;
     b.vx = 0;
     b.vy = 0;
+    b.z = 0;
+    b.vz = 0;
+    b.bend = 0;
     this.path.push(b.x, b.y);
-    this.missKind = classifyMiss(this.analyzer.finish(false, b, this.level.goal, this.level.hasKeeper));
+    this.missKind = forced ?? classifyMiss(this.analyzer.finish(false, b, this.level.goal, this.level.hasKeeper));
     if (this.shotRule === 'free') this.missStreak++;
     this.setState('missed');
     this.events.emit('SHOT_FAILED', { kind: this.missKind, x: b.x, y: b.y });

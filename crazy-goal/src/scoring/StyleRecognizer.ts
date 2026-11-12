@@ -70,6 +70,10 @@ export function recognizeStyles(r: ShotResult): StyleLine[] {
   if (props >= 3) add('CHAIN REACTION', 2000);
   if (r.did.has('bumper') && r.did.has('boing')) add('BOING BOING', 800);
 
+  // The free-kick moves: a lob over the defenders, a shot that curled round them.
+  if (r.maxHeight > 30) add('OVER THE WALL', 600);
+  if (r.turned > 0.6) add('BANANA SHOT', 800);
+
   // How it was struck.
   if (r.touched.post) add('IN OFF THE POST', 800);
   if (r.boomerang) add('BOOMERANG', 900);

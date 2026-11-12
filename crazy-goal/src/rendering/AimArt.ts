@@ -63,7 +63,8 @@ export function drawAimOver(ctx: CanvasRenderingContext2D, ball: Ball, x: number
   for (let i = 0; i < n; i++) {
     const f = i / Math.max(1, n - 1);
     const px = preview.points[i * 2];
-    const py = preview.points[i * 2 + 1];
+    // A lofted dot floats above its place on the ground.
+    const py = preview.points[i * 2 + 1] - preview.zs[i];
     if (chargeGlow > 0) {
       // At high power the route itself starts to glow.
       ctx.globalAlpha = (1 - f) * 0.3 * chargeGlow;

@@ -1,7 +1,7 @@
 import type { ShotResult } from '../scoring/ShotAnalyzer';
 
 /** How a failed shot is described to the player, from nowhere near to agonising. */
-export type MissKind = 'miss' | 'nearly' | 'close' | 'post' | 'saved';
+export type MissKind = 'miss' | 'nearly' | 'close' | 'post' | 'saved' | 'over';
 
 export const MISS_LABEL: Readonly<Record<MissKind, string>> = {
   miss: 'MISS',
@@ -9,6 +9,7 @@ export const MISS_LABEL: Readonly<Record<MissKind, string>> = {
   close: 'SO CLOSE!',
   post: 'OFF THE POST!',
   saved: 'MIMI SAYS NO',
+  over: 'OVER THE BAR!',
 };
 
 /** Near misses are what make a player go again, so they get named. */

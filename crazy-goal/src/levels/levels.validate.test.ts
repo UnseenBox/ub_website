@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from '../../data/levels/matches';
-import { countRoutes, sweepLevel } from './sweep';
+import { countRoutes, sweepLevel, type Kick } from './sweep';
 
 /**
  * Level validation: every level can be solved, and the ones edited in the variety pass
@@ -17,8 +17,19 @@ const EDITED = LEVELS.map((_, i) => i + 1);
 
 const ball = (n: number): { x: number; y: number } => LEVELS[n - 1].ballStart;
 
+/** The ways a shot can be struck: along the ground, with bend either way, and lofted. */
+const KICKS: readonly Kick[] = [
+  { air: false, bend: 0 },
+  { air: false, bend: -1 },
+  { air: false, bend: 1 },
+  { air: true, bend: 0 },
+  { air: true, bend: -0.5 },
+  { air: true, bend: 0.5 },
+];
+const POWERS = [0.1, 0.18, 0.26, 0.35, 0.45, 0.55, 0.7, 0.85, 1];
+
 function measure(n: number): { hits: number; routes: number; threeStar: number; threeAngles: number; best: number } {
-  const hits = sweepLevel(LEVELS[n - 1], n - 1, 1);
+  const hits = KICKS.flatMap((kick) => sweepLevel(LEVELS[n - 1], n - 1, 1, POWERS, 0, kick));
   const three = hits.filter((h) => h.stars === 3);
   return {
     hits: hits.length,
@@ -45,6 +56,19 @@ if (process.env.LEVEL_TABLE) {
     });
   });
 } else {
+  describe('the free kick in match 1', () => {
+    it('can be beaten both ways: a lob over the wall and a curler round it, with no bounce', { timeout: 300000 }, () => {
+      const def = LEVELS[0];
+      expect(def.walls.some((w) => w.kind === 'defender')).toBe(true);
+      // A real shot at goal: no bounce, aimed forward (not a boomerang looped round behind the ball).
+      const clean = (kick: Kick): number => sweepLevel(def, 0, 1, POWERS, 0, kick).filter((h) => h.bounces === 0 && h.angle > -165 && h.angle < -20 && !h.lines.includes('BOOMERANG')).length;
+      // The wall stops the straight shot along the ground, so only the new moves score without a bank.
+      expect(clean({ air: false, bend: 0 })).toBe(0);
+      expect(clean({ air: true, bend: 0 })).toBeGreaterThan(0);
+      expect(Math.max(clean({ air: false, bend: 1 }), clean({ air: false, bend: -1 }))).toBeGreaterThan(0);
+    });
+  });
+
   describe('every match', () => {
     for (const n of EDITED) {
       it(`match ${n} has 3 or more routes and a 3 star route at 1 degree steps`, { timeout: 120000 }, () => {

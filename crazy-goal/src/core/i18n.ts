@@ -647,6 +647,17 @@ const AR: Readonly<Record<string, string>> = {
   'OPENING NIGHT': 'ليلة الافتتاح',
   '1 STAR TO THE NEXT BALL': 'نجمة واحدة للكرة التالية',
   'OPENING SEASON': 'الموسم الأول',
+  // Free-kick moves.
+  'OVER THE BAR!': 'فوق العارضة!',
+  'OVER THE WALL': 'فوق الحائط',
+  'BANANA SHOT': 'تسديدة ملتوية',
+  'SHOT TYPE': 'نوع التسديدة',
+  GROUND: 'أرضية',
+  AIR: 'هوائية',
+  BEND: 'اللَّفّة',
+  LEFT: 'يسار',
+  RIGHT: 'يمين',
+  STRAIGHT: 'مستقيم',
 };
 
 function stored(): Lang {

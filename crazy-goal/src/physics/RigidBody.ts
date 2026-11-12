@@ -33,6 +33,14 @@ export interface RigidBody {
   maxSpeed: number;
   /** Scratch value for the broad phase. */
   stamp: number;
+  /** Height above the ground and vertical speed: a lofted ball (see Flight.ts). 0 for everything on the ground. */
+  z: number;
+  vz: number;
+  /** Bend, -1 to 1, and how far it has already turned the ball in radians. */
+  bend: number;
+  turned: number;
+  /** On an obstacle: the height under which it blocks the ball. A lofted ball above it flies over. */
+  clear: number;
 }
 
 export interface BodyOptions {
@@ -51,6 +59,7 @@ export interface BodyOptions {
   rollResistance?: number;
   spinDrag?: number;
   maxSpeed?: number;
+  clear?: number;
 }
 
 let nextId = 1;
@@ -85,6 +94,11 @@ export function createBody(o: BodyOptions): RigidBody {
     spinDrag: o.spinDrag ?? 0,
     maxSpeed: o.maxSpeed ?? 4000,
     stamp: 0,
+    z: 0,
+    vz: 0,
+    bend: 0,
+    turned: 0,
+    clear: o.clear ?? Number.POSITIVE_INFINITY,
   };
 }
 
@@ -102,6 +116,10 @@ export function copyMotion(from: RigidBody, to: RigidBody): void {
   to.spinDrag = from.spinDrag;
   to.restitution = from.restitution;
   to.maxSpeed = from.maxSpeed;
+  to.z = from.z;
+  to.vz = from.vz;
+  to.bend = from.bend;
+  to.turned = from.turned;
 }
 
 /** Half extents of the world-space bounding box. */
