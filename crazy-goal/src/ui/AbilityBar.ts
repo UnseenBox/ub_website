@@ -1,9 +1,7 @@
-import fireIcon from '../assets/ui/ability-fire.png';
-import magnetIcon from '../assets/ui/ability-magnet.png';
-import rubberIcon from '../assets/ui/ability-rubber.png';
 import coinUrl from '../assets/ui/arcade-coin.png';
 import { cardOf, type Boost } from '../abilities/Cards';
 import { tr } from '../core/i18n';
+import { ABILITY_ICON } from './abilityIcons';
 
 export interface AbilityBarHandlers {
   wallet(): number;
@@ -19,13 +17,6 @@ export interface AbilityBarHandlers {
 }
 
 const SHOP: readonly Boost[] = ['fire', 'magnet', 'rubber'];
-
-/** The hand-drawn circular badge artwork for each boost. */
-const ART: Record<Boost, string> = {
-  fire: fireIcon,
-  magnet: magnetIcon,
-  rubber: rubberIcon,
-};
 
 /**
  * The solo ability sidebar: three boosts with coin prices and the wallet,
@@ -72,7 +63,7 @@ export class AbilityBar {
       const iconWrap = document.createElement('span');
       iconWrap.className = 'ability-icon';
       const img = document.createElement('img');
-      img.src = ART[id];
+      img.src = ABILITY_ICON[id];
       img.alt = '';
       img.draggable = false;
       iconWrap.append(img);
@@ -123,8 +114,7 @@ export class AbilityBar {
       const afford = gift || wallet >= cost;
       b.disabled = !isArmed && !afford;
       b.classList.toggle('is-armed', isArmed);
-      b.title = tr(card.blurb);
-      b.setAttribute('aria-label', isArmed ? `${tr(card.name)} — ${tr('ARMED')}` : afford ? `${tr(card.name)} — ${tr(card.blurb)}` : tr('NOT ENOUGH COINS'));
+      b.setAttribute('aria-label', isArmed ? `${tr(card.name)} — ${tr('ARMED')}` : afford ? tr(card.name) : tr('NOT ENOUGH COINS'));
       (b.querySelector('.ability-name') as HTMLElement).textContent = tr(card.name);
       (b.querySelector('.ability-cost') as HTMLElement).textContent = isArmed ? '✓' : gift ? tr('FREE') : String(cost);
     }

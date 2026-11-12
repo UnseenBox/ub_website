@@ -283,3 +283,68 @@ export function drawGuidePath(ctx: CanvasRenderingContext2D, preview: Trajectory
   ctx.fill();
   ctx.restore();
 }
+
+/**
+ * What the free-kick controls are set to, shown on the ball itself so the eye does not have to leave it:
+ * a pair of chevrons floating over it when it will be lofted, and a curl of light beside it, on the side it
+ * will swing towards, when it will be bent.
+ */
+export function drawKickBadge(ctx: CanvasRenderingContext2D, ball: Ball, x: number, y: number, kick: { air: boolean; bend: number }, time: number): void {
+  const r = ball.radius;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (kick.air) {
+    // Two chevrons rising off the ball, one after the other.
+    for (let i = 0; i < 2; i++) {
+      const phase = (time * 1.6 + i * 0.5) % 1;
+      const cy = y - r - 8 - phase * 22;
+      ctx.globalAlpha = (1 - phase) * 0.95;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 11, cy + 5);
+      ctx.lineTo(x, cy - 5);
+      ctx.lineTo(x + 11, cy + 5);
+      ctx.stroke();
+    }
+  }
+  if (kick.bend !== 0) {
+    // An arc round the side the ball will swing towards, with a head that runs along it.
+    const side = Math.sign(kick.bend);
+    const k = Math.abs(kick.bend);
+    const a0 = side > 0 ? -1.25 : Math.PI + 1.25;
+    const sweep = (0.9 + 0.7 * k) * side;
+    const rad = r + 14;
+    const run = (time * 1.3) % 1;
+    ctx.globalAlpha = 0.5 + 0.4 * k;
+    ctx.strokeStyle = C.sun;
+    ctx.lineWidth = 4.5;
+    ctx.setLineDash([2, 9]);
+    ctx.beginPath();
+    ctx.arc(x, y, rad, a0, a0 + sweep, side < 0);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const ha = a0 + sweep * (0.25 + 0.75 * run);
+    const hx = x + Math.cos(ha) * rad;
+    const hy = y + Math.sin(ha) * rad;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = C.sun;
+    ctx.beginPath();
+    ctx.arc(hx, hy, 5.5, 0, TAU);
+    ctx.fill();
+    // The head: a small arrowhead at the far end of the arc.
+    const ea = a0 + sweep;
+    const tx = x + Math.cos(ea) * rad;
+    const ty = y + Math.sin(ea) * rad;
+    const dir = ea + (Math.PI / 2) * side;
+    ctx.strokeStyle = C.sun;
+    ctx.lineWidth = 4.5;
+    ctx.beginPath();
+    ctx.moveTo(tx - Math.cos(dir - 0.6) * 11, ty - Math.sin(dir - 0.6) * 11);
+    ctx.lineTo(tx, ty);
+    ctx.lineTo(tx - Math.cos(dir + 0.6) * 11, ty - Math.sin(dir + 0.6) * 11);
+    ctx.stroke();
+  }
+  ctx.restore();
+}

@@ -671,6 +671,17 @@ const AR: Readonly<Record<string, string>> = {
   'Off the board and in.': 'من اللوحة إلى الشباك.',
   'Beat the wall your way.': 'اهزم الحائط بطريقتك.',
   'LESSON {n}': 'الدرس {n}',
+  TUTORIAL: 'التدريب',
+  MATCHES: 'المباريات',
+  'GRAB THE COIN': 'التقط العملة',
+  'DODGE IT': 'تفادَها',
+  'Go round it. Grab the coin.': 'تجاوزها والتقط العملة.',
+  'Let the bumpers do the work.': 'دَع الصدّادات تعمل.',
+  MAGNET: 'مغناطيس',
+  RUBBER: 'مطاط',
+  'Burn through it.': 'اخترقها بالنار.',
+  'Let the goal pull it in.': 'دع المرمى يسحبها.',
+  'Keep the bounce.': 'حافظ على الارتداد.',
 };
 
 function stored(): Lang {

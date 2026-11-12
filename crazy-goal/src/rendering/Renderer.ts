@@ -2,7 +2,8 @@ import type { Game, ShotPath } from '../core/Game';
 import { clamp01, easeOutCubic, smoothstep, TAU } from '../core/math';
 import { Tyre, TYRE_RADIUS } from '../mechanics/Tyre';
 import { BOOST_TRAIL, drawBoostOver, drawBoostUnder, drawMagnetField, drawScorch, drawSmoke } from './AbilityArt';
-import { drawAimGround, drawAimOver, drawGuidePath, drawTutorialGhost } from './AimArt';
+import { drawAimGround, drawAimOver, drawGuidePath, drawKickBadge, drawTutorialGhost } from './AimArt';
+import { drawAbilityDemo } from './DemoArt';
 import { drawBlock, drawBoundaryJoint, drawCrowdFlashes, paintBackdrop, paintStaticShadows } from './ArenaArt';
 import { drawBall, drawBallAura, drawBallShadow, drawTrail } from './BallArt';
 import { drawCoin } from './CoinArt';
@@ -198,10 +199,14 @@ export class Renderer {
 
     g.particles.draw(ctx);
     if (aiming) drawAimOver(ctx, ball, bx, by, shot, g.preview, time);
+    const badge = g.kickBadge();
+    if (badge) drawKickBadge(ctx, ball, bx, by, badge, time);
     // The lesson: a flowing line of light along the shot to make, and a ghost hand showing the pull.
     const lesson = g.guideGhost();
+    // An ability lesson plays its two ghost flights while the ball waits; aiming takes the pitch back.
+    if (lesson && g.abilityDemo && g.state === 'ready') drawAbilityDemo(ctx, g.abilityDemo, goal, g.stateT, 1);
     if (lesson && (g.state === 'ready' || aiming)) {
-      drawGuidePath(ctx, g.guidePreview, time, aiming ? 0.35 : 1);
+      if (!g.abilityDemo) drawGuidePath(ctx, g.guidePreview, time, aiming ? 0.35 : 1);
       if (g.state === 'ready' && g.stateT > 0.4) {
         // The pull goes the opposite way to the shot, and longer for more power.
         const a = (lesson.angle * Math.PI) / 180;

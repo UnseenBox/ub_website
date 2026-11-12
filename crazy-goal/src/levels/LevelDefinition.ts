@@ -25,7 +25,7 @@ export interface GoalDef {
  * wall: low whitewashed wall. crate: orange crates, a dull bounce. car: the parked taxi, a
  * lively one. shutter: a roller shutter pulled across part of a goal (a duel trick).
  */
-export type WallKind = 'wall' | 'crate' | 'car' | 'shutter' | 'hedge' | 'defender';
+export type WallKind = 'wall' | 'crate' | 'car' | 'shutter' | 'hedge' | 'defender' | 'adboard';
 
 /** A solid block, placed by its centre. */
 export interface WallDef {
@@ -141,6 +141,11 @@ export interface BoundaryDef {
   kinds?: readonly BoundaryKind[];
   /** Thickness of the wall band. Defaults to the rail thickness. */
   thickness?: number;
+  /**
+   * The points are the whole wall, post to post: the engine does not close them against the top corners
+   * of the arena, and a vertex where the wall only bends a little (a rounded corner) gets no pillar cap.
+   */
+  explicit?: boolean;
 }
 
 /** Things in the alley that do more than stand there. Each `type` has one class in
@@ -180,7 +185,11 @@ export type MechanicDef =
  * at the top of the screen shows the move as a picture.
  */
 export interface GuideDef {
-  move: 'straight' | 'bend' | 'air' | 'bank' | 'free';
+  move: 'straight' | 'bend' | 'air' | 'bank' | 'free' | 'coin' | 'fire' | 'magnet' | 'rubber';
+  /** Lessons in one series share the progress pips on the coach card; the first five (the tutorial) have none. */
+  series?: string;
+  /** An ability lesson: this boost is already on the ball (for free) and a ghost shows what it does. */
+  boost?: 'fire' | 'magnet' | 'rubber';
   /** Which free-kick controls the lesson shows. */
   controls: { air: boolean; bend: boolean };
   /** The shot the ghost shows: angle in degrees (-90 is straight up), pull power 0 to 1, and how it is struck. */
@@ -216,6 +225,8 @@ export interface LevelDefinition {
   dressing?: readonly DressingDef[];
   /** Set on the tutorial levels. */
   guide?: GuideDef;
+  /** Where the level's coin hangs. When left out it is strung along the ball-to-goal line (see coinPlacement). */
+  coin?: Point;
   /** Crazy Score needed for the second and third star. Any goal earns the first. */
   stars: readonly [number, number];
 }

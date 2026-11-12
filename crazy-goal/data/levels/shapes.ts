@@ -106,6 +106,32 @@ export const rect = (arena: ArenaDef, goal: GoalDef, cut = 54): BoundaryDef => {
   );
 };
 
+/**
+ * A stadium pitch: a rectangle with rounded corners, the goal set in the middle of the top end. Four short
+ * walls make each corner a smooth curve, so the ball rolls round it instead of dying in a square pocket.
+ * It is the whole wall, post to post, with a low kerb along the near end.
+ */
+export const roundedRect = (arena: ArenaDef, goal: GoalDef, radius = 70, steps = 6): BoundaryDef => {
+  const f = frame(arena, goal);
+  const pts: Pt[] = [{ x: f.C - f.H, y: f.T }];
+  // One corner: a quarter turn round (cx, cy), starting at angle `from` and running anticlockwise on the screen.
+  const corner = (cx: number, cy: number, from: number): void => {
+    for (let k = 0; k <= steps; k++) {
+      const a = from - (k / steps) * (Math.PI / 2);
+      pts.push({ x: Math.round(cx + Math.cos(a) * radius), y: Math.round(cy + Math.sin(a) * radius) });
+    }
+  };
+  corner(f.A + radius, f.T + radius, Math.PI * 1.5); // top left: from the goal line round to the left wall
+  corner(f.A + radius, f.B - radius, Math.PI); // bottom left
+  corner(f.R - radius, f.B - radius, Math.PI / 2); // bottom right
+  corner(f.R - radius, f.T + radius, 0); // top right: round to the goal line
+  pts.push({ x: f.C + f.H, y: f.T });
+  // The near end is a low kerb, so it never hides the ball; the rest is the boards.
+  const kinds: BoundaryKind[] = [];
+  for (let i = 0; i < pts.length - 1; i++) kinds.push(pts[i].y >= f.B - radius * 0.55 && pts[i + 1].y >= f.B - radius * 0.55 ? 'kerb' : 'wall');
+  return { points: pts, kinds, explicit: true };
+};
+
 /** Every corner cut away: an octagonal courtyard. */
 export const atrium = (arena: ArenaDef, goal: GoalDef, cut = 120): BoundaryDef => {
   const f = frame(arena, goal);

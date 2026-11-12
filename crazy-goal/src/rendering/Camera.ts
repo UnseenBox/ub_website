@@ -49,6 +49,8 @@ export class Camera {
 
   private landscape: Frame = { cx: 800, cy: 450, w: 1600, h: 900 };
   private portraitFrame: Frame = { cx: 800, cy: 450, w: 900, h: 1600 };
+  /** Portrait only: CSS pixels the controls need above and below the level, as a function of the window height. */
+  private portraitPad: ((height: number) => { top: number; bottom: number }) | null = null;
   private baseX = 800;
   private baseY = 450;
   private zoomAmount = 0;
@@ -75,9 +77,10 @@ export class Camera {
   worldY = 0;
 
   /** The level decides what has to fit: one frame with the HUD beside the pitch, one with it above. */
-  setFrames(landscape: Frame, portrait: Frame): void {
+  setFrames(landscape: Frame, portrait: Frame, pad?: (height: number) => { top: number; bottom: number }): void {
     this.landscape = landscape;
     this.portraitFrame = portrait;
+    this.portraitPad = pad ?? null;
     this.resize(this.width, this.height, this.dpr);
   }
 
@@ -87,10 +90,14 @@ export class Camera {
     this.dpr = dpr;
     this.portrait = this.width / this.height < PORTRAIT_ASPECT;
     const frame = this.portrait ? this.portraitFrame : this.landscape;
-    this.scale = Math.min(this.width / frame.w, this.height / frame.h);
+    // The controls sit in strips above and below the level; the level is fitted into what is left between them.
+    const pads = this.portrait && this.portraitPad ? this.portraitPad(this.height) : { top: 0, bottom: 0 };
+    const roomH = Math.max(1, this.height - pads.top - pads.bottom);
+    this.scale = Math.min(this.width / frame.w, roomH / frame.h);
     this.hudScale = this.portrait ? clamp(0.78 / this.scale, 1, 1.7) : clamp(0.72 / this.scale, 1, 1.2);
     this.baseX = frame.cx;
-    this.baseY = frame.cy;
+    // The frame's centre sits in the middle of the room between the strips, not of the window.
+    this.baseY = frame.cy + (this.height / 2 - (pads.top + roomH / 2)) / this.scale;
     const v = this.visible;
     v.w = this.width / this.scale;
     v.h = this.height / this.scale;

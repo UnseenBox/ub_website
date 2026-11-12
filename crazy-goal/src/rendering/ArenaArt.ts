@@ -122,43 +122,103 @@ export function paintBackdrop(ctx: CanvasRenderingContext2D, view: ViewRect, lev
 const TIERS = ['#6b7287', '#2c4f98', '#223f7e', '#2c4f98', '#223f7e', '#1a3166', '#152850', '#0f1c3c'] as const;
 const CROWD = [C.terra, C.sun, C.white, '#7cc4ff', '#ff7aa8', '#ffffff'] as const;
 
+/** How far the running track reaches from the arena, how deep each tier is, and how round the bowl's inner corner is. */
+const BOWL_FIRST = 88;
+const BOWL_STEP = 58;
+const BOWL_R = 70;
+
+/** Points a fixed distance apart all the way round a rounded rectangle: the seats of one row. */
+function walkRounded(x: number, y: number, w: number, h: number, r: number, gap: number): [number, number][] {
+  const k = Math.min(r, w / 2, h / 2);
+  const out: [number, number][] = [];
+  const line = (x0: number, y0: number, x1: number, y1: number): void => {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    const n = Math.max(1, Math.floor(len / gap));
+    for (let i = 0; i < n; i++) out.push([x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n]);
+  };
+  const arc = (cx: number, cy: number, from: number): void => {
+    const n = Math.max(1, Math.floor((k * (Math.PI / 2)) / gap));
+    for (let i = 0; i < n; i++) {
+      const a = from + (i / n) * (Math.PI / 2);
+      out.push([cx + Math.cos(a) * k, cy + Math.sin(a) * k]);
+    }
+  };
+  line(x + k, y, x + w - k, y);
+  arc(x + w - k, y + k, -Math.PI / 2);
+  line(x + w, y + k, x + w, y + h - k);
+  arc(x + w - k, y + h - k, 0);
+  line(x + w - k, y + h, x + k, y + h);
+  arc(x + k, y + h - k, Math.PI / 2);
+  line(x, y + h - k, x, y + k);
+  arc(x + k, y + k, Math.PI);
+  return out;
+}
+
 /**
- * A stadium seen from above: a walkway round the pitch, then tier after tier of stands with the
+ * A stadium seen from above: a running track round the pitch, then tier after tier of stands with the
  * crowd in them, and a floodlight in every corner. Seeded from the level id, so it is the same
  * every time, and cached with the rest of the static layer.
  */
 function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level): void {
   const { arena } = level.def;
   const rng = seededRandom(hashString(level.def.id) ^ 0x51ad1);
-  const first = 34;
-  const step = 58;
-  const ring = (d: number): [number, number, number, number] => [arena.x - d, arena.y - d, arena.w + d * 2, arena.h + d * 2];
+  const first = BOWL_FIRST;
+  const step = BOWL_STEP;
+  // A ring round the pitch, `d` units out from the arena, with corners that round off more the further out it is.
+  const ring = (d: number): [number, number, number, number, number] => [arena.x - d, arena.y - d, arena.w + d * 2, arena.h + d * 2, BOWL_R + d * 0.9];
 
-  // Outside in: each tier is a bigger rectangle laid under the smaller ones.
+  // Outside in: each tier is a bigger rounded rectangle laid under the smaller ones.
   ctx.fillStyle = TIERS[TIERS.length - 1];
   ctx.fillRect(view.x, view.y, view.w, view.h);
   for (let i = TIERS.length - 1; i >= 0; i--) {
-    const [x, y, w, h] = ring(first + (i + 1) * step);
+    const [x, y, w, h, r] = ring(first + (i + 1) * step);
     ctx.fillStyle = TIERS[i];
-    ctx.fillRect(x, y, w, h);
-    // The step edge: a lit lip and the shade under it.
+    roundRect(ctx, x, y, w, h, r);
+    ctx.fill();
+    // The step edge: a lit lip.
     ctx.strokeStyle = rgba('#ffffff', i === 0 ? 0.35 : 0.14);
     ctx.lineWidth = 3;
-    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+    roundRect(ctx, x + 1.5, y + 1.5, w - 3, h - 3, r);
+    ctx.stroke();
   }
 
-  // Aisles: a lighter stripe running outward from the pitch every so often.
+  // The running track round the pitch: red tartan with white lane lines, and a low rail where the stands begin.
+  {
+    const [x, y, w, h, r] = ring(first);
+    ctx.fillStyle = '#b4513a';
+    roundRect(ctx, x, y, w, h, r);
+    ctx.fill();
+    // Wear: a paler worn lane along the inside.
+    ctx.strokeStyle = rgba('#d9825f', 0.5);
+    ctx.lineWidth = 16;
+    const [ix, iy, iw, ih, ir] = ring(first * 0.42);
+    roundRect(ctx, ix, iy, iw, ih, ir);
+    ctx.stroke();
+    ctx.strokeStyle = rgba('#ffffff', 0.7);
+    ctx.lineWidth = 2.5;
+    for (const k of [0.3, 0.52, 0.74]) {
+      const [lx, ly, lw, lh, lr] = ring(first * k);
+      roundRect(ctx, lx, ly, lw, lh, lr);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#1a2a52';
+    ctx.lineWidth = 6;
+    roundRect(ctx, x + 3, y + 3, w - 6, h - 6, r);
+    ctx.stroke();
+  }
+
+  // Aisles: a lighter stripe running outward from the pitch every so often, on the straight stretches.
   ctx.strokeStyle = rgba('#ffffff', 0.12);
   ctx.lineWidth = 4;
   const outer = first + TIERS.length * step;
   ctx.beginPath();
-  for (let t = -outer; t <= arena.w + outer; t += 150) {
+  for (let t = 150; t < arena.w - 90; t += 150) {
     ctx.moveTo(arena.x + t, arena.y - first - step);
     ctx.lineTo(arena.x + t, arena.y - outer);
     ctx.moveTo(arena.x + t, arena.y + arena.h + first + step);
     ctx.lineTo(arena.x + t, arena.y + arena.h + outer);
   }
-  for (let t = -outer; t <= arena.h + outer; t += 150) {
+  for (let t = 150; t < arena.h - 90; t += 150) {
     ctx.moveTo(arena.x - first - step, arena.y + t);
     ctx.lineTo(arena.x - outer, arena.y + t);
     ctx.moveTo(arena.x + arena.w + first + step, arena.y + t);
@@ -166,29 +226,40 @@ function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level
   }
   ctx.stroke();
 
-  // The crowd, a head every few units along each row of seats (the walkway stays empty).
-  for (let i = 1; i < TIERS.length; i++) for (const row of [-19, 0, 19]) {
-    const d = first + i * step + step * 0.5 + row;
-    const [x, y, w, h] = ring(d);
-    const place = (px: number, py: number): void => {
-      if (px < view.x - 8 || px > view.x + view.w + 8 || py < view.y - 8 || py > view.y + view.h + 8) return;
-      if (rng() < 0.12) return; // an empty seat
-      ctx.fillStyle = CROWD[Math.floor(rng() * CROWD.length)];
-      ctx.globalAlpha = 0.72 + rng() * 0.25;
-      ctx.beginPath();
-      ctx.arc(px + (rng() - 0.5) * 3, py + (rng() - 0.5) * 3, 4.6, 0, TAU);
-      ctx.fill();
-    };
-    for (let px = x; px <= x + w; px += 15) {
-      place(px, y);
-      place(px, y + h);
+  // The crowd: a head every few units along three rows of seats in every tier, following the bowl round its corners.
+  for (let i = 1; i < TIERS.length; i++)
+    for (const row of [-19, 0, 19]) {
+      const [x, y, w, h, r] = ring(first + i * step + step * 0.5 + row);
+      for (const [px, py] of walkRounded(x, y, w, h, r, 15)) {
+        if (px < view.x - 8 || px > view.x + view.w + 8 || py < view.y - 8 || py > view.y + view.h + 8) continue;
+        if (rng() < 0.12) continue; // an empty seat
+        ctx.fillStyle = CROWD[Math.floor(rng() * CROWD.length)];
+        ctx.globalAlpha = 0.72 + rng() * 0.25;
+        ctx.beginPath();
+        ctx.arc(px + (rng() - 0.5) * 3, py + (rng() - 0.5) * 3, 4.6, 0, TAU);
+        ctx.fill();
+      }
     }
-    for (let py = y + 15; py < y + h; py += 15) {
-      place(x, py);
-      place(x + w, py);
+  ctx.globalAlpha = 1;
+
+  // The players' tunnel at the near end: a dark mouth in the first tier, with a light either side.
+  {
+    const w = 190;
+    const h = 40;
+    const x = arena.x + arena.w / 2 - w / 2;
+    const y = arena.y + arena.h + first + 4;
+    ctx.fillStyle = '#05080f';
+    roundRect(ctx, x, y, w, h, 14);
+    ctx.fill();
+    ctx.fillStyle = rgba('#ffffff', 0.2);
+    ctx.fillRect(x + 12, y + h - 8, w - 24, 3);
+    ctx.fillStyle = '#ffc83a';
+    for (const lx of [x - 10, x + w + 10]) {
+      ctx.beginPath();
+      ctx.arc(lx, y + h / 2, 5, 0, TAU);
+      ctx.fill();
     }
   }
-  ctx.globalAlpha = 1;
 
   // The big screen over the goal end: the match name in lights.
   {
@@ -212,13 +283,14 @@ function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level
     text(ctx, level.def.name, x + w / 2, y + h / 2 + 2, { size: 38, color: '#ffc83a', align: 'center', baseline: 'middle', weight: 900, spacing: 4 });
   }
 
-  // Floodlights in the four corners: a pool of light and the lamp head.
-  const [lx, ly, lw, lh] = ring(first + 2 * step);
+  // Floodlights on the bowl's corners: a pool of light and the lamp head.
+  const [lx, ly, lw, lh, lr] = ring(first + 2 * step);
+  const off = lr * (1 - Math.SQRT1_2);
   for (const [cx, cy] of [
-    [lx, ly],
-    [lx + lw, ly],
-    [lx, ly + lh],
-    [lx + lw, ly + lh],
+    [lx + off, ly + off],
+    [lx + lw - off, ly + off],
+    [lx + off, ly + lh - off],
+    [lx + lw - off, ly + lh - off],
   ]) {
     const glow = ctx.createRadialGradient(cx, cy, 6, cx, cy, 260);
     glow.addColorStop(0, 'rgba(255, 243, 190, 0.55)');
@@ -254,7 +326,7 @@ export function drawCrowdFlashes(ctx: CanvasRenderingContext2D, level: Level, ti
   if (!spots) {
     const rng = seededRandom(hashString(level.def.id) ^ 0xf1a5);
     spots = [];
-    const reach = 34 + 58 * 6;
+    const reach = BOWL_FIRST + BOWL_STEP * 6;
     for (let i = 0; i < 110; i++) {
       // Anywhere in the stands: outside the walkway, inside the last tiers.
       let x = 0;
@@ -262,7 +334,7 @@ export function drawCrowdFlashes(ctx: CanvasRenderingContext2D, level: Level, ti
       do {
         x = arena.x - reach + rng() * (arena.w + reach * 2);
         y = arena.y - reach + rng() * (arena.h + reach * 2);
-      } while (x > arena.x - 100 && x < arena.x + arena.w + 100 && y > arena.y - 100 && y < arena.y + arena.h + 100);
+      } while (x > arena.x - BOWL_FIRST - 40 && x < arena.x + arena.w + BOWL_FIRST + 40 && y > arena.y - BOWL_FIRST - 40 && y < arena.y + arena.h + BOWL_FIRST + 40);
       spots.push({ x, y, phase: rng() * TAU, rate: 0.35 + rng() * 0.6 });
     }
     FLASH_SPOTS.set(level.def.id, spots);
@@ -501,6 +573,7 @@ const LOOKS: Readonly<Record<Block['kind'], BlockLook>> = {
   car: { top: C.sun, side: C.sunDark },
   shutter: { top: C.blueLite, side: C.blueDark },
   defender: { top: '#1b2540', side: '#101a30' },
+  adboard: { top: '#1b2540', side: '#eef1f8' },
 };
 
 /** A pillar cap for a shared boundary vertex: shadow, blue body, white cap, blue band. */
@@ -543,13 +616,23 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = fals
     return;
   }
   // Boundary bands butt together like masonry; the pillar caps cover the joints.
-  const shrink = b.boundary ? b.h + 2 : 0;
-  const blk = shrink > 0 ? { ...b, w: b.w - shrink } : b;
+  let blk = b;
+  if (b.boundary && b.trim) {
+    // An explicit outline: only the ends that meet a pillar cap give way to it.
+    const [t0, t1] = b.trim;
+    const sh = (t0 - t1) / 2;
+    blk = { ...b, w: b.w - t0 - t1, x: b.x + Math.cos(b.angle) * sh, y: b.y + Math.sin(b.angle) * sh };
+  } else if (b.boundary) {
+    const shrink = b.h + 2;
+    blk = { ...b, w: b.w - shrink };
+  }
   const p = footprint(blk, ox, oy);
   const lift = blk.lift;
   // Round a stadium the boundary walls are advertising boards.
-  const board = boards && blk.boundary && blk.kind === 'wall';
-  const look = board ? { top: '#1b2540', side: '#eef1f8' } : LOOKS[blk.kind];
+  const board = (boards && blk.boundary && blk.kind === 'wall') || blk.kind === 'adboard';
+  // The low barrier along the near end of a stadium is a dark rail with a lit edge.
+  const kerbBoard = boards && !!blk.boundary && blk.kind === 'kerb';
+  const look = board ? { top: '#1b2540', side: '#eef1f8' } : kerbBoard ? { top: '#26345f', side: '#c9d1e6' } : LOOKS[blk.kind];
 
   // Side faces. Only those turned towards the viewer end up visible; the top covers the rest.
   ctx.fillStyle = look.side;
@@ -609,23 +692,36 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = fals
     ctx.beginPath();
     ctx.arc(0, -1.5, Math.min(hw, hh) * 0.42, Math.PI, 0);
     ctx.fill();
+  } else if (kerbBoard) {
+    ctx.fillStyle = rgba(C.sun, 0.9);
+    if (blk.w >= blk.h) ctx.fillRect(-hw, -2, blk.w, 4);
+    else ctx.fillRect(-2, -hh, 4, blk.h);
   } else if (board) {
-    // Advertising boards: panels of colour along the face, separated by a thin dark seam.
+    // Advertising boards: panels of colour along the face, separated by a thin dark seam. Where the wall is one
+    // outline the panels are numbered along the whole wall, so they run on round the corners.
     const along = blk.w >= blk.h;
     const len = along ? blk.w : blk.h;
     const wid = along ? blk.h : blk.w;
     const panel = 96;
     const colours = [C.terra, C.sun, C.white, '#3f8cff'] as const;
-    for (let d = -len / 2, i = 0; d < len / 2; d += panel, i++) {
-      const size = Math.min(panel, len / 2 - d) - 4;
+    const start = (blk.along ?? 0) + (b.trim ? b.trim[0] : 0);
+    const first = blk.along === undefined ? 0 : Math.floor(start / panel);
+    const last = blk.along === undefined ? Math.ceil(len / panel) : Math.floor((start + len) / panel);
+    for (let k = first; k <= last; k++) {
+      // The panel's span in the band's own frame, measured from the band's centre.
+      const g0 = blk.along === undefined ? k * panel : k * panel - start;
+      const g1 = g0 + panel;
+      const s0 = Math.max(g0, 0) - len / 2;
+      const s1 = Math.min(g1, len) - len / 2;
+      const size = s1 - s0 - 4;
       if (size <= 6) continue;
       // LED boards: every few seconds the ads rotate one panel along.
-      ctx.fillStyle = colours[(i + Math.floor(time / 2.6)) % colours.length];
-      if (along) ctx.fillRect(d + 2, -wid / 2 + 3, size, wid - 6);
-      else ctx.fillRect(-wid / 2 + 3, d + 2, wid - 6, size);
+      ctx.fillStyle = colours[(k + Math.floor(time / 2.6)) % colours.length];
+      if (along) ctx.fillRect(s0 + 2, -wid / 2 + 3, size, wid - 6);
+      else ctx.fillRect(-wid / 2 + 3, s0 + 2, wid - 6, size);
       ctx.fillStyle = rgba('#1b2540', 0.75);
-      if (along) ctx.fillRect(d + 2 + size * 0.18, -2, size * 0.64, 4);
-      else ctx.fillRect(-2, d + 2 + size * 0.18, 4, size * 0.64);
+      if (along) ctx.fillRect(s0 + 2 + size * 0.18, -2, size * 0.64, 4);
+      else ctx.fillRect(-2, s0 + 2 + size * 0.18, 4, size * 0.64);
     }
   } else if (blk.kind === 'wall') {
     // A line of blue tile along the cap.

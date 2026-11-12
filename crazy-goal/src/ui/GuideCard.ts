@@ -1,6 +1,8 @@
 import { tr } from '../core/i18n';
 import type { GuideNeed } from '../core/Guide';
 import type { GuideDef } from '../levels/LevelDefinition';
+import type { Boost } from '../abilities/Cards';
+import { ABILITY_ICON } from './abilityIcons';
 import { ICON, MOVE_ART } from './KickIcons';
 
 export interface GuideInfo {
@@ -10,6 +12,8 @@ export interface GuideInfo {
   total: number;
   /** The control still to switch on, or null once the lesson is ready to be shot. */
   need: GuideNeed;
+  /** An ability lesson: the boost it shows. */
+  boost?: Boost;
 }
 
 export interface GuideCardHandlers {
@@ -24,6 +28,10 @@ const TITLE: Readonly<Record<GuideDef['move'], string>> = {
   air: 'LOB IT',
   bank: 'BANK IT',
   free: 'FREE KICK',
+  coin: 'GRAB THE COIN',
+  fire: 'HARISSA',
+  magnet: 'MAGNET',
+  rubber: 'RUBBER',
 };
 
 /**
@@ -70,6 +78,8 @@ export class GuideCard {
     if (!info) return;
     this.el.dataset.move = info.move;
     this.pips.innerHTML = '';
+    // One lesson on its own (a single level) needs no progress bar.
+    this.pips.hidden = info.total <= 1;
     for (let i = 1; i <= info.total; i++) {
       const pip = document.createElement('span');
       pip.className = `guide-pip${i < info.step ? ' is-done' : i === info.step ? ' is-now' : ''}`;
@@ -94,6 +104,13 @@ export class GuideCard {
       set.className = `guide-chip${done ? ' is-done' : ' is-now'}`;
       set.innerHTML = (info.move === 'air' ? ICON.air : ICON.bend) + (done ? `<i class="guide-tick">${ICON.check}</i>` : '');
       this.chips.append(set);
+    }
+    if (info.boost) {
+      // An ability lesson: the ability is already on the ball. Its badge, ticked, then the pull.
+      const on = document.createElement('span');
+      on.className = 'guide-chip is-done is-ability';
+      on.innerHTML = `<img src="${ABILITY_ICON[info.boost]}" alt="" draggable="false"><i class="guide-tick">${ICON.check}</i>`;
+      this.chips.append(on);
     }
     const pull = document.createElement('span');
     pull.className = `guide-chip${info.need === null ? ' is-now' : ' is-wait'}`;

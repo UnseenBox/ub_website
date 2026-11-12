@@ -1,3 +1,4 @@
+import type { Boost } from '../abilities/Cards';
 import { BALL_TUNING } from '../ball/Ball';
 import { speedForPower } from '../ball/ShotController';
 import type { MechEventKind } from '../mechanics/Mechanic';
@@ -23,12 +24,16 @@ export interface SweepResult {
   /** How the ball was kicked: lofted (air) and its bend, -1 to 1. */
   air: boolean;
   bend: number;
+  /** The ball passed through the level's coin on the way in. */
+  coin: boolean;
 }
 
 /** How the ball is struck: along the ground or lofted, and with how much bend. */
 export interface Kick {
   air: boolean;
   bend: number;
+  /** An ability riding on the shot (fire, magnet, rubber). */
+  boost?: Boost | null;
 }
 
 /**
@@ -81,6 +86,7 @@ export function fireShot(def: LevelDefinition, index: number, angle: number, pow
   ghost.z = kick.air ? 0.01 : 0;
   ghost.vz = kick.air ? launchVz(power) : 0;
   ghost.bend = kick.bend;
+  level.arm(kick.boost ?? null, ghost);
   const goal = level.goal;
   const gx = goal.cx - ghost.x;
   const gy = goal.lineY - ghost.y;
@@ -92,6 +98,7 @@ export function fireShot(def: LevelDefinition, index: number, angle: number, pow
   let minGoalDist = goal.distanceToMouth(ghost.x, ghost.y);
   let lastBody = -1;
   let lastTime = -1;
+  let coin = false;
   const touched: Partial<Record<Surface, number>> = {};
   const did = new Set<MechEventKind>();
   for (let i = 0; i < 240 * 9; i++) {
@@ -115,6 +122,8 @@ export function fireShot(def: LevelDefinition, index: number, angle: number, pow
     if (ghost.z > maxHeight) maxHeight = ghost.z;
     const d = goal.distanceToMouth(ghost.x, ghost.y);
     if (d < minGoalDist) minGoalDist = d;
+    // The game picks a coin up when the ball's centre comes within 36 of it.
+    if (!coin && Math.hypot(ghost.x - level.coin.x, ghost.y - level.coin.y) < 36) coin = true;
     if (goal.contains(ghost.x, ghost.y)) {
       // Over the bar is not a goal.
       if (ghost.z > KICK.barZ) return null;
@@ -138,7 +147,7 @@ export function fireShot(def: LevelDefinition, index: number, angle: number, pow
         0,
         def.stars,
       );
-      return { angle, power, bounces, did: [...did].join('+'), seconds: +time.toFixed(2), total: card.total, stars: card.stars, lines: card.lines.map((l) => l.label).join(', '), air: kick.air, bend: kick.bend };
+      return { angle, power, bounces, did: [...did].join('+'), seconds: +time.toFixed(2), total: card.total, stars: card.stars, lines: card.lines.map((l) => l.label).join(', '), air: kick.air, bend: kick.bend, coin };
     }
     if (Math.hypot(ghost.vx, ghost.vy) < 4 && i > 30 && ghost.z <= 0) return null;
   }
@@ -164,4 +173,82 @@ export function countRoutes(hits: readonly SweepResult[]): number {
     for (let i = 1; i < sorted.length; i++) if (sorted[i] - sorted[i - 1] > 6) routes++;
   }
   return routes;
+}
+
+/** Where a shot went, sampled for playing back as a ghost: what the ball did, and the moments worth marking. */
+export interface Trace {
+  /** x, y, height of the ball every 1/30 s, from the strike to the end. */
+  pts: number[];
+  /** True when the ball ended up in the goal (not over the bar). */
+  scored: boolean;
+  seconds: number;
+  /** Moments: a bounce, the ball burning through something, the magnet taking hold. */
+  marks: { t: number; x: number; y: number; kind: 'bounce' | 'burn' | 'magnet' | 'coin' }[];
+}
+
+/**
+ * Plays one shot on a private copy of the level and records its whole flight. The lessons play two of them
+ * side by side (without the ability, then with it) as a ghost on the real pitch.
+ */
+export function traceShot(def: LevelDefinition, index: number, angle: number, power: number, kick: Kick = { air: false, bend: 0 }, maxSeconds = 7): Trace {
+  const level = new Level(def, index);
+  const ghost = createBody({
+    shape: circle(BALL_TUNING.radius),
+    surface: 'ball',
+    x: def.ballStart.x,
+    y: def.ballStart.y,
+    isStatic: false,
+    layer: Layer.Ball,
+    mask: Layer.Solid | Layer.Net,
+    restitution: 1,
+    drag: BALL_TUNING.drag,
+    rollResistance: BALL_TUNING.rollResistance,
+    spinDrag: BALL_TUNING.spinDrag,
+    maxSpeed: BALL_TUNING.maxSpeed,
+  });
+  const a = (angle * Math.PI) / 180;
+  const speed = kick.air ? airSpeed(power) : speedForPower(power);
+  ghost.vx = Math.cos(a) * speed;
+  ghost.vy = Math.sin(a) * speed;
+  ghost.z = kick.air ? 0.01 : 0;
+  ghost.vz = kick.air ? launchVz(power) : 0;
+  ghost.bend = kick.bend;
+  level.arm(kick.boost ?? null, ghost);
+  const trace: Trace = { pts: [ghost.x, ghost.y, 0], scored: false, seconds: 0, marks: [] };
+  let time = 0;
+  let lastBody = -1;
+  let lastTime = -1;
+  let coin = false;
+  for (let i = 1; i <= 240 * maxSeconds; i++) {
+    level.step(
+      ghost,
+      FIXED_DT,
+      true,
+      (_b, other, _c, impact) => {
+        if (other.surface === 'net' || other.surface === 'ball' || impact < 60) return;
+        if (other.id === lastBody && time - lastTime < 0.08) return;
+        lastBody = other.id;
+        lastTime = time;
+        trace.marks.push({ t: time, x: ghost.x, y: ghost.y, kind: 'bounce' });
+      },
+      (e) => {
+        if (e.kind === 'burn') trace.marks.push({ t: time, x: e.x, y: e.y, kind: 'burn' });
+        else if (e.kind === 'magnet') trace.marks.push({ t: time, x: e.x, y: e.y, kind: 'magnet' });
+      },
+    );
+    time += FIXED_DT;
+    if (!coin && Math.hypot(ghost.x - level.coin.x, ghost.y - level.coin.y) < 36) {
+      coin = true;
+      trace.marks.push({ t: time, x: level.coin.x, y: level.coin.y, kind: 'coin' });
+    }
+    if (i % 8 === 0) trace.pts.push(ghost.x, ghost.y, ghost.z);
+    if (level.goal.contains(ghost.x, ghost.y)) {
+      trace.scored = ghost.z <= KICK.barZ;
+      break;
+    }
+    if (Math.hypot(ghost.vx, ghost.vy) < 4 && i > 30 && ghost.z <= 0) break;
+  }
+  trace.pts.push(ghost.x, ghost.y, ghost.z);
+  trace.seconds = time;
+  return trace;
 }

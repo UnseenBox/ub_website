@@ -161,8 +161,8 @@ export function starHint(goal: GoalFacts): string {
   return 'GO CRAZIER';
 }
 
-/** Onboarding: the boost column stays hidden until this houma (0-based index 5 is houma 6). */
-export const BOOST_INTRO_LEVEL = 5;
+/** Onboarding: the boost shop stays hidden until the ability lessons are done (0-based level index: the first match after them). */
+export const BOOST_INTRO_LEVEL = 8;
 /** The free MAGNET handed over with the boost introduction. */
 export const BOOST_INTRO_FREE_MAGNETS = 1;
 /** The houma where the scoring tip about banks is shown, before its first shot (0-based). */
@@ -195,3 +195,31 @@ export const STUCK_MISSES = 4;
 export const PAUSE_REWARD_ENABLED = false;
 
 export const isStuck = (misses: number): boolean => misses >= STUCK_MISSES;
+
+/** The part of a level definition the numbering reads. */
+export interface NumberedLevel {
+  guide?: { series?: string };
+}
+
+/** Where a level sits in the stadium: the tutorial lessons are MATCH 1, every other level is the next match. */
+export interface MatchInfo {
+  /** 1-based match number. */
+  match: number;
+  /** 1-based lesson number inside the tutorial, or null for a match of its own. */
+  lesson: number | null;
+}
+
+/** The tutorial is the five moves and the three abilities; every other level with a guide is a match of its own. */
+const isLesson = (l: NumberedLevel | undefined): boolean => !!l?.guide && (!l.guide.series || l.guide.series === 'abilities');
+
+export function matchInfo(levels: readonly NumberedLevel[], index: number): MatchInfo {
+  if (isLesson(levels[index])) {
+    let lesson = 0;
+    for (let i = 0; i <= index; i++) if (isLesson(levels[i])) lesson++;
+    return { match: 1, lesson };
+  }
+  // The tutorial counts as match 1, so the first other level is match 2.
+  let match = isLesson(levels[0]) ? 1 : 0;
+  for (let i = 0; i <= index; i++) if (!isLesson(levels[i])) match++;
+  return { match, lesson: null };
+}

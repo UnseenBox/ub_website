@@ -2174,59 +2174,6 @@ body {
   }
 }
 
-/* The one-time boost introduction card. */
-.boost-intro {
-  display: grid;
-  gap: 12px;
-  max-width: min(440px, 92vw);
-  text-align: center;
-}
-
-.boost-intro-lead,
-.boost-intro-gift {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  line-height: 1.5;
-  color: var(--green-night);
-}
-
-.boost-intro-gift {
-  color: var(--terra);
-}
-
-.boost-intro-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  text-align: start;
-}
-
-.boost-intro-row {
-  display: grid;
-  gap: 2px;
-  padding: 8px 12px;
-  border-inline-start: 5px solid var(--card, var(--green));
-  background: rgba(27, 37, 64, 0.06);
-  border-radius: 8px;
-}
-
-.boost-intro-name {
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  color: var(--card, var(--navy));
-}
-
-.boost-intro-blurb {
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--navy);
-}
-
 /* The new-ball toast: one line and one action, over the bottom of the screen. */
 .toast {
   position: fixed;
@@ -2338,22 +2285,45 @@ body {
   display: none;
 }
 
+/* One pill with two positions: a green ball-shaped thumb springs between GROUND and AIR. */
 .kick-modes {
+  position: relative;
   display: flex;
   flex: none;
-  gap: 6px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.kick-modes::before {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 46px;
+  height: 46px;
+  content: '';
+  background: radial-gradient(circle at 50% 28%, #4ff07c, var(--green-deep));
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(76, 225, 108, 0.3), 0 0 20px rgba(76, 225, 108, 0.7), 0 3px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.34s cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+
+.kick-modes.is-air::before {
+  transform: translateX(46px);
 }
 
 .kick-mode {
   position: relative;
   width: 46px;
   height: 46px;
-  padding: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 3px solid rgba(255, 255, 255, 0.22);
-  border-radius: 50%;
+  padding: 5px;
   cursor: pointer;
-  transition: transform 0.14s cubic-bezier(0.2, 1.6, 0.4, 1), background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  transition: transform 0.14s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
 
 .kick-mode svg {
@@ -2361,23 +2331,17 @@ body {
   width: 100%;
   height: 100%;
   filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.3));
-  opacity: 0.55;
-  transition: opacity 0.2s;
-}
-
-.kick-mode.is-on {
-  background: radial-gradient(circle at 50% 30%, #3ce06a, var(--green-deep));
-  border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(76, 225, 108, 0.35), 0 0 22px rgba(76, 225, 108, 0.7);
-  transform: translateY(-3px) scale(1.07);
+  opacity: 0.5;
+  transition: opacity 0.2s, transform 0.3s cubic-bezier(0.3, 1.7, 0.5, 1);
 }
 
 .kick-mode.is-on svg {
   opacity: 1;
+  transform: scale(1.1);
 }
 
-.kick-mode:active {
-  transform: scale(0.92);
+.kick-mode:active svg {
+  transform: scale(0.88);
 }
 
 .kick-mode.is-burst::after {
@@ -2419,6 +2383,7 @@ body {
 
 .kick-curve {
   display: block;
+  cursor: pointer;
   width: 100%;
   height: 42px;
   overflow: visible;
@@ -2485,7 +2450,7 @@ body {
 
 .kick-mode:focus-visible {
   outline: 3px solid var(--sun);
-  outline-offset: 3px;
+  outline-offset: -2px;
 }
 
 /* A lesson points at the control it wants: a pulsing ring and a finger. */
@@ -2591,6 +2556,10 @@ body {
 
 .guide-card.is-new {
   animation: guide-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.guide-pips[hidden] {
+  display: none;
 }
 
 .guide-pips {
@@ -2789,5 +2758,121 @@ body {
   .mv-flow,
   .kick-mode.is-burst::after {
     animation: none;
+  }
+}
+
+/* ---- A narrow screen: the boosts become a row of chips just above the free-kick dock, under the pitch ---- */
+@media (max-aspect-ratio: 5/4) {
+  .ability-bar {
+    top: auto;
+    right: auto;
+    left: 50%;
+    bottom: calc(110px + env(safe-area-inset-bottom));
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 14px;
+    padding: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+
+  .ability-bar:not([hidden]) {
+    transform: translateX(-50%);
+  }
+
+  .ability-card:hover:not(:disabled) {
+    transform: translateY(-3px) scale(1.06);
+  }
+
+  .ability-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .ability-name {
+    font-size: 7.5px;
+    padding: 3px 5px 2px;
+  }
+
+  .ability-cost {
+    top: 25px;
+    right: -9px;
+    min-width: 21px;
+    height: 21px;
+    padding: 0 5px;
+    font-size: 9px;
+  }
+
+  .ability-help {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  /* The coin pill stays in the corner; the pause button stays by the dock. */
+  .coin-pill {
+    padding: 5px 12px;
+  }
+}
+
+/* An ability lesson's chip: the round badge of the ability, already switched on. */
+.guide-chip.is-ability img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+/* A narrow screen: the coach card keeps to the left so the coins in the corner stay visible, and it shrinks on a short one. */
+@media (max-aspect-ratio: 5/4) {
+  .guide-card {
+    left: calc(10px + env(safe-area-inset-left));
+    width: calc(100vw - 108px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    transform: none;
+  }
+
+  .guide-card.is-new {
+    animation-name: guide-in-left;
+  }
+
+  @keyframes guide-in-left {
+    from {
+      opacity: 0;
+      transform: translateY(-30px) scale(0.92);
+    }
+  }
+}
+
+@media (max-aspect-ratio: 5/4) and (max-height: 760px) {
+  .guide-card {
+    padding: 6px 8px 8px;
+  }
+
+  .guide-pips {
+    margin-bottom: 5px;
+  }
+
+  .guide-art {
+    flex-basis: 44%;
+  }
+
+  .guide-title {
+    font-size: 12px;
+  }
+
+  .guide-chips {
+    gap: 14px;
+  }
+
+  .guide-chip {
+    width: 38px;
+    height: 38px;
+  }
+
+  .guide-chip svg {
+    width: 30px;
+    height: 30px;
   }
 }

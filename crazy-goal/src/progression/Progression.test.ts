@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STUCK_MISSES, isStuck, starsToNextSkin, unseenSkins, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
+import { STUCK_MISSES, isStuck, starsToNextSkin, unseenSkins, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, matchInfo, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -186,5 +186,16 @@ describe('stuck assist', () => {
     expect(isStuck(3)).toBe(false);
     expect(isStuck(4)).toBe(true);
     expect(isStuck(9)).toBe(true);
+  });
+});
+
+describe('matchInfo', () => {
+  const levels = [{ guide: {} }, { guide: {} }, { guide: {} }, { guide: { series: 'abilities' } }, { guide: { series: 'dodge' } }, {}];
+  it('numbers the tutorial lessons inside match 1 and every other level as the next match', () => {
+    expect(matchInfo(levels, 0)).toEqual({ match: 1, lesson: 1 });
+    expect(matchInfo(levels, 2)).toEqual({ match: 1, lesson: 3 });
+    expect(matchInfo(levels, 3)).toEqual({ match: 1, lesson: 4 });
+    expect(matchInfo(levels, 4)).toEqual({ match: 2, lesson: null });
+    expect(matchInfo(levels, 5)).toEqual({ match: 3, lesson: null });
   });
 });

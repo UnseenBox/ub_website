@@ -4,9 +4,8 @@ import starUrl from '../assets/ui/arcade-star.png';
 import coinUrl from '../assets/ui/arcade-coin.png';
 import ballsUrl from '../assets/ui/balls.png';
 import levelsUrl from '../assets/ui/levels.png';
-import { cardOf } from '../abilities/Cards';
 import { lang, tr, type Lang } from '../core/i18n';
-import { chapterOf, chapterTitle } from '../progression/Progression';
+import { chapterOf } from '../progression/Progression';
 
 export interface SkinTile {
   id: string;
@@ -65,6 +64,9 @@ export interface MenuInfo {
 
 export interface LevelTile {
   name: string;
+  /** The heading it is listed under (English; `tr()` translates it) and the number printed on the tile. */
+  group: string;
+  label: string;
   hint: string;
   stars: number;
   best: number;
@@ -178,10 +180,8 @@ export class Overlay {
   private resetArmed = false;
   private readonly resetButton: HTMLButtonElement;
   private readonly rewardLabel: HTMLElement;
-  private readonly boostIntro: HTMLElement;
   private readonly toast: HTMLElement;
   private toastTimer = 0;
-  private boostIntroDone: (() => void) | null = null;
 
   constructor(
     private readonly root: HTMLElement,
@@ -316,25 +316,8 @@ export class Overlay {
     balls.append(el('h2', 'panel-title', 'BALLS'), this.skinProgress, this.skinGrid, button('btn btn-ghost', 'BACK', () => this.showMenu()));
     this.skins.append(balls);
 
-    // The one-time boost introduction, shown when houma 6 is first reached.
-    this.boostIntro = el('div', 'screen pause');
-    const intro = el('div', 'panel boost-intro');
-    intro.setAttribute('role', 'dialog');
-    intro.setAttribute('aria-modal', 'true');
-    intro.append(el('h2', 'panel-title', 'BOOSTS'), el('p', 'boost-intro-lead', 'STUCK? BURN THROUGH, PULL IT IN, OR BOUNCE FOREVER.'));
-    const list = el('ul', 'boost-intro-list');
-    for (const id of ['fire', 'magnet', 'rubber'] as const) {
-      const card = cardOf(id);
-      const row = el('li', 'boost-intro-row');
-      row.style.setProperty('--card', card.color);
-      row.append(el('strong', 'boost-intro-name', card.name), el('span', 'boost-intro-blurb', card.blurb));
-      list.append(row);
-    }
-    intro.append(list, el('p', 'boost-intro-gift', 'A FREE MAGNET IS WAITING ON THE RIGHT.'), button('btn btn-primary', 'GOT IT', () => this.closeBoostIntro()));
-    this.boostIntro.append(intro);
-
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro];
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -382,18 +365,6 @@ export class Overlay {
   showMenu(): void {
     this.refreshMenu();
     this.show(this.menu);
-  }
-
-  /** The boost column's one-time introduction; `done` runs when the player dismisses it. */
-  showBoostIntro(done: () => void): void {
-    this.boostIntroDone = done;
-    this.show(this.boostIntro);
-  }
-
-  private closeBoostIntro(): void {
-    const done = this.boostIntroDone;
-    this.boostIntroDone = null;
-    done?.();
   }
 
   showPause(): void {
@@ -538,21 +509,20 @@ export class Overlay {
     let chapter = '';
     let grid: HTMLElement | null = null;
     // Stars won and available in each chapter, for the headers.
-    const chapterTotals = new Map<number, { stars: number; max: number }>();
-    tiles.forEach((t, i) => {
-      const c = chapterOf(i);
-      const sum = chapterTotals.get(c) ?? { stars: 0, max: 0 };
+    const chapterTotals = new Map<string, { stars: number; max: number }>();
+    tiles.forEach((t) => {
+      const sum = chapterTotals.get(t.group) ?? { stars: 0, max: 0 };
       sum.stars += t.stars;
       sum.max += 3;
-      chapterTotals.set(c, sum);
+      chapterTotals.set(t.group, sum);
     });
     const buttons: HTMLButtonElement[] = [];
     tiles.forEach((tile, i) => {
-      const want = chapterTitle(chapterOf(i));
+      const want = tile.group;
       if (want !== chapter) {
         chapter = want;
         const num = chapterOf(i);
-        const total = chapterTotals.get(num);
+        const total = chapterTotals.get(want);
         const gate = gates[num];
         const h = document.createElement('h3');
         h.className = 'chapter-title';
@@ -603,7 +573,7 @@ export class Overlay {
         b.title = tr('YOU HAVE {have} OF {need} STARS', { have: tile.gate.have, need: tile.gate.need });
         b.setAttribute('aria-label', `${tr(tile.name)}, ${b.title}`);
       }
-      b.append(el('span', 'tile-number', String(i + 1).padStart(2, '0')), nameLine, stars, bestLine);
+      b.append(el('span', 'tile-number', tile.label), nameLine, stars, bestLine);
       if (tile.unlocked && tile.coin) {
         // The alley's coin is still out there.
         const coin = el('span', 'tile-coin');

@@ -74,9 +74,10 @@ export class Hud {
 
     if (g.tip && (g.state === 'ready' || g.state === 'aiming') && !g.paused) this.drawTip(ctx, g, u, g.tip.text);
     // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
-    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active) {
+    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active && !g.guideDef()) {
+      // (A lesson has its coach card up there instead: the stars are for later.)
       const keys = !cam.portrait && !g.input.pointer.touch;
-      this.drawTargets(ctx, g, u, left, top + 18 * u + (keys ? 124 * u : 0));
+      this.drawTargets(ctx, g, u, left, top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0));
     }
     if (g.state === 'missed') this.drawMiss(ctx, g, u);
     if (g.banner && g.banner.t < g.banner.dur) this.drawBannerText(ctx, g, u);
@@ -192,13 +193,21 @@ export class Hud {
     ctx.textBaseline = 'alphabetic';
   }
 
-  private drawKeys(ctx: CanvasRenderingContext2D, g: Game, w: number): void {
-    const keys: ReadonlyArray<readonly [string, string]> = [
+  /** The keys worth showing: the free-kick keys only where those moves are on offer. */
+  private keyList(g: Game): ReadonlyArray<readonly [string, string]> {
+    const parts = g.kickParts();
+    return [
       ['R', 'RETRY'],
       ['ESC', 'PAUSE'],
       ['M', g.audio.muted ? 'SOUND IS OFF' : 'SOUND'],
+      ...(parts.air ? ([['F', 'AIR']] as const) : []),
+      ...(parts.bend ? ([['Q E', 'BEND']] as const) : []),
     ];
-    roundRect(ctx, 0, 0, w, 110, 14);
+  }
+
+  private drawKeys(ctx: CanvasRenderingContext2D, g: Game, w: number): void {
+    const keys = this.keyList(g);
+    roundRect(ctx, 0, 0, w, 26 + keys.length * 28, 14);
     ctx.fillStyle = rgba(C.white, 0.88);
     ctx.fill();
     keys.forEach(([key, label], i) => {

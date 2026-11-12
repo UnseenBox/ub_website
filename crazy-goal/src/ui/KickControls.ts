@@ -15,6 +15,8 @@ export interface KickControlsHandlers {
   bend(): number;
   setType(type: ShotType): void;
   setBend(bend: number): void;
+  /** A click for the ear when the dial lands on straight or on full bend. */
+  tick?(): void;
 }
 
 /**
@@ -62,13 +64,24 @@ export class KickControls {
     // The dial is a left to right picture even in Arabic, like the pitch.
     this.range.dir = 'ltr';
     this.range.addEventListener('input', () => {
+      const before = this.handlers.bend();
       const bend = snapBend(Number(this.range.value) / 100);
       this.handlers.setBend(bend);
+      // A tick and a buzz when it lands on straight or on full bend: you can feel the notches.
+      if (bend !== before && (bend === 0 || Math.abs(bend) === 1)) this.feedback();
       this.range.value = String(Math.round(bend * 100));
       this.refresh();
     });
     // Keys on the dial are its own: they must not pause, retry or mute the game.
     this.range.addEventListener('keydown', (e) => e.stopPropagation());
+    // Tapping the picture of the curve puts the dial back to straight.
+    this.curve.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (this.handlers.bend() === 0) return;
+      this.handlers.setBend(0);
+      this.feedback();
+      this.refresh();
+    });
     const tap = document.createElement('span');
     tap.className = 'kick-finger';
     tap.innerHTML = ICON.tap;
@@ -89,11 +102,23 @@ export class KickControls {
     b.setAttribute('aria-label', tr(label));
     b.innerHTML = icon;
     b.addEventListener('click', () => {
-      if (this.handlers.type() !== type) this.burst(b);
+      if (this.handlers.type() !== type) {
+        this.burst(b);
+        this.feedback();
+      }
       this.handlers.setType(type);
       this.refresh();
     });
     return b;
+  }
+
+  private feedback(): void {
+    this.handlers.tick?.();
+    try {
+      navigator.vibrate?.(8);
+    } catch {
+      /* no vibration motor, or not allowed: the click is enough */
+    }
   }
 
   /** A ring of light round a button when it is switched on. */
@@ -125,7 +150,8 @@ export class KickControls {
     this.bendBox.classList.toggle('is-hint', hint === 'bend');
     this.range.value = String(Math.round(bend * 100));
     // The curve shows where the ball will go; the fill and the glow show how much, and which side.
-    this.curve.innerHTML = bendGlyph(bend);
+    this.curve.innerHTML = bendGlyph(bend, type === 'air');
+    this.modes.classList.toggle('is-air', type === 'air');
     const left = Math.max(0, -bend) * 50;
     const right = Math.max(0, bend) * 50;
     this.range.style.setProperty('--fill', `linear-gradient(90deg, transparent ${50 - left}%, var(--sun) ${50 - left}%, var(--sun) ${50 + right}%, transparent ${50 + right}%)`);

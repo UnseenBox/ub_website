@@ -37,8 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
-import { coinSpot } from '../levels/coinPlacement';
+import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, matchInfo, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
 import { ParticleSystem } from '../particles/ParticleSystem';
@@ -61,6 +60,7 @@ import { GuideCard, type GuideInfo } from '../ui/GuideCard';
 import { GUIDE_ASSIST_MISSES, guideAssist, guideNeed, guideShot, snapBend, type GuideNeed } from './Guide';
 import type { GuideDef } from '../levels/LevelDefinition';
 import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
+import { traceShot, type Trace } from '../levels/sweep';
 import { portal, isCrazyGames } from '../portal/Portal';
 import { Overlay, setUiClick, type MenuInfo } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
@@ -71,6 +71,7 @@ import { Time } from './Time';
 /** Coins for watching a rewarded ad on a portal. The shop stays the coin-free alternative. */
 const REWARD_COINS = 30;
 /** A ball slower than this for STILL_SECONDS is over. */
+const BEND_STEPS = [-1, -0.5, 0, 0.5, 1] as const;
 const STILL_SPEED = 4;
 const STILL_SECONDS = 0.1;
 /** No shot is allowed to run longer than this, whatever the street does to it. */
@@ -275,6 +276,10 @@ export class Game {
   readonly guideCard: GuideCard;
   /** The lesson has set the controls for the player after missed shots. */
   private guideAssisted = false;
+  /** An ability lesson: the boost on the ball is the lesson's own, free, and put back after every shot. */
+  private lessonBoost = false;
+  /** The ghost's two flights for an ability lesson: the shot without the ability, then with it. */
+  abilityDemo: { boost: Boost; plain: Trace; boosted: Trace } | null = null;
   private guideKey = '';
   /** How the next solo shot is struck: along the ground or lofted, and how much it bends (-1 to 1). */
   readonly kick: { type: ShotType; bend: number } = { type: 'ground', bend: 0 };
@@ -405,6 +410,7 @@ export class Game {
       setBend: (bend) => {
         this.kick.bend = snapBend(bend);
       },
+      tick: () => this.sounds.ui(),
     });
     this.guideCard = new GuideCard({ info: () => this.guideInfo() });
     this.overlay.addFloating(this.abilities.walletEl, this.abilities.el, this.kickControls.el, this.guideCard.el);
@@ -536,8 +542,8 @@ export class Game {
     return {
       stars: { n: this.totalStars(), max: this.maxStars() },
       coins: this.save.data.coins,
-      continueNumber: at + 1,
-      lesson: !!this.levels[at]?.guide,
+      continueNumber: matchInfo(this.levels, at)[matchInfo(this.levels, at).lesson ? 'lesson' : 'match'] ?? at + 1,
+      lesson: matchInfo(this.levels, at).lesson !== null,
       continueName: this.levels[at]?.name ?? '',
       newBall: unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).length > 0,
     };
@@ -582,9 +588,14 @@ export class Game {
     const cx = arena.x + arena.w / 2;
     // A duel keeps a strip free under the kerb for the row of cards.
     const tall = arena.h + 520 + (this.shotRule === 'single' ? 84 : 0);
+    // Solo: the level is fitted between a strip for the coach card and the coins above it and a strip for the
+    // controls below it, so nothing on a phone is drawn over the pitch. A duel keeps its own framing.
+    const solo = this.shotRule === 'free';
     this.camera.setFrames(
       { cx, cy: arena.y - 170 + (arena.h + 244) / 2, w: arena.w + 660, h: arena.h + 244 },
-      { cx, cy: arena.y - 390 + tall / 2, w: arena.w + 110, h: tall },
+      // The frame is the pitch with the goal net above it and the near boards below, nothing more.
+      solo ? { cx, cy: arena.y - 95 + (arena.h + 120) / 2, w: arena.w + 110, h: arena.h + 120 } : { cx, cy: arena.y - 390 + tall / 2, w: arena.w + 110, h: tall },
+      solo ? (height) => ({ top: Math.max(100, height * 0.15), bottom: Math.max(158, height * 0.24) }) : undefined,
     );
   }
 
@@ -656,6 +667,7 @@ export class Game {
     // A lesson starts from a plain ground shot, so that switching the move on is the lesson.
     this.guideAssisted = false;
     this.guideKey = '';
+    this.buildDemo();
     if (this.guideDef()) {
       this.kick.type = 'ground';
       this.kick.bend = 0;
@@ -687,6 +699,28 @@ export class Game {
     this.banner = { text, good, t: 0, dur: seconds };
   }
 
+  /** An ability lesson puts its boost on the ball for every shot, for free. */
+  private armLesson(): void {
+    const boost = this.guideDef()?.boost;
+    if (!boost || this.armedBoost) return;
+    this.armedBoost = boost;
+    this.armedFree = true;
+    this.lessonBoost = true;
+  }
+
+  /** The ghost's two flights for the ability lesson on screen: the same shot without the ability, then with it. */
+  private buildDemo(): void {
+    const def = this.level.def.guide;
+    if (!def?.boost) {
+      this.abilityDemo = null;
+      return;
+    }
+    const s = def.show;
+    const plain = traceShot(this.level.def, this.level.index, s.angle, s.power, { air: s.air, bend: s.bend });
+    const boosted = traceShot(this.level.def, this.level.index, s.angle, s.power, { air: s.air, bend: s.bend, boost: def.boost });
+    this.abilityDemo = { boost: def.boost, plain, boosted };
+  }
+
   /** The lesson this level teaches, while it is still the first time through (solo play only). */
   guideDef(): GuideDef | null {
     const def = this.level.def.guide;
@@ -703,8 +737,9 @@ export class Game {
     const def = this.guideDef();
     if (!def || this.paused || this.duel.active) return null;
     if (this.state === 'menu' || this.state === 'goal' || this.state === 'replay') return null;
-    const lessons = this.levels.filter((l) => l.guide);
-    return { move: def.move, step: lessons.indexOf(this.level.def) + 1, total: lessons.length, need: this.guideNeedNow() };
+    const series = def.series ?? 'tutorial';
+    const lessons = this.levels.filter((l) => l.guide && (l.guide.series ?? 'tutorial') === series);
+    return { move: def.move, step: lessons.indexOf(this.level.def) + 1, total: lessons.length, need: this.guideNeedNow(), boost: def.boost };
   }
 
   /** The shot the ghost hand and the dotted path show right now, or null (nothing to show yet, or the player is on their own). */
@@ -732,7 +767,8 @@ export class Game {
       this.sounds.ui();
     }
     const ghost = this.guideGhost();
-    if (!ghost || this.state !== 'ready') return;
+    // An ability lesson shows the ghost's two flights instead of the dotted path.
+    if (!ghost || this.state !== 'ready' || def.boost) return;
     const key = `${this.level.index}|${this.kick.type}|${this.kick.bend}|${ghost.angle}|${ghost.power}`;
     if (key === this.guideKey) return;
     this.guideKey = key;
@@ -743,13 +779,43 @@ export class Game {
   }
 
   /** Which free-kick controls to show: a lesson shows only the one it teaches. */
-  private kickParts(): { air: boolean; bend: boolean } {
+  kickParts(): { air: boolean; bend: boolean } {
     return this.guideDef()?.controls ?? { air: true, bend: true };
   }
 
   /** The free-kick controls: solo play, ball waiting or being aimed, nothing over the screen. */
   private kickVisible(): boolean {
     return this.shotRule === 'free' && !this.duelScore && !this.duel.active && !this.paused && (this.state === 'ready' || this.state === 'aiming');
+  }
+
+  /** F flips between ground and air; Q and E step the bend left and right through straight and half and full. */
+  private kickKeys(): void {
+    const input = this.input;
+    const air = input.consume('air');
+    const left = input.consume('bendLeft');
+    const right = input.consume('bendRight');
+    if (!(air || left || right) || !this.kickVisible()) return;
+    const parts = this.kickParts();
+    if (air && parts.air) {
+      this.kick.type = this.kick.type === 'air' ? 'ground' : 'air';
+      this.sounds.ui();
+    }
+    if ((left || right) && parts.bend) {
+      let i = 0;
+      for (let k = 1; k < BEND_STEPS.length; k++) if (Math.abs(BEND_STEPS[k] - this.kick.bend) < Math.abs(BEND_STEPS[i] - this.kick.bend)) i = k;
+      const next = Math.max(0, Math.min(BEND_STEPS.length - 1, i + (right ? 1 : 0) - (left ? 1 : 0)));
+      this.kick.bend = BEND_STEPS[next];
+      this.sounds.ui();
+    }
+  }
+
+  /** What the ball shows beside it while it waits: a lift chevron when lofted, a curl arrow when bent; null when neither. */
+  kickBadge(): { air: boolean; bend: number } | null {
+    if (!(this.state === 'ready' || this.state === 'aiming') || this.paused || !this.kickVisible()) return null;
+    const parts = this.kickParts();
+    const air = parts.air && this.kick.type === 'air';
+    const bend = parts.bend ? this.kick.bend : 0;
+    return air || bend !== 0 ? { air, bend } : null;
   }
 
   /** The speed of a shot: a lofted one uses its own, gentler range. */
@@ -768,6 +834,8 @@ export class Game {
       this.shotRule === 'free' &&
       // The boost column is introduced at houma 6; before that it would only be clutter.
       this.save.data.boostIntro &&
+      // An ability lesson has its boost already on the ball.
+      !this.guideDef()?.boost &&
       !this.duelScore &&
       !this.duel.active &&
       !this.paused &&
@@ -779,6 +847,13 @@ export class Game {
   private disarm(): void {
     const id = this.armedBoost;
     if (!id) return;
+    // A lesson's boost belongs to the lesson: nothing to refund.
+    if (this.lessonBoost) {
+      this.armedBoost = null;
+      this.armedFree = false;
+      this.lessonBoost = false;
+      return;
+    }
     if (this.armedFree) this.save.data.freeBoosts[id] = (this.save.data.freeBoosts[id] ?? 0) + 1;
     else this.save.data.coins += BOOST_COSTS[id];
     this.armedBoost = null;
@@ -820,25 +895,17 @@ export class Game {
   }
 
   /**
-   * Things a player is told the first time they arrive on a houma: the bank tip on houma 2, and
-   * the boost column with one free MAGNET on houma 6.
+   * Things that happen the first time a player arrives on a level: the shop opens, with one free MAGNET, once the
+   * ability lessons are behind them.
    */
   private onLevelEntered(): void {
     if (this.shotRule !== 'free' || this.level.index < 0 || this.paused) return;
     this.events.emit('LEVEL_STARTED', { level: this.level.index + 1, chapter: chapterOf(this.level.index) });
     if (this.level.index >= BOOST_INTRO_LEVEL && !this.save.data.boostIntro) {
+      // The lessons have shown what each ability does: the shop opens, with one MAGNET on the house.
       this.save.data.boostIntro = true;
       this.save.data.freeBoosts.magnet = (this.save.data.freeBoosts.magnet ?? 0) + BOOST_INTRO_FREE_MAGNETS;
       this.save.save();
-      this.paused = true;
-      portal.gameplayStop();
-      this.overlay.showBoostIntro(() => {
-        this.paused = false;
-        this.overlay.hide();
-        this.syncButtons(true);
-        portal.gameplayStart();
-        this.abilities.refresh(BOOST_COSTS);
-      });
       this.abilities.refresh(BOOST_COSTS);
     }
   }
@@ -978,7 +1045,8 @@ export class Game {
       this.levels.map((def, i) => {
         const rec = this.save.level(def.id);
         const gate = isGateBlocked(this.save.data, this.levels, i) ? gateStatus(this.save.data, this.levels, chapterOf(i)) : undefined;
-        return { name: def.name, hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin };
+        const m = matchInfo(this.levels, i);
+        return { name: def.name, group: m.lesson ? 'TUTORIAL' : 'MATCHES', label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin };
       }),
       this.level.index,
       focus,
@@ -1079,6 +1147,7 @@ export class Game {
         if (!this.shotTaken && this.state !== 'replay') this.handlePointer(realDt);
       } else {
         if (input.consume('restart')) this.retryShot();
+        this.kickKeys();
         if (input.consume('confirm') && this.state === 'goal' && this.celebration.canRetry) this.nextLevel();
         this.handlePointer(realDt);
       }
@@ -1156,11 +1225,12 @@ export class Game {
     b.bend = kick.bend;
     b.turned = 0;
     this.ball.stretch(shot.dirX, shot.dirY, 0.1 + 0.2 * shot.power);
-    if (this.armedBoost && this.shotRule === 'free') this.events.emit('BOOST_USED', { boost: this.armedBoost, free: this.armedFree });
+    if (this.armedBoost && this.shotRule === 'free' && !this.lessonBoost) this.events.emit('BOOST_USED', { boost: this.armedBoost, free: this.armedFree });
     this.level.arm(this.armedBoost, b);
     this.flightBoost = this.armedBoost;
     this.armedBoost = null;
     this.armedFree = false;
+    this.lessonBoost = false;
     this.tip = null;
     this.smokeTarget = 0;
     this.shotEvents = [];
@@ -1239,9 +1309,8 @@ export class Game {
   /** Strings the alley's coin along the natural ball-to-goal line, clear of static geometry. */
   private placeCoin(level: Level): void {
     this.coinTaken = this.coinSpent();
-    const spot = coinSpot(level.def.id, level.def.arena, level.def.ballStart, level.def.goal, level.world.statics);
-    this.coinX = spot.x;
-    this.coinY = spot.y;
+    this.coinX = level.coin.x;
+    this.coinY = level.coin.y;
   }
 
   /** The alley's coin is drawn only on solo streets: a duel street has none. */
@@ -1382,6 +1451,7 @@ export class Game {
     this.flightBoost = null;
     this.ball.reset(x, y);
     this.coinTaken = this.coinSpent();
+    this.armLesson();
     this.setState('ready');
     this.events.emit('SHOT_RESET', { x, y });
   }

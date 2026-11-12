@@ -16,9 +16,12 @@ import { box, Layer, type Surface } from '../physics/Collider';
 import { PhysicsWorld, type ContactListener } from '../physics/PhysicsWorld';
 import { createBody, type RigidBody } from '../physics/RigidBody';
 import { KICK } from '../physics/Flight';
+import { coinSpot } from './coinPlacement';
 import type { BoundaryDef, LevelDefinition, MechanicDef, Point, Theme, WallKind } from './LevelDefinition';
 
 export const RAIL_THICKNESS = 26;
+/** A wall that bends less than this (radians) at a vertex is a smooth curve, not a corner. */
+const SMOOTH_TURN = 0.5;
 
 export type BlockKind = 'rail' | 'kerb' | WallKind;
 
@@ -32,6 +35,8 @@ const BLOCKS: Readonly<Record<BlockKind, { restitution: number; friction: number
   crate: { restitution: 0.52, friction: 0.25, lift: 24, surface: 'crate' },
   car: { restitution: 1.12, friction: 0.08, lift: 22, surface: 'car' },
   shutter: { restitution: 0.7, friction: 0.1, lift: 40, surface: 'gate' },
+  // A free-standing advertising board: solid at every height, so a lob does not clear it.
+  adboard: { restitution: 0.82, friction: 0.1, lift: 28, surface: 'wall' },
   // A defender in the wall: a dead thud, and a lofted ball goes over his head.
   defender: { restitution: 0.52, friction: 0.25, lift: 24, surface: 'crate', clear: KICK.wallClear },
 };
@@ -69,6 +74,10 @@ export interface Block {
   gone: boolean;
   /** Built by the boundary outline, so the art can butt the bands together instead of overlapping them. */
   readonly boundary?: boolean;
+  /** Explicit outlines only: how much of each end the art leaves off, where a pillar cap covers the joint. */
+  readonly trim?: readonly [number, number];
+  /** Explicit outlines only: how far along the wall this band starts, so the boards' panels run on across bands. */
+  readonly along?: number;
   /** The chapter the level belongs to, so the art can tint the block for the hour of day. */
   readonly theme?: Theme;
 }
@@ -109,6 +118,8 @@ export class Level {
   /** The goalkeeper, if this level has one. */
   readonly keeper: Cat | null;
   readonly hasKeeper: boolean;
+  /** Where the level's coin hangs. */
+  readonly coin: Point;
   /** The boost on the ball in play (a duel card), set by `arm`. */
   boost: Boost | null = null;
   /** True once the fire has gone through something: one obstacle per shot. */
@@ -134,6 +145,7 @@ export class Level {
     for (const m of def.mechanics) this.addMechanic(m);
     this.keeper = this.mechanics.find((m): m is Cat => m instanceof Cat) ?? null;
     this.hasKeeper = this.keeper !== null;
+    this.coin = def.coin ?? coinSpot(def.id, def.arena, def.ballStart, def.goal, this.world.statics);
   }
 
   private build(): void {
@@ -185,9 +197,10 @@ export class Level {
     pts[0] = { x: g.leftPostX, y: arena.y };
     pts[pts.length - 1] = { x: g.rightPostX, y: arena.y };
 
-    // The closed loop: the two top corners of the arena, then the street between them.
-    const loop: Point[] = [{ x: arena.x, y: arena.y }, ...pts, { x: right, y: arena.y }];
+    // The closed loop: the two top corners of the arena, then the street between them. An explicit outline is the whole wall.
+    const loop: Point[] = def.explicit ? pts : [{ x: arena.x, y: arena.y }, ...pts, { x: right, y: arena.y }];
     const kinds = def.kinds ?? [];
+    let run = 0;
 
     for (let i = 0; i < loop.length - 1; i++) {
       const a = loop[i];
@@ -198,6 +211,24 @@ export class Level {
       if (len < 1) continue;
       // Flush bands: the ball meets exactly the face it sees. Adjacent faces meet at the
       // shard vertex, so the corner can never be slipped no matter the interior angle.
+      if (def.explicit) {
+        // How hard the wall turns at each end of this band: a rounded corner is smooth and gets no cap.
+        const turnAt = (p: Point, q: Point, r: Point): number => {
+          const ang = Math.atan2(r.y - q.y, r.x - q.x) - Math.atan2(q.y - p.y, q.x - p.x);
+          return Math.abs(Math.atan2(Math.sin(ang), Math.cos(ang)));
+        };
+        const capA = i > 0 && turnAt(loop[i - 1], a, b) > SMOOTH_TURN;
+        const capB = i + 2 < loop.length && turnAt(a, b, loop[i + 2]) > SMOOTH_TURN;
+        // Smooth ends overlap their neighbour a little so no sliver of ground shows on the outside of the bend.
+        const grow = (i > 0 && !capA ? 7 : 0) + (i + 2 < loop.length && !capB ? 7 : 0);
+        const shift = ((i > 0 && !capA ? 7 : 0) - (i + 2 < loop.length && !capB ? 7 : 0)) / 2;
+        const ux = dx / len;
+        const uy = dy / len;
+        this.addBlock(kinds[i] ?? 'wall', (a.x + b.x) / 2 - ux * shift, (a.y + b.y) / 2 - uy * shift, len + 2 + grow, t, Math.atan2(dy, dx), true, [capA ? t / 2 + 1 : 0, capB ? t / 2 + 1 : 0], run);
+        run += len;
+        if (capA) this.boundaryJoints.push({ x: a.x, y: a.y, kerb: (kinds[i - 1] ?? 'wall') === 'kerb' || (kinds[i] ?? 'wall') === 'kerb' });
+        continue;
+      }
       this.addBlock(kinds[i] ?? 'wall', (a.x + b.x) / 2, (a.y + b.y) / 2, len + 2, t, Math.atan2(dy, dx), true);
       if (i > 0) {
         // Every shared vertex gets a pillar cap in the art, unless a low kerb meets it there.
@@ -213,10 +244,10 @@ export class Level {
     this.hasCustomBoundary = true;
   }
 
-  private addBlock(kind: BlockKind, x: number, y: number, w: number, h: number, angle: number, boundary = false): void {
+  private addBlock(kind: BlockKind, x: number, y: number, w: number, h: number, angle: number, boundary = false, trim?: readonly [number, number], along?: number): void {
     const spec = BLOCKS[kind];
     const body = this.world.addStatic(createBody({ shape: box(w, h), surface: spec.surface, x, y, angle, restitution: spec.restitution, friction: spec.friction, clear: spec.clear }));
-    const block: Block = { body, kind, x, y, w, h, angle, lift: spec.lift, hit: 0, hitNx: 0, hitNy: 0, gone: false, boundary, theme: this.def.theme };
+    const block: Block = { body, kind, x, y, w, h, angle, lift: spec.lift, hit: 0, hitNx: 0, hitNy: 0, gone: false, boundary, trim, along, theme: this.def.theme };
     this.blocks.push(block);
     this.blockOf.set(body.id, block);
   }

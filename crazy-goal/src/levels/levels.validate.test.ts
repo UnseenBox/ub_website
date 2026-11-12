@@ -2,7 +2,8 @@ import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from '../../data/levels/matches';
 import { snapBend } from '../core/Guide';
-import { countRoutes, fireShot, sweepLevel, type Kick } from './sweep';
+import { Level } from './Level';
+import { countRoutes, fireShot, sweepLevel, traceShot, type Kick } from './sweep';
 
 /**
  * Level validation: every level can be solved, and the ones edited in the variety pass
@@ -14,7 +15,7 @@ import { countRoutes, fireShot, sweepLevel, type Kick } from './sweep';
  */
 
 /** Every match must keep at least three routes and a three star route at one degree steps. */
-const EDITED = LEVELS.map((_, i) => i + 1);
+const EDITED = LEVELS.map((_, i) => i + 1).filter((n) => !LEVELS[n - 1].guide?.boost);
 
 const ball = (n: number): { x: number; y: number } => LEVELS[n - 1].ballStart;
 
@@ -62,7 +63,7 @@ if (process.env.LEVEL_TABLE) {
     const forward = (h: { angle: number; lines: string }): boolean => h.angle > -165 && h.angle < -20 && !h.lines.includes('BOOMERANG');
     const clean = (n: number, kick: Kick): number =>
       sweepLevel(LEVELS[n - 1], n - 1, 1, POWERS, 0, kick).filter((h) => h.bounces === 0 && forward(h)).length;
-    const guided = LEVELS.map((def, i) => ({ def, i })).filter((l) => l.def.guide);
+    const guided = LEVELS.map((def, i) => ({ def, i })).filter((l) => l.def.guide && !l.def.guide.series);
 
     it('match 1 is the tutorial, five lessons, the ball at the bottom centre every time', () => {
       expect(guided.map((l) => l.def.guide?.move)).toEqual(['straight', 'bend', 'air', 'bank', 'free']);
@@ -109,6 +110,75 @@ if (process.env.LEVEL_TABLE) {
       expect(snapBend(-0.9)).toBe(-1);
       expect(snapBend(0.5)).toBe(0.5);
     });
+  });
+
+  describe('match 2: dodge the board, grab the coin', () => {
+    const i = LEVELS.findIndex((l) => l.id === 'match-02-dodge');
+    const def = LEVELS[i];
+    it('the board stops the straight shot, and the shown shot goes round it, through the coin, into the goal', () => {
+      const g = def.guide;
+      expect(g?.move).toBe('coin');
+      expect(fireShot(def, i, -90, 0.55), 'a straight shot at the middle of the goal').toBeNull();
+      const hit = fireShot(def, i, g?.show.angle ?? 0, g?.show.power ?? 0, 0, { air: g?.show.air ?? false, bend: g?.show.bend ?? 0 });
+      expect(hit).not.toBeNull();
+      expect(hit?.coin).toBe(true);
+      expect(hit?.bounces).toBe(0);
+    });
+    it('the coin is clear of the board', () => {
+      const level = new Level(def, i);
+      expect(level.coin).toEqual(def.coin);
+      for (const b of level.blocks) expect(Math.abs(b.x - level.coin.x) > b.w / 2 + 30 || Math.abs(b.y - level.coin.y) > b.h / 2 + 30 || b.boundary).toBe(true);
+    });
+  });
+
+  describe('match 3: the pinball table', () => {
+    const i = LEVELS.findIndex((l) => l.id === 'match-03-pinball');
+    const def = LEVELS[i];
+    it('has bumpers and a spinner, and can be scored whatever the spinner is doing', { timeout: 300000 }, () => {
+      expect(def.mechanics.filter((m) => m.type === 'bumper').length).toBeGreaterThanOrEqual(2);
+      expect(def.mechanics.some((m) => m.type === 'spinner')).toBe(true);
+      for (const delay of [0, 0.5, 1, 1.5, 2, 2.5]) expect(sweepLevel(def, i, 2, [0.4, 0.7, 1], delay).length, `spinner phase ${delay}`).toBeGreaterThan(0);
+    });
+    it('its coin can be picked up on the way to a goal', () => {
+      expect(sweepLevel(def, i, 2, [0.4, 0.7, 1]).some((h) => h.coin)).toBe(true);
+    });
+  });
+
+  describe('the ability lessons', () => {
+    const lessons = LEVELS.map((def, i) => ({ def, i })).filter((l) => l.def.guide?.boost);
+    it('there is one for each ability, after the five moves and before the first match', () => {
+      expect(lessons.map((l) => l.def.guide?.boost)).toEqual(['fire', 'magnet', 'rubber']);
+      expect(lessons.map((l) => l.i)).toEqual([5, 6, 7]);
+    });
+    for (const { def, i } of lessons) {
+      const g = def.guide;
+      const show = g?.show ?? { angle: -90, power: 0.5, air: false, bend: 0 };
+      it(`${def.name}: the shown shot fails without the ability and scores with it`, () => {
+        expect(fireShot(def, i, show.angle, show.power, 0, { air: show.air, bend: show.bend }), 'without').toBeNull();
+        const hit = fireShot(def, i, show.angle, show.power, 0, { air: show.air, bend: show.bend, boost: g?.boost });
+        expect(hit, 'with').not.toBeNull();
+      });
+      it(`${def.name}: the shown shot is no fluke, the shots next to it behave the same`, () => {
+        for (const d of [-2, 2]) {
+          expect(fireShot(def, i, show.angle + d, show.power, 0, { air: show.air, bend: show.bend, boost: g?.boost }), `with, ${d} degrees off`).not.toBeNull();
+        }
+      });
+      it(`${def.name}: the ghost's two flights agree with it, and the ability has a mark to show`, () => {
+        const kick = { air: show.air, bend: show.bend };
+        const plain = traceShot(def, i, show.angle, show.power, kick);
+        const boosted = traceShot(def, i, show.angle, show.power, { ...kick, boost: g?.boost });
+        expect(plain.scored).toBe(false);
+        expect(boosted.scored).toBe(true);
+        if (g?.boost === 'fire') expect(boosted.marks.some((m) => m.kind === 'burn')).toBe(true);
+        if (g?.boost === 'magnet') expect(boosted.marks.some((m) => m.kind === 'magnet')).toBe(true);
+        if (g?.boost === 'rubber') expect(boosted.marks.filter((m) => m.kind === 'bounce').length).toBeGreaterThanOrEqual(1);
+      });
+      it(`${def.name}: scoring with the ability has plenty of routes and reaches three stars`, { timeout: 120000 }, () => {
+        const hits = sweepLevel(def, i, 1, POWERS, 0, { air: false, bend: 0, boost: g?.boost });
+        expect(hits.length).toBeGreaterThan(20);
+        expect(hits.some((h) => h.stars === 3)).toBe(true);
+      });
+    }
   });
 
   describe('every match', () => {

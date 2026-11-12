@@ -611,6 +611,90 @@ function paintIce(ctx: CanvasRenderingContext2D, level: Level, look: Look, rng: 
   ctx.fillRect(arena.x, arena.y, arena.w, arena.h);
 }
 
+
+/** Offsets an outline inwards edge by edge: `off(i)` is how far edge i (from point i to point i + 1) moves. Convex outlines only. */
+function insetLoop(poly: readonly Point[], off: (i: number) => number): Point[] {
+  const n = poly.length;
+  let area = 0;
+  for (let i = 0; i < n; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % n];
+    area += a.x * b.y - b.x * a.y;
+  }
+  const sign = area >= 0 ? 1 : -1;
+  const lines: { px: number; py: number; dx: number; dy: number; nx: number; ny: number; d: number }[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const a = poly[i];
+    const b = poly[i + 1];
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const dx = (b.x - a.x) / len;
+    const dy = (b.y - a.y) / len;
+    const d = off(i);
+    lines.push({ px: a.x + -dy * sign * d, py: a.y + dx * sign * d, dx, dy, nx: -dy * sign, ny: dx * sign, d });
+  }
+  const out: Point[] = [{ x: lines[0].px, y: lines[0].py }];
+  for (let i = 1; i < lines.length; i++) {
+    const p = lines[i - 1];
+    const q = lines[i];
+    const cross = p.dx * q.dy - p.dy * q.dx;
+    if (Math.abs(cross) < 1e-6) {
+      out.push({ x: q.px, y: q.py });
+      continue;
+    }
+    const t = ((q.px - p.px) * q.dy - (q.py - p.py) * q.dx) / cross;
+    out.push({ x: p.px + p.dx * t, y: p.py + p.dy * t });
+  }
+  const last = lines[lines.length - 1];
+  const b = poly[n - 1];
+  out.push({ x: b.x + last.nx * last.d, y: b.y + last.ny * last.d });
+  return out;
+}
+
+/** The touchlines, a short way in from the boards, and a corner flag in each top corner. */
+function paintPitchLines(ctx: CanvasRenderingContext2D, level: Level): void {
+  const poly = level.playable;
+  if (poly.length < 4) return;
+  const top = level.def.arena.y;
+  const inset = 20;
+  const line = insetLoop(poly, (i) => (Math.abs(poly[i].y - top) < 2 && Math.abs(poly[i + 1].y - top) < 2 ? 0 : inset));
+  ctx.save();
+  ctx.strokeStyle = rgba(C.white, 0.82);
+  ctx.lineWidth = 5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  line.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+  ctx.stroke();
+  // Corner flags: the line's vertex nearest each top corner of the arena.
+  const { arena } = level.def;
+  for (const corner of [
+    { x: arena.x, y: arena.y },
+    { x: arena.x + arena.w, y: arena.y },
+  ]) {
+    let best = line[0];
+    for (const p of line) if (Math.hypot(p.x - corner.x, p.y - corner.y) < Math.hypot(best.x - corner.x, best.y - corner.y)) best = p;
+    const dir = corner.x < arena.x + arena.w / 2 ? 1 : -1;
+    ctx.fillStyle = rgba('#000000', 0.18);
+    ctx.beginPath();
+    ctx.ellipse(best.x + 5, best.y + 4, 9, 4, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = '#f4f0e6';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(best.x, best.y);
+    ctx.lineTo(best.x, best.y - 34);
+    ctx.stroke();
+    ctx.fillStyle = C.terra;
+    ctx.beginPath();
+    ctx.moveTo(best.x, best.y - 34);
+    ctx.lineTo(best.x + dir * 20, best.y - 28);
+    ctx.lineTo(best.x, best.y - 21);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 /** A stadium pitch: mowing stripes, blades of grass, and the chalk of the penalty area. */
 function paintTurf(ctx: CanvasRenderingContext2D, level: Level, look: Look, rng: () => number): void {
   const { arena, goal } = level.def;
@@ -634,6 +718,7 @@ function paintTurf(ctx: CanvasRenderingContext2D, level: Level, look: Look, rng:
     ctx.lineTo(x + (rng() - 0.5) * 4, y - 6 - rng() * 6);
   }
   ctx.stroke();
+  paintPitchLines(ctx, level);
   // The chalk: penalty area, six-yard box, spot and the arc outside the box.
   const line = rgba(C.white, 0.82);
   ctx.strokeStyle = line;
