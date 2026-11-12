@@ -514,6 +514,10 @@ export class Game {
     this.save.save();
   }
 
+  closeSettings(): void {
+    this.overlay.closeSettings();
+  }
+
   /** Opens the settings card over whatever is showing; `onClose` runs when it is left. */
   openSettings(onClose?: () => void): void {
     this.overlay.openSettings(onClose ?? null);

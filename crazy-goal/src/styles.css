@@ -66,6 +66,11 @@ body {
   display: block;
 }
 
+/* Settings opened from the Free Kicks arena: that layer is fixed above the page, so lift the whole app over it. */
+#app.is-above {
+  z-index: 80;
+}
+
 /* A sheet of whitewash over the street: the game stays visible, sun-bleached, behind it. */
 .screen {
   position: absolute;

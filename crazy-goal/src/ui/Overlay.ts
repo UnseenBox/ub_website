@@ -336,12 +336,7 @@ export class Overlay {
     }
     langs.append(el('span', 'setting-name', 'LANGUAGE'), pick);
     this.resetButton = button('btn btn-ghost reset-button', 'RESET PROGRESS', () => this.confirmReset());
-    prefs.append(el('h2', 'panel-title', 'SETTINGS'), sound.row, music.row, langs, this.resetButton, button('btn btn-primary', 'BACK', () => {
-      this.show(this.settingsFrom);
-      const close = this.settingsClose;
-      this.settingsClose = null;
-      close?.();
-    }));
+    prefs.append(el('h2', 'panel-title', 'SETTINGS'), sound.row, music.row, langs, this.resetButton, button('btn btn-primary', 'BACK', () => this.closeSettings()));
     this.settings.append(prefs);
 
     this.skins = el('div', 'screen levels');
@@ -477,7 +472,24 @@ export class Overlay {
   /** Settings over whatever is up (Free Kicks' arena); `onClose` runs after BACK. */
   openSettings(onClose: (() => void) | null): void {
     this.settingsClose = onClose;
+    // The arena's layer sits above the overlay: lift the overlay over it while the card is up.
+    this.root.parentElement?.classList.toggle('is-above', onClose !== null);
     this.showSettings();
+  }
+
+  /** BACK on the settings card: to wherever it was opened from, or back to the arena. */
+  closeSettings(): void {
+    if (this.settings.hidden) return;
+    const close = this.settingsClose;
+    this.settingsClose = null;
+    if (close) {
+      // Opened over the arena: only the card goes, the screens beneath stay as they were.
+      this.settings.hidden = true;
+      this.root.parentElement?.classList.remove('is-above');
+      close();
+    } else {
+      this.show(this.settingsFrom);
+    }
   }
 
   /** Redraws everything the menu shows from the current save. Cheap; called whenever any of it may have changed. */

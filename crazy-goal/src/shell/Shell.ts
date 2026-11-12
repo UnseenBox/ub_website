@@ -48,6 +48,8 @@ export interface CrazyKoraShell {
   };
   /** Opens the settings card over whatever is showing; `onClose` runs when the player leaves it. */
   openSettings(onClose?: () => void): void;
+  /** Closes that card as BACK would (for Escape). Does nothing when it is not open. */
+  closeSettings(): void;
   menu: {
     /** Free Kicks tells the main menu how to open it; the menu draws the tile. */
     registerModeTile(id: 'freeKicks', open: () => void): void;
@@ -112,6 +114,7 @@ export function installShell(game: Game): CrazyKoraShell {
       gameplayStop: () => portal.gameplayStop(),
     },
     openSettings: (onClose) => game.openSettings(onClose),
+    closeSettings: () => game.closeSettings(),
     menu: {
       registerModeTile: (id, open) => game.registerModeTile(id, open),
       refresh: () => game.refreshMenu(),

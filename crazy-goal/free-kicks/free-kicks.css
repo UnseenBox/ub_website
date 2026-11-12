@@ -1088,6 +1088,14 @@
   cursor: pointer;
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
+.fk-help[hidden] {
+  display: none;
+}
+.fk-settings svg {
+  display: block;
+  width: 56%;
+  height: 56%;
+}
 .fk-help:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 0 var(--fk-night);

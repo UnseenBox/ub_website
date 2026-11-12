@@ -1059,6 +1059,7 @@
       previewPost: "POST",
       previewBar: "BAR",
       helpLabel: "How to play",
+      settingsLabel: "Settings",
       tutStepOf: "STEP {k} OF 3",
       tutSkip: "SKIP",
       tutBack: "BACK",
@@ -1123,6 +1124,7 @@
       previewPost: "القائم",
       previewBar: "العارضة",
       helpLabel: "كيف تلعب",
+      settingsLabel: "الإعدادات",
       tutStepOf: "الخطوة {k} من 3",
       tutSkip: "تخطّي",
       tutBack: "السابق",
@@ -1647,6 +1649,7 @@
           </div>
         </div>
         <div class="fk-hud-end">
+          <button type="button" class="fk-help fk-settings" data-fk-settings hidden><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg></button>
           <button type="button" class="fk-help" data-fk-help><span aria-hidden="true">?</span></button>
           <img class="fk-star" data-fk-star alt="" draggable="false" aria-hidden="true">
           <div class="fk-run" data-fk-run hidden>
@@ -2353,6 +2356,8 @@
       this.srSecondary = q("[data-fk-sr-secondary]");
       this.srBack = q("[data-fk-sr-back]");
       this.helpBtn = q("[data-fk-help]");
+      this.settingsBtn = q("[data-fk-settings]");
+      this.settingsOpen = false;
       this.tut = q("[data-fk-tut]");
       this.tutArt = q("[data-fk-tut-art]");
       this.tutStepEl = q("[data-fk-tut-step]");
@@ -2435,6 +2440,9 @@
       q("[data-fk-right]").textContent = this.s("bendRight");
       this.canvas.setAttribute("aria-label", this.s("aimAria"));
       this.range.setAttribute("aria-label", this.s("bend"));
+      this.settingsBtn.setAttribute("aria-label", this.s("settingsLabel"));
+      this.settingsBtn.title = this.s("settingsLabel");
+      this.settingsBtn.hidden = typeof this.opts.onSettings !== "function";   // only when the menu layer can open Classic's settings
       this.helpBtn.setAttribute("aria-label", this.s("helpLabel"));
       this.helpBtn.title = this.s("helpLabel");
       this.tutSkip.textContent = this.s("tutSkip");
@@ -2530,6 +2538,20 @@
         if (this.state.phase !== "ready" && this.state.phase !== "aiming") return;
         this.state.bend = clamp(Number(this.range.value) || 0, -100, 100) / 100;
         this.updateBendOutput();
+      }, { signal });
+      this.settingsBtn.addEventListener("click", () => {
+        const open = this.opts.onSettings;
+        if (typeof open !== "function" || this.tutOpen || this.settingsOpen) return;
+        this.audio?.play("click", 0.5);
+        this.cancelAim();
+        this.gameplay(false);
+        this.settingsOpen = true;   // the game freezes behind Classic's settings card, like behind the tutorial
+        open(() => {
+          this.settingsOpen = false;
+          requestAnimationFrame(() => {
+            if (this.running && this.canvas) this.canvas.focus({ preventScroll: true });
+          });
+        });
       }, { signal });
       this.helpBtn.addEventListener("click", () => {
         if (this.tutOpen || (this.state.phase !== "ready" && this.state.phase !== "intro")) return;
@@ -2689,7 +2711,7 @@
     }
 
     onPointerDown(event) {
-      if (this.tutOpen) return;
+      if (this.tutOpen || this.settingsOpen) return;
       if (this.state.phase === "intro") {
         this.endIntro();   // a tap skips the kick banner
         return;
@@ -2845,7 +2867,7 @@
       const dt = this.lastTime ? clamp((now - this.lastTime) / 1000, 0, 0.033) : 0.016;
       this.lastTime = now;
       if (this.resizePending) this.resize();
-      this.update(this.tutOpen ? 0 : dt);   // the how-to-play card freezes the game behind it
+      this.update(this.tutOpen || this.settingsOpen ? 0 : dt);   // the how-to-play card and the settings card freeze the game behind them
       this.render();
       this.raf = requestAnimationFrame(this.tick);
     }

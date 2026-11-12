@@ -466,6 +466,7 @@
   const getOverlay = () => document.getElementById("overlay");
 
   let lastMenuFocus = null;
+  let settingsOpen = false;   // Classic's settings card is up over the arena
 
   function showScreen(name, focusTarget) {
     const active = name === "game" ? gameScreen : fkScreen;
@@ -528,6 +529,15 @@
       audio: shell ? shell.audio : undefined,
       gameplay: shell ? shell.portal : undefined,
       onSetEnd,
+      onSettings: shell
+        ? (onClose) => {
+            settingsOpen = true;
+            shell.openSettings(() => {
+              settingsOpen = false;
+              onClose();
+            });
+          }
+        : undefined,
       onBack: exitFreeKicksGame,
       set: setId || undefined,
     });
@@ -545,6 +555,16 @@
 
   document.addEventListener("keydown", (event) => {
     if (root.hidden) return;
+
+    if (settingsOpen) {
+      /* Classic's settings card owns the keyboard: Escape closes it, Tab stays inside it */
+      if (event.key === "Escape" || event.key === "Esc") {
+        event.preventDefault();
+        event.stopPropagation();
+        window.CrazyKoraShell?.closeSettings?.();
+      }
+      return;
+    }
 
     if (event.key === "Escape" || event.key === "Esc") {
       event.preventDefault();
