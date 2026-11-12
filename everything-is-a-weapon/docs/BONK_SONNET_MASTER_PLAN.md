@@ -705,3 +705,20 @@ Rule: add only the events in this table; no per-frame or per-object events; one 
    (T0.3 assumes only the large cards.)
 5. Can you send the three dashboard screenshots again, plus the live CrazyGames page URL, so store-page
    hypotheses (H2) can be checked against what players actually see?
+
+---------------------------------------------------------------------------------------------------
+
+## Execution log (branch `bonk-recovery`, Phase 0 and Phase 1)
+
+| Task | Status | Commit | Notes and deviations |
+|---|---|---|---|
+| T0.1 funnel log | DONE | `41d9a90` | `src/analytics/FunnelLog.ts` (+test), Settings "COPY DIAGNOSTICS". Wired: boot, gameplay_first, first_kill, first_chain, room_end (clear/fail/quit), death_cause, door_pick, session_resume, perf_sample (1 per 30 s), run_start/continue/end, edge_pick, boss_arrive/defeat, tutorial_skip. **Not wired:** daily_start/daily_clear/ledger_claim/edge_offer (not needed by Appendix B; `edge_offer` has no screen any more). `HttpSink` not built (blocked on owner question 1). Verified in the dev browser: `window.__game.funnel.data.counters` fills during play. |
+| T0.2 payload | DONE | `98a0339` | Hero PNGs -> WebP at **720 px** (not 640: portraits are shown up to 360 px and 2x screens need 720), 47-57 KB each. Originals moved to `assets/originals/characters/`. CrazyGames build **2.56 MB** (was 7.27 MB); `scripts/check-bundle-size.mjs` is part of `build:crazygames`. Note: `dist-crazygames/` is tracked in git and was **not** re-committed; `bonk-crazygames.zip` and `dist-crazygames/index.html` are still the old 7.27 MB build until the owner rebuilds and uploads. The build also no longer writes `dist-crazygames/sfx/*.mp3` (those tracked files are stale; the game falls back to synthesis). |
+| T0.3 hint | DONE | `185019f` | `hud.hint` + `Game.hint(key)`; `save.hintsSeen` (no version bump). Nine boss rule hints (>= 3 s) show once per boss; shorter boss cues, door rewards, room goals, heat warnings and the tutorial line use `hud.hint`. Not converted: `Enemy.ts` phase banners, `Abilities.ts`/`Pickups.ts` flavour banners (still suppressed). |
+| T1.1 room 1 | DONE | see log | Five beats, **nine** movers (the plan's table summed to 10; shipped 1 + 2 + 3 + 2 + 1 = 9): throw 1, toys 2, trick 3, power 2 (one `kaboom`), closing `trolley`. New lesson ids `toys` and `trick` (the old `zap` id is kept for old saves, `trick` shares its code), 25 s timeout so the wet-socket beat cannot soft-lock. Bottle moved to (560, 300). Verified in the browser with `window.__t`: the thrown bottle makes the puddle live and the queue is zapped (2 of 3 hazard kills in that run). |
+| T1.2 first doors | NOT DONE | - | Deliberately deferred: it is an experiment (`FIRST_RUN_GENTLE`) that needs human playtest of the new room 1 first. |
+| T1.3 clear feedback | PARTLY | see log | **Finding: the last-kill treatment already exists** (`Game.ts` ENEMY_DEFEATED: slow-motion 0.18 for 1.15 s, push-in, "K.O.!", confetti, hit-stop 0.12), so nothing was added. Chain headline and multi-kill callouts were `hud.banner` calls (invisible); they are now floating popups (`ScoreSystem.ts`). |
+| T1.4 first throw | DONE | see log | Pan in hand, first mover at 0.9 s, throw arc and ring already drawn (screenshot checked). New test: a player who follows the prompt throws within 8 s of sim time. |
+
+Verification at the end of Phase 1: `tsc` clean; `vitest` 305 passed, 1 skipped; `npm run build:crazygames` 2.56 MB. **Not verified:** real phone, CrazyGames QA tool, audio, a human playthrough of the new room 1. The balance bot calls `tutorial.skip()` on room 1, so it does not exercise the guided beats (use `Game.tutorial-flow.test.ts` for that).
+Console note: errors seen during my browser session came from fake damage objects I injected by hand, not from game code.

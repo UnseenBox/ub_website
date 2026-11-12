@@ -3,17 +3,23 @@ import type { Enemy } from '../entities/Enemy';
 import type { PhysicsObject } from '../entities/PhysicsObject';
 
 /** Room 1's lessons, in the order they are taught. */
-export type Lesson = 'move' | 'grab' | 'throw' | 'power' | 'pet' | 'zap' | 'free';
+export type Lesson = 'move' | 'grab' | 'throw' | 'toys' | 'trick' | 'power' | 'pet' | 'zap' | 'free';
 /**
- * The mandatory opening: pick up (already in hand), throw, power, brawl. The pet and
- * the wet socket are still in the room, but they are optional toys now — the free
- * brawl's hint names them once instead of stopping the action.
+ * The mandatory opening, five beats, nine movers: throw (the pan is already in hand),
+ * toys (anything in the room is a weapon), trick (water + the wall socket fries a queue
+ * of three), power (the BIG RED BUTTON, with a Kaboom in the crowd) and a closing
+ * Trolley charge. The pet's treat is an optional toy. Old saves that point at the
+ * retired `pet` / `zap` lessons are mapped to the closing beat.
  */
-export const LESSONS: readonly Lesson[] = ['throw', 'power', 'free'];
+export const LESSONS: readonly Lesson[] = ['throw', 'toys', 'trick', 'power', 'free'];
 
 /** Movers each lesson lets through the door. Room 1 lists exactly this many, in this order. */
-/** throw and power send theirs in at once; free opens the rest of the shift. */
-const MOVERS: Readonly<Record<Lesson, number>> = { move: 0, grab: 0, throw: 1, power: 2, pet: 1, zap: 1, free: 5 };
+const MOVERS: Readonly<Record<Lesson, number>> = { move: 0, grab: 0, throw: 1, toys: 2, trick: 3, power: 2, pet: 1, zap: 3, free: 1 };
+
+/** Seconds the wet-socket beat waits for the floor to go live before the queue walks in anyway. */
+const TRICK_TIMEOUT = 25;
+/** What glows while the toys beat waits for the player to pick something up. */
+const TOYS = ['chair', 'ball'];
 
 export type GuideIcon = 'move' | 'grab' | 'throw' | 'power';
 
@@ -117,7 +123,7 @@ export class Tutorial {
     // Old saves may point at a retired lesson. Walking and grabbing are already done
     // by the time the room opens; pet and zap are optional now.
     const start: Lesson =
-      from === 'throw' || from === 'power' || from === 'free'
+      from === 'throw' || from === 'toys' || from === 'trick' || from === 'power' || from === 'free'
         ? from
         : from === 'pet' || from === 'zap'
           ? 'free'
@@ -220,10 +226,16 @@ export class Tutorial {
         break;
       }
 
+      case 'toys':
       case 'throw': {
         if (this.passed) break;
         if (!player.held) {
-          const target = this.weapon();
+          // The new toys glow while hands are empty; the pan is the fallback.
+          if (step === 'toys') {
+            this.spot = TOYS;
+            this.spotLeft = 0.5;
+          }
+          const target = step === 'toys' ? this.toy() ?? this.weapon() : this.weapon();
           if (target) this.pointAt(target);
           break;
         }
@@ -234,7 +246,7 @@ export class Tutorial {
         g.line = 'arc';
         g.tx = enemy.body.x;
         g.ty = enemy.body.y;
-        if (this.misses >= 2) {
+        if (step === 'throw' && this.misses >= 2) {
           // Two misses: it stands still while you line it up, and the words come out.
           enemy.stun = Math.max(enemy.stun, 0.3);
           g.caption = 'HOLD → LET GO';
@@ -289,6 +301,7 @@ export class Tutorial {
         break;
       }
 
+      case 'trick':
       case 'zap': {
         let live = false;
         let socket = null;
@@ -297,8 +310,8 @@ export class Tutorial {
           if (zone.zone === 'water' && zone.tags.has('energized')) live = true;
           else if (zone.tags.has('outlet')) socket = zone;
         }
-        if (live || !socket) {
-          // The floor is live: now somebody walks in to find out.
+        if (live || !socket || this.stepTime > TRICK_TIMEOUT) {
+          // The floor is live (or nobody is going to make it so): the queue walks in.
           if (!this.released) this.release();
           break;
         }
@@ -347,6 +360,13 @@ export class Tutorial {
       case 'throw':
         this.release();
         break;
+      case 'toys':
+        game.hud.hint('ANYTHING IS A WEAPON', '', 3.2);
+        this.release(1.5, 0.9);
+        break;
+      case 'trick':
+        game.hud.hint('WET + SOCKET', '', 3.2);
+        break;
       case 'power':
         this.grantPower(true);
         this.release();
@@ -358,9 +378,8 @@ export class Tutorial {
         }
         if (game.pet) this.dropNear(game.pet.treat);
         if (!game.objects.some((o) => o.alive && o.def.id === 'bottle')) this.dropNear('bottle');
-        // ...and nobody comes in until it has.
-        this.release(3.5, 5);
-        game.hud.hint('ANYTHING = WEAPON', 'treat feeds the pet · water + socket', 3.2);
+        // ...and nobody comes in until it has: the closing Trolley charges the whole room.
+        this.release(0.6, 2.5);
         this.finish();
         break;
       }
@@ -465,6 +484,22 @@ export class Tutorial {
       if (!object.alive || object.held || object.burning || !object.def.throwable || object.def.consume) continue;
       let d = Math.hypot(object.body.x - pb.x, object.body.y - pb.y);
       if (object.def.id === 'pan') d *= 0.4;
+      if (d < bestD) {
+        bestD = d;
+        best = object;
+      }
+    }
+    return best;
+  }
+
+  /** The nearest chair or ball: the toys beat's invitation. */
+  private toy(): PhysicsObject | null {
+    const pb = this.game.player.body;
+    let best: PhysicsObject | null = null;
+    let bestD = Infinity;
+    for (const object of this.game.objects) {
+      if (!object.alive || object.held || object.burning || !TOYS.includes(object.def.id)) continue;
+      const d = Math.hypot(object.body.x - pb.x, object.body.y - pb.y);
       if (d < bestD) {
         bestD = d;
         best = object;

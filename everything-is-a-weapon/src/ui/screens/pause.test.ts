@@ -39,7 +39,7 @@ describe('the pause menu', () => {
     const screen = buildPauseMenu(false, fakeGame(true), actions());
     expect(screen.querySelectorAll('.b2-pause__fold .b2-shop-card')).toHaveLength(3);
     expect(screen.querySelectorAll('.b2-pause__control')).toHaveLength(9);
-    expect(screen.querySelectorAll('.b2-pause__lessons .b2-btn')).toHaveLength(3);
+    expect(screen.querySelectorAll('.b2-pause__lessons .b2-btn')).toHaveLength(5);
     expect(screen.textContent).toContain('current Edges and run score are lost');
   });
 

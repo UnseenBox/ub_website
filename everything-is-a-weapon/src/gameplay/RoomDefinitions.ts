@@ -8,10 +8,10 @@ import type { RoomDefinition } from './Room';
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // 1 — bedroom: the lesson plan (gameplay/Tutorial.ts). The frying pan is already in
-  // your hand, the door is in the top wall with a socket beside it, and the eight movers
-  // wait outside until their lesson: 1 for the throw, 2 for the power, 5 for the brawl.
-  // The pet's treat and the wet socket are optional toys. Replayed untaught, they arrive
-  // on the clock.
+  // your hand, the door is in the top wall with a socket beside it, and the nine movers
+  // wait outside until their beat: 1 to throw at, 2 for the toys, 3 queued for the wet
+  // socket (the bottle sits next to you), 2 for the power (one is a Kaboom) and a closing
+  // Trolley. Replayed untaught, they arrive on the clock.
   {
     id: 'room-1', name: 'THE BEDROOM', theme: 'bedroom', width: 860, height: 500, seed: 101, tutorial: true,
     playerStart: { x: 470, y: 300 },
@@ -28,7 +28,8 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
       { type: 'ball', x: 600, y: 400, angle: 0.4 },
       { type: 'book', x: 420, y: 440, angle: -0.3 },
       { type: 'shoe', x: 690, y: 290, angle: 0.5 },
-      { type: 'bottle', x: 170, y: 430 },
+      // Between you and the socket: the trick needs no walking.
+      { type: 'bottle', x: 560, y: 300 },
       { type: 'teddy', x: 740, y: 400 },
       { type: 'alarmclock', x: 300, y: 110 },
       // Not in any lesson: there to be knocked over by a throw that missed.
@@ -36,14 +37,20 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     ],
     zones: [{ kind: 'electric', x: 588, y: 12, r: 18, outlet: true }],
     enemies: [
-      { type: 'basic', delay: 0.2 },
+      // throw
+      { type: 'basic', delay: 1 },
+      // toys
       { type: 'basic', delay: 8 },
-      { type: 'basic', delay: 9 },
-      { type: 'basic', delay: 16 },
-      { type: 'basic', delay: 22 },
-      { type: 'basic', delay: 28 },
-      { type: 'basic', delay: 31 },
-      { type: 'basic', delay: 34 },
+      { type: 'basic', delay: 9.5 },
+      // trick: a tight queue under the socket
+      { type: 'basic', delay: 20 },
+      { type: 'basic', delay: 20.6 },
+      { type: 'basic', delay: 21.2 },
+      // power: a crowd with a Kaboom in it
+      { type: 'basic', delay: 32 },
+      { type: 'kaboom', delay: 32.6 },
+      // the closing charge
+      { type: 'trolley', delay: 44 },
     ],
   },
 
