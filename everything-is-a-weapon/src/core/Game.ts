@@ -52,6 +52,7 @@ import { InteractionSystem } from '../interactions/InteractionSystem';
 import { createObject } from '../objects/ObjectFactory';
 import { ParticleSystem } from '../particles/ParticleSystem';
 import { AdaptiveQuality } from './AdaptiveQuality';
+import { EdgeBehaviors } from '../gameplay/EdgeBehaviors';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import { WebPortal, type Portal } from '../platform/Portal';
 import { Camera } from '../rendering/Camera';
@@ -202,6 +203,8 @@ export class Game {
   readonly save: SaveManager;
   /** Rebound after `save.load()` installs the persisted object. */
   edges: EdgeSystem;
+  /** RICOCHET, SHOCKWAVE and BOOMERANG: throws that do more than hit. */
+  private readonly edgeBehaviors: EdgeBehaviors;
   readonly heat = new HeatSystem();
   readonly analytics = new AnalyticsManager();
   /** Local funnel counters and recent events (see FunnelLog); readable from Settings. */
@@ -298,6 +301,7 @@ export class Game {
   ) {
     this.save = new SaveManager(portal.storage);
     this.edges = new EdgeSystem(this.save.data);
+    this.edgeBehaviors = new EdgeBehaviors(this);
     this.ads = new AdManager(portal.ads);
     this.input = new InputManager(canvas);
     this.input.addSource(new KeyboardMouseInput());
@@ -1453,6 +1457,7 @@ export class Game {
     this.nav.update(this, dt);
 
     this.player.update(this, input, dt);
+    this.edgeBehaviors.update();
     if (!this.player.charging) this.audio.chargeStop();
     for (let i = 0; i < this.enemies.length; i++) this.enemies[i]!.update(this, dt);
     this.pet?.update(this, dt);

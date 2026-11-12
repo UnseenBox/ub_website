@@ -13,9 +13,14 @@ import {
 } from './Edges';
 
 describe('Edges', () => {
-  it('has 11 unique edges and covers every category/rarity pairing used above', () => {
-    expect(EDGE_IDS).toHaveLength(11);
-    expect(new Set(EDGE_IDS).size).toBe(11);
+  it('has 14 unique edges (the original 11 first, ids appended) and covers every category/rarity pairing used above', () => {
+    expect(EDGE_IDS).toHaveLength(14);
+    expect(new Set(EDGE_IDS).size).toBe(14);
+    // Saves refer to the ids by name: the first eleven must never be renamed or reordered away.
+    expect(EDGE_IDS.slice(0, 11)).toEqual([
+      'heavy_hands', 'chain_reaction', 'headline_act', 'quick_feet', 'second_wind', 'glass_cannon',
+      'scrap_luck', 'crowd_pleaser', 'magnate', 'cat_frenzy', 'fine_print',
+    ]);
 
     const pairings = new Set(EDGE_IDS.map((id) => {
       const edge = EDGE_BY_ID[id];
@@ -42,7 +47,9 @@ describe('Edges', () => {
   it('excludes a maxed category and omits it from the offer', () => {
     const owned = ['heavy_hands', 'heavy_hands', 'heavy_hands',
       'chain_reaction', 'chain_reaction', 'chain_reaction',
-      'headline_act', 'headline_act', 'headline_act'];
+      'headline_act', 'headline_act', 'headline_act',
+      'ricochet', 'ricochet', 'ricochet',
+      'shockwave', 'shockwave', 'shockwave'];
     const offer = offerEdges(new Rng(7), false, false, owned);
     expect(offer).toHaveLength(2);
     expect(offer.every((edge) => edge.category !== 'heavy')).toBe(true);

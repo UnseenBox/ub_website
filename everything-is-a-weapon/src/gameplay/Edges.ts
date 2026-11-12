@@ -7,7 +7,9 @@ export type EdgeId =
   | 'heavy_hands' | 'chain_reaction' | 'headline_act'
   | 'quick_feet' | 'second_wind' | 'glass_cannon'
   | 'scrap_luck' | 'crowd_pleaser' | 'magnate'
-  | 'cat_frenzy' | 'fine_print';
+  | 'cat_frenzy' | 'fine_print'
+  // Behaviours (appended: saves refer to the ids above). See gameplay/EdgeBehaviors.ts.
+  | 'ricochet' | 'shockwave' | 'boomerang';
 
 export interface EdgeDefinition {
   readonly id: EdgeId;
@@ -84,6 +86,24 @@ export const EDGES: readonly EdgeDefinition[] = [
     name: 'FINE PRINT',
     effect: 'Your next fatal hit leaves you at 1 HP. Once per run.',
     flavor: '“There is always a clause.”',
+  },
+  {
+    id: 'ricochet', category: 'heavy', rarity: 'rare',
+    name: 'RICOCHET',
+    effect: 'A thrown hit bounces on to the nearest other mover.',
+    flavor: '“Always bring a spare target.”',
+  },
+  {
+    id: 'shockwave', category: 'heavy', rarity: 'rare',
+    name: 'SHOCKWAVE',
+    effect: 'Full-charge throws land with a stagger ring.',
+    flavor: '“Wind up. Let the floor hear about it.”',
+  },
+  {
+    id: 'boomerang', category: 'slick', rarity: 'rare',
+    name: 'BOOMERANG',
+    effect: 'Your first throw each room flies back if it misses.',
+    flavor: '“It knows where home is.”',
   },
 ];
 
