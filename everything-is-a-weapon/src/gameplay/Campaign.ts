@@ -79,8 +79,8 @@ export interface Briefing {
 
 export const BRIEFINGS: Readonly<Record<string, Briefing>> = {
   'room-1': {
-    story: 'Morning. A boot kicks your bedroom door — MOVERS & CO. has come to box up your life.',
-    objective: 'grab, throw, knock them out',
+    story: '3 a.m. Boxes are shuffling about in the cellar. MOVERS & CO. has come to box up your life, from the bottom up.',
+    objective: 'throw things, topple things',
     landlord: '“Vacate by noon. — M.”',
     par: 150,
   },

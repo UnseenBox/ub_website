@@ -47,6 +47,8 @@ function boot(): Game {
   (game.loop as unknown as { start(): void }).start = () => {};
   game.start();
   game.tutorial.skip();
+  // Boss signatures need a roomy room with sockets and open floor, which the opening cellar is not.
+  game.playFrom(2);
   return game;
 }
 

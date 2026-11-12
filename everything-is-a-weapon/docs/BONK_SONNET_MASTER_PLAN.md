@@ -744,3 +744,19 @@ Measured first (simulator, one real throw at a crowd of six): spraycan 3 kills, 
 * 24 movers in total (was 19). New test: the cans appear and one thrown pan kills >= 3 of the crowd by explosion.
 
 Deliberately **not** done: more screen shake, more particles, more flash (owner preference), and no new objects, art or enemy types. Still unverified by a human; the minimum clear time on the clock alone is about 45 s, a real player will take longer.
+
+### Revision 3: the cellar (the whole first room replaced)
+
+The owner's verdict on the rampage room: "you only increased the number of enemies". Correct: it was the same bedroom with more boxes. **Replaced, not tuned.** Room 1 is now **THE CELLAR, 3 A.M.** (`theme: 'basement'`, 960 x 360, a long aisle of shelving), directed by a new `src/gameplay/Opening.ts` (a three-act director, owned by `Tutorial`). Eleven movers in total, three different situations:
+
+1. **TIMBER.** A conga of five walks down an aisle of five pairs of tall shelving. *Throwing anything* while they are in the aisle brings the three far pairs down in a wave (each pair falls when a mover is under it; the director calls `PhysicsObject.tip`, the engine's own slam does the damage). If nobody throws, the lead reaching x = 560 springs it anyway, so the moment always happens. Measured: 4-5 of 5 killed by shelves.
+2. **DANCE FLOOR.** The radio on the floor switches itself on (`tagFor('playing')`); three movers (one `fragile`) walk into its music zone, dance, and stumble through a rake, a mousetrap and a banana. Slapstick for free, and the room's own discoveries pop.
+3. **THE FOREMAN.** A `bulwark` (health set to 70 so one falling shelf, 70 damage that ignores his shield, is the answer) and two interns. The BIG RED BUTTON is handed over as the safety net. The last two pairs of shelves glow and, if he is on you, a hint says REMEMBER THE SHELVES. Act 1 taught the verb; Act 3 tests it. Measured: he dies to the shelf (`bulwark:slam`) with or without a throw.
+
+Also: fallen shelves crumble 2.2 s after landing so the aisle clears; the Foreman's pairs cannot be knocked over early by stray throws (their `standing` tag is removed until his act); movers speak a few funny lines (popups); a knock at the door and "THAT WAS THE WARM-UP" close the room. Campaign story line for room 1 rewritten. Menu backdrop is now the cellar.
+
+Tutorial: `LESSONS = ['throw','free']`; `throw` is act 1 (`opening.start('timber')`), `free` is acts 2-3; old saves pointing at `power`/`pet`/`zap` resume in `free`. Removed: the rampage code (fuel cans, finale, rebased spawn clock). **Kept:** the Kaboom blast raised to 140/100 (it is not used in room 1 any more but still affects later rooms).
+
+Side effects handled in tests: `Enemy.signature.test.ts` and `Enemy.bossOwnHits.test.ts` used room 1 as a roomy test arena; they now boot room 3 / an emptied room 2. Suite: 307 passed, 1 skipped; build 2.57 MB.
+
+Honest limits: the simulator and the screenshots (1280x720) prove the three set-pieces fire and read clearly; they cannot prove it is *fun*. Bot clear time about 55-60 s. Room is 960 wide: on a window narrower than about 1000 px the camera follows the hero and the far end of the aisle is off-screen (phones in landscape fit the whole room).

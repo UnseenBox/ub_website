@@ -7,67 +7,56 @@ import type { RoomDefinition } from './Room';
  * doors is wide enough to walk through.
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
-  // 1 — bedroom: a rampage, not a lesson (gameplay/Tutorial.ts). The frying pan is already
-  // in your hand and the door is in the top wall with a socket beside it. The first four
-  // movers are a conga line led by a Kaboom (hit the red one and the line goes up); after
-  // that the rest of the shift arrives on a clock with no waiting: a queue of four for the
-  // wet socket (the bottle sits next to you), a crowd of eight walking into fuel cans that
-  // drop in their path (one throw sets off the lot), and a finale of two Kabooms, boxes and
-  // two Trolleys when the BIG RED BUTTON is handed over. The delays below are the
-  // shift's own clock (a replay that skips the tutorial runs on it) and its spacing.
+  // 1 — the cellar, 3 a.m. (gameplay/Opening.ts directs it). The movers came up through the
+  // storage cellar: a long aisle of tall shelving on one side of the room, the open floor and
+  // your frying pan on the other. Three set-pieces, one after another, each a different kind
+  // of bad idea: the shelves come down on a conga line (TIMBER), a radio switches itself on
+  // and a trio dance into the junk on the floor, then a Foreman too heavy to hit head-on walks
+  // into the last two pairs of shelves. The delays are the shift's own clock for a replay
+  // that skips the tutorial; the director overrides them.
   {
-    id: 'room-1', name: 'THE BEDROOM', theme: 'bedroom', width: 860, height: 500, seed: 101, tutorial: true,
-    playerStart: { x: 470, y: 300 },
-    entrance: { side: 'top', pos: 640 },
-    exit: { side: 'left', pos: 300 },
-    rug: { x: 450, y: 310, w: 320, h: 200, color: '#c96f5a' },
+    id: 'room-1', name: 'THE CELLAR', theme: 'basement', width: 960, height: 360, seed: 101, tutorial: true,
+    playerStart: { x: 170, y: 180 },
+    entrance: { side: 'right', pos: 180 },
+    exit: { side: 'left', pos: 180 },
+    rug: { x: 170, y: 200, w: 250, h: 230, color: '#5b4f6e' },
     objects: [
-      { type: 'bed', x: 100, y: 92 },
-      { type: 'pillow', x: 82, y: 50, angle: 0.2, on: 0 },
-      { type: 'pillow', x: 120, y: 54, angle: -0.3, on: 0 },
-      // The first weapon: far enough that getting it means walking.
-      { type: 'pan', x: 250, y: 330, angle: 0.4 },
-      { type: 'chair', x: 330, y: 190 },
-      { type: 'ball', x: 600, y: 400, angle: 0.4 },
-      { type: 'book', x: 420, y: 440, angle: -0.3 },
-      { type: 'shoe', x: 690, y: 290, angle: 0.5 },
-      // Between you and the socket: the trick needs no walking.
-      { type: 'bottle', x: 560, y: 300 },
-      { type: 'teddy', x: 740, y: 400 },
-      { type: 'alarmclock', x: 300, y: 110 },
-      // Not in any lesson: there to be knocked over by a throw that missed.
-      { type: 'lamp', x: 790, y: 160 },
+      // The aisle: five pairs of tall shelving, north and south of a 126 px lane (x 374-890).
+      // The two nearest you stay standing for the Foreman; the three at the far end are the first trap.
+      { type: 'bookshelf', x: 420, y: 104 }, { type: 'bookshelf', x: 420, y: 256 },
+      { type: 'bookshelf', x: 520, y: 104 }, { type: 'bookshelf', x: 520, y: 256 },
+      { type: 'bookshelf', x: 640, y: 104 }, { type: 'bookshelf', x: 640, y: 256 },
+      { type: 'bookshelf', x: 740, y: 104 }, { type: 'bookshelf', x: 740, y: 256 },
+      { type: 'bookshelf', x: 840, y: 104 }, { type: 'bookshelf', x: 840, y: 256 },
+      // Your side: the first weapon, a few more things worth throwing, the radio and the junk it dances on.
+      { type: 'pan', x: 250, y: 215, angle: 0.4 },
+      { type: 'bowlingball', x: 80, y: 90 },
+      { type: 'toolbox', x: 60, y: 240 },
+      { type: 'bucket', x: 110, y: 300 },
+      { type: 'tire', x: 230, y: 70 },
+      { type: 'duck', x: 120, y: 160, angle: 0.3 },
+      { type: 'boombox', x: 330, y: 105 },
+      { type: 'rake', x: 352, y: 150, angle: 1.5708 },
+      { type: 'mousetrap', x: 340, y: 205 },
+      { type: 'banana', x: 362, y: 180 },
     ],
-    zones: [{ kind: 'electric', x: 588, y: 12, r: 18, outlet: true }],
+    // The fuse box on the back wall, over the radio: wet floor and live wire is there for whoever thinks of it.
+    zones: [{ kind: 'electric', x: 330, y: 12, r: 18, outlet: true }],
     enemies: [
-      // the conga: the Kaboom leads, the others follow tight
-      { type: 'kaboom', delay: 0.9 },
+      // TIMBER: a conga line down the aisle
       { type: 'basic', delay: 1.2 },
-      { type: 'basic', delay: 1.5 },
-      { type: 'basic', delay: 1.8 },
-      // the queue under the socket
-      { type: 'basic', delay: 12 },
-      { type: 'basic', delay: 12.5 },
-      { type: 'basic', delay: 13 },
-      { type: 'basic', delay: 13.5 },
-      // the crowd of eight, walking into the fuel cans that drop in their path
-      { type: 'basic', delay: 21 },
-      { type: 'basic', delay: 21.4 },
-      { type: 'basic', delay: 21.8 },
-      { type: 'basic', delay: 22.2 },
-      { type: 'basic', delay: 22.6 },
-      { type: 'basic', delay: 23 },
-      { type: 'basic', delay: 23.4 },
-      { type: 'basic', delay: 23.8 },
-      // the finale (the Power is handed over just before): two Kabooms, four boxes, two Trolleys
-      { type: 'kaboom', delay: 33 },
-      { type: 'kaboom', delay: 33.3 },
-      { type: 'basic', delay: 33.6 },
-      { type: 'basic', delay: 33.9 },
-      { type: 'basic', delay: 34.2 },
-      { type: 'basic', delay: 34.5 },
-      { type: 'trolley', delay: 37 },
-      { type: 'trolley', delay: 39 },
+      { type: 'basic', delay: 1.65 },
+      { type: 'basic', delay: 2.1 },
+      { type: 'basic', delay: 2.55 },
+      { type: 'basic', delay: 3 },
+      // THE DANCE FLOOR: three who have wandered into a party
+      { type: 'basic', delay: 14 },
+      { type: 'fragile', delay: 15 },
+      { type: 'basic', delay: 16 },
+      // THE FOREMAN, and the interns behind him
+      { type: 'bulwark', delay: 26 },
+      { type: 'basic', delay: 29.5 },
+      { type: 'basic', delay: 30.2 },
     ],
   },
 

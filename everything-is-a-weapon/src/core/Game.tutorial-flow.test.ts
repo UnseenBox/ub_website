@@ -113,27 +113,30 @@ const boot = (): Game => {
   return game;
 };
 
-it('boot → first visit → the opening is one guided throw, then the shift runs on its own clock', () => {
+const opening = (game: Game): { phase: string; start(p: string): void } =>
+  (game.tutorial as unknown as { opening: { phase: string; start(p: string): void } }).opening;
+
+it('boot → first visit → the cellar: a conga first, then the dance floor, then the Foreman', () => {
   const game = boot();
   expect(game.state).toBe('playing');
   expect(game.room.index).toBe(0);
+  expect(game.room.def.name).toBe('THE CELLAR');
   // Action first: the pan is already in hand and the first mover is already at the door.
   expect(game.tutorial.step).toBe('throw');
   expect(game.player.held?.def.id).toBe('pan');
   game.tick(FIXED_DT);
   expect(game.player.held?.def.id).toBe('pan');
-  expect(game.room.totalEnemies).toBe(24);
+  expect(game.room.totalEnemies).toBe(11);
+  expect(opening(game).phase).toBe('timber');
 
-  // The conga is four movers, Kaboom first. Clearing it starts the rampage.
-  const seen: string[] = [];
-  waitFor(game, () => { for (const e of game.enemies) if (!seen.includes(e.type.id)) seen.push(e.type.id); return game.enemies.length >= 4; }, 6);
-  expect(seen[0]).toBe('kaboom');
-  waitFor(game, () => { sweep(game); return game.tutorial.step === 'free'; }, 10);
+  // Sweeping the conga moves the show on, and the lesson with it.
+  waitFor(game, () => game.enemies.length >= 5, 8);
+  waitFor(game, () => { sweep(game); return opening(game).phase === 'dance'; }, 20);
+  expect(game.tutorial.step).toBe('free');
   expect(game.save.data.abilities).not.toContain('blast');
-
-  // Nobody waits for the player: the queue walks in on its own, then the Power is handed over.
-  waitFor(game, () => game.enemies.some((e) => !e.defeated), 8);
-  waitFor(game, () => { sweep(game); return game.save.data.abilities.includes('blast'); }, 40);
+  waitFor(game, () => { sweep(game); return opening(game).phase === 'big'; }, 30);
+  // The Foreman's act hands over the BIG RED BUTTON.
+  expect(game.save.data.abilities).toContain('blast');
   expect(game.abilities.ready('blast')).toBe(true);
 });
 
@@ -144,7 +147,7 @@ it('only the first knockout gets the FIRST BONK! treatment', () => {
   waitFor(game, () => game.enemies.length > 0, 8);
   sweep(game);
   expect(first()).toBe(1);
-  waitFor(game, () => { sweep(game); return !game.tutorial.active; }, 90);
+  waitFor(game, () => { sweep(game); return !game.tutorial.active; }, 120);
   expect(first()).toBe(1);
 });
 
@@ -182,53 +185,52 @@ it('a player who follows the prompt throws the pan within 8 s of control', () =>
 });
 
 
-it('one pan thrown at the red leader takes the whole conga with it', () => {
+it('TIMBER: a throw at the conga brings the shelves down on it', () => {
   const game = boot();
   installTestHooks(game);
   const t = (window as unknown as { __t: { step(n: number): void; throwAt(x: number, y: number, c?: number): void } }).__t;
-  const kills: string[] = [];
-  game.bus.on('ENEMY_DEFEATED', (e) => kills.push(`${e.enemy.type.id}:${e.cause.type}`));
-  let thrown = false;
-  for (let i = 0; i < 900 && !thrown; i++) {
-    t.step(1);
-    const lead = game.enemies.find((e) => !e.defeated);
-    if (lead && Math.hypot(lead.body.x - game.player.body.x, lead.body.y - game.player.body.y) < 230) {
-      t.throwAt(lead.body.x + lead.body.vx * 0.25, lead.body.y + lead.body.vy * 0.25, 40);
-      thrown = true;
-    }
-  }
-  expect(thrown).toBe(true);
-  for (let k = 0; k < 8; k++) t.step(30);
-  expect(kills[0]).toBe('kaboom:impact');
-  expect(kills.length, 'the Kaboom blast takes the boxes behind it').toBeGreaterThanOrEqual(3);
-});
-
-it('the fuel cans drop in the path of the crowd and one thrown pan sets off the lot', () => {
-  const game = boot();
-  installTestHooks(game);
-  const t = (window as unknown as { __t: { step(n: number): void; throwAt(x: number, y: number, c?: number): void } }).__t;
-  const cans = () => game.objects.filter((o) => o.alive && (o.def.id === 'jerrycan' || o.def.id === 'spraycan'));
-  // Ignore the conga and the queue: they only ever get swept.
-  waitFor(game, () => { if (cans().length === 0) sweep(game); return cans().length > 0; }, 60);
-  expect(cans().length).toBe(4);
   const kills: string[] = [];
   game.bus.on('ENEMY_DEFEATED', (e) => kills.push(e.cause.type));
-  const can = cans()[0]!;
   let thrown = false;
-  for (let i = 0; i < 2400 && !thrown; i++) {
-    t.step(1);
-    const near = game.enemies.filter((e) => !e.defeated && Math.hypot(e.body.x - can.body.x, e.body.y - can.body.y) < 110).length;
-    if (near >= 3) {
-      t.throwAt(can.body.x, can.body.y, 40);
+  for (let i = 0; i < 1500 && !thrown; i++) {
+    t.step(2);
+    const lead = game.enemies.find((e) => !e.defeated);
+    if (lead && lead.body.x < 780) {
+      t.throwAt(lead.body.x, lead.body.y, 55);
       thrown = true;
     }
   }
   expect(thrown).toBe(true);
-  for (let k = 0; k < 10; k++) t.step(30);
-  expect(kills.filter((k) => k === 'explosion').length, 'the cans take the crowd').toBeGreaterThanOrEqual(3);
+  for (let k = 0; k < 12; k++) t.step(30);
+  expect(kills.filter((k) => k === 'slam').length, 'the shelves take the line').toBeGreaterThanOrEqual(4);
 });
 
-it('the whole shift runs on its own clock and ends in a clear, whatever the player does', () => {
+it('TIMBER happens even if nobody throws: the lead reaching the end of the aisle springs it', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = (window as unknown as { __t: { step(n: number): void } }).__t;
+  const fallen: number[] = [];
+  game.bus.on('OBJECT_FALLEN', (e) => { if (e.object.def.id === 'bookshelf') fallen.push(Math.round(e.object.body.x)); });
+  for (let i = 0; i < 40; i++) t.step(30);
+  expect(fallen.length, 'at least one pair came down on its own').toBeGreaterThanOrEqual(2);
+});
+
+it('THE FOREMAN: one falling shelf is the answer, and the Foreman walks into it', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = (window as unknown as { __t: { step(n: number): void } }).__t;
+  game.tutorial.skip();
+  game.room.pending = [{ type: 'bulwark', delay: Infinity }];
+  for (const e of [...game.enemies]) e.alive = false;
+  game.enemies.length = 0;
+  opening(game).start('big');
+  const deaths: string[] = [];
+  game.bus.on('ENEMY_DEFEATED', (e) => deaths.push(`${e.enemy.type.id}:${e.cause.type}`));
+  for (let i = 0; i < 60 && deaths.length === 0; i++) t.step(30);
+  expect(deaths).toEqual(['bulwark:slam']);
+});
+
+it('the whole show runs on its own clock and ends in a clear, whatever the player does', () => {
   const game = boot();
   // The player only ever gets swept: a stand-in for somebody who ignores every prompt.
   const seen = new Set<string>();
@@ -237,8 +239,8 @@ it('the whole shift runs on its own clock and ends in a clear, whatever the play
     sweep(game);
     return game.state === 'cleared';
   }, 150);
-  expect(seen.has('kaboom')).toBe(true);
-  expect(seen.has('trolley')).toBe(true);
+  expect(seen.has('fragile')).toBe(true);
+  expect(seen.has('bulwark')).toBe(true);
   expect(game.save.data.tutorial).toBe('done');
   expect(game.tutorial.active).toBe(false);
 });
