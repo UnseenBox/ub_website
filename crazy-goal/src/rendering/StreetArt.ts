@@ -38,6 +38,7 @@ const LOOKS: Readonly<Record<Surface, Look>> = {
   cobble: { base: '#8e8778', alt: '#9c9383', seam: '#716b5f', grit: '#a89f8d', mark: '#605a50' },
   ice: { base: '#dceffd', alt: '#c6e1f4', seam: '#ffffff', grit: '#f3fbff', mark: '#a6cbe4' },
   wet: { base: '#42444e', alt: '#373943', seam: '#2c2e37', grit: '#585b66', mark: '#22242b' },
+  turf: { base: '#3f9a4a', alt: '#378f43', seam: '#ffffff', grit: '#5cb566', mark: '#2d7a38' },
 };
 
 /** The outline of the playable ground, as a path ready to clip or fill. */
@@ -189,6 +190,9 @@ export function paintStreet(ctx: CanvasRenderingContext2D, level: Level): void {
       break;
     case 'wet':
       paintWet(ctx, level, look, rng);
+      break;
+    case 'turf':
+      paintTurf(ctx, level, look, rng);
       break;
   }
 
@@ -605,6 +609,49 @@ function paintIce(ctx: CanvasRenderingContext2D, level: Level, look: Look, rng: 
   g.addColorStop(1, rgba(look.mark, 0.2));
   ctx.fillStyle = g;
   ctx.fillRect(arena.x, arena.y, arena.w, arena.h);
+}
+
+/** A stadium pitch: mowing stripes, blades of grass, and the chalk of the penalty area. */
+function paintTurf(ctx: CanvasRenderingContext2D, level: Level, look: Look, rng: () => number): void {
+  const { arena, goal } = level.def;
+  // Mowing stripes, alternate bands a shade darker.
+  const band = 94;
+  for (let y = arena.y - band, i = 0; y < arena.y + arena.h + band; y += band, i++) {
+    if (i % 2 === 1) {
+      ctx.fillStyle = look.alt;
+      ctx.fillRect(arena.x - 40, y, arena.w + 80, band);
+    }
+  }
+  // Blades, short and pale, thrown across the grass.
+  ctx.strokeStyle = rgba(look.grit, 0.4);
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < 360; i++) {
+    const x = arena.x + rng() * arena.w;
+    const y = arena.y + rng() * arena.h;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (rng() - 0.5) * 4, y - 6 - rng() * 6);
+  }
+  ctx.stroke();
+  // The chalk: penalty area, six-yard box, spot and the arc outside the box.
+  const line = rgba(C.white, 0.82);
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 5;
+  ctx.lineJoin = 'round';
+  const cx = goal.x;
+  const top = goal.lineY;
+  const boxW = 460;
+  const boxH = 270;
+  ctx.strokeRect(cx - boxW / 2, top, boxW, boxH);
+  ctx.strokeRect(cx - 140, top, 280, 96);
+  ctx.fillStyle = line;
+  ctx.beginPath();
+  ctx.arc(cx, top + 190, 7, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, top + 190, 130, Math.asin((boxH - 190) / 130) , Math.PI - Math.asin((boxH - 190) / 130));
+  ctx.stroke();
 }
 
 function paintWet(ctx: CanvasRenderingContext2D, level: Level, look: Look, rng: () => number): void {

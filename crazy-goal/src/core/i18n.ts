@@ -639,6 +639,12 @@ const AR: Readonly<Record<string, string>> = {
   'STUCK? FREE MAGNET': 'عالق؟ مغناطيس مجاني',
   'WATCH AN AD': 'شاهد إعلانًا',
   'x2 COINS': 'عملات ×2',
+  // One game: matches and stadiums.
+  'MATCH {n}': 'المباراة {n}',
+  STADIUMS: 'الملاعب',
+  'NEXT MATCH': 'المباراة التالية',
+  'PERFECT MATCH': 'مباراة كاملة',
+  'OPENING NIGHT': 'ليلة الافتتاح',
 };
 
 function stored(): Lang {

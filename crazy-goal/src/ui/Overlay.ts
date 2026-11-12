@@ -2,7 +2,8 @@ import logoUrl from '../assets/ui/logo.png';
 import playUrl from '../assets/ui/play.png';
 import starUrl from '../assets/ui/arcade-star.png';
 import coinUrl from '../assets/ui/arcade-coin.png';
-import courtyardUrl from '../assets/ui/courtyard.webp';
+import ballsUrl from '../assets/ui/balls.png';
+import levelsUrl from '../assets/ui/levels.png';
 import { cardOf } from '../abilities/Cards';
 import { lang, tr, type Lang } from '../core/i18n';
 import { chapterOf, chapterTitle } from '../progression/Progression';
@@ -46,8 +47,6 @@ export interface OverlayHandlers {
   stars(): { n: number; max: number };
   /** Everything the main menu shows besides its fixed buttons. */
   menuInfo(): MenuInfo;
-  /** A mode tile on the menu (Free Kicks): opens it, or says why it cannot be opened yet. */
-  openMode(id: 'freeKicks'): void;
   resetProgress(): void;
 }
 
@@ -55,22 +54,9 @@ export interface OverlayHandlers {
 export interface MenuInfo {
   stars: { n: number; max: number };
   coins: number;
-  /** The houma LET'S PLAY continues at: its number (1-based) and its chapter's English title. */
+  /** The match LET'S PLAY continues at: its number (1-based) and its stadium's name. */
   continueNumber: number;
-  continueChapter: string;
-  /** Stars won in the houmas, and in the chapter the player is in (out of `chapterMax`). */
-  classicStars: number;
-  chapterStars: number;
-  chapterMax: number;
-  fk: {
-    /** The Free Kicks module is present in this build. */
-    available: boolean;
-    open: boolean;
-    /** The Street Cup stage to play next, 1 to 5. */
-    stage: number;
-    /** Today's Daily Kick has not been played yet. */
-    daily: boolean;
-  };
+  continueName: string;
   /** A ball has unlocked that the player has not been told about. */
   newBall: boolean;
 }
@@ -110,8 +96,6 @@ const GEAR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true
 const LOCK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9" rx="2.4"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
 
 /** The Free Kicks tile's picture: a goal, a wall of three and a ball curling round it. Pure decoration. */
-const FK_TILE_ART = `<svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><defs><linearGradient id="fkt-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#167a3d"/><stop offset="1" stop-color="#0a5a29"/></linearGradient></defs><rect width="160" height="90" fill="url(#fkt-g)"/><path d="M0 52h160" stroke="#f4ffe2" stroke-opacity=".25" stroke-width="1.5"/><g fill="none" stroke="#f7fbef" stroke-width="3" stroke-linecap="round"><path d="M104 14v30M144 14v30M104 14h40"/></g><path d="M106 18h36v26h-36z" fill="#f4ffe2" fill-opacity=".12"/><g fill="#101a30"><rect x="66" y="42" width="9" height="24" rx="4"/><rect x="78" y="42" width="9" height="24" rx="4"/><rect x="90" y="42" width="9" height="24" rx="4"/></g><path d="M30 74C48 36 92 22 124 34" fill="none" stroke="#ffc83a" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="1 5"/><circle cx="28" cy="74" r="8" fill="#fbf7ee" stroke="#1b2540" stroke-width="1.5"/><path d="M28 69l4 3-1.5 5h-5L24 72z" fill="#1b2540"/></svg>`;
-
 let uiClick: (() => void) | null = null;
 /** Registers the sound played on menu/UI button taps. */
 export function setUiClick(fn: (() => void) | null): void {
@@ -177,14 +161,7 @@ export class Overlay {
   private readonly starText: HTMLElement;
   private readonly coinText: HTMLElement;
   private readonly continueLine: HTMLElement;
-  private readonly houmaMeta: HTMLElement;
-  private readonly houmaBar: HTMLElement;
-  private readonly fkTile: HTMLButtonElement;
-  private readonly fkMeta: HTMLElement;
-  private readonly fkDaily: HTMLElement;
-  private readonly fkStatus: HTMLElement;
   private readonly ballsDot: HTMLElement;
-  private fkHint = '';
   private readonly sound: HTMLInputElement;
   private readonly music: HTMLInputElement;
   private readonly pauseButton: HTMLButtonElement;
@@ -202,8 +179,6 @@ export class Overlay {
   private readonly boostIntro: HTMLElement;
   private readonly toast: HTMLElement;
   private toastTimer = 0;
-  private readonly fkUnlock: HTMLElement;
-  private fkUnlockActions: { tryIt: () => void; keep: () => void } | null = null;
   private boostIntroDone: (() => void) | null = null;
 
   constructor(
@@ -256,46 +231,32 @@ export class Overlay {
     this.continueLine = el('p', 'menu-continue');
     hero.append(play, this.continueLine);
 
-    // Two ways to play, side by side.
-    const tiles = el('div', 'menu-tiles');
-    const houmaTile = button('menu-tile menu-tile-houma', '', handlers.levels);
-    const houmaArt = el('span', 'menu-tile-art');
-    houmaArt.style.backgroundImage = `url(${courtyardUrl})`;
-    const houmaBody = el('span', 'menu-tile-body');
-    this.houmaMeta = el('span', 'menu-tile-meta');
-    const houmaTrack = el('span', 'menu-tile-bar');
-    this.houmaBar = el('span', 'menu-tile-fill');
-    houmaTrack.append(this.houmaBar);
-    houmaBody.append(el('span', 'menu-tile-title', 'HOUMAS'), this.houmaMeta, houmaTrack);
-    houmaTile.append(houmaArt, houmaBody);
-
-    this.fkTile = button('menu-tile menu-tile-fk', '', () => this.tapFreeKicks());
-    const fkArt = el('span', 'menu-tile-art');
-    fkArt.innerHTML = FK_TILE_ART;
-    const lock = el('span', 'menu-tile-lock');
-    lock.innerHTML = LOCK_SVG;
-    fkArt.append(lock);
-    this.fkDaily = el('span', 'menu-tile-dot', 'DAILY');
-    this.fkDaily.hidden = true;
-    const fkBody = el('span', 'menu-tile-body');
-    this.fkMeta = el('span', 'menu-tile-meta');
-    fkBody.append(el('span', 'menu-tile-title', 'FREE KICKS'), this.fkMeta);
-    this.fkTile.append(fkArt, fkBody, this.fkDaily);
-    this.fkStatus = el('span', 'sr-only');
-    this.fkStatus.setAttribute('role', 'status');
-    tiles.append(houmaTile, this.fkTile, this.fkStatus);
-
-    // Secondary row: the balls, and a duel against a friend where the server is reachable.
-    const secondary = el('div', 'menu-secondary');
-    const ballsButton = button('menu-duel menu-balls', 'BALLS', () => this.showSkins());
+    // The two shelves: the stadiums (the matches) and the balls.
+    const shortcuts = el('div', 'menu-shortcuts');
+    const stadiums = button('menu-shortcut menu-shortcut-stadiums', '', handlers.levels);
+    stadiums.setAttribute('aria-label', tr('STADIUMS'));
+    const stadiumsArt = el('img', 'menu-shortcut-art');
+    stadiumsArt.src = levelsUrl;
+    stadiumsArt.alt = '';
+    stadiumsArt.draggable = false;
+    stadiums.append(stadiumsArt, el('span', 'menu-shortcut-label', 'STADIUMS'));
+    const ballsButton = button('menu-shortcut menu-shortcut-balls', '', () => this.showSkins());
+    ballsButton.setAttribute('aria-label', tr('BALLS'));
+    const ballsArt = el('img', 'menu-shortcut-art');
+    ballsArt.src = ballsUrl;
+    ballsArt.alt = '';
+    ballsArt.draggable = false;
     this.ballsDot = el('span', 'menu-new-dot');
     this.ballsDot.hidden = true;
-    ballsButton.append(this.ballsDot);
-    secondary.append(ballsButton);
+    ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'), this.ballsDot);
+    shortcuts.append(stadiums, ballsButton);
+
+    // A duel against a friend, where the server is reachable.
+    const secondary = el('div', 'menu-secondary');
     if (handlers.canDuel()) secondary.append(button('menu-duel', 'DUEL A FRIEND', handlers.duel));
 
     const menuPanel = el('div', 'menu-panel');
-    menuPanel.append(mark, hero, tiles, secondary);
+    menuPanel.append(mark, hero, shortcuts, secondary);
     const frame = el('div', 'menu-frame');
     frame.append(top, menuPanel);
     this.menu.append(frame);
@@ -313,7 +274,7 @@ export class Overlay {
       el('h2', 'panel-title', 'PAUSED'),
       pauseButton('btn btn-primary', 'RESUME', RESUME_SVG, handlers.resume),
       pauseButton('btn btn-sun', 'RESTART SHOT', REPLAY_SVG, handlers.restart),
-      pauseButton('btn btn-navy', 'HOUMA', GOAL_SVG, handlers.levels),
+      pauseButton('btn btn-navy', 'STADIUMS', GOAL_SVG, handlers.levels),
       pauseButton('btn btn-red', 'HOME', HOME_SVG, handlers.home),
       this.rewardButton,
       pauseButton('btn btn-ghost', 'SETTINGS', GEAR_SVG, () => this.showSettings()),
@@ -325,7 +286,7 @@ export class Overlay {
     this.levelProgress = el('div', 'level-progress');
     this.levelBody = el('div', 'level-body');
     const back = button('btn btn-ghost', 'BACK', handlers.closeLevels);
-    sheet.append(el('h2', 'panel-title', 'THE HOUMA'), this.levelProgress, this.levelBody, back);
+    sheet.append(el('h2', 'panel-title', 'STADIUMS'), this.levelProgress, this.levelBody, back);
     this.levels.append(sheet);
 
     this.settings = el('div', 'screen pause');
@@ -370,21 +331,8 @@ export class Overlay {
     intro.append(list, el('p', 'boost-intro-gift', 'A FREE MAGNET IS WAITING ON THE RIGHT.'), button('btn btn-primary', 'GOT IT', () => this.closeBoostIntro()));
     this.boostIntro.append(intro);
 
-    // Free Kicks opens with a goal in houma 3: one card, shown once, over the result.
-    this.fkUnlock = el('div', 'screen pause');
-    const unlock = el('div', 'panel boost-intro');
-    unlock.setAttribute('role', 'dialog');
-    unlock.setAttribute('aria-modal', 'true');
-    unlock.append(
-      el('h2', 'panel-title', 'FREE KICKS IS OPEN'),
-      el('p', 'boost-intro-lead', 'FIVE KICKS. ONE WALL. MIMI IN GOAL.'),
-      button('btn btn-primary', 'TRY IT', () => this.closeFkUnlock(true)),
-      button('btn btn-ghost', 'KEEP GOING', () => this.closeFkUnlock(false)),
-    );
-    this.fkUnlock.append(unlock);
-
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro, this.fkUnlock);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro, this.fkUnlock];
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -392,7 +340,7 @@ export class Overlay {
     this.pauseButton.hidden = true;
 
     this.result = el('div', 'result');
-    this.nextButton = button('btn btn-primary', 'NEXT HOUMA', handlers.next);
+    this.nextButton = button('btn btn-primary', 'NEXT MATCH', handlers.next);
     this.doubleButton = button('btn btn-sun result-double', '', handlers.double);
     const doubleArt = el('span', 'btn-icon');
     doubleArt.innerHTML = AD_SVG;
@@ -434,38 +382,10 @@ export class Overlay {
     this.show(this.menu);
   }
 
-  /** The Free Kicks tile: opens the mode, or shakes and says what unlocks it. */
-  private tapFreeKicks(): void {
-    if (this.fkTile.getAttribute('aria-disabled') === 'true') {
-      this.fkTile.classList.remove('is-shake');
-      void this.fkTile.offsetWidth;
-      this.fkTile.classList.add('is-shake');
-      // Re-set the text so the live region speaks it every time.
-      this.fkStatus.textContent = '';
-      window.setTimeout(() => {
-        this.fkStatus.textContent = this.fkHint;
-      }, 30);
-      return;
-    }
-    this.handlers.openMode('freeKicks');
-  }
-
   /** The boost column's one-time introduction; `done` runs when the player dismisses it. */
   showBoostIntro(done: () => void): void {
     this.boostIntroDone = done;
     this.show(this.boostIntro);
-  }
-
-  /** The Free Kicks unlock card. TRY IT goes to the mode, KEEP GOING back to the result. */
-  showFkUnlock(tryIt: () => void, keep: () => void): void {
-    this.fkUnlockActions = { tryIt, keep };
-    this.show(this.fkUnlock);
-  }
-
-  private closeFkUnlock(tryIt: boolean): void {
-    const actions = this.fkUnlockActions;
-    this.fkUnlockActions = null;
-    if (actions) (tryIt ? actions.tryIt : actions.keep)();
   }
 
   private closeBoostIntro(): void {
@@ -539,26 +459,8 @@ export class Overlay {
     this.starCount.setAttribute('aria-label', tr('STARS {n} / {max}', { n: info.stars.n, max: info.stars.max }));
     this.coinText.textContent = String(info.coins);
     this.coinText.parentElement?.setAttribute('aria-label', tr('{n} COINS', { n: info.coins }));
-    this.continueLine.textContent = `${tr('HOUMA {n}', { n: info.continueNumber })} · ${tr(info.continueChapter)}`;
+    this.continueLine.textContent = `${tr('MATCH {n}', { n: info.continueNumber })} · ${tr(info.continueName)}`;
     this.playButton.setAttribute('aria-label', `${tr('PLAY')}, ${this.continueLine.textContent}`);
-    this.houmaMeta.textContent = tr('{n} STARS', { n: info.classicStars });
-    this.houmaBar.style.width = `${info.chapterMax > 0 ? Math.round((info.chapterStars / info.chapterMax) * 100) : 0}%`;
-    const fk = info.fk;
-    this.fkTile.hidden = !fk.available;
-    this.fkTile.parentElement?.classList.toggle('is-solo', !fk.available);
-    this.fkTile.classList.toggle('is-locked', !fk.open);
-    if (fk.open) {
-      this.fkTile.removeAttribute('aria-disabled');
-      this.fkMeta.textContent = tr('STAGE {n}', { n: fk.stage });
-      this.fkHint = '';
-      this.fkTile.setAttribute('aria-label', `${tr('FREE KICKS')}, ${this.fkMeta.textContent}${fk.daily ? `, ${tr('DAILY KICK')}` : ''}`);
-    } else {
-      this.fkTile.setAttribute('aria-disabled', 'true');
-      this.fkMeta.textContent = tr('SCORE IN HOUMA 3');
-      this.fkHint = tr('FREE KICKS OPENS WHEN YOU SCORE IN HOUMA 3.');
-      this.fkTile.setAttribute('aria-label', `${tr('FREE KICKS')}, ${tr('LOCKED')}. ${this.fkHint}`);
-    }
-    this.fkDaily.hidden = !(fk.open && fk.daily);
     this.ballsDot.hidden = !info.newBall;
   }
 
@@ -736,7 +638,7 @@ export class Overlay {
   setResult(visible: boolean, hasNext: boolean, double = false): void {
     this.result.hidden = !visible;
     this.doubleButton.hidden = !(visible && double);
-    this.nextButton.textContent = tr(hasNext ? 'NEXT HOUMA' : 'THE HOUMA');
+    this.nextButton.textContent = tr(hasNext ? 'NEXT MATCH' : 'STADIUMS');
   }
 
   hide(): void {

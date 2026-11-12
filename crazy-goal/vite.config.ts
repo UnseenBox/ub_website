@@ -1,6 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
 /**
@@ -33,40 +32,12 @@ function posterSaver(): Plugin {
   };
 }
 
-/**
- * Free Kicks is a separate, un-bundled module (free-kicks/ next to this file): two scripts and two
- * stylesheets. The build copies them to dist/assets/ under their own names and adds the tags to
- * index.html; the dev server serves them from /free-kicks/. The Classic bundle never imports them.
- * Every edition includes them, the CrazyGames portal edition too (approved 2026-11-12). See docs/FREE_KICKS.md.
- */
-function freeKicks(): Plugin {
-  const dir = fileURLToPath(new URL('./free-kicks/', import.meta.url));
-  const css = ['game-modes.css', 'free-kicks.css'];
-  const js = ['game-modes.js', 'free-kicks.js'];
-  return {
-    name: 'crazy-kora-free-kicks',
-    generateBundle() {
-      for (const name of [...css, ...js]) {
-        this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(join(dir, name)) });
-      }
-    },
-    transformIndexHtml(_html, ctx) {
-      const base = ctx.server ? '/free-kicks/' : './assets/';
-      return [
-        ...css.map((name) => ({ tag: 'link', attrs: { rel: 'stylesheet', href: base + name }, injectTo: 'head' as const })),
-        // defer: they run after the page and after the (deferred) module entry has published window.CrazyKoraAssets.
-        ...js.map((name) => ({ tag: 'script', attrs: { defer: true, src: base + name }, injectTo: 'body' as const })),
-      ];
-    },
-  };
-}
-
 // Relative base so the build runs from any static path (itch.io, portals, a sub-folder).
 // The CrazyGames build (`--mode crazygames`, see .env.crazygames) goes to its own folder
 // so the zip for the portal is packed from there.
 export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [posterSaver(), freeKicks()],
+  plugins: [posterSaver()],
   // Duels talk to the website's API. In development that is the site running locally.
   server: { port: 5191, proxy: { '/api': 'http://localhost:3210' } },
   preview: { port: 4191 },

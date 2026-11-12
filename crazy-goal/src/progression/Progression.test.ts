@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STUCK_MISSES, isStuck, starsToNextSkin, unseenSkins, DAILY_PERFECT_COINS, applyDaily, dateKey, previousDay, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, fkStagePayout, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
+import { STUCK_MISSES, isStuck, starsToNextSkin, unseenSkins, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -15,7 +15,7 @@ describe('chapters', () => {
     expect(CHAPTERS).toHaveLength(9);
   });
   it('titles and starts line up', () => {
-    expect(chapterTitle(1)).toBe('THE HOUMA');
+    expect(chapterTitle(1)).toBe('STADIUMS');
     expect(chapterTitle(9)).toBe('THE FINALS');
     expect(chapterStart(1)).toBe(0);
     expect(chapterStart(2)).toBe(12);
@@ -157,73 +157,8 @@ describe('chapter star gates', () => {
   });
 });
 
-describe('fkStagePayout', () => {
-  it('pays 20 for the clear and 10 per star: 4 goals (2 stars) pay 40', () => {
-    expect(fkStagePayout(2, 0)).toBe(40);
-    expect(fkStagePayout(1, 0)).toBe(30);
-    expect(fkStagePayout(3, 0)).toBe(50);
-  });
-  it('pays only the difference on a better run, nothing on a repeat or a worse one', () => {
-    expect(fkStagePayout(2, 40)).toBe(0);
-    expect(fkStagePayout(3, 40)).toBe(10);
-    expect(fkStagePayout(1, 40)).toBe(0);
-  });
-  it('pays nothing for no stars', () => {
-    expect(fkStagePayout(0, 0)).toBe(0);
-  });
-});
 
-describe('isFreeKicksUnlocked', () => {
-  it('opens with a goal in houma 3, not before', () => {
-    expect(isFreeKicksUnlocked({ levels: {} }, levels, false)).toBe(false);
-    expect(isFreeKicksUnlocked({ levels: { 'houma-01': rec(1), 'houma-02': rec(1) } }, levels, false)).toBe(false);
-    expect(isFreeKicksUnlocked({ levels: { 'houma-03': rec(1) } }, levels, false)).toBe(true);
-  });
-  it('stays open for anyone who has already played Free Kicks', () => {
-    expect(isFreeKicksUnlocked({ levels: {} }, levels, true)).toBe(true);
-  });
-});
 
-describe('Daily Kick', () => {
-  const empty = () => ({ lastDate: '', streak: 0, results: {} as Record<string, string> });
-
-  it('formats local dates and steps back a calendar day across month and year ends', () => {
-    expect(dateKey(new Date(2026, 10, 12))).toBe('2026-11-12');
-    expect(previousDay('2026-11-12')).toBe('2026-11-11');
-    expect(previousDay('2026-03-01')).toBe('2026-02-28');
-    expect(previousDay('2027-01-01')).toBe('2026-12-31');
-  });
-
-  it('pays 5 per goal and 25 more for five out of five, and starts a streak of 1', () => {
-    const a = applyDaily(empty(), '2026-11-12', 3, 'OOXOX');
-    expect(a).toMatchObject({ already: false, streak: 1, coins: 15 });
-    const b = applyDaily(empty(), '2026-11-12', 5, 'OOOOO');
-    expect(b.coins).toBe(5 * 5 + DAILY_PERFECT_COINS);
-  });
-
-  it('keeps the scored attempt: a second record for the same date pays nothing and changes nothing', () => {
-    const first = applyDaily(empty(), '2026-11-12', 4, 'OOXOO');
-    const again = applyDaily(first.state, '2026-11-12', 5, 'OOOOO');
-    expect(again).toMatchObject({ already: true, coins: 0, streak: 1 });
-    expect(again.state.results['2026-11-12']).toBe('OOXOO');
-  });
-
-  it('adds to the streak on consecutive days and starts again after a gap (mocked date change)', () => {
-    let state = applyDaily(empty(), '2026-11-10', 3, 'a').state;
-    state = applyDaily(state, '2026-11-11', 3, 'b').state;
-    const third = applyDaily(state, '2026-11-12', 3, 'c');
-    expect(third.streak).toBe(3);
-    const gap = applyDaily(third.state, '2026-11-14', 3, 'd');
-    expect(gap.streak).toBe(1);
-  });
-
-  it('keeps only the last 60 dates', () => {
-    let state = empty();
-    for (let i = 0; i < 70; i++) state = applyDaily(state, dateKey(new Date(2026, 0, 1 + i)), 3, 'x').state;
-    expect(Object.keys(state.results)).toHaveLength(60);
-    expect(state.results['2026-01-01']).toBeUndefined();
-  });
-});
 
 describe('ball unlocks', () => {
   const skins = [

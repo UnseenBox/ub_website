@@ -1,6 +1,6 @@
 # CRAZY KORA (formerly Crazy Goal)
 
-Renamed 2026-10-09. The folder, the site slug (`crazy-goal`) and the LocalStorage keys keep the old name so saves, duel identities and links still work. Since the rename: 100 houmas in nine chapters (THE HOUMA 1–12, NEW GROUNDS 13–24, CRAZY LEAGUE 25–36, LEGENDS 37–48, STREET KINGS 49–60, NIGHT LEAGUE 61–72, GOLDEN HOUR 73–84, HALL OF FAME 85–96, THE FINALS 97–100) with ground themes (`theme` on a level: street, pitch, beach, court, clay, roof, snow, sunset, night) and ground mechanics (`grass`, `water`, `ice`, `boost`), plus pinball bumpers (`bumper`), spinning turnstiles (`spinner`), gusty fans (`fan`) and leafy hedges (`hedge` walls), ball skins unlocked by stars (`src/ball/Skins.ts`, 27 skins up to 285 stars), a settings screen (sound and music volume, English or Arabic, reset progress), chaptered level select with progress bars and best scores, HUD chapter labels with attempts and star-progress bars, a looping crowd recording as the music (`assets/sfx/bg music.mp3`, on its own volume bus; `src/audio/Music.ts` is an older generated loop that nothing uses any more), layered crowd celebrations with whistle and stadium horn on big goals (`src/audio/SoundLibrary.ts`), and translations in `src/core/i18n.ts` (code writes English; `tr()` swaps it; changing language reloads the page).
+Renamed 2026-10-09. The folder, the site slug (`crazy-goal`) and the LocalStorage keys keep the old name so saves, duel identities and links still work. Since the rename (all of it is now in the git tag `kora-houmas-and-freekicks-v1`, the game was reset on 2026-11-12, see below): 100 houmas in nine chapters (THE HOUMA 1–12, NEW GROUNDS 13–24, CRAZY LEAGUE 25–36, LEGENDS 37–48, STREET KINGS 49–60, NIGHT LEAGUE 61–72, GOLDEN HOUR 73–84, HALL OF FAME 85–96, THE FINALS 97–100) with ground themes (`theme` on a level: street, pitch, beach, court, clay, roof, snow, sunset, night) and ground mechanics (`grass`, `water`, `ice`, `boost`), plus pinball bumpers (`bumper`), spinning turnstiles (`spinner`), gusty fans (`fan`) and leafy hedges (`hedge` walls), ball skins unlocked by stars (`src/ball/Skins.ts`, 27 skins up to 285 stars), a settings screen (sound and music volume, English or Arabic, reset progress), chaptered level select with progress bars and best scores, HUD chapter labels with attempts and star-progress bars, a looping crowd recording as the music (`assets/sfx/bg music.mp3`, on its own volume bus; `src/audio/Music.ts` is an older generated loop that nothing uses any more), layered crowd celebrations with whistle and stadium horn on big goals (`src/audio/SoundLibrary.ts`), and translations in `src/core/i18n.ts` (code writes English; `tr()` swaps it; changing language reloads the page).
 
 **How crazy can you score?**
 
@@ -10,7 +10,7 @@ No game engine and no physics library. TypeScript, Vite, Canvas 2D, Web Audio, a
 
 ## What is in it
 
-- **100 houmas in 9 chapters**, each introducing one idea, then mixing them. Three stars per houma, a chaptered level list with progress bars and best scores, progress saved.
+- **Matches, one stadium at a time** (see "One game, built match by match"). Three stars per match, a stadium list with best scores, progress saved. Match 1 is a stadium pitch with a goal.
 - **Things in the street:** low walls, leafy hedges (soft bounce), orange crates (dead bounce), the parked taxi (lively bounce, alarm), tyre stacks (throw the ball back faster), pinball bumpers (kick it back harder, with a flash), spinning turnstiles (time your shot), gusty fans (wind that breathes), builder's sand (slows it), a washed-down slope (curves it), manholes (in one, out the other), a delivery scooter (moving, never stops), a pane of glass (bounces a soft shot, breaks for a hard one), a doorbell that opens a shutter, and Mimi the cat in goal.
 - **Your last shot stays chalked on the ground**, so you can see what you did and fix it.
 - **Crazy Score:** style labels for how the goal went in, a combo multiplier per bounce, a result card.
@@ -19,29 +19,27 @@ No game engine and no physics library. TypeScript, Vite, Canvas 2D, Web Audio, a
 
 - **Duels:** challenge a friend by their ID, a tap on a recent rival, or an invite link. Three ways to play: Classic (ten rounds, cards), Quick Clash (five fast rounds, cards), Pure (ten rounds, no cards). Each round is a different street that is the same for both of you, one shot each per round. In Classic and Quick you each hold six cards to play once: three boost your own shot (HARISSA burns through an obstacle, MAGNET pulls the ball into the goal, RUBBER never loses its bounce) and three land on your friend's next shot (MIMI the cat, a half SHUTTER on the goal, SMOKE over the street). Turn based, so you can play together or hours apart. A VS splash opens every duel, goals burst in the scorer's colours, and incoming tricks flash the screen.
 
-Not built yet: spin shots, an endless mode, online leaderboards, in-app purchases, an analytics provider (the event sink exists; see "Analytics and ads"). Settings, music, portal ads and a Daily Kick (in Free Kicks) are built.
+Not built yet: spin shots, an endless mode, online leaderboards, in-app purchases, an analytics provider (the event sink exists; see "Analytics and ads"). Settings, music and portal ads are built.
 
 ## Modes, progression and economy
 
-One game, one career, two ways to play. Classic and Free Kicks share one wallet (Kora Coins), one star total, one chosen ball, one set of sound settings, one menu and one set of design tokens; they do not share gameplay or physics.
-
-- **Classic** is the campaign: 100 houmas, where the crazier route scores more.
-- **Free Kicks** is the skill arcade (five-kick stages, Quick Five, the Daily Kick). It opens after a goal in houma 3, as a tile on the main menu.
-- **Duels** are the social layer on unseenbox.com; the portal build hides them.
+One game and one career: one wallet (Kora Coins), one star total, one chosen ball. Duels are the social layer on unseenbox.com (they reuse the same gameplay); the portal build hides them.
 
 All the rules of progress are pure functions with named constants in `src/progression/Progression.ts`, covered by `npm test`:
 
 - **Stars.** Any goal is 1 star; each level sets the Crazy Scores for 2 and 3 (`stars` in level data). The HUD shows the three targets while you aim, and the result card says what the next star needs.
-- **Coins are for progress, not farming.** The first clear of a level pays `max(10, score / 100)`; each star a level has ever shown pays 10 once (`paidStars` in the save); the coin hanging in each alley pays 10 once ever (`coin` in the save); replaying a level for nothing new pays 0. Duel streets have no coin. Free Kicks pays 20 for clearing a stage and 10 per star, once (`fk.coinsPaid`).
-- **Chapters are gated by stars.** The first level of chapter `c >= 2` also needs `16 x (c - 1)` houma stars; any chapter in which a level already has a goal stays open (grandfathering). Free Kicks stars count toward balls but not toward chapter gates.
+- **Coins are for progress, not farming.** The first clear of a level pays `max(10, score / 100)`; each star a level has ever shown pays 10 once (`paidStars` in the save); the coin hanging in each alley pays 10 once ever (`coin` in the save); replaying a level for nothing new pays 0. Duel streets have no coin.
+- **Chapters are gated by stars.** The first level of chapter `c >= 2` also needs `16 x (c - 1)` houma stars; any chapter in which a level already has a goal stays open (grandfathering).
 - **Boosts** (HARISSA, MAGNET, RUBBER) are introduced at houma 6 with one free MAGNET; before that the column is hidden.
-- **Balls** unlock by total stars, Classic and Free Kicks together (`src/ball/Skins.ts`).
+- **Balls** unlock by total stars (`src/ball/Skins.ts`). With only a few matches the higher balls cannot be reached yet; how balls unlock as matches grow is an open design question.
 
-The save (`crazy-goal-save`) is at version 2 and is never wiped: `src/save/SaveManager.ts` migrates version 1 and keeps the known fields of a newer version. Free Kicks keeps its own `crazy-kora-fk-progress` and `crazy-kora-fk-tutorial`.
+The save (`crazy-goal-save`) is at version 2 and is never wiped: `src/save/SaveManager.ts` migrates version 1 and keeps the known fields of a newer version. 
 
-## Free Kicks
+## One game, built match by match
 
-The second mode: free-kick physics with a wall, bend, aerial shots, Mimi in goal, a five-stage Street Cup, a Legend stage, Quick Five and the Daily Kick. It lives apart from Classic in `free-kicks/` (plain scripts, not bundled; the Vite plugin in `vite.config.ts` ships them) and is documented in [`docs/FREE_KICKS.md`](docs/FREE_KICKS.md). It never imports `src/**`; it talks to Classic only through `window.CrazyKoraShell` (`src/shell/Shell.ts`), which publishes the wallet, star total, chosen ball, sound settings, portal signals, the settings card and the menu tile. Classic is the only writer of `crazy-goal-save`. The CrazyGames edition includes it too (approved 2026-11-12): it adds about 240 KB to the build, and its portal signals go through the shell. No ad ever runs inside a Free Kicks run.
+**Reset, 2026-11-12.** The hundred houmas and the Free Kicks mode were removed so the game can be rebuilt as one gameplay style: a stadium with a goal, then match after match that adds objects, areas, obstacles and, later, the free-kick moves (air shots and bend) as abilities the player can also use. Matches are built one at a time and polished before the next one starts (`data/levels/matches.ts`). Match 1, OPENING NIGHT, is a plain stadium with a goal.
+
+Everything removed is in git: `git checkout kora-houmas-and-freekicks-v1` (the commit just before the reset) has the 100 houmas, the Free Kicks mode, the Daily Kick, `window.CrazyKoraShell` and `docs/FREE_KICKS.md`.
 
 ## Install, run, build
 
@@ -65,7 +63,7 @@ npm run preview   # serve dist/ on http://localhost:4191
 
 What the portal edition changes, all behind `src/portal/Portal.ts`:
 
-- **Duels are hidden.** Their server lives on unseenbox.com, so the menu tile, the invite flow and the `?duel=` link do nothing in this build. Solo play (100 houmas, shop, skins) is untouched.
+- **Duels are hidden.** Their server lives on unseenbox.com, so the menu tile, the invite flow and the `?duel=` link do nothing in this build. Solo play (matches, shop, balls) is untouched.
 - **SDK v3** (`src/portal/Portal.ts`): loaded dynamically with a timeout, `init()` in the background, every call guarded. Outside `local` and `crazygames` environments it stays off, so the itch build behaves byte-for-byte as before.
 - **Loading:** `loadingStart` at boot, `loadingStop` on the first painted menu.
 - **Gameplay signals:** `gameplayStart` on PLAY / level select / resume / duel shots, `gameplayStop` on pause / level list / menu / goal / duel waits. First start measures ~6 MB initial download (limit 50, 20 for the mobile homepage).
@@ -96,7 +94,7 @@ data/levels/houma.ts   the 100 level definitions (plain data)
 src/
   core/        Game (state machine), GameLoop, Time, EventBus
   progression/ Progression: every rule of stars, coins, gates and unlocks (pure, tested)
-  shell/       Shell (window.CrazyKoraShell, the bridge Free Kicks uses), fkProgress (read-only view of its stars)
+  analytics/   Analytics: a subscriber on the EventBus (console in dev, no-op in production)
   input/       InputManager + Pointer, Keyboard, Touch
   physics/     RigidBody, Collision, CollisionResolver, SpatialGrid, PhysicsWorld
   ball/        Ball, ShotController, TrajectoryPreview, BallTrail
@@ -208,7 +206,7 @@ The dev server also accepts `POST /__poster/<name>` with a JPEG body and writes 
 
 **Analytics** (`src/analytics/Analytics.ts`) is a subscriber on the `EventBus`. It turns eight career events into a funnel: `level_start`, `level_goal` (stars, score, attempts, first clear), `level_gate_blocked`, `fk_stage_end`, `daily_done`, `boost_used`, `ad_offer` and `ad_done`. Events carry numbers, ids and flags only. A development build logs them to the console (`[analytics] ...`); a production build uses a no-op provider and sends nothing until the owner picks a provider and passes it to `analytics.setProvider`. This is what tunes `GATE_PER_CHAPTER`, the coin values and `STUCK_MISSES`.
 
-**Ads** sit behind `src/portal/Portal.ts` (see "CrazyGames"). Rewarded ads are offered only where a player wants help, only in solo play, never during aiming, flight or a celebration, never in a duel or a Free Kicks run, and they share one 90 second cooldown:
+**Ads** sit behind `src/portal/Portal.ts` (see "CrazyGames"). Rewarded ads are offered only where a player wants help, only in solo play, never during aiming, flight or a celebration, never in a duel, and they share one 90 second cooldown:
 
 - **Stuck assist.** After 4 misses on one houma (`STUCK_MISSES`), a chip under the boost cards offers a free MAGNET for an ad. The coin shop stays the no-ad way.
 - **x2 COINS.** On the result card of a level's first clear, an ad doubles the coins that clear paid, once.

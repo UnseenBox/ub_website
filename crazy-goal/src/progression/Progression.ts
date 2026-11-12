@@ -22,7 +22,7 @@ export interface ProgressLevel {
 
 /** Chapters of twelve houmas; the last one is the four finals. */
 export const CHAPTERS: ReadonlyArray<{ until: number; title: string }> = [
-  { until: 12, title: 'THE HOUMA' },
+  { until: 12, title: 'STADIUMS' },
   { until: 24, title: 'NEW GROUNDS' },
   { until: 36, title: 'CRAZY LEAGUE' },
   { until: 48, title: 'LEGENDS' },
@@ -169,88 +169,7 @@ export const BOOST_INTRO_FREE_MAGNETS = 1;
 export const BANK_TIP_LEVEL = 1;
 
 /** Keys of the one-time tips kept in `save.tips`. */
-export type TipKey = 'bank' | 'labels' | 'chain' | 'fkUnlock';
-
-/** Free Kicks: the Street Cup has five stages of three stars; the Legend stage adds three more once stage 5 has a star. */
-export const FK_CAMPAIGN_STAR_MAX = 15;
-export const FK_LEGEND_STAR_MAX = 3;
-export const FK_LAST_CAMPAIGN_STAGE = 'stage-5-pressure';
-/** Paid the first time a stage is cleared (any star), and for each star a stage has ever shown. */
-export const FK_CLEAR_COINS = 20;
-export const FK_STAR_COINS = 10;
-
-/**
- * Coins a Free Kicks stage result pays: what the stage's best stars are worth in total, minus
- * what has already been paid for it (`paid`, the save's `fk.coinsPaid[stageId]`). A replay that
- * wins nothing new, or a worse run, pays 0.
- */
-export function fkStagePayout(stars: number, paid: number): number {
-  const s = Math.max(0, Math.min(3, Math.floor(stars)));
-  const worth = s > 0 ? FK_CLEAR_COINS + FK_STAR_COINS * s : 0;
-  return Math.max(0, worth - Math.max(0, paid));
-}
-
-/** Free Kicks opens with a goal in this houma (0-based index 2 is houma 3), or for anyone who has already played it. */
-export const FK_UNLOCK_LEVEL = 2;
-
-export function isFreeKicksUnlocked(save: ProgressSave, levels: readonly ProgressLevel[], fkPlayed: boolean): boolean {
-  if (fkPlayed) return true;
-  const gate = levels[FK_UNLOCK_LEVEL];
-  return !!gate && goalsOf(save, gate.id) > 0;
-}
-
-/** Daily Kick: coins per goal, and the bonus for five out of five. */
-export const DAILY_GOAL_COINS = 5;
-export const DAILY_PERFECT_COINS = 25;
-/** How many past dates the save keeps results for. */
-export const DAILY_HISTORY_DAYS = 60;
-
-/** The part of the save the Daily Kick rules read and write. */
-export interface DailyState {
-  lastDate: string;
-  streak: number;
-  results: Record<string, string>;
-}
-
-/** A local calendar date as `YYYY-MM-DD`. */
-export function dateKey(d: Date): string {
-  const p = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-/** The calendar day before a `YYYY-MM-DD` date (local calendar, so daylight saving cannot skip or repeat a day). */
-export function previousDay(date: string): string {
-  const [y, m, d] = date.split('-').map(Number);
-  return dateKey(new Date(y, m - 1, d - 1));
-}
-
-export interface DailyOutcome {
-  /** Today's scored attempt was already in: nothing changed, nothing paid. */
-  already: boolean;
-  streak: number;
-  coins: number;
-  state: DailyState;
-}
-
-/**
- * Records the Daily Kick's one scored attempt for `date`. The streak goes up by one when the day before
- * was played, and starts again at 1 otherwise. A second record for the same date changes nothing.
- */
-export function applyDaily(state: DailyState, date: string, goals: number, line: string): DailyOutcome {
-  if (state.results[date] !== undefined) return { already: true, streak: state.streak, coins: 0, state };
-  const g = Math.max(0, Math.min(5, Math.floor(goals) || 0));
-  const streak = state.lastDate !== '' && state.lastDate === previousDay(date) ? state.streak + 1 : 1;
-  const results = { ...state.results, [date]: line };
-  const keep = Object.keys(results).sort().slice(-DAILY_HISTORY_DAYS);
-  const trimmed: Record<string, string> = {};
-  for (const k of keep) trimmed[k] = results[k];
-  return {
-    already: false,
-    streak,
-    coins: g * DAILY_GOAL_COINS + (g === 5 ? DAILY_PERFECT_COINS : 0),
-    state: { lastDate: date, streak, results: trimmed },
-  };
-}
+export type TipKey = 'bank' | 'labels' | 'chain';
 
 /** The part of a ball the unlock rules read. */
 export interface UnlockableSkin {

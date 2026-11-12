@@ -68,7 +68,9 @@ export type Surface =
   /** A frozen street, pale and crazed. */
   | 'ice'
   /** Rain-slick asphalt, dark and reflective. */
-  | 'wet';
+  | 'wet'
+  /** Mown turf with chalk lines: a stadium pitch. */
+  | 'turf';
 
 /**
  * A flat piece of street furniture painted on the ground. None of it is solid and none of it

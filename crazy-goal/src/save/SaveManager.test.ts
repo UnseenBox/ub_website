@@ -28,8 +28,6 @@ describe('parseSave', () => {
     expect(s.tips).toEqual([]);
     expect(s.boostIntro).toBe(false);
     expect(s.freeBoosts).toEqual({});
-    expect(s.fk).toEqual({ coinsPaid: {} });
-    expect(s.daily).toEqual({ lastDate: '', streak: 0, results: {} });
   });
 
   it('pays nobody twice: v1 stars become paidStars', () => {
@@ -49,8 +47,6 @@ describe('parseSave', () => {
     first.tips = ['bank'];
     first.boostIntro = true;
     first.freeBoosts = { magnet: 1 };
-    first.fk.coinsPaid = { 'stage-1': 40 };
-    first.daily = { lastDate: '2026-11-12', streak: 3, results: { '2026-11-12': 'OOXOO' } };
     first.levels['houma-01'].coin = true;
     first.seenSkins = ['classic'];
     const again = parseSave(JSON.stringify(first));

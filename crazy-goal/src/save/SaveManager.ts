@@ -20,14 +20,6 @@ export interface LevelRecord {
   paidStars: number;
 }
 
-export interface DailyRecord {
-  /** Local date (YYYY-MM-DD) of the last scored Daily Kick, or ''. */
-  lastDate: string;
-  streak: number;
-  /** date -> five-kick line, kept for the share text. */
-  results: Record<string, string>;
-}
-
 export interface SaveData {
   version: number;
   levels: Record<string, LevelRecord>;
@@ -45,9 +37,6 @@ export interface SaveData {
   boostIntro: boolean;
   /** Free boost charges, spent before any coins. */
   freeBoosts: Partial<Record<Boost, number>>;
-  /** Free Kicks: coins already paid per stage (the stars-paid ledger). */
-  fk: { coinsPaid: Record<string, number> };
-  daily: DailyRecord;
   /** Skins the player has already been told about (toast / NEW dot). */
   seenSkins: string[];
 }
@@ -65,8 +54,6 @@ const fresh = (): SaveData => ({
   tips: [],
   boostIntro: false,
   freeBoosts: {},
-  fk: { coinsPaid: {} },
-  daily: { lastDate: '', streak: 0, results: {} },
   seenSkins: [],
 });
 
@@ -116,16 +103,6 @@ export function parseSave(raw: string | null): SaveData {
     for (const id of BOOSTS) {
       const n = Math.floor(num(data.freeBoosts[id]));
       if (n > 0) out.freeBoosts[id] = n;
-    }
-  }
-  if (isRecord(data.fk) && isRecord(data.fk.coinsPaid)) {
-    for (const [id, n] of Object.entries(data.fk.coinsPaid)) out.fk.coinsPaid[id] = num(n);
-  }
-  if (isRecord(data.daily)) {
-    out.daily.lastDate = typeof data.daily.lastDate === 'string' ? data.daily.lastDate : '';
-    out.daily.streak = Math.floor(num(data.daily.streak));
-    if (isRecord(data.daily.results)) {
-      for (const [date, line] of Object.entries(data.daily.results)) if (typeof line === 'string') out.daily.results[date] = line;
     }
   }
   if (legacy) {

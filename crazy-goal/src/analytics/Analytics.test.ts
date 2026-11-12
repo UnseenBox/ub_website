@@ -33,11 +33,9 @@ describe('Analytics', () => {
     bus.emit('AD_OFFERED', { kind: 'stuck' });
     bus.emit('AD_DONE', { kind: 'stuck', granted: true });
     bus.emit('LEVEL_GATE_BLOCKED', { level: 13, need: 16, have: 12 });
-    bus.emit('FK_STAGE_ENDED', { stage: 'stage-1-the-spot', stars: 2, coins: 40 });
-    bus.emit('DAILY_DONE', { date: '2026-11-12', goals: 4, streak: 2, coins: 20 });
-    expect(seen).toEqual(['level_start', 'level_goal', 'boost_used', 'ad_offer', 'ad_done', 'level_gate_blocked', 'fk_stage_end', 'daily_done']);
+    expect(seen).toEqual(['level_start', 'level_goal', 'boost_used', 'ad_offer', 'ad_done', 'level_gate_blocked']);
     off();
     bus.emit('LEVEL_STARTED', { level: 2, chapter: 1 });
-    expect(seen).toHaveLength(8);
+    expect(seen).toHaveLength(6);
   });
 });

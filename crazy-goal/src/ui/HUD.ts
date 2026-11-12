@@ -587,7 +587,7 @@ export class Hud {
           text(ctx, label, x0 + sw + 6, ny + 1, { size: 14, color: C.navy, baseline: 'middle', weight: 900, alpha: tail });
           text(ctx, starHint(card), cx, ny + 24, { size: 11, color: C.terra, align: 'center', weight: 700, spacing: 1.5, alpha: tail });
         } else {
-          text(ctx, 'PERFECT HOUMA', cx, ny + 8, { size: 16, color: C.terra, align: 'center', weight: 900, spacing: 2, alpha: tail });
+          text(ctx, 'PERFECT MATCH', cx, ny + 8, { size: 16, color: C.terra, align: 'center', weight: 900, spacing: 2, alpha: tail });
         }
         if (ballGap !== null) {
           const by = ny + (next ? 52 : 36);

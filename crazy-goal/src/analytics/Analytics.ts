@@ -53,8 +53,6 @@ export function wireAnalytics(events: EventBus<GameEvents>, sink: Pick<Analytics
     events.on('LEVEL_STARTED', (e) => sink.track('level_start', { level: e.level, chapter: e.chapter })),
     events.on('LEVEL_GOAL', (e) => sink.track('level_goal', { level: e.level, stars: e.stars, score: e.score, attempts: e.attempts, first_clear: e.firstClear, bounces: e.bounces })),
     events.on('LEVEL_GATE_BLOCKED', (e) => sink.track('level_gate_blocked', { level: e.level, need: e.need, have: e.have })),
-    events.on('FK_STAGE_ENDED', (e) => sink.track('fk_stage_end', { stage: e.stage, stars: e.stars, coins: e.coins })),
-    events.on('DAILY_DONE', (e) => sink.track('daily_done', { date: e.date, goals: e.goals, streak: e.streak, coins: e.coins })),
     events.on('BOOST_USED', (e) => sink.track('boost_used', { boost: e.boost, free: e.free })),
     events.on('AD_OFFERED', (e) => sink.track('ad_offer', { kind: e.kind })),
     events.on('AD_DONE', (e) => sink.track('ad_done', { kind: e.kind, granted: e.granted })),

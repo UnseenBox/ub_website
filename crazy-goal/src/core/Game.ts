@@ -37,7 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, chapterStart, chapterTitle, coinsForGoal, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
+import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import { coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -48,7 +48,6 @@ import type { RigidBody } from '../physics/RigidBody';
 import { aimOffset } from '../rendering/AimArt';
 import { saveSession, loadSession, type SessionScreen } from './session';
 import { analytics, wireAnalytics } from '../analytics/Analytics';
-import { fkNextStage, fkPlayed, fkStarMax, fkStars, readFkStages } from '../shell/fkProgress';
 import { Camera } from '../rendering/Camera';
 import { Renderer } from '../rendering/Renderer';
 import { SaveManager, freshLevelRecord, type LevelRecord } from '../save/SaveManager';
@@ -359,7 +358,6 @@ export class Game {
       skinsSeen: () => this.markBallsSeen(),
       stars: () => ({ n: this.totalStars(), max: this.maxStars() }),
       menuInfo: () => this.menuInfo(),
-      openMode: (id) => this.modeTiles.get(id)?.(),
       resetProgress: () => this.resetProgress(),
       levels: () => this.openLevels(),
       select: (index) => this.selectLevel(index),
@@ -486,94 +484,32 @@ export class Game {
     return totalStars(this.save.data);
   }
 
-  /** Every star in the career, Free Kicks included: what opens balls. */
+  /** Every star in the career: what opens balls. */
   totalStars(): number {
-    return totalStars(this.save.data, fkStars());
+    return totalStars(this.save.data);
   }
 
   /** The most stars there are to win right now. */
   maxStars(): number {
-    return this.levels.length * 3 + fkStarMax();
-  }
-
-  /** Something Free Kicks did may have changed what the menu shows or which balls are open. */
-  starsChanged(): void {
-    this.refreshMenu();
-  }
-
-  /** Listeners for mute and volume changes (the shell hands them to Free Kicks). */
-  readonly audioListeners = new Set<(muted: boolean, volume: number) => void>();
-  private notifyAudio(): void {
-    for (const cb of [...this.audioListeners]) {
-      try {
-        cb(this.save.data.muted, this.save.data.sound);
-      } catch {
-        /* a broken listener must not stop the others */
-      }
-    }
-  }
-
-  /** Free Kicks' menu tile: how to open it, and a redraw request when what it shows changes. */
-  readonly modeTiles = new Map<string, () => void>();
-  registerModeTile(id: string, open: () => void): void {
-    this.modeTiles.set(id, open);
-    this.refreshMenu();
+    // Stars from older, retired stadiums still count, so the total never shows more earned than there is.
+    return Math.max(this.levels.length * 3, this.totalStars());
   }
 
   refreshMenu(): void {
     this.overlay.refreshMenu();
-    // Back on the menu after a Free Kicks stage: a ball may have opened there.
     if (this.state === 'menu' && this.overlay.menuVisible()) this.offerBallToast();
   }
 
-  /** Today's Daily Kick has not been played yet (drives the DAILY dot on the Free Kicks tile). */
-  private dailyWaiting(): boolean {
-    const shell = window.CrazyKoraShell;
-    return !!shell && !shell.daily.state().done;
-  }
-
-  /** What the main menu draws: continue target, chapter progress, the Free Kicks tile. */
+  /** What the main menu draws: where Continue goes, the wallet, the stars. */
   private menuInfo(): MenuInfo {
     const at = this.furthestUnlocked();
-    const chapter = chapterOf(at);
-    const from = chapterStart(chapter);
-    const to = Math.min(this.levels.length, chapter >= 9 ? this.levels.length : chapterStart(chapter + 1));
-    let chapterStars = 0;
-    for (let i = from; i < to; i++) chapterStars += this.save.level(this.levels[i].id).stars;
-    const stages = readFkStages();
     return {
-      stars: { n: this.classicStars() + fkStars(stages), max: this.levels.length * 3 + fkStarMax(stages) },
+      stars: { n: this.totalStars(), max: this.maxStars() },
       coins: this.save.data.coins,
       continueNumber: at + 1,
-      continueChapter: chapterTitle(chapter),
-      classicStars: this.classicStars(),
-      chapterStars,
-      chapterMax: (to - from) * 3,
-      fk: {
-        available: this.modeTiles.has('freeKicks'),
-        open: isFreeKicksUnlocked(this.save.data, this.levels, fkPlayed(stages)),
-        stage: fkNextStage(stages),
-        daily: this.dailyWaiting(),
-      },
+      continueName: this.levels[at]?.name ?? '',
       newBall: unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).length > 0,
     };
-  }
-
-  /** Adds coins to the wallet from outside the houmas (Free Kicks stages, the Daily Kick). */
-  earnCoins(n: number, _reason: string): void {
-    const amount = Math.floor(n);
-    if (!(amount > 0) || amount > 100000) return;
-    this.save.data.coins += amount;
-    this.save.save();
-  }
-
-  closeSettings(): void {
-    this.overlay.closeSettings();
-  }
-
-  /** Opens the settings card over whatever is showing; `onClose` runs when it is left. */
-  openSettings(onClose?: () => void): void {
-    this.overlay.openSettings(onClose ?? null);
   }
 
   /** Erases every record and puts the player back on the first alley. */
@@ -596,7 +532,6 @@ export class Game {
     this.save.data.sound = sound;
     this.save.data.music = music;
     this.save.save();
-    this.notifyAudio();
   }
 
   /** A level is open once the one before it has been scored on. */
@@ -761,33 +696,6 @@ export class Game {
     this.armedBoost = id;
     this.save.save();
     this.audio.play(`boost_${id}`, { gain: 1 });
-  }
-
-  /** The first result after Free Kicks opens (a goal in houma 3): one card, once, with TRY IT and KEEP GOING. */
-  private offerFreeKicks(): void {
-    if (this.save.data.tips.includes('fkUnlock') || !this.modeTiles.has('freeKicks') || this.shotRule !== 'free') return;
-    const stages = readFkStages();
-    if (!isFreeKicksUnlocked(this.save.data, this.levels, fkPlayed(stages))) return;
-    this.save.data.tips.push('fkUnlock');
-    this.save.save();
-    // Anyone who has already played it has nothing to be told.
-    if (fkPlayed(stages)) return;
-    this.paused = true;
-    const leave = (): void => {
-      this.paused = false;
-      this.overlay.hide();
-      this.syncButtons(true);
-      this.abilities.refresh(BOOST_COSTS);
-    };
-    this.overlay.showFkUnlock(
-      () => {
-        this.paused = false;
-        this.returnToMenu();
-        this.modeTiles.get('freeKicks')?.();
-      },
-      leave,
-    );
-    this.abilities.refresh(BOOST_COSTS);
   }
 
   /** Shows a tip once ever (kept in the save) and holds it over the street until the next shot. */
@@ -1024,7 +932,6 @@ export class Game {
     this.audio.setMuted(muted);
     this.save.data.muted = muted;
     this.save.save();
-    this.notifyAudio();
     return !muted;
   }
 
@@ -1466,7 +1373,6 @@ export class Game {
     this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1), double);
     if (double) this.events.emit('AD_OFFERED', { kind: 'double' });
     if (want && !force) {
-      this.offerFreeKicks();
       if (!this.paused) this.offerBallToast();
     }
   }
