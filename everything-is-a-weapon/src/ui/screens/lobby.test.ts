@@ -46,7 +46,7 @@ it.each(HERO_CASES)('shows only the selected %s hero in the main menu', (hero, s
 
   const portraits = [...menu.querySelectorAll<HTMLImageElement>('.b2-lobby__hero')];
   expect(portraits).toHaveLength(1);
-  expect(portraits[0]?.getAttribute('src')).toContain(`${slug}.png`);
+  expect(portraits[0]?.getAttribute('src')).toContain(`${slug}.webp`);
   expect(menu.querySelector('.b2-lobby__cast')).toBeNull();
   expect(menu.querySelector('img[src*="bonk-cast"]')).toBeNull();
 });

@@ -10,7 +10,7 @@ it('shows each hero once, using the full hero-and-pet illustration', () => {
     heroProgress: () => ({ deepest: 1, endlessBestFloor: 0, discoveries: 4 }),
   } as unknown as Game);
   const cards = [...pane.querySelectorAll<HTMLButtonElement>('.b2-hero')];
-  const portraits = ['tenant.png', 'flatmate.png', 'gran.png', 'kid.png'];
+  const portraits = ['tenant.webp', 'flatmate.webp', 'gran.webp', 'kid.webp'];
   const accents = ['teal', 'violet', 'rose', 'lime'];
 
   expect(cards).toHaveLength(4);

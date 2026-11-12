@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:phone": "vite --host",
     "build": "tsc --noEmit && vite build",
-    "build:crazygames": "tsc --noEmit && vite build --mode crazygames",
+    "build:crazygames": "tsc --noEmit && vite build --mode crazygames && node scripts/check-bundle-size.mjs",
     "build:gamemonetize": "tsc --noEmit && vite build --mode gamemonetize",
     "dev:crazygames": "vite --mode crazygames --port 5174",
     "dev:gamemonetize": "vite --mode gamemonetize --port 5175",

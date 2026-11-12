@@ -2,10 +2,10 @@ import type { Game } from '../../core/Game';
 import { HEROES, heroPerk, type HeroId } from '../../core/Hero';
 import { unlockRule } from '../../gameplay/HeroUnlocks';
 import { el } from '../dom';
-import tenantArt from '../../assets/characters/tenant.png';
-import flatmateArt from '../../assets/characters/flatmate.png';
-import granArt from '../../assets/characters/gran.png';
-import kidArt from '../../assets/characters/kid.png';
+import tenantArt from '../../assets/characters/tenant.webp';
+import flatmateArt from '../../assets/characters/flatmate.webp';
+import granArt from '../../assets/characters/gran.webp';
+import kidArt from '../../assets/characters/kid.webp';
 
 interface RosterArt {
   readonly portrait: string;
