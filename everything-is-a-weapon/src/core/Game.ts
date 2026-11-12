@@ -265,6 +265,8 @@ export class Game {
   private funnelChain = false;
   private funnelGameplay = false;
   private roomEnded = true;
+  /** The one-off FIRST BONK! treatment has been spent this room. */
+  private firstBonk = false;
   private bossSeen = false;
   private lastHitCause = '';
   private perfSamples: number[] = [];
@@ -684,6 +686,7 @@ export class Game {
     this.funnelInput = this.funnelGrab = this.funnelThrow = this.funnelHit = false;
     this.funnelKill = this.funnelChain = this.bossSeen = false;
     this.roomEnded = false;
+    this.firstBonk = false;
     this.lastHitCause = '';
     this.bus.emit({ type: 'ROOM_START', room: index });
     // Campaign briefing: every room says what it is and what the mini-goal is,
@@ -1969,7 +1972,8 @@ export class Game {
       }
       // The player's very first knockout (room 1's throw lesson) is the game's promise kept:
       // a bigger freeze, a shockwave, a name on the screen and more confetti than any later one.
-      if (this.tutorial.step === 'throw') {
+      if (this.tutorial.step === 'throw' && !this.firstBonk) {
+        this.firstBonk = true;
         this.fx.burst('FIRST BONK!', b.x, b.y - 52, 2.2, '#ffd23f', true);
         this.fx.ring(b.x, b.y, 12, 150, 0.55, 'rgba(255,210,63,0.95)', 6);
         this.fx.flash('#ffffff', 0.3);

@@ -151,7 +151,7 @@ export class ScoreSystem {
       game.discoveries.unlock(length >= 5 ? 'chain_5' : length === 4 ? 'chain_4' : 'chain_3');
       const headline = length >= 5 ? 'HOW DID THAT WORK?!' : length === 4 ? 'ABSOLUTELY STUPID!' : 'CHAIN REACTION!';
       // A floating word at the spot (banners are off, so this is the one place it is seen).
-      game.popup(headline, x, y - 54, '#ffd23f', length >= 4 ? 30 : 26, 1.7);
+      game.popup(headline, x, y - 92, '#ffd23f', length >= 4 ? 30 : 26, 1.7);
       game.bus.emit({ type: 'CHAIN', length, steps: chain.steps });
       game.audio.chain(length);
       if (length >= 4) game.slowMotion(0.35, 0.9);
@@ -218,7 +218,8 @@ export class ScoreSystem {
       if (kills >= 2) {
         points += 400 * (kills - 1);
         game.discoveries.unlock('two_birds');
-        game.popup(`x${kills}`, x, y - 44, '#4ad6e8', 30 + Math.min(kills, 5) * 3, 1.4);
+        // Three or more is a chain: its headline already says so, and two words on top of each other read as noise.
+        if (kills === 2) game.popup('x2', x, y - 44, '#4ad6e8', 36, 1.4);
         this.bumpCombo();
       }
     }

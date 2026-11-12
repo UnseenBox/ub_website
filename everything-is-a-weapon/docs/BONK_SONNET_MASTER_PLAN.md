@@ -722,3 +722,14 @@ Rule: add only the events in this table; no per-frame or per-object events; one 
 
 Verification at the end of Phase 1: `tsc` clean; `vitest` 305 passed, 1 skipped; `npm run build:crazygames` 2.56 MB. **Not verified:** real phone, CrazyGames QA tool, audio, a human playthrough of the new room 1. The balance bot calls `tutorial.skip()` on room 1, so it does not exercise the guided beats (use `Game.tutorial-flow.test.ts` for that).
 Console note: errors seen during my browser session came from fake damage objects I injected by hand, not from game code.
+
+### Revision after the first playtest: "the tutorial room is boring"
+
+The owner played the five-beat room and said it was boring. Diagnosis (mine, from the code, not from data): it was a *lesson plan* (each beat waited for the previous one to be cleared, 15-20 s of nothing between them), and the payoffs were small (a throw at a lone box kills one box). Replaced by a **clock-driven rampage** (commit after `1716986`):
+
+* No gating. `Tutorial.LESSONS = ['throw','free']`. After the opening throw, `free` rebases room 1's own delays (`FREE_LEAD` 5 s) so waves arrive whether or not the player is ready. `power`, `pet`, `zap` lesson ids are kept only for old saves (they resume in `free`).
+* 19 movers: **conga** of 4 led by a `kaboom` (0.3 s apart) -> **queue** of 3 under the socket (bottle by the player, hint WET + SOCKET) -> **crowd** of 6 with the BIG RED BUTTON handed over 1.2 s before -> **finale** `kaboom, box, box, kaboom, box` and a `trolley`.
+* **Measured in the simulator** (not guessed): one pan thrown at a Kaboom-led conga killed 1 box with the old blast (128 / 46); with the blast raised to **140 / 100** (`Enemy.ts` `leaveBehind`) the same throw kills all 4 (`kaboom:impact`, 2 x `explosion`, 1 x `slam`). Other throws on a line of 4 boxes: dumbbell 3, bowling ball 2, chair 1, fridge 0. **Side effect: every `kaboom` in later rooms now kills its neighbours too** (that is its stated job, "beat it next to its colleagues"), so later rooms with Kabooms get a little easier; the balance bot was not re-run.
+* FIRST BONK! now fires once (it fired per kill while the throw lesson was active). SKIP now spaces the rest of the shift over at most ~30 s.
+* Tests: Game.tutorial-flow now covers the conga payoff (>= 3 kills from one real throw), the Power hand-over without any player action, and a full clear on the clock alone.
+* **Still not verified by a human.** Whether it is *fun* is a feel question the simulator cannot answer; if it is still flat, the knobs are the delays in `RoomDefinitions.ts` room 1, `FREE_LEAD`/`CROWD_AT`/`POWER_EARLY` in `Tutorial.ts`, and the kaboom blast numbers.

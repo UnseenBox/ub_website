@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, expect, it, vi } from 'vitest';
 import { FIXED_DT } from './constants';
+import { installTestHooks } from '../debug/TestHooks';
 import { FINAL_ROOM_INDEX } from '../gameplay/Campaign';
 import { nextDoorIndices } from '../gameplay/NightShift';
 import { Game } from './Game';
@@ -84,11 +85,6 @@ function waitFor(game: Game, goal: () => boolean, cap = 30): void {
   expect(goal(), `condition not reached within ${cap}s of sim time`).toBe(true);
 }
 
-/** Kills whatever walks in until the tutorial reaches `next` (a beat ends when its movers are gone). */
-function clearBeat(game: Game, next: string, cap = 40): void {
-  waitFor(game, () => { sweep(game); return game.tutorial.step === next; }, cap);
-}
-
 /** Game.frame drives the display-frame path (hud + renderer). */
 function frameOf(game: Game): (alpha: number, frameDt: number) => void {
   return (game as unknown as { frame(alpha: number, frameDt: number): void }).frame.bind(game);
@@ -110,61 +106,52 @@ beforeEach(() => {
   window.cancelAnimationFrame = () => {};
 });
 
-it('boot → first visit → tutorial room lives and advances lessons honestly', () => {
+const boot = (): Game => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
+  return game;
+};
 
+it('boot → first visit → the opening is one guided throw, then the shift runs on its own clock', () => {
+  const game = boot();
   expect(game.state).toBe('playing');
   expect(game.room.index).toBe(0);
-  // Action first: the opening lesson is the throw, and the pan is already in hand.
+  // Action first: the pan is already in hand and the first mover is already at the door.
   expect(game.tutorial.step).toBe('throw');
   expect(game.player.held?.def.id).toBe('pan');
-  // It must survive the first carry step, not snap back out of reach.
   game.tick(FIXED_DT);
   expect(game.player.held?.def.id).toBe('pan');
+  expect(game.room.totalEnemies).toBe(19);
 
-  // The throw lesson lets its mover in; defeating it moves on (the plan's own rule).
-  waitFor(game, () => game.enemies.length > 0, 8);
-  sweep(game);
-  waitFor(game, () => game.tutorial.step === 'toys', 8);
-  // Beats, in order: toys (2 movers) -> trick (3 queued under the socket) -> power.
-  expect(game.room.totalEnemies).toBe(9);
-  clearBeat(game, 'trick');
-  clearBeat(game, 'power');
-  expect(game.tutorial.step).toBe('power');
-  // The power lesson hands over the BIG RED BUTTON, ready to fire.
-  expect(game.save.data.abilities).toContain('blast');
+  // The conga is four movers, Kaboom first. Clearing it starts the rampage.
+  const seen: string[] = [];
+  waitFor(game, () => { for (const e of game.enemies) if (!seen.includes(e.type.id)) seen.push(e.type.id); return game.enemies.length >= 4; }, 6);
+  expect(seen[0]).toBe('kaboom');
+  waitFor(game, () => { sweep(game); return game.tutorial.step === 'free'; }, 10);
+  expect(game.save.data.abilities).not.toContain('blast');
+
+  // Nobody waits for the player: the queue walks in on its own, then the Power is handed over.
+  waitFor(game, () => game.enemies.some((e) => !e.defeated), 8);
+  waitFor(game, () => { sweep(game); return game.save.data.abilities.includes('blast'); }, 40);
   expect(game.abilities.ready('blast')).toBe(true);
 });
 
 it('only the first knockout gets the FIRST BONK! treatment', () => {
-  const game = new Game(fakeCanvas());
-  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
-  game.start();
+  const game = boot();
   const burst = vi.spyOn(game.fx, 'burst');
   const first = () => burst.mock.calls.filter((c) => c[0] === 'FIRST BONK!').length;
-
   waitFor(game, () => game.enemies.length > 0, 8);
   sweep(game);
   expect(first()).toBe(1);
-
-  // Every later knockout in the lesson plan is an ordinary one. Clearing the
-  // power lesson opens the free brawl and ends the staged plan in the same tick.
-  waitFor(game, () => game.tutorial.step === 'toys', 8);
-  clearBeat(game, 'trick');
-  clearBeat(game, 'power');
-  waitFor(game, () => { sweep(game); return !game.tutorial.active; }, 20);
+  waitFor(game, () => { sweep(game); return !game.tutorial.active; }, 90);
   expect(first()).toBe(1);
 });
 
 it('a player who does nothing still gets the first mover within ~2s', () => {
-  const game = new Game(fakeCanvas());
-  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
-  game.start();
+  const game = boot();
   expect(game.tutorial.step).toBe('throw');
   expect(game.enemies.length).toBe(0);
-
   // The first door is already rattling: no walk, no grab lesson.
   waitFor(game, () => game.enemies.length > 0, 3);
   expect(game.tutorial.step).toBe('throw');
@@ -194,41 +181,41 @@ it('a player who follows the prompt throws the pan within 8 s of control', () =>
   expect(marks.first_throw!).toBeLessThanOrEqual(8);
 });
 
-it('the wet-socket beat never soft-locks: the queue of three walks in after the timeout', () => {
-  const game = new Game(fakeCanvas());
-  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
-  game.start();
-  waitFor(game, () => game.enemies.length > 0, 8);
-  sweep(game);
-  clearBeat(game, 'trick');
-  // Nobody touches the bottle: no movers for a while, then all three come in.
-  advance(game, 5);
-  expect(game.enemies.filter((e) => !e.defeated)).toHaveLength(0);
-  // Still waiting outside: the queue of three, the power pair and the closing Trolley.
-  expect(game.room.pending.length).toBe(6);
-  waitFor(game, () => game.room.pending.length === 3, 30);
-  expect(game.enemies.filter((e) => !e.defeated).length).toBeGreaterThanOrEqual(1);
-  sweep(game);
-  waitFor(game, () => game.tutorial.step === 'power', 10);
+
+it('one pan thrown at the red leader takes the whole conga with it', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = (window as unknown as { __t: { step(n: number): void; throwAt(x: number, y: number, c?: number): void } }).__t;
+  const kills: string[] = [];
+  game.bus.on('ENEMY_DEFEATED', (e) => kills.push(`${e.enemy.type.id}:${e.cause.type}`));
+  let thrown = false;
+  for (let i = 0; i < 900 && !thrown; i++) {
+    t.step(1);
+    const lead = game.enemies.find((e) => !e.defeated);
+    if (lead && Math.hypot(lead.body.x - game.player.body.x, lead.body.y - game.player.body.y) < 230) {
+      t.throwAt(lead.body.x + lead.body.vx * 0.25, lead.body.y + lead.body.vy * 0.25, 40);
+      thrown = true;
+    }
+  }
+  expect(thrown).toBe(true);
+  for (let k = 0; k < 8; k++) t.step(30);
+  expect(kills[0]).toBe('kaboom:impact');
+  expect(kills.length, 'the Kaboom blast takes the boxes behind it').toBeGreaterThanOrEqual(3);
 });
 
-it('the power beat holds a Kaboom, and the closing beat is a Trolley', () => {
-  const game = new Game(fakeCanvas());
-  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
-  game.start();
-  waitFor(game, () => game.enemies.length > 0, 8);
-  sweep(game);
-  clearBeat(game, 'toys', 8);
-  clearBeat(game, 'trick');
-  clearBeat(game, 'power');
+it('the whole shift runs on its own clock and ends in a clear, whatever the player does', () => {
+  const game = boot();
+  // The player only ever gets swept: a stand-in for somebody who ignores every prompt.
   const seen = new Set<string>();
   waitFor(game, () => {
     for (const e of game.enemies) seen.add(e.type.id);
     sweep(game);
-    return !game.tutorial.active && game.room.pending.length === 0 && game.enemies.every((e) => e.defeated);
-  }, 40);
+    return game.state === 'cleared';
+  }, 150);
   expect(seen.has('kaboom')).toBe(true);
   expect(seen.has('trolley')).toBe(true);
+  expect(game.save.data.tutorial).toBe('done');
+  expect(game.tutorial.active).toBe(false);
 });
 
 it('tutorial → clear → results with ledger claim → door choice → chosen room', async () => {

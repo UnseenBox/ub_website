@@ -7,11 +7,13 @@ import type { RoomDefinition } from './Room';
  * doors is wide enough to walk through.
  */
 export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
-  // 1 — bedroom: the lesson plan (gameplay/Tutorial.ts). The frying pan is already in
-  // your hand, the door is in the top wall with a socket beside it, and the nine movers
-  // wait outside until their beat: 1 to throw at, 2 for the toys, 3 queued for the wet
-  // socket (the bottle sits next to you), 2 for the power (one is a Kaboom) and a closing
-  // Trolley. Replayed untaught, they arrive on the clock.
+  // 1 — bedroom: a rampage, not a lesson (gameplay/Tutorial.ts). The frying pan is already
+  // in your hand and the door is in the top wall with a socket beside it. The first four
+  // movers are a conga line led by a Kaboom (hit the red one and the line goes up); after
+  // that the rest of the shift arrives on a clock with no waiting: a queue of three for the
+  // wet socket (the bottle sits next to you), a crowd of six when the BIG RED BUTTON is
+  // handed over, and a finale of two Kabooms, boxes and a Trolley. The delays below are the
+  // shift's own clock (a replay that skips the tutorial runs on it) and its spacing.
   {
     id: 'room-1', name: 'THE BEDROOM', theme: 'bedroom', width: 860, height: 500, seed: 101, tutorial: true,
     playerStart: { x: 470, y: 300 },
@@ -37,20 +39,29 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
     ],
     zones: [{ kind: 'electric', x: 588, y: 12, r: 18, outlet: true }],
     enemies: [
-      // throw
-      { type: 'basic', delay: 1 },
-      // toys
-      { type: 'basic', delay: 8 },
-      { type: 'basic', delay: 9.5 },
-      // trick: a tight queue under the socket
-      { type: 'basic', delay: 20 },
-      { type: 'basic', delay: 20.6 },
-      { type: 'basic', delay: 21.2 },
-      // power: a crowd with a Kaboom in it
-      { type: 'basic', delay: 32 },
-      { type: 'kaboom', delay: 32.6 },
-      // the closing charge
-      { type: 'trolley', delay: 44 },
+      // the conga: the Kaboom leads, the others follow tight
+      { type: 'kaboom', delay: 0.9 },
+      { type: 'basic', delay: 1.2 },
+      { type: 'basic', delay: 1.5 },
+      { type: 'basic', delay: 1.8 },
+      // the queue under the socket
+      { type: 'basic', delay: 12 },
+      { type: 'basic', delay: 12.5 },
+      { type: 'basic', delay: 13 },
+      // the crowd (the Power is handed over just before)
+      { type: 'basic', delay: 21 },
+      { type: 'basic', delay: 21.4 },
+      { type: 'basic', delay: 21.8 },
+      { type: 'basic', delay: 22.2 },
+      { type: 'basic', delay: 22.6 },
+      { type: 'basic', delay: 23 },
+      // the finale: two Kabooms in a line, then the Trolley
+      { type: 'kaboom', delay: 32 },
+      { type: 'basic', delay: 32.3 },
+      { type: 'basic', delay: 32.6 },
+      { type: 'kaboom', delay: 32.9 },
+      { type: 'basic', delay: 33.2 },
+      { type: 'trolley', delay: 36 },
     ],
   },
 

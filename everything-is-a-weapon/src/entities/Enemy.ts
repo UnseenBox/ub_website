@@ -1881,7 +1881,7 @@ export class Enemy {
         game.discoveries.unlock('russian_doll');
         break;
       case 'explode':
-        game.explode(b.x, b.y, 128, 46, 1, cause.chain ? extendChain(cause.chain, this.label) : null, this, 'sparkle');
+        game.explode(b.x, b.y, 140, 100, 1, cause.chain ? extendChain(cause.chain, this.label) : null, this, 'sparkle');
         game.discoveries.unlock('special_delivery');
         break;
     }

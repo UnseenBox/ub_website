@@ -3,23 +3,27 @@ import type { Enemy } from '../entities/Enemy';
 import type { PhysicsObject } from '../entities/PhysicsObject';
 
 /** Room 1's lessons, in the order they are taught. */
-export type Lesson = 'move' | 'grab' | 'throw' | 'toys' | 'trick' | 'power' | 'pet' | 'zap' | 'free';
+export type Lesson = 'move' | 'grab' | 'throw' | 'power' | 'pet' | 'zap' | 'free';
 /**
- * The mandatory opening, five beats, nine movers: throw (the pan is already in hand),
- * toys (anything in the room is a weapon), trick (water + the wall socket fries a queue
- * of three), power (the BIG RED BUTTON, with a Kaboom in the crowd) and a closing
- * Trolley charge. The pet's treat is an optional toy. Old saves that point at the
- * retired `pet` / `zap` lessons are mapped to the closing beat.
+ * Room 1 is a rampage, not a lesson. One guided throw (the hero holds the pan, the
+ * first mover is a conga line led by a Kaboom: hit the red one and the whole line goes
+ * up), then `free`: the rest of the shift arrives on a clock with no waiting for the
+ * player, each wave answered by a different toy. Old saves that point at the retired
+ * `power` / `pet` / `zap` lessons resume in `free`.
  */
-export const LESSONS: readonly Lesson[] = ['throw', 'toys', 'trick', 'power', 'free'];
+export const LESSONS: readonly Lesson[] = ['throw', 'free'];
 
-/** Movers each lesson lets through the door. Room 1 lists exactly this many, in this order. */
-const MOVERS: Readonly<Record<Lesson, number>> = { move: 0, grab: 0, throw: 1, toys: 2, trick: 3, power: 2, pet: 1, zap: 3, free: 1 };
+/** Movers the throw lesson lets through the door (the conga line). Room 1 lists them first. */
+const MOVERS: Readonly<Record<Lesson, number>> = { move: 0, grab: 0, throw: 4, power: 2, pet: 1, zap: 1, free: 0 };
 
-/** Seconds the wet-socket beat waits for the floor to go live before the queue walks in anyway. */
-const TRICK_TIMEOUT = 25;
-/** What glows while the toys beat waits for the player to pick something up. */
-const TOYS = ['chair', 'ball'];
+/** Seconds between the conga being cleared and the first wave of `free` walking in. */
+const FREE_LEAD = 5;
+/** Which of `free`'s movers (0-based, in room order) is the first of the crowd: the Power arrives just before. */
+const CROWD_AT = 3;
+/** Seconds before the crowd walks in that the BIG RED BUTTON is handed over. */
+const POWER_EARLY = 1.2;
+/** The wave guide for the Power ring lasts this long after the hand-over. */
+const POWER_GUIDE = 14;
 
 export type GuideIcon = 'move' | 'grab' | 'throw' | 'power';
 
@@ -68,6 +72,12 @@ export class Tutorial {
   spotStep = false;
 
   private stepTime = 0;
+  /** Room 1's own clock for every mover after the conga, captured before they are held back. */
+  private script: number[] = [];
+  /** Step time at which the Power is handed over in `free` (Infinity: not scheduled). */
+  private powerAt = Infinity;
+  private powerGiven = -1;
+  private socketHinted = false;
   private misses = 0;
   private moved = 0;
   private passed = false;
@@ -123,9 +133,9 @@ export class Tutorial {
     // Old saves may point at a retired lesson. Walking and grabbing are already done
     // by the time the room opens; pet and zap are optional now.
     const start: Lesson =
-      from === 'throw' || from === 'toys' || from === 'trick' || from === 'power' || from === 'free'
+      from === 'throw' || from === 'free'
         ? from
-        : from === 'pet' || from === 'zap'
+        : from === 'power' || from === 'pet' || from === 'zap'
           ? 'free'
           : 'throw';
     const room = this.game.room;
@@ -134,7 +144,9 @@ export class Tutorial {
       if (lesson === start) break;
       skipped += MOVERS[lesson];
     }
-    room.pending = room.pending.slice(skipped).map((spec) => ({ type: spec.type, delay: WAITING }));
+    const rest = room.pending.slice(skipped);
+    this.script = rest.map((spec) => spec.delay);
+    room.pending = rest.map((spec) => ({ type: spec.type, delay: WAITING }));
     room.totalEnemies = room.pending.length;
     this.enter(start);
   }
@@ -161,9 +173,11 @@ export class Tutorial {
     this.game.markTutorialSkipped();
     this.grantPower(false);
     const room = this.game.room;
+    // Everyone still outside comes in, 3.5 s apart, but never more than ~30 s in total.
+    const gap = Math.min(3.5, 30 / Math.max(1, room.pending.filter((spec) => spec.delay === WAITING).length));
     let n = 0;
     room.pending = room.pending.map((spec) =>
-      spec.delay === WAITING ? { type: spec.type, delay: room.elapsed + 1 + 3.5 * n++ } : spec,
+      spec.delay === WAITING ? { type: spec.type, delay: room.elapsed + 1 + gap * n++ } : spec,
     );
     this.finish();
     this.resume = null;
@@ -192,7 +206,6 @@ export class Tutorial {
     const g = this.guide;
     const player = game.player;
     const pb = player.body;
-    const touch = game.input.touch;
     const overHead = (): void => {
       g.x = pb.x;
       g.y = pb.y - 78;
@@ -226,16 +239,10 @@ export class Tutorial {
         break;
       }
 
-      case 'toys':
       case 'throw': {
         if (this.passed) break;
         if (!player.held) {
-          // The new toys glow while hands are empty; the pan is the fallback.
-          if (step === 'toys') {
-            this.spot = TOYS;
-            this.spotLeft = 0.5;
-          }
-          const target = step === 'toys' ? this.toy() ?? this.weapon() : this.weapon();
+          const target = this.weapon();
           if (target) this.pointAt(target);
           break;
         }
@@ -246,7 +253,7 @@ export class Tutorial {
         g.line = 'arc';
         g.tx = enemy.body.x;
         g.ty = enemy.body.y;
-        if (step === 'throw' && this.misses >= 2) {
+        if (this.misses >= 2) {
           // Two misses: it stands still while you line it up, and the words come out.
           enemy.stun = Math.max(enemy.stun, 0.3);
           g.caption = 'HOLD → LET GO';
@@ -254,26 +261,10 @@ export class Tutorial {
         break;
       }
 
-      case 'power': {
-        if (!game.abilities.ready('blast')) break;
-        let n = 0;
-        let cx = 0;
-        let cy = 0;
-        for (const enemy of game.enemies) {
-          if (enemy.defeated) continue;
-          cx += enemy.body.x;
-          cy += enemy.body.y;
-          n++;
-        }
-        if (n === 0) break;
-        g.icon = 'power';
-        overHead();
-        g.line = 'ring';
-        g.tx = cx / n;
-        g.ty = cy / n;
-        if (this.stepTime > 10) g.caption = touch ? 'TAP POWER' : 'AIM + P';
+      case 'power':
+        // Retired as a lesson: the Power is handed over in the middle of `free`.
+        this.enter('free');
         break;
-      }
 
       case 'pet': {
         const pet = game.pet;
@@ -301,7 +292,6 @@ export class Tutorial {
         break;
       }
 
-      case 'trick':
       case 'zap': {
         let live = false;
         let socket = null;
@@ -310,8 +300,8 @@ export class Tutorial {
           if (zone.zone === 'water' && zone.tags.has('energized')) live = true;
           else if (zone.tags.has('outlet')) socket = zone;
         }
-        if (live || !socket || this.stepTime > TRICK_TIMEOUT) {
-          // The floor is live (or nobody is going to make it so): the queue walks in.
+        if (live || !socket) {
+          // The floor is live: now somebody walks in to find out.
           if (!this.released) this.release();
           break;
         }
@@ -338,8 +328,50 @@ export class Tutorial {
       }
 
       case 'free':
+        this.updateFree();
         break;
     }
+  }
+
+  /** The rampage: hints and the Power on a clock, and the end of the lesson once the room is empty. */
+  private updateFree(): void {
+    const game = this.game;
+    const g = this.guide;
+    const player = game.player;
+    const touch = game.input.touch;
+    if (!this.socketHinted && this.stepTime > 0.3) {
+      this.socketHinted = true;
+      game.hud.hint('WET + SOCKET', '', 3.2);
+    }
+    // The bottle glows until it is in hand or the queue is already walking in.
+    if (!player.held && this.stepTime < FREE_LEAD + 3) {
+      this.focus = game.objects.find((o) => o.alive && !o.held && o.def.id === 'bottle') ?? null;
+    }
+    if (this.powerGiven < 0 && this.stepTime >= this.powerAt) {
+      this.powerGiven = this.stepTime;
+      this.grantPower(true);
+      game.hud.hint('BIG RED BUTTON', touch ? 'TAP POWER' : 'AIM + P', 4);
+    }
+    if (this.powerGiven >= 0 && this.stepTime < this.powerGiven + POWER_GUIDE && game.abilities.ready('blast')) {
+      let n = 0;
+      let cx = 0;
+      let cy = 0;
+      for (const enemy of game.enemies) {
+        if (enemy.defeated) continue;
+        cx += enemy.body.x;
+        cy += enemy.body.y;
+        n++;
+      }
+      if (n >= 3) {
+        g.icon = 'power';
+        g.x = player.body.x;
+        g.y = player.body.y - 78;
+        g.line = 'ring';
+        g.tx = cx / n;
+        g.ty = cy / n;
+      }
+    }
+    if (this.stepTime > 1 && this.roomQuiet()) this.finish();
   }
 
   // ───────────── lessons ─────────────
@@ -358,18 +390,11 @@ export class Tutorial {
 
     switch (step) {
       case 'throw':
-        this.release();
-        break;
-      case 'toys':
-        game.hud.hint('ANYTHING IS A WEAPON', '', 3.2);
-        this.release(1.5, 0.9);
-        break;
-      case 'trick':
-        game.hud.hint('WET + SOCKET', '', 3.2);
+        // A tight conga: the red Kaboom leads, three boxes close behind it.
+        this.release(0.3, 0.9);
+        game.hud.hint('HIT THE RED ONE', '', 3.2);
         break;
       case 'power':
-        this.grantPower(true);
-        this.release();
         break;
       case 'free': {
         // The puddle by the door dries up, or nobody would ever get past it.
@@ -378,9 +403,20 @@ export class Tutorial {
         }
         if (game.pet) this.dropNear(game.pet.treat);
         if (!game.objects.some((o) => o.alive && o.def.id === 'bottle')) this.dropNear('bottle');
-        // ...and nobody comes in until it has: the closing Trolley charges the whole room.
-        this.release(0.6, 2.5);
-        this.finish();
+        // The rest of the shift keeps room 1's own spacing, starting FREE_LEAD seconds from now.
+        const room = game.room;
+        const waiting = room.pending.filter((spec) => spec.delay === WAITING).length;
+        const orig = this.script.slice(this.script.length - waiting);
+        const base = orig[0] ?? 0;
+        let k = 0;
+        room.pending = room.pending.map((spec) =>
+          spec.delay === WAITING ? { type: spec.type, delay: room.elapsed + FREE_LEAD + ((orig[k++] ?? base) - base) } : spec,
+        );
+        this.powerAt = orig.length > CROWD_AT ? FREE_LEAD + (orig[CROWD_AT]! - base) - POWER_EARLY : Infinity;
+        this.powerGiven = -1;
+        this.socketHinted = false;
+        // The SKIP chip belongs to the opening, not to a brawl in full swing.
+        document.body.classList.remove('tutorial');
         break;
       }
       default:
@@ -484,22 +520,6 @@ export class Tutorial {
       if (!object.alive || object.held || object.burning || !object.def.throwable || object.def.consume) continue;
       let d = Math.hypot(object.body.x - pb.x, object.body.y - pb.y);
       if (object.def.id === 'pan') d *= 0.4;
-      if (d < bestD) {
-        bestD = d;
-        best = object;
-      }
-    }
-    return best;
-  }
-
-  /** The nearest chair or ball: the toys beat's invitation. */
-  private toy(): PhysicsObject | null {
-    const pb = this.game.player.body;
-    let best: PhysicsObject | null = null;
-    let bestD = Infinity;
-    for (const object of this.game.objects) {
-      if (!object.alive || object.held || object.burning || !TOYS.includes(object.def.id)) continue;
-      const d = Math.hypot(object.body.x - pb.x, object.body.y - pb.y);
       if (d < bestD) {
         bestD = d;
         best = object;
