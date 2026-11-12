@@ -3,7 +3,7 @@ import { clamp01, easeOutCubic, smoothstep, TAU } from '../core/math';
 import { Tyre, TYRE_RADIUS } from '../mechanics/Tyre';
 import { BOOST_TRAIL, drawBoostOver, drawBoostUnder, drawMagnetField, drawScorch, drawSmoke } from './AbilityArt';
 import { drawAimGround, drawAimOver, drawTutorialGhost } from './AimArt';
-import { drawBlock, drawBoundaryJoint, paintBackdrop, paintStaticShadows } from './ArenaArt';
+import { drawBlock, drawBoundaryJoint, drawCrowdFlashes, paintBackdrop, paintStaticShadows } from './ArenaArt';
 import { drawBall, drawBallAura, drawBallShadow, drawTrail } from './BallArt';
 import { drawCoin } from './CoinArt';
 import { drawTag } from './DuelArt';
@@ -129,6 +129,8 @@ export class Renderer {
       const r = this.cacheRect;
       ctx.drawImage(this.cache, r.x, r.y, r.w, r.h);
     }
+    // The crowd's cameras: calm while you aim, a storm after a goal.
+    if (level.def.theme === 'stadium') drawCrowdFlashes(ctx, level, time, g.state === 'goal' ? 1 : Math.min(1, g.goalFlash));
 
     const aiming = g.state === 'aiming';
     const bx = ball.renderX + g.aimDraw.x;

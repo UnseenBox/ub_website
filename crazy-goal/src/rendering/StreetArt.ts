@@ -650,8 +650,27 @@ function paintTurf(ctx: CanvasRenderingContext2D, level: Level, look: Look, rng:
   ctx.arc(cx, top + 190, 7, 0, TAU);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(cx, top + 190, 130, Math.asin((boxH - 190) / 130) , Math.PI - Math.asin((boxH - 190) / 130));
+  ctx.arc(cx, top + 190, 130, Math.asin((boxH - 190) / 130), Math.PI - Math.asin((boxH - 190) / 130));
   ctx.stroke();
+
+  // Under the floodlights: the edges fall into shade, and the corners nearest the lamps are lit.
+  const mx = arena.x + arena.w / 2;
+  const my = arena.y + arena.h / 2;
+  const shade = ctx.createRadialGradient(mx, my, 260, mx, my, 760);
+  shade.addColorStop(0, 'rgba(4, 32, 10, 0)');
+  shade.addColorStop(1, 'rgba(4, 32, 10, 0.3)');
+  ctx.fillStyle = shade;
+  ctx.fillRect(arena.x - 40, arena.y - 40, arena.w + 80, arena.h + 80);
+  for (const [lx, ly] of [
+    [arena.x, arena.y],
+    [arena.x + arena.w, arena.y],
+  ]) {
+    const pool = ctx.createRadialGradient(lx, ly, 10, lx, ly, 460);
+    pool.addColorStop(0, 'rgba(255, 247, 200, 0.2)');
+    pool.addColorStop(1, 'rgba(255, 247, 200, 0)');
+    ctx.fillStyle = pool;
+    ctx.fillRect(lx - 460, ly - 460, 920, 920);
+  }
 }
 
 function paintWet(ctx: CanvasRenderingContext2D, level: Level, look: Look, rng: () => number): void {

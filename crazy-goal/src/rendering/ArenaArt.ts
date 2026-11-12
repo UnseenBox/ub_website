@@ -213,6 +213,63 @@ function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level
   }
 }
 
+interface Flash {
+  x: number;
+  y: number;
+  phase: number;
+  rate: number;
+}
+
+const FLASH_SPOTS = new Map<string, Flash[]>();
+
+/**
+ * Cameras going off in the stands. A few pulses a second here and there while you aim, a storm of them
+ * when the ball is in the net. Drawn live over the cached stands; it never touches the pitch.
+ */
+export function drawCrowdFlashes(ctx: CanvasRenderingContext2D, level: Level, time: number, excited: number): void {
+  const { arena } = level.def;
+  let spots = FLASH_SPOTS.get(level.def.id);
+  if (!spots) {
+    const rng = seededRandom(hashString(level.def.id) ^ 0xf1a5);
+    spots = [];
+    const reach = 34 + 58 * 6;
+    for (let i = 0; i < 110; i++) {
+      // Anywhere in the stands: outside the walkway, inside the last tiers.
+      let x = 0;
+      let y = 0;
+      do {
+        x = arena.x - reach + rng() * (arena.w + reach * 2);
+        y = arena.y - reach + rng() * (arena.h + reach * 2);
+      } while (x > arena.x - 100 && x < arena.x + arena.w + 100 && y > arena.y - 100 && y < arena.y + arena.h + 100);
+      spots.push({ x, y, phase: rng() * TAU, rate: 0.35 + rng() * 0.6 });
+    }
+    FLASH_SPOTS.set(level.def.id, spots);
+  }
+  ctx.save();
+  for (const f of spots) {
+    const pulse = Math.sin(time * f.rate * TAU * (1 + excited * 2.4) + f.phase);
+    // A flash is the sharp top of the wave: rare while calm, common when excited.
+    const edge = 0.93 - excited * 0.55;
+    if (pulse < edge) continue;
+    const k = (pulse - edge) / (1 - edge);
+    const r = 5 + 9 * k;
+    ctx.globalAlpha = 0.25 + 0.65 * k;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, r * 0.45, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = '#fff6c8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(f.x - r, f.y);
+    ctx.lineTo(f.x + r, f.y);
+    ctx.moveTo(f.x, f.y - r);
+    ctx.lineTo(f.x, f.y + r);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function paintRoof(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, rng: () => number, theme: Theme): void {
   // Its shadow falls into the street beside it.
   ctx.fillStyle = rgba(C.shadow, 0.32);
