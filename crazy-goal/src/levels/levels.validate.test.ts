@@ -57,11 +57,14 @@ if (process.env.LEVEL_TABLE) {
   });
 
   describe('every level has a way in', () => {
-    // A coarse sweep over all hundred: cheap, and it catches a level an edit made impossible.
-    it.skipIf(!process.env.LEVELS_ALL)('all 100 houmas can be scored at 3 degree steps', { timeout: 900000 }, () => {
+    // The real sweep (1 degree, five powers) over all hundred, a couple of minutes: opt in with LEVELS_ALL=1.
+    // Some exam levels (houma 36) have only a handful of scoring shots, so a coarser sweep would call them impossible.
+    it.skipIf(!process.env.LEVELS_ALL)('all 100 houmas can be scored at 1 degree steps', { timeout: 1200000 }, () => {
       for (let n = 1; n <= LEVELS.length; n++) {
-        const hits = sweepLevel(LEVELS[n - 1], n - 1, 3, [0.5, 0.75, 1]);
-        expect(hits.length, `houma ${n}`).toBeGreaterThan(0);
+        // Movers (a cat, a scooter) change what is open as the street runs, so a level may only open up when the shot waits.
+        let found = sweepLevel(LEVELS[n - 1], n - 1, 1).length;
+        for (const delay of [0.4, 0.8, 1.2, 1.6, 2]) if (found === 0) found = sweepLevel(LEVELS[n - 1], n - 1, 1, [0.4, 0.55, 0.7, 0.85, 1], delay).length;
+        expect(found, `houma ${n}`).toBeGreaterThan(0);
       }
     });
   });
