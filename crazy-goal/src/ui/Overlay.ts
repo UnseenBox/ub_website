@@ -39,6 +39,8 @@ export interface OverlayHandlers {
   setLang(lang: Lang): void;
   skins(): SkinTile[];
   pickSkin(id: string): void;
+  /** The balls screen was opened. */
+  skinsSeen(): void;
   stars(): { n: number; max: number };
   /** Everything the main menu shows besides its fixed buttons. */
   menuInfo(): MenuInfo;
@@ -195,6 +197,8 @@ export class Overlay {
   private readonly resetButton: HTMLButtonElement;
   private readonly rewardLabel: HTMLElement;
   private readonly boostIntro: HTMLElement;
+  private readonly toast: HTMLElement;
+  private toastTimer = 0;
   private readonly fkUnlock: HTMLElement;
   private fkUnlockActions: { tryIt: () => void; keep: () => void } | null = null;
   private boostIntroDone: (() => void) | null = null;
@@ -388,7 +392,10 @@ export class Overlay {
     this.nextButton = button('btn btn-primary', 'NEXT HOUMA', handlers.next);
     this.result.append(button('btn btn-navy', 'AGAIN', handlers.retry), this.nextButton);
     this.result.hidden = true;
-    root.after(this.pauseButton, this.result);
+    this.toast = el('div', 'toast');
+    this.toast.hidden = true;
+    this.toast.setAttribute('role', 'status');
+    root.after(this.pauseButton, this.result, this.toast);
   }
 
   addScreen(screen: HTMLElement): void {
@@ -492,6 +499,31 @@ export class Overlay {
     }
   }
 
+  menuVisible(): boolean {
+    return !this.menu.hidden;
+  }
+
+  /** A short message with one action (the new-ball toast); it fades on its own or when tapped away. */
+  showToast(text: string, actionLabel: string, onAction: () => void): void {
+    this.toast.replaceChildren();
+    const msg = el('span', 'toast-text');
+    msg.textContent = text;
+    const use = button('toast-action', '', () => {
+      onAction();
+      this.hideToast();
+    });
+    use.textContent = actionLabel;
+    this.toast.append(msg, use);
+    this.toast.hidden = false;
+    window.clearTimeout(this.toastTimer);
+    this.toastTimer = window.setTimeout(() => this.hideToast(), 7000);
+  }
+
+  private hideToast(): void {
+    window.clearTimeout(this.toastTimer);
+    this.toast.hidden = true;
+  }
+
   /** Redraws everything the menu shows from the current save. Cheap; called whenever any of it may have changed. */
   refreshMenu(): void {
     const info = this.handlers.menuInfo();
@@ -545,6 +577,7 @@ export class Overlay {
   }
 
   private showSkins(): void {
+    this.handlers.skinsSeen();
     const skins = this.handlers.skins();
     const { n } = this.handlers.stars();
     const next = skins.filter((s) => !s.open).sort((a, b) => a.need - b.need)[0];

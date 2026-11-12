@@ -21,6 +21,8 @@ const LINE_H = 30;
 const NEXT_H = 52;
 /** Extra height for the coins-earned line, drawn only when the goal paid something. */
 const COINS_H = 28;
+/** Extra height for the stars-to-the-next-ball line. */
+const BALL_H = 26;
 /** Gap between the alley wall and the duel's scoreboard. */
 const PLAQUE_GAP = 46;
 
@@ -440,7 +442,8 @@ export class Hud {
     const solo = g.shotRule === 'free' && g.level.index >= 0;
     const next = solo ? nextStarTarget(g.level.def, g.record.stars) : null;
     const coins = solo ? g.goalCoins : 0;
-    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + (coins > 0 ? COINS_H : 0);
+    const ballGap = solo ? g.ballGap : null;
+    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + (coins > 0 ? COINS_H : 0) + (ballGap !== null ? BALL_H : 0);
     // The card is laid out at its natural size around (cx, cy) and enlarged as one piece.
     const cy = arena.y + 232 + (h * u) / 2;
     const x = cx - CARD_W / 2;
@@ -585,6 +588,10 @@ export class Hud {
           text(ctx, starHint(card), cx, ny + 24, { size: 11, color: C.terra, align: 'center', weight: 700, spacing: 1.5, alpha: tail });
         } else {
           text(ctx, 'PERFECT HOUMA', cx, ny + 8, { size: 16, color: C.terra, align: 'center', weight: 900, spacing: 2, alpha: tail });
+        }
+        if (ballGap !== null) {
+          const by = ny + (next ? 52 : 36);
+          text(ctx, tr('{n} STARS TO THE NEXT BALL', { n: ballGap }), cx, by, { size: 10.5, color: rgba(C.navy, 0.6), align: 'center', weight: 700, spacing: 1.2, alpha: tail });
         }
       }
     }

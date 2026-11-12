@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DAILY_PERFECT_COINS, applyDaily, dateKey, previousDay, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, fkStagePayout, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
+import { starsToNextSkin, unseenSkins, DAILY_PERFECT_COINS, applyDaily, dateKey, previousDay, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, fkStagePayout, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -222,5 +222,25 @@ describe('Daily Kick', () => {
     for (let i = 0; i < 70; i++) state = applyDaily(state, dateKey(new Date(2026, 0, 1 + i)), 3, 'x').state;
     expect(Object.keys(state.results)).toHaveLength(60);
     expect(state.results['2026-01-01']).toBeUndefined();
+  });
+});
+
+describe('ball unlocks', () => {
+  const skins = [
+    { id: 'classic', need: 0 },
+    { id: 'orange', need: 3 },
+    { id: 'algiers', need: 6 },
+    { id: 'mint', need: 10 },
+  ];
+  it('names the balls that are open and not yet seen, never the free starter', () => {
+    expect(unseenSkins(0, skins, []).map((s) => s.id)).toEqual([]);
+    expect(unseenSkins(6, skins, []).map((s) => s.id)).toEqual(['orange', 'algiers']);
+    expect(unseenSkins(6, skins, ['orange']).map((s) => s.id)).toEqual(['algiers']);
+    expect(unseenSkins(6, skins, ['orange', 'algiers'])).toEqual([]);
+  });
+  it('counts the stars to the next locked ball', () => {
+    expect(starsToNextSkin(0, skins)).toBe(3);
+    expect(starsToNextSkin(4, skins)).toBe(2);
+    expect(starsToNextSkin(10, skins)).toBeNull();
   });
 });

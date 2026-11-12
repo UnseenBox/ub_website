@@ -631,6 +631,10 @@ const AR: Readonly<Record<string, string>> = {
   // Accessibility (2.6).
   SELECTED: 'محددة',
   UNLOCKED: 'مفتوحة',
+  // Ball unlocks (3.4).
+  'NEW BALL: {name}': 'كرة جديدة: {name}',
+  'USE IT': 'استعملها',
+  '{n} STARS TO THE NEXT BALL': '{n} نجمة للكرة التالية',
 };
 
 function stored(): Lang {

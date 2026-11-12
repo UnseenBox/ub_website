@@ -37,7 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, chapterStart, chapterTitle, coinsForGoal, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
+import { starsToNextSkin, unseenSkins, BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, chapterStart, chapterTitle, coinsForGoal, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import { coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -254,6 +254,8 @@ export class Game {
   coinTaken = false;
   /** Kora Coins the last solo goal paid (first clear and new stars), shown on the result card. */
   goalCoins = 0;
+  /** Stars missing for the next ball, as of the last solo goal (the result card shows it). */
+  ballGap: number | null = null;
   readonly duel: DuelController;
   readonly abilities: AbilityBar;
   private replay: Replay | null = null;
@@ -346,12 +348,8 @@ export class Game {
         const total = this.totalStars();
         return SKINS.map((s) => ({ ...s, open: total >= s.need, selected: s.id === this.skin.id }));
       },
-      pickSkin: (id) => {
-        this.skin = skinOf(id);
-        this.save.data.skin = this.skin.id;
-        this.save.save();
-        this.sounds.ui();
-      },
+      pickSkin: (id) => this.useSkin(id),
+      skinsSeen: () => this.markBallsSeen(),
       stars: () => ({ n: this.totalStars(), max: this.maxStars() }),
       menuInfo: () => this.menuInfo(),
       openMode: (id) => this.modeTiles.get(id)?.(),
@@ -436,6 +434,42 @@ export class Game {
     this.onLevelEntered();
   }
 
+  /** Chooses a ball (from the balls screen or the new-ball toast). */
+  useSkin(id: string): void {
+    this.skin = skinOf(id);
+    this.save.data.skin = this.skin.id;
+    this.save.save();
+    this.sounds.ui();
+  }
+
+  /** The balls screen was opened: every ball earned so far counts as seen, so the NEW dot goes. */
+  private markBallsSeen(): void {
+    const open = unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins);
+    if (open.length === 0) return;
+    for (const s of open) this.save.data.seenSkins.push(s.id);
+    this.save.save();
+    this.overlay.refreshMenu();
+  }
+
+  /**
+   * A toast for the newest ball the player has earned and not been told about, once per ball: after a
+   * result card, or on the menu after a Free Kicks stage. The NEW dot on BALLS stays until the balls screen opens.
+   */
+  private offerBallToast(): void {
+    const tips = this.save.data.tips;
+    const fresh = unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).filter((s) => !tips.includes(`ball:${s.id}`));
+    if (fresh.length === 0) return;
+    for (const s of fresh) tips.push(`ball:${s.id}`);
+    this.save.save();
+    const newest = fresh[fresh.length - 1];
+    this.overlay.showToast(tr('NEW BALL: {name}', { name: tr(newest.name) }), tr('USE IT'), () => this.useSkin(newest.id));
+  }
+
+  /** Stars still missing for the next ball (for the result card), or null. */
+  starsToNextBall(): number | null {
+    return starsToNextSkin(this.totalStars(), SKINS);
+  }
+
   /** Stars won in the houmas alone: what opens chapters. */
   classicStars(): number {
     return totalStars(this.save.data);
@@ -477,6 +511,8 @@ export class Game {
 
   refreshMenu(): void {
     this.overlay.refreshMenu();
+    // Back on the menu after a Free Kicks stage: a ball may have opened there.
+    if (this.state === 'menu' && this.overlay.menuVisible()) this.offerBallToast();
   }
 
   /** Today's Daily Kick has not been played yet (drives the DAILY dot on the Free Kicks tile). */
@@ -508,7 +544,7 @@ export class Game {
         stage: fkNextStage(stages),
         daily: this.dailyWaiting(),
       },
-      newBall: false,
+      newBall: unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).length > 0,
     };
   }
 
@@ -1164,6 +1200,7 @@ export class Game {
     if (card.newBest) this.record.best = card.total;
     if (card.stars > this.record.stars) this.record.stars = card.stars;
     this.save.save();
+    this.ballGap = this.shotRule === 'free' ? this.starsToNextBall() : null;
 
     b.drag = NET_DRAG;
     this.goalFlash = 1;
@@ -1346,7 +1383,10 @@ export class Game {
     if (want === this.buttonsUp && !force) return;
     this.buttonsUp = want;
     this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1));
-    if (want && !force) this.offerFreeKicks();
+    if (want && !force) {
+      this.offerFreeKicks();
+      if (!this.paused) this.offerBallToast();
+    }
   }
 
   private updateVisuals(dt: number, realDt: number): void {

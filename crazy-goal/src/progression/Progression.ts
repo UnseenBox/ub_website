@@ -251,3 +251,21 @@ export function applyDaily(state: DailyState, date: string, goals: number, line:
     state: { lastDate: date, streak, results: trimmed },
   };
 }
+
+/** The part of a ball the unlock rules read. */
+export interface UnlockableSkin {
+  id: string;
+  need: number;
+}
+
+/** Balls the player has earned but has not been told about: open, not the free starter, not yet seen. */
+export function unseenSkins<T extends UnlockableSkin>(total: number, skins: readonly T[], seen: readonly string[]): T[] {
+  return skins.filter((s) => s.need > 0 && s.need <= total && !seen.includes(s.id));
+}
+
+/** Stars still missing for the next locked ball, or null when every ball is open. */
+export function starsToNextSkin(total: number, skins: readonly UnlockableSkin[]): number | null {
+  let best: number | null = null;
+  for (const s of skins) if (s.need > total && (best === null || s.need < best)) best = s.need;
+  return best === null ? null : best - total;
+}
