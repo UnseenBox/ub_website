@@ -41,7 +41,7 @@ The save (`crazy-goal-save`) is at version 2 and is never wiped: `src/save/SaveM
 
 ## Free Kicks
 
-The second mode: free-kick physics with a wall, bend, aerial shots, Mimi in goal, a five-stage Street Cup, a Legend stage, Quick Five and the Daily Kick. It lives apart from Classic in `free-kicks/` (plain scripts, not bundled; the Vite plugin in `vite.config.ts` ships them) and is documented in [`docs/FREE_KICKS.md`](docs/FREE_KICKS.md). It never imports `src/**`; it talks to Classic only through `window.CrazyKoraShell` (`src/shell/Shell.ts`), which publishes the wallet, star total, chosen ball, sound settings, portal signals, the settings card and the menu tile. Classic is the only writer of `crazy-goal-save`. The CrazyGames edition does not include it yet.
+The second mode: free-kick physics with a wall, bend, aerial shots, Mimi in goal, a five-stage Street Cup, a Legend stage, Quick Five and the Daily Kick. It lives apart from Classic in `free-kicks/` (plain scripts, not bundled; the Vite plugin in `vite.config.ts` ships them) and is documented in [`docs/FREE_KICKS.md`](docs/FREE_KICKS.md). It never imports `src/**`; it talks to Classic only through `window.CrazyKoraShell` (`src/shell/Shell.ts`), which publishes the wallet, star total, chosen ball, sound settings, portal signals, the settings card and the menu tile. Classic is the only writer of `crazy-goal-save`. The CrazyGames edition includes it too (approved 2026-11-12): it adds about 240 KB to the build, and its portal signals go through the shell. No ad ever runs inside a Free Kicks run.
 
 ## Install, run, build
 

@@ -34,7 +34,7 @@ Loading order in the built `index.html`: Classic's module script and stylesheet,
 - `free-kicks.js` is one IIFE exposing `window.CrazyKoraFreeKicks = { start, stop, setCard, sets, progress, quick, physics }`.
 - `game-modes.js` registers the hub with Classic's main menu (`shell.menu.registerModeTile('freeKicks', open)`; Classic draws the FREE KICKS tile and its lock), shows the hub, and starts the arena with `CrazyKoraFreeKicks.start(mount, { lang, strings, star, sfx, clips, skin, audio, gameplay, onSetEnd, onSettings, set, onBack })`. `skin` is the chosen ball's colours, `audio` is `shell.audio` (`muted()`, `volume()`, `onChange(cb)`), `gameplay` is `shell.portal`, `onSetEnd` reports a finished stage to `shell.fk.recordStage` and returns the coins it paid, `onSettings` opens Classic's settings card over the arena. There is no MutationObserver and no Classic class name in this layer except `.screen.menu` and `#overlay`, which it hides and shows around the hub. Escape handling and the Tab focus trap for the whole mode live here.
 - `window.CrazyKoraAssets` = `{ star, courtyard, sfxSheet, clips: { click, glass_tap, goal, kick_ball, meow, metal, power_up, stone, tin, whistle } }`. `game-modes.js` falls back to the old literal file names when it is missing (hand-assembled folder).
-- The CrazyGames edition (`vite build --mode crazygames`) does **not** include Free Kicks yet: the plugin does nothing in that mode, and Classic's menu hides the tile when nothing registers it.
+- Every edition includes Free Kicks, the CrazyGames one too (`vite build --mode crazygames`; approved 2026-11-12). The plugin copies the four files in every mode. If a hand-assembled folder lacks them, Classic's menu hides the tile because nothing registers it.
 - Dev server (`npm run dev`): the plugin serves the files from `/free-kicks/`, `CrazyKoraAssets` holds dev URLs, everything works.
 
 ## 3. Gameplay loop
@@ -183,6 +183,6 @@ Known limitations:
 - Classic: everything under `src/` except the one import line in `src/main.ts` and `src/freeKicksAssets.ts`, plus `data/levels`, Classic physics, rendering, levels and the duel code.
 - Save data: Free Kicks never reads or writes `crazy-goal-save`; coins, stars and the Daily Kick go through `window.CrazyKoraShell`, and Classic is the only writer of that save. Never touch `crazy-goal-lang` (read only), never rename the Classic keys. Free Kicks writes only `crazy-kora-fk-progress` and `crazy-kora-fk-tutorial`. Classic reads `crazy-kora-fk-progress` read-only (`src/shell/fkProgress.ts`) for the star total.
 - Duels (`/api/duel`) are not used by Free Kicks.
-- The CrazyGames edition must stay Free-Kicks-free unless that is requested explicitly.
+- Free Kicks ships in the CrazyGames edition: gameplay signals go through `shell.portal`, and no ad is requested inside a run.
 - `free-kicks.js` and `free-kicks.css` use CRLF line endings; `game-modes.*` follow the checkout (the working copies on this Windows machine are CRLF too). Do not run `sed -i` on them (it strips the CRs on Windows); use an editor or a script that keeps the endings.
 - The embedded card block in `free-kicks.js` is generated; edit `cards.v1.json` and run `sync-cards.js`.

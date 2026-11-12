@@ -37,23 +37,20 @@ function posterSaver(): Plugin {
  * Free Kicks is a separate, un-bundled module (free-kicks/ next to this file): two scripts and two
  * stylesheets. The build copies them to dist/assets/ under their own names and adds the tags to
  * index.html; the dev server serves them from /free-kicks/. The Classic bundle never imports them.
- * The CrazyGames portal edition does not include Free Kicks. See docs/FREE_KICKS.md.
+ * Every edition includes them, the CrazyGames portal edition too (approved 2026-11-12). See docs/FREE_KICKS.md.
  */
-function freeKicks(mode: string): Plugin {
+function freeKicks(): Plugin {
   const dir = fileURLToPath(new URL('./free-kicks/', import.meta.url));
   const css = ['game-modes.css', 'free-kicks.css'];
   const js = ['game-modes.js', 'free-kicks.js'];
-  const on = mode !== 'crazygames';
   return {
     name: 'crazy-kora-free-kicks',
     generateBundle() {
-      if (!on) return;
       for (const name of [...css, ...js]) {
         this.emitFile({ type: 'asset', fileName: `assets/${name}`, source: readFileSync(join(dir, name)) });
       }
     },
     transformIndexHtml(_html, ctx) {
-      if (!on) return;
       const base = ctx.server ? '/free-kicks/' : './assets/';
       return [
         ...css.map((name) => ({ tag: 'link', attrs: { rel: 'stylesheet', href: base + name }, injectTo: 'head' as const })),
@@ -69,7 +66,7 @@ function freeKicks(mode: string): Plugin {
 // so the zip for the portal is packed from there.
 export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [posterSaver(), freeKicks(mode)],
+  plugins: [posterSaver(), freeKicks()],
   // Duels talk to the website's API. In development that is the site running locally.
   server: { port: 5191, proxy: { '/api': 'http://localhost:3210' } },
   preview: { port: 4191 },
