@@ -37,7 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { coinsForGoal, isLevelUnlocked, totalStars } from '../progression/Progression';
+import { coinsForGoal, isLevelUnlocked, nextStarTarget, totalStars } from '../progression/Progression';
 import { COIN_VALUE, coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -659,7 +659,7 @@ export class Game {
     this.overlay.showLevels(
       this.levels.map((def, i) => {
         const rec = this.save.level(def.id);
-        return { name: def.name, hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i) };
+        return { name: def.name, hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined };
       }),
       this.level.index,
     );

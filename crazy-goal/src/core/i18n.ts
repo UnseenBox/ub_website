@@ -593,6 +593,13 @@ const AR: Readonly<Record<string, string>> = {
   'THE DUEL SERVER IS NOT SET UP HERE.': 'خادم التحديات غير مهيأ هنا.',
   'THAT DUEL IS FROM AN OLDER VERSION. START A NEW ONE.': 'هذا التحدي من نسخة قديمة. ابدأ واحداً جديداً.',
   'SOMETHING WENT WRONG. TRY AGAIN.': 'حدث خطأ. حاول مجدداً.',
+  // Star targets (1.1).
+  'AT {n}': 'عند {n}',
+  'BOUNCE IT OFF A WALL': 'ارتدِ بها عن حائط',
+  'USE THE STREET': 'استعن بالحومة',
+  'GO CRAZIER': 'زِد جنوناً',
+  'PERFECT HOUMA': 'حومة كاملة',
+  'NEXT STAR AT {n}': 'النجمة التالية عند {n}',
 };
 
 function stored(): Lang {

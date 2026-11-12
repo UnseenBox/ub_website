@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTERS, chapterOf, chapterStart, chapterTitle, coinsForGoal, isLevelUnlocked, totalStars } from './Progression';
+import { CHAPTERS, chapterOf, chapterStart, chapterTitle, coinsForGoal, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -50,5 +50,32 @@ describe('coinsForGoal (current rule)', () => {
     expect(coinsForGoal({ total: 0 })).toBe(5);
     expect(coinsForGoal({ total: 1180 })).toBe(12);
     expect(coinsForGoal({ total: 2400 })).toBe(24);
+  });
+});
+
+describe('nextStarTarget', () => {
+  const level = { stars: [1400, 2600] as const };
+  it('asks for the second star after the first', () => {
+    expect(nextStarTarget(level, 1)).toEqual({ star: 2, target: 1400 });
+    expect(nextStarTarget(level, 0)).toEqual({ star: 2, target: 1400 });
+  });
+  it('asks for the third star after the second', () => {
+    expect(nextStarTarget(level, 2)).toEqual({ star: 3, target: 2600 });
+  });
+  it('has nothing to ask at three stars', () => {
+    expect(nextStarTarget(level, 3)).toBeNull();
+  });
+});
+
+describe('starHint', () => {
+  it('sends a straight goal to the walls', () => {
+    expect(starHint({ bounces: 0, street: false })).toBe('BOUNCE IT OFF A WALL');
+    expect(starHint({ bounces: 0, street: true })).toBe('BOUNCE IT OFF A WALL');
+  });
+  it('sends a bank with no street to the street', () => {
+    expect(starHint({ bounces: 2, street: false })).toBe('USE THE STREET');
+  });
+  it('otherwise says go crazier', () => {
+    expect(starHint({ bounces: 2, street: true })).toBe('GO CRAZIER');
   });
 });

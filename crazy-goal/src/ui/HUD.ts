@@ -5,6 +5,7 @@ import { CELEBRATION_TIMING } from '../goal/GoalCelebration';
 import { MISS_LABEL } from '../goal/GoalDetector';
 import { formatScore, roundRect, signText, text } from '../rendering/DrawUtils';
 import { C, FONT, rgba } from '../rendering/Palette';
+import { nextStarTarget, starHint } from '../progression/Progression';
 import arcadeStarUrl from '../assets/ui/arcade-star.png';
 
 const arcadeStar = new Image();
@@ -13,6 +14,8 @@ arcadeStar.src = arcadeStarUrl;
 const CARD_W = 440;
 const CARD_PAD = 26;
 const LINE_H = 30;
+/** Extra card height for the next-star line and its hint. */
+const NEXT_H = 52;
 /** Gap between the alley wall and the duel's scoreboard. */
 const PLAQUE_GAP = 46;
 
@@ -63,6 +66,11 @@ export class Hud {
     if (g.state === 'menu') return;
 
     if (g.level.index === 0 && g.record.goals === 0 && (g.state === 'ready' || g.state === 'aiming')) this.drawPrompt(ctx, g, u);
+    // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
+    if ((g.state === 'ready' || g.state === 'aiming') && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active) {
+      const keys = !cam.portrait && !g.input.pointer.touch;
+      this.drawTargets(ctx, g, u, left, top + 18 * u + (keys ? 124 * u : 0));
+    }
     if (g.state === 'missed') this.drawMiss(ctx, g, u);
     if (g.banner && g.banner.t < g.banner.dur) this.drawBannerText(ctx, g, u);
     if (g.state === 'flight') this.drawComboBadge(ctx, g, u);
@@ -217,6 +225,73 @@ export class Hud {
     ctx.textBaseline = 'alphabetic';
   }
 
+  /**
+   * The star targets: `★ GOAL · ★★ 1,400 · ★★★ 2,600`, the stars already won on this level lit.
+   * A row above the goal on a phone, a small card in the left column beside the alley otherwise.
+   */
+  private drawTargets(ctx: CanvasRenderingContext2D, g: Game, u: number, left: number, colTop: number): void {
+    const cam = g.camera;
+    const { arena } = g.level.def;
+    const [two, three] = g.level.def.stars;
+    const earned = g.record.stars;
+    const segs: ReadonlyArray<{ n: number; label: string }> = [
+      { n: 1, label: tr('GOAL') },
+      { n: 2, label: formatScore(two) },
+      { n: 3, label: formatScore(three) },
+    ];
+    const STAR = 17;
+    const FS = 13;
+    const drawStars = (n: number, x: number, cy: number, on: boolean): void => {
+      ctx.globalAlpha = on ? 1 : 0.32;
+      for (let k = 0; k < n; k++) ctx.drawImage(arcadeStar, x + k * (STAR - 3), cy - STAR / 2, STAR, STAR);
+      ctx.globalAlpha = 1;
+    };
+    ctx.save();
+    if (!cam.portrait) {
+      // A card of three rows in the left column.
+      const w = 200;
+      const rowH = 32;
+      const h = rowH * 3 + 14;
+      ctx.translate(left, colTop);
+      ctx.scale(u, u);
+      roundRect(ctx, 0, 0, w, h, 14);
+      ctx.fillStyle = rgba(C.navy, 0.92);
+      ctx.fill();
+      segs.forEach((seg, i) => {
+        const cy = 7 + rowH * i + rowH / 2;
+        const on = earned >= seg.n;
+        drawStars(seg.n, 16, cy, on);
+        text(ctx, seg.label, w - 16, cy + 1, { size: FS, color: on ? C.sun : rgba(C.white, 0.85), align: 'right', baseline: 'middle', weight: 900, spacing: 1 });
+      });
+    } else {
+      // One row, centred above the goal and kept inside the alley's width.
+      const GAP = 20;
+      const PAD = 18;
+      ctx.font = `900 ${FS}px ${FONT}`;
+      const widths = segs.map((seg) => seg.n * (STAR - 3) + 3 + 8 + ctx.measureText(seg.label).width);
+      const w = widths.reduce((a, b) => a + b, 0) + GAP * 2 + PAD * 2;
+      const h = 38;
+      const fit = Math.min(1, (arena.w + 90) / (w * u));
+      ctx.translate(arena.x + arena.w / 2, Math.max(cam.visible.y + 74 * u, arena.y - 215));
+      ctx.scale(u * fit, u * fit);
+      roundRect(ctx, -w / 2, -h / 2, w, h, h / 2);
+      ctx.fillStyle = rgba(C.navy, 0.92);
+      ctx.fill();
+      const order = rtl ? [...segs].reverse() : segs;
+      let x = -w / 2 + PAD;
+      for (const seg of order) {
+        const on = earned >= seg.n;
+        drawStars(seg.n, x, 0, on);
+        const sw = seg.n * (STAR - 3) + 3 + 8;
+        text(ctx, seg.label, x + sw, 1, { size: FS, color: on ? C.sun : rgba(C.white, 0.85), baseline: 'middle', weight: 900, spacing: 1 });
+        x += widths[segs.indexOf(seg)] + GAP;
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
   /** The whole tutorial: one line, on the first alley only, that changes with what the player is doing. */
   private drawPrompt(ctx: CanvasRenderingContext2D, g: Game, u: number): void {
     const { arena } = g.level.def;
@@ -331,7 +406,10 @@ export class Hud {
     const cx = arena.x + arena.w / 2;
     const n = card.lines.length;
     const hasCombo = card.bounces > 0;
-    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164;
+    // After a solo goal the card says what the next star needs (or that there is nothing left to win).
+    const solo = g.shotRule === 'free' && g.level.index >= 0;
+    const next = solo ? nextStarTarget(g.level.def, g.record.stars) : null;
+    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0);
     // The card is laid out at its natural size around (cx, cy) and enlarged as one piece.
     const cy = arena.y + 232 + (h * u) / 2;
     const x = cx - CARD_W / 2;
@@ -450,6 +528,22 @@ export class Hud {
       ctx.globalAlpha = 1;
       const sub = card.newBest ? 'NEW BEST' : tr('BEST {n}', { n: formatScore(card.previousBest) });
       text(ctx, sub, cx, ty + 138, { size: 11, color: card.newBest ? C.terra : rgba(C.navy, 0.5), align: 'center', weight: 700, spacing: 3, alpha: tail });
+      if (solo) {
+        const ny = ty + 168;
+        if (next) {
+          // `★★ AT 1,400`, then the nudge toward it.
+          const label = tr('AT {n}', { n: formatScore(next.target) });
+          ctx.font = `900 14px ${FONT}`;
+          const lw = ctx.measureText(label).width;
+          const sw = next.star * 14 + 4;
+          const x0 = cx - (sw + lw) / 2;
+          for (let k = 0; k < next.star; k++) ctx.drawImage(arcadeStar, x0 + k * 14, ny - 10, 18, 18);
+          text(ctx, label, x0 + sw + 6, ny + 1, { size: 14, color: C.navy, baseline: 'middle', weight: 900, alpha: tail });
+          text(ctx, starHint(card), cx, ny + 24, { size: 11, color: C.terra, align: 'center', weight: 700, spacing: 1.5, alpha: tail });
+        } else {
+          text(ctx, 'PERFECT HOUMA', cx, ny + 8, { size: 16, color: C.terra, align: 'center', weight: 900, spacing: 2, alpha: tail });
+        }
+      }
     }
     ctx.restore();
     ctx.globalAlpha = 1;

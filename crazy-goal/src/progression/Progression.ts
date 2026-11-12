@@ -63,3 +63,38 @@ export function totalStars(save: ProgressSave, fkStars = 0): number {
 export function coinsForGoal(input: { total: number }): number {
   return Math.max(5, Math.round(input.total / 100));
 }
+
+/** The two thresholds a level sets for its second and third star (`stars` in level data). */
+export interface StarTargets {
+  stars: readonly [number, number];
+}
+
+export interface NextStar {
+  /** The star that is next to win: 2 or 3. */
+  star: 2 | 3;
+  /** The Crazy Score that wins it. */
+  target: number;
+}
+
+/**
+ * What the next star on a level needs, given the stars already won there (the stored best, not
+ * this shot). `null` once all three are in.
+ */
+export function nextStarTarget(level: StarTargets, earned: number): NextStar | null {
+  if (earned >= 3) return null;
+  return earned >= 2 ? { star: 3, target: level.stars[1] } : { star: 2, target: level.stars[0] };
+}
+
+/** What a goal did, for choosing the nudge toward a better one. */
+export interface GoalFacts {
+  bounces: number;
+  /** The shot used something in the street (a wall prop, a mechanic) that scored a label. */
+  street: boolean;
+}
+
+/** One line of advice toward the next star; `tr()` translates it. */
+export function starHint(goal: GoalFacts): string {
+  if (goal.bounces === 0) return 'BOUNCE IT OFF A WALL';
+  if (!goal.street) return 'USE THE STREET';
+  return 'GO CRAZIER';
+}

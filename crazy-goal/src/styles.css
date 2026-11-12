@@ -1695,6 +1695,29 @@ body {
   color: rgba(27, 37, 64, 0.35);
 }
 
+/* The next star to win on a level, with its score: small, under the best score. */
+.tile-next {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(244, 255, 226, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-next-pips {
+  display: inline-flex;
+}
+
+.tile-next-pips img {
+  display: block;
+  width: 11px;
+  height: 11px;
+  margin-inline-end: -2px;
+}
+
 /* The white page behind the new art. Kept as a separate class so the menu can be
    re-skinned without touching the other overlay screens. */
 .menu-bg {

@@ -1,5 +1,5 @@
 import type { ShotResult } from './ShotAnalyzer';
-import { headline, recognizeStyles, UNITS_PER_METRE, type StyleLine } from './StyleRecognizer';
+import { headline, recognizeStyles, STREET_LABELS, UNITS_PER_METRE, type StyleLine } from './StyleRecognizer';
 
 /** Each bounce on the way in adds this much to the multiplier. */
 const COMBO_STEP = 0.15;
@@ -16,6 +16,8 @@ export interface ScoreCard {
   stars: number;
   headline: string;
   bounces: number;
+  /** The shot used something in the street. */
+  street: boolean;
   metres: number;
   newBest: boolean;
   previousBest: number;
@@ -46,6 +48,7 @@ export function scoreShot(result: ShotResult, previousBest: number, thresholds: 
     stars: starsFor(total, thresholds),
     headline: headline(lines),
     bounces: result.bounces,
+    street: lines.some((l) => STREET_LABELS.has(l.label)),
     metres: Math.round(result.distance / UNITS_PER_METRE),
     newBest: total > previousBest,
     previousBest,

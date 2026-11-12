@@ -48,6 +48,8 @@ export interface LevelTile {
   stars: number;
   best: number;
   unlocked: boolean;
+  /** The next star still to win here and the Crazy Score it needs; absent at three stars. */
+  next?: { star: number; target: number };
 }
 
 /** The arcade star sprite used wherever a star shows in the DOM. */
@@ -410,6 +412,15 @@ export class Overlay {
       bestLine.className = 'tile-best';
       bestLine.textContent = tile.best > 0 ? String(tile.best) : tile.unlocked ? '—' : '🔒';
       b.append(el('span', 'tile-number', String(i + 1).padStart(2, '0')), el('span', 'tile-name', tile.unlocked ? tile.name : 'LOCKED'), stars, bestLine);
+      if (tile.unlocked && tile.next) {
+        // What the next star needs, so a player blocked by a gate can see where stars are still to be had.
+        const next = el('span', 'tile-next');
+        const pips = el('span', 'tile-next-pips');
+        for (let s = 0; s < tile.next.star; s++) pips.append(starSprite());
+        next.append(pips, document.createTextNode(tile.next.target.toLocaleString('en-US')));
+        b.append(next);
+        b.setAttribute('aria-label', `${b.getAttribute('aria-label')}, ${tr('NEXT STAR AT {n}', { n: tile.next.target })}`);
+      }
       grid?.append(b);
     });
     this.show(this.levels);

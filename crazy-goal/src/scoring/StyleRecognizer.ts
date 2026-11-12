@@ -8,6 +8,26 @@ export interface StyleLine {
 /** World units per metre, for the distance shown to the player. */
 export const UNITS_PER_METRE = 40;
 
+/**
+ * The labels earned by using something in the street (as opposed to how the ball was struck).
+ * Three of them in one shot make a CHAIN REACTION.
+ */
+export const STREET_LABELS: ReadonlySet<string> = new Set([
+  'OFF THE TAXI',
+  'FRUIT SALAD',
+  'HEDGEHOPPER',
+  'BOING',
+  'PINBALL WIZARD',
+  'SPIN DOCTOR',
+  'WIND RIDER',
+  'PIPE DREAM',
+  'SMASH AND GRAB',
+  'DING DONG',
+  'SCOOTER ASSIST',
+  'BEACH FOOTBALL',
+  'OFF THE CAT',
+]);
+
 /** Banks, by how many touches the ball took on its way in. Index is the bounce count. */
 const BANK_LINES: ReadonlyArray<StyleLine> = [
   { label: 'STRAIGHT IN', points: 100 },
