@@ -582,8 +582,19 @@
   }
 
   /* A stage id starts that Street Cup stage; no id is free play. */
+  /* A finished stage pays through the shell (the shell is the only writer of the Classic save). */
+  function onSetEnd(result) {
+    const shell = window.CrazyKoraShell;
+    if (!shell) return 0;
+    let coins = 0;
+    if (result.kind === "campaign" || result.kind === "legend") coins = shell.fk.recordStage(result.setId, result.stars);
+    shell.menu.refresh();
+    return coins;
+  }
+
   function launchFreeKicks(setId) {
     if (!window.CrazyKoraFreeKicks) return;
+    const shell = window.CrazyKoraShell;
 
     showScreen("game");
     const mount = gameScreen.querySelector("[data-fk-mount]");
@@ -595,6 +606,10 @@
       star: ASSETS.star,
       sfx: ASSETS.sfx,
       clips: ASSETS.clips,
+      skin: shell ? shell.skin().colors : undefined,
+      audio: shell ? shell.audio : undefined,
+      gameplay: shell ? shell.portal : undefined,
+      onSetEnd,
       onBack: exitFreeKicksGame,
       set: setId || undefined,
     });

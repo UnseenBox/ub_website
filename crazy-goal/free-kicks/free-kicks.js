@@ -72,7 +72,9 @@
     curveFullTurn: (135 * Math.PI) / 180, curveEndTurn: (170 * Math.PI) / 180,
   };
   const FOCUS = { w: 780, minW: 640, h: 720, cx: 520, cy: 400 };
-  const SKIN = { base: "#fbf7ee", patch: "#1b2540" };
+  const DEFAULT_SKIN = { base: "#fbf7ee", patch: "#1b2540" };
+  /* The ball colours; start() replaces them with the player's chosen ball (opts.skin) on every visit. */
+  const SKIN = Object.assign({}, DEFAULT_SKIN);
   const PALETTE = {
     bg: "#e6dccb", ground: "#e2b96a", groundAlt: "#d4a94f", paver: "#a8865c",
     chalk: "#fffaf0", white: "#fbf7ee", blue: "#1f5fa8", blueLite: "#6aa5dc",
@@ -1038,6 +1040,7 @@
       runSameFive: "SAME FIVE",
       runSeed: "SEED {s}",
       runPractice: "PRACTICE",
+      runCoins: "+{n} COINS",
       runNotScored: "NOT SCORED",
       runPracticeHint: "TAP A KICK TO PRACTISE IT",
       runPracticeKick: "Practise kick {k}: {n}, {r}",
@@ -1101,6 +1104,7 @@
       runSameFive: "الخمسة نفسها",
       runSeed: "الرمز {s}",
       runPractice: "تمرين",
+      runCoins: "+{n} عملة",
       runNotScored: "غير محتسبة",
       runPracticeHint: "اضغط على ركلة لتتدرّب عليها",
       runPracticeKick: "تدرّب على الركلة {k}: {n}، {r}",
@@ -1444,7 +1448,8 @@
   }
 
   class AudioBus {
-    constructor(url, clips) {
+    /* level: { muted(), volume() } from the shell (the player's sound settings), or nothing. */
+    constructor(url, clips, level) {
       this.url = url;
       this.ctx = null;
       this.master = null;
@@ -1453,13 +1458,7 @@
       this.sources = new Set();
       this.byName = new Map();   // name -> live sources, so stop(name) can cut one sound
       this.volume = 0.8;
-      try {
-        const save = JSON.parse(localStorage.getItem("crazy-goal-save") || "{}");
-        if (save && save.muted) this.volume = 0;
-        else if (save && typeof save.sound === "number") this.volume = clamp(save.sound, 0, 1);
-      } catch {
-        /* The save is read-only here. */
-      }
+      this.setLevel(level && typeof level.muted === "function" ? !!level.muted() : false, level && typeof level.volume === "function" ? level.volume() : 0.8);
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       try {
@@ -1492,6 +1491,13 @@
           })
           .catch(() => {});
       }
+    }
+
+    /* The player's sound settings, live: Classic's mute button and volume reach here through the shell. */
+    setLevel(muted, volume) {
+      const v = Number(volume);
+      this.volume = muted ? 0 : Number.isFinite(v) ? clamp(v, 0, 1) : 0.8;
+      if (this.ctx && this.master) this.master.gain.value = this.volume * 0.8;
     }
 
     /* Where the audible part of a recording starts and how long it lasts (leading and trailing silence skipped). */
@@ -1679,6 +1685,7 @@
           </div>
           <h3 class="fk-result-title" data-fk-sr-title></h3>
           <p class="fk-setresult-goals" data-fk-sr-goals></p>
+          <p class="fk-setresult-coins" data-fk-sr-coins hidden></p>
           <p class="fk-setresult-seed" data-fk-sr-seed hidden></p>
           <ol class="fk-pips fk-pips--result" data-fk-sr-pips>
             <li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="0"><i></i></button></li><li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="1"><i></i></button></li><li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="2"><i></i></button></li><li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="3"><i></i></button></li><li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="4"><i></i></button></li>
@@ -2195,6 +2202,20 @@
         : this.s("runPips").replace("{k}", String(Math.min(run.index + 1, SET_SIZE))).replace("{g}", String(run.goals)));
     }
 
+    /* The portal's gameplay signal (through the shell): on at the first aim of a kick, off when the stage ends, on back and on stop. */
+    gameplay(on) {
+      if (!!this.gameplayOn === on) return;
+      this.gameplayOn = on;
+      const gp = this.opts.gameplay;
+      if (!gp) return;
+      try {
+        if (on && typeof gp.gameplayStart === "function") gp.gameplayStart();
+        else if (!on && typeof gp.gameplayStop === "function") gp.gameplayStop();
+      } catch {
+        /* a portal hiccup must never stop a kick */
+      }
+    }
+
     nextStage(id) {
       const list = stageSets();
       const i = list.findIndex((s) => s.id === id);
@@ -2233,6 +2254,10 @@
       if (quick) this.srSeed.textContent = this.s("runSeed").replace("{s}", run.set.seed);
       this.srBack.textContent = this.s("back");
       const saved = quick ? Progress.recordQuick(goals) : Progress.record(run.set.id, goals);
+      this.gameplay(false);
+      const reward = this.reportSetEnd(run, quick, goals, stars, saved);   // coins the shell paid for this result
+      this.srCoins.hidden = !(reward > 0);
+      if (reward > 0) this.srCoins.textContent = this.s("runCoins").replace("{n}", String(reward));
       const nextSet = !quick && stars ? this.nextStage(run.set.id) : null;
       const next = nextSet && Progress.unlocked(nextSet.id) ? nextSet : null;
       if (quick) {
@@ -2255,13 +2280,19 @@
       }
       this.setResult.dataset.stars = String(stars);
       this.setResult.hidden = false;
-      this.announce([this.srTitle.textContent, this.srGoals.textContent, starsText, this.srNote.textContent].join(". "));
+      this.announce([this.srTitle.textContent, this.srGoals.textContent, starsText, reward > 0 ? this.srCoins.textContent : "", this.srNote.textContent].filter(Boolean).join(". "));
       if (stars) this.audio?.play("cheer", 0.5, 1);
       requestAnimationFrame(() => {
         if (this.running && this.srPrimary) this.srPrimary.focus({ preventScroll: true });
       });
-      if (typeof this.opts.onSetEnd === "function") {
-        this.opts.onSetEnd({
+    }
+
+    /* Tells the menu layer a stage or Quick Five run ended. It may answer with the coins it paid (a number or { coins }). */
+    reportSetEnd(run, quick, goals, stars, saved) {
+      if (typeof this.opts.onSetEnd !== "function") return 0;
+      let coins = 0;
+      try {
+        const out = this.opts.onSetEnd({
           setId: run.set.id,
           kind: run.set.kind || "campaign",
           seed: quick ? run.set.seed : undefined,
@@ -2272,7 +2303,11 @@
           saved: !!(saved && saved.persisted),
           kicks: run.results.map((r) => ({ id: r.id, outcome: r.outcome, goal: r.goal })),
         });
+        coins = out && typeof out === "object" ? Number(out.coins) : Number(out);
+      } catch {
+        coins = 0;
       }
+      return Number.isFinite(coins) && coins > 0 ? Math.floor(coins) : 0;
     }
 
     start() {
@@ -2308,6 +2343,7 @@
       this.srTitle = q("[data-fk-sr-title]");
       this.srGoals = q("[data-fk-sr-goals]");
       this.srSeed = q("[data-fk-sr-seed]");
+      this.srCoins = q("[data-fk-sr-coins]");
       this.srPips = q("[data-fk-sr-pips]");
       this.live = q("[data-fk-live]");
       this.srHint = q("[data-fk-sr-hint]");
@@ -2329,7 +2365,11 @@
       this.tutIndex = 0;
       this.setCopy();
       this.buildStatic();
-      this.audio = new AudioBus(this.opts.sfx, this.opts.clips);
+      this.audio = new AudioBus(this.opts.sfx, this.opts.clips, this.opts.audio);
+      const audioApi = this.opts.audio;
+      this.audioOff = audioApi && typeof audioApi.onChange === "function"
+        ? audioApi.onChange((muted, volume) => this.audio?.setLevel(muted, volume))
+        : null;
       this.abort = new AbortController();
       this.bindEvents();
       this.observer = new ResizeObserver(() => {
@@ -2362,6 +2402,9 @@
       this.abort?.abort();
       this.observer?.disconnect();
       this.observer = null;
+      this.gameplay(false);
+      this.audioOff?.();
+      this.audioOff = null;
       this.audio?.stopAll();
       this.audio?.destroy();
       this.audio = null;
@@ -2415,6 +2458,7 @@
     bindEvents() {
       const { signal } = this.abort;
       this.backBtn.addEventListener("click", () => {
+        this.gameplay(false);
         this.audio?.play("click", 0.65);
         if (typeof this.opts.onBack === "function") this.opts.onBack();
         else this.stop();
@@ -2666,6 +2710,7 @@
       this.state.phase = "aiming";
       this.state.sinceTouch = 0;
       this.shell.classList.add("is-aiming");
+      this.gameplay(true);
       this.audio?.unlock();
       this.audio?.play("power_up", 0.8);   // the pull-back charge, cut the moment the ball is let go
       try {
@@ -4391,6 +4436,11 @@
   function start(container, opts) {
     if (!container) return;
     if (current) current.stop();
+    /* The ball the player chose in Classic (opts.skin), else the classic ball. */
+    const colors = opts && opts.skin && typeof opts.skin === "object" ? opts.skin : {};
+    const colour = (v, fallback) => (typeof v === "string" && v.length > 0 && v.length <= 32 ? v : fallback);
+    SKIN.base = colour(colors.base, DEFAULT_SKIN.base);
+    SKIN.patch = colour(colors.patch, DEFAULT_SKIN.patch);
     const game = new FreeKicksGame(container, opts);
     current = game;
     game.start();
