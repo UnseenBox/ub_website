@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTERS, FIRST_CLEAR_MIN_COINS, STAR_COINS, chapterOf, chapterStart, chapterTitle, coinsForGoal, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
+import { CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -23,7 +23,7 @@ describe('chapters', () => {
   });
 });
 
-describe('isLevelUnlocked (current rule: any goal on the previous level)', () => {
+describe('isLevelUnlocked inside a chapter: any goal on the previous level', () => {
   it('the first level is always open', () => {
     expect(isLevelUnlocked({ levels: {} }, levels, 0)).toBe(true);
   });
@@ -96,5 +96,63 @@ describe('starHint', () => {
   });
   it('otherwise says go crazier', () => {
     expect(starHint({ bounces: 2, street: true })).toBe('GO CRAZIER');
+  });
+});
+
+describe('chapter star gates', () => {
+  /** A save with goals on levels 0..upTo (inclusive) and `stars` stars each. */
+  const progress = (upTo: number, starsEach: number | ((i: number) => number)) => {
+    const save: { levels: Record<string, { goals: number; stars: number }> } = { levels: {} };
+    for (let i = 0; i <= upTo; i++) save.levels[levels[i].id] = { goals: 1, stars: typeof starsEach === 'number' ? starsEach : starsEach(i) };
+    return save;
+  };
+
+  it('asks 16 stars per chapter after the first', () => {
+    expect(GATE_PER_CHAPTER).toBe(16);
+    expect(chapterGate(1)).toBe(0);
+    expect(chapterGate(2)).toBe(16);
+    expect(chapterGate(9)).toBe(128);
+  });
+
+  it('keeps houma 13 locked at exactly 12 stars after clearing 1-12, and opens it at 16', () => {
+    const save = progress(11, 1);
+    expect(classicStars(save)).toBe(12);
+    expect(isLevelUnlocked(save, levels, 11)).toBe(true);
+    expect(isLevelUnlocked(save, levels, 12)).toBe(false);
+    expect(isGateBlocked(save, levels, 12)).toBe(true);
+    expect(gateStatus(save, levels, 2)).toEqual({ need: 16, have: 12, open: false });
+    // Four more stars from style (four levels worth a second star) opens it.
+    const better = progress(11, (i) => (i < 4 ? 2 : 1));
+    expect(classicStars(better)).toBe(16);
+    expect(isLevelUnlocked(better, levels, 12)).toBe(true);
+    expect(isGateBlocked(better, levels, 12)).toBe(false);
+  });
+
+  it('does not gate levels inside a chapter, only the first of the chapter', () => {
+    const save = progress(12, 1); // houma 13 scored on: grandfathered open, next level opens by the old rule
+    expect(isLevelUnlocked(save, levels, 13)).toBe(true);
+  });
+
+  it('is not blocked by a gate while the previous level has no goal', () => {
+    expect(isGateBlocked({ levels: {} }, levels, 12)).toBe(false);
+    expect(isLevelUnlocked({ levels: {} }, levels, 12)).toBe(false);
+  });
+
+  it('grandfathers a chapter in which any level already has a goal', () => {
+    // An old save: goals all the way to houma 50, one star each. Chapter 5 needs 64 stars.
+    const save = progress(49, 1);
+    expect(classicStars(save)).toBe(50);
+    expect(isLevelUnlocked(save, levels, 48)).toBe(true); // first level of chapter 5
+    expect(isLevelUnlocked(save, levels, 12)).toBe(true);
+    expect(isLevelUnlocked(save, levels, 24)).toBe(true);
+    expect(isLevelUnlocked(save, levels, 36)).toBe(true);
+    // The next chapter has no goals yet and 50 < 64: its gate still applies.
+    const edge = progress(59, 1);
+    expect(isGateBlocked(edge, levels, 60)).toBe(true);
+  });
+
+  it('only counts houma stars: Free Kicks stars do not open chapters', () => {
+    expect(isLevelUnlocked(progress(11, 1), levels, 12)).toBe(false);
+    expect(totalStars(progress(11, 1), 20)).toBe(32);
   });
 });

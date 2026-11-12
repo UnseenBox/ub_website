@@ -37,7 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { LEVEL_COIN_VALUE, coinsForGoal, isLevelUnlocked, nextStarTarget, totalStars } from '../progression/Progression';
+import { LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars } from '../progression/Progression';
 import { coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -654,7 +654,8 @@ export class Game {
     }
   }
 
-  openLevels(): void {
+  /** `focus` scrolls the map to that level: the first locked one when a chapter gate stopped NEXT. */
+  openLevels(focus?: number): void {
     this.sounds.ui();
     if (this.state === 'aiming') this.cancelAim();
     if (this.state !== 'menu') this.paused = true;
@@ -662,9 +663,11 @@ export class Game {
     this.overlay.showLevels(
       this.levels.map((def, i) => {
         const rec = this.save.level(def.id);
-        return { name: def.name, hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined };
+        const gate = isGateBlocked(this.save.data, this.levels, i) ? gateStatus(this.save.data, this.levels, chapterOf(i)) : undefined;
+        return { name: def.name, hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate };
       }),
       this.level.index,
+      focus,
     );
     this.abilities.refresh(BOOST_COSTS);
     this.remember('levels');
@@ -709,6 +712,11 @@ export class Game {
       return;
     }
     const next = this.level.index + 1;
+    if (!this.isUnlocked(next)) {
+      // The chapter's star gate is shut: show the map at the gate instead of a locked level.
+      this.openLevels(next);
+      return;
+    }
     if (!portal.midroll(this, () => this.selectLevel(next))) this.selectLevel(next);
   }
 
@@ -1131,7 +1139,7 @@ export class Game {
     const want = this.shotRule === 'free' && this.state === 'goal' && this.celebration.active && this.celebration.t >= CELEBRATION_TIMING.buttonsAfter && !this.paused;
     if (want === this.buttonsUp && !force) return;
     this.buttonsUp = want;
-    this.overlay.setResult(want, this.level.index + 1 < this.levels.length);
+    this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1));
   }
 
   private updateVisuals(dt: number, realDt: number): void {

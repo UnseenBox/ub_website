@@ -50,6 +50,8 @@ export interface LevelTile {
   unlocked: boolean;
   /** The next star still to win here and the Crazy Score it needs; absent at three stars. */
   next?: { star: number; target: number };
+  /** Set when the chapter's star gate is the only thing keeping this level shut. */
+  gate?: { need: number; have: number };
 }
 
 /** The arcade star sprite used wherever a star shows in the DOM. */
@@ -360,7 +362,7 @@ export class Overlay {
     this.show(this.skins);
   }
 
-  showLevels(tiles: readonly LevelTile[], current: number): void {
+  showLevels(tiles: readonly LevelTile[], current: number, focus?: number): void {
     const { n, max } = this.handlers.stars();
     const open = tiles.filter((t) => t.unlocked).length;
     const pct = max > 0 ? Math.round((n / max) * 100) : 0;
@@ -385,6 +387,7 @@ export class Overlay {
     this.levelBody.innerHTML = '';
     let chapter = '';
     let grid: HTMLElement | null = null;
+    const buttons: HTMLButtonElement[] = [];
     tiles.forEach((tile, i) => {
       const want = chapterTitle(chapterOf(i));
       if (want !== chapter) {
@@ -411,7 +414,13 @@ export class Overlay {
       const bestLine = document.createElement('span');
       bestLine.className = 'tile-best';
       bestLine.textContent = tile.best > 0 ? String(tile.best) : tile.unlocked ? '—' : '🔒';
-      b.append(el('span', 'tile-number', String(i + 1).padStart(2, '0')), el('span', 'tile-name', tile.unlocked ? tile.name : 'LOCKED'), stars, bestLine);
+      const nameLine = tile.unlocked ? el('span', 'tile-name', tile.name) : tile.gate ? el('span', 'tile-name tile-gate') : el('span', 'tile-name', 'LOCKED');
+      if (tile.gate) {
+        nameLine.textContent = tr('{n} STARS TO OPEN', { n: tile.gate.need });
+        b.title = tr('YOU HAVE {have} OF {need} STARS', { have: tile.gate.have, need: tile.gate.need });
+        b.setAttribute('aria-label', `${tr(tile.name)}, ${b.title}`);
+      }
+      b.append(el('span', 'tile-number', String(i + 1).padStart(2, '0')), nameLine, stars, bestLine);
       if (tile.unlocked && tile.next) {
         // What the next star needs, so a player blocked by a gate can see where stars are still to be had.
         const next = el('span', 'tile-next');
@@ -422,8 +431,11 @@ export class Overlay {
         b.setAttribute('aria-label', `${b.getAttribute('aria-label')}, ${tr('NEXT STAR AT {n}', { n: tile.next.target })}`);
       }
       grid?.append(b);
+      buttons.push(b);
     });
     this.show(this.levels);
+    // Bring the level that matters into view: the gate that just stopped NEXT, else where the player is.
+    buttons[focus ?? current]?.scrollIntoView({ block: 'center' });
   }
 
   setResult(visible: boolean, hasNext: boolean): void {

@@ -47,16 +47,65 @@ export const chapterStart = (chapter: number): number => (chapter <= 1 ? 0 : CHA
 
 const goalsOf = (save: ProgressSave, id: string): number => save.levels[id]?.goals ?? 0;
 
-/** A level is open once the one before it has been scored on. */
+/** Stars needed per chapter after the first: chapter `c` opens at `GATE_PER_CHAPTER * (c - 1)`. Twelve levels give twelve, so four more come from style. */
+export const GATE_PER_CHAPTER = 16;
+
+/** Stars won in the houmas alone: Free Kicks does not open chapters. */
+export function classicStars(save: ProgressSave): number {
+  let sum = 0;
+  for (const rec of Object.values(save.levels)) sum += rec?.stars ?? 0;
+  return sum;
+}
+
+/** Stars the first level of a chapter asks for. */
+export const chapterGate = (chapter: number): number => (chapter <= 1 ? 0 : GATE_PER_CHAPTER * (chapter - 1));
+
+/** Index range [from, to) of a chapter's levels in a list of `count` levels. */
+function chapterRange(chapter: number, count: number): [number, number] {
+  return [chapterStart(chapter), chapter >= CHAPTERS.length ? count : Math.min(count, chapterStart(chapter + 1))];
+}
+
+export interface GateStatus {
+  /** Stars the chapter asks for. */
+  need: number;
+  /** Stars won so far in the houmas. */
+  have: number;
+  /** The gate no longer blocks: enough stars, or a level here was already scored on. */
+  open: boolean;
+}
+
+/** Whether a chapter's gate is met. A chapter where any level has a goal stays open forever (grandfathering). */
+export function gateStatus(save: ProgressSave, levels: readonly ProgressLevel[], chapter: number): GateStatus {
+  const need = chapterGate(chapter);
+  const have = classicStars(save);
+  if (have >= need) return { need, have, open: true };
+  const [from, to] = chapterRange(chapter, levels.length);
+  for (let i = from; i < to; i++) if (goalsOf(save, levels[i].id) > 0) return { need, have, open: true };
+  return { need, have, open: false };
+}
+
+/**
+ * A level is open once the one before it has been scored on. The first level of chapter 2 and
+ * on also needs the chapter's star gate.
+ */
 export function isLevelUnlocked(save: ProgressSave, levels: readonly ProgressLevel[], index: number): boolean {
-  return index === 0 || goalsOf(save, levels[index - 1].id) > 0;
+  if (index === 0) return true;
+  if (goalsOf(save, levels[index - 1].id) <= 0) return false;
+  const chapter = chapterOf(index);
+  if (index === chapterStart(chapter)) return gateStatus(save, levels, chapter).open;
+  return true;
+}
+
+/** True when the only thing between the player and this level is its chapter's star gate. */
+export function isGateBlocked(save: ProgressSave, levels: readonly ProgressLevel[], index: number): boolean {
+  if (index <= 0 || goalsOf(save, levels[index - 1].id) <= 0) return false;
+  const chapter = chapterOf(index);
+  return index === chapterStart(chapter) && !gateStatus(save, levels, chapter).open;
 }
 
 /** Stars across the whole career: every houma, plus whatever Free Kicks has earned. */
 export function totalStars(save: ProgressSave, fkStars = 0): number {
-  let sum = fkStars;
-  for (const rec of Object.values(save.levels)) sum += rec?.stars ?? 0;
-  return sum;
+  return classicStars(save) + fkStars;
 }
 
 /** Economy. Coins come from progress, never from replaying a level you have already beaten. */

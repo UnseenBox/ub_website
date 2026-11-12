@@ -1695,6 +1695,12 @@ body {
   color: rgba(27, 37, 64, 0.35);
 }
 
+/* A level shut only by its chapter's star gate says how many stars open it. */
+.tile-gate {
+  color: var(--green-night);
+  opacity: 0.85;
+}
+
 /* The next star to win on a level, with its score: small, under the best score. */
 .tile-next {
   display: flex;

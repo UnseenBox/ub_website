@@ -601,6 +601,8 @@ const AR: Readonly<Record<string, string>> = {
   'PERFECT HOUMA': 'حومة كاملة',
   'NEXT STAR AT {n}': 'النجمة التالية عند {n}',
   '+{n} COINS': '+{n} عملة',
+  '{n} STARS TO OPEN': '{n} نجمة للفتح',
+  'YOU HAVE {have} OF {need} STARS': 'لديك {have} من {need} نجمة',
 };
 
 function stored(): Lang {
