@@ -5,7 +5,20 @@ const coin = new Image();
 coin.src = coinUrl;
 
 /** A Kora Coin drifting above the paving until the ball punches it out of the air. */
-export function drawCoin(ctx: CanvasRenderingContext2D, x: number, y: number, time: number): void {
+export function drawCoin(ctx: CanvasRenderingContext2D, x: number, y: number, time: number, spent = false): void {
+  if (spent) {
+    // Already collected once: a faint ring where it hung, worth nothing.
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = '#ffd850';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
   const bob = Math.sin(time * 2.4) * 7;
   const pulse = 1 + 0.06 * Math.sin(time * 5.1);
   ctx.save();

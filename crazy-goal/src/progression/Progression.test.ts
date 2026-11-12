@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTERS, chapterOf, chapterStart, chapterTitle, coinsForGoal, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
+import { CHAPTERS, FIRST_CLEAR_MIN_COINS, STAR_COINS, chapterOf, chapterStart, chapterTitle, coinsForGoal, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -45,11 +45,30 @@ describe('totalStars', () => {
   });
 });
 
-describe('coinsForGoal (current rule)', () => {
-  it('pays at least 5 and about a hundredth of the score', () => {
-    expect(coinsForGoal({ total: 0 })).toBe(5);
-    expect(coinsForGoal({ total: 1180 })).toBe(12);
-    expect(coinsForGoal({ total: 2400 })).toBe(24);
+describe('coinsForGoal', () => {
+  const pay = (firstClear: boolean, oldStars: number, newStars: number, total: number) => coinsForGoal({ firstClear, oldStars, newStars, total });
+  it('pays the first clear about a hundredth of the score, never under the minimum, plus its stars', () => {
+    expect(pay(true, 0, 1, 500)).toBe(FIRST_CLEAR_MIN_COINS + STAR_COINS);
+    expect(pay(true, 0, 2, 1400)).toBe(14 + 2 * STAR_COINS);
+    expect(pay(true, 0, 3, 5000)).toBe(50 + 3 * STAR_COINS);
+  });
+  it('pays only the stars not paid for yet on a replay', () => {
+    expect(pay(false, 1, 3, 2600)).toBe(2 * STAR_COINS);
+    expect(pay(false, 2, 3, 2600)).toBe(STAR_COINS);
+  });
+  it('pays nothing for a replay that wins nothing new', () => {
+    expect(pay(false, 2, 2, 9000)).toBe(0);
+    expect(pay(false, 3, 1, 1000)).toBe(0);
+    expect(pay(false, 3, 3, 9000)).toBe(0);
+  });
+  it('scoring a level ten times pays once', () => {
+    let paid = 0;
+    let stars = 0;
+    for (let i = 0; i < 10; i++) {
+      paid += pay(i === 0, stars, 2, 1400);
+      stars = Math.max(stars, 2);
+    }
+    expect(paid).toBe(14 + 2 * STAR_COINS);
   });
 });
 

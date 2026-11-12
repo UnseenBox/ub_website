@@ -37,8 +37,8 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { coinsForGoal, isLevelUnlocked, nextStarTarget, totalStars } from '../progression/Progression';
-import { COIN_VALUE, coinSpot } from '../levels/coinPlacement';
+import { LEVEL_COIN_VALUE, coinsForGoal, isLevelUnlocked, nextStarTarget, totalStars } from '../progression/Progression';
+import { coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
 import { ParticleSystem } from '../particles/ParticleSystem';
@@ -244,7 +244,10 @@ export class Game {
   /** The alley's coin: where it hangs, and whether it was grabbed this attempt. */
   coinX = 0;
   coinY = 0;
+  /** The coin cannot be collected now: already taken once, ever, or this is a duel street. */
   coinTaken = false;
+  /** Kora Coins the last solo goal paid (first clear and new stars), shown on the result card. */
+  goalCoins = 0;
   readonly duel: DuelController;
   readonly abilities: AbilityBar;
   private replay: Replay | null = null;
@@ -895,16 +898,27 @@ export class Game {
 
   /** Strings the alley's coin along the natural ball-to-goal line, clear of static geometry. */
   private placeCoin(level: Level): void {
-    this.coinTaken = false;
+    this.coinTaken = this.coinSpent();
     const spot = coinSpot(level.def.id, level.def.arena, level.def.ballStart, level.def.goal, level.world.statics);
     this.coinX = spot.x;
     this.coinY = spot.y;
   }
 
-  /** A coin punched out of mid-flight: wallet grows by COIN_VALUE, score untouched. */
+  /** The alley's coin is drawn only on solo streets: a duel street has none. */
+  get coinVisible(): boolean {
+    return this.shotRule === 'free' && this.level.index >= 0;
+  }
+
+  /** True when the coin pays nothing: a duel street, or the one coin this alley has was already taken. */
+  private coinSpent(): boolean {
+    return !this.coinVisible || this.record.coin;
+  }
+
+  /** A coin punched out of mid-flight: it pays once per level, ever; the score stays pure. */
   private collectCoin(): void {
     this.coinTaken = true;
-    this.save.data.coins += COIN_VALUE;
+    this.record.coin = true;
+    this.save.data.coins += LEVEL_COIN_VALUE;
     this.save.save();
     this.events.emit('COIN_SNATCHED', { x: this.coinX, y: this.coinY });
   }
@@ -934,11 +948,16 @@ export class Game {
     const b = this.ball.body;
     const goal = this.level.goal;
     const card = scoreShot(this.analyzer.finish(true, b, goal, this.level.hasKeeper), this.record.best, this.level.def.stars);
+    const firstClear = this.record.goals === 0;
     this.record.goals++;
     this.lastScore = card.total;
-    // Every solo goal mints Kora Coins for the ability shop, and ends the level.
+    this.goalCoins = 0;
+    // Solo coins are paid for progress only: the first clear, and each star won for the first time.
     if (this.shotRule === 'free') {
-      this.save.data.coins += coinsForGoal({ total: card.total });
+      const stars = Math.max(this.record.stars, card.stars);
+      this.goalCoins = coinsForGoal({ firstClear, oldStars: this.record.paidStars, newStars: stars, total: card.total });
+      this.record.paidStars = Math.max(this.record.paidStars, stars);
+      this.save.data.coins += this.goalCoins;
       portal.gameplayStop();
     }
     if (card.newBest) this.record.best = card.total;
@@ -998,7 +1017,7 @@ export class Game {
     this.level.resetShot();
     this.flightBoost = null;
     this.ball.reset(x, y);
-    this.coinTaken = false;
+    this.coinTaken = this.coinSpent();
     this.setState('ready');
     this.events.emit('SHOT_RESET', { x, y });
   }

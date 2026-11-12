@@ -2,8 +2,6 @@ import type { ArenaDef, GoalDef } from './LevelDefinition';
 import { circleVsBody, emptyContact } from '../physics/Collision';
 import type { RigidBody } from '../physics/RigidBody';
 
-/** What hitting the coin is worth, in Kora Coins. */
-export const COIN_VALUE = 10;
 /** The coin's own radius, for placement clearance. */
 const COIN_RADIUS = 24;
 

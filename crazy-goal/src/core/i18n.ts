@@ -600,6 +600,7 @@ const AR: Readonly<Record<string, string>> = {
   'GO CRAZIER': 'زِد جنوناً',
   'PERFECT HOUMA': 'حومة كاملة',
   'NEXT STAR AT {n}': 'النجمة التالية عند {n}',
+  '+{n} COINS': '+{n} عملة',
 };
 
 function stored(): Lang {

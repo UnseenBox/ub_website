@@ -7,15 +7,20 @@ import { formatScore, roundRect, signText, text } from '../rendering/DrawUtils';
 import { C, FONT, rgba } from '../rendering/Palette';
 import { nextStarTarget, starHint } from '../progression/Progression';
 import arcadeStarUrl from '../assets/ui/arcade-star.png';
+import arcadeCoinUrl from '../assets/ui/arcade-coin.png';
 
 const arcadeStar = new Image();
 arcadeStar.src = arcadeStarUrl;
+const arcadeCoin = new Image();
+arcadeCoin.src = arcadeCoinUrl;
 
 const CARD_W = 440;
 const CARD_PAD = 26;
 const LINE_H = 30;
 /** Extra card height for the next-star line and its hint. */
 const NEXT_H = 52;
+/** Extra height for the coins-earned line, drawn only when the goal paid something. */
+const COINS_H = 28;
 /** Gap between the alley wall and the duel's scoreboard. */
 const PLAQUE_GAP = 46;
 
@@ -409,7 +414,8 @@ export class Hud {
     // After a solo goal the card says what the next star needs (or that there is nothing left to win).
     const solo = g.shotRule === 'free' && g.level.index >= 0;
     const next = solo ? nextStarTarget(g.level.def, g.record.stars) : null;
-    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0);
+    const coins = solo ? g.goalCoins : 0;
+    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + (coins > 0 ? COINS_H : 0);
     // The card is laid out at its natural size around (cx, cy) and enlarged as one piece.
     const cy = arena.y + 232 + (h * u) / 2;
     const x = cx - CARD_W / 2;
@@ -528,8 +534,20 @@ export class Hud {
       ctx.globalAlpha = 1;
       const sub = card.newBest ? 'NEW BEST' : tr('BEST {n}', { n: formatScore(card.previousBest) });
       text(ctx, sub, cx, ty + 138, { size: 11, color: card.newBest ? C.terra : rgba(C.navy, 0.5), align: 'center', weight: 700, spacing: 3, alpha: tail });
+      let ny = ty + 168;
+      if (coins > 0) {
+        // What the goal paid: the first clear and any star won for the first time.
+        const label = tr('+{n} COINS', { n: coins });
+        ctx.font = `900 14px ${FONT}`;
+        const lw = ctx.measureText(label).width;
+        const x0 = cx - (lw + 26) / 2;
+        ctx.globalAlpha = tail;
+        ctx.drawImage(arcadeCoin, x0, ny - 12, 22, 22);
+        ctx.globalAlpha = 1;
+        text(ctx, label, x0 + 30, ny, { size: 14, color: C.terra, baseline: 'middle', weight: 900, alpha: tail });
+        ny += COINS_H;
+      }
       if (solo) {
-        const ny = ty + 168;
         if (next) {
           // `★★ AT 1,400`, then the nudge toward it.
           const label = tr('AT {n}', { n: formatScore(next.target) });

@@ -59,9 +59,22 @@ export function totalStars(save: ProgressSave, fkStars = 0): number {
   return sum;
 }
 
-/** Coins for a solo goal: always at least a little, more for a crazier score. */
-export function coinsForGoal(input: { total: number }): number {
-  return Math.max(5, Math.round(input.total / 100));
+/** Economy. Coins come from progress, never from replaying a level you have already beaten. */
+export const FIRST_CLEAR_MIN_COINS = 10;
+/** A first clear pays about a hundredth of its Crazy Score, but never less than the minimum. */
+export const FIRST_CLEAR_SCORE_DIVISOR = 100;
+/** Paid once for every star a level has ever shown, the first one included. */
+export const STAR_COINS = 10;
+/** The coin hanging in each alley: paid the first time it is hit, never again. */
+export const LEVEL_COIN_VALUE = 10;
+
+/**
+ * What a solo goal pays. `oldStars` is how many stars have already been paid for on this level
+ * (`paidStars` in the save), `newStars` the best now. A replay that wins nothing new pays nothing.
+ */
+export function coinsForGoal(input: { firstClear: boolean; oldStars: number; newStars: number; total: number }): number {
+  const clear = input.firstClear ? Math.max(FIRST_CLEAR_MIN_COINS, Math.round(input.total / FIRST_CLEAR_SCORE_DIVISOR)) : 0;
+  return clear + STAR_COINS * Math.max(0, input.newStars - input.oldStars);
 }
 
 /** The two thresholds a level sets for its second and third star (`stars` in level data). */

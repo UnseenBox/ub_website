@@ -155,7 +155,7 @@ export class Renderer {
     drawPath(ctx, g.lastPath, look ? look.attacker : C.chalk);
     drawGoalCue(ctx, goal, time, g.state === 'ready' || aiming ? 1 : 0.35);
     if (aiming) drawAimGround(ctx, ball, bx, by, shot);
-    if (!g.coinTaken) drawCoin(ctx, g.coinX, g.coinY, time);
+    if (g.coinVisible) drawCoin(ctx, g.coinX, g.coinY, time, g.record.coin);
     drawTrail(ctx, g.trail, ball.radius, trailColour);
     drawBallShadow(ctx, ball, bx, by);
 
