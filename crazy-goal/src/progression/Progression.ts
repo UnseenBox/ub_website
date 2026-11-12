@@ -170,3 +170,22 @@ export const BANK_TIP_LEVEL = 1;
 
 /** Keys of the one-time tips kept in `save.tips`. */
 export type TipKey = 'bank' | 'labels' | 'chain';
+
+/** Free Kicks: the Street Cup has five stages of three stars; the Legend stage adds three more once stage 5 has a star. */
+export const FK_CAMPAIGN_STAR_MAX = 15;
+export const FK_LEGEND_STAR_MAX = 3;
+export const FK_LAST_CAMPAIGN_STAGE = 'stage-5-pressure';
+/** Paid the first time a stage is cleared (any star), and for each star a stage has ever shown. */
+export const FK_CLEAR_COINS = 20;
+export const FK_STAR_COINS = 10;
+
+/**
+ * Coins a Free Kicks stage result pays: what the stage's best stars are worth in total, minus
+ * what has already been paid for it (`paid`, the save's `fk.coinsPaid[stageId]`). A replay that
+ * wins nothing new, or a worse run, pays 0.
+ */
+export function fkStagePayout(stars: number, paid: number): number {
+  const s = Math.max(0, Math.min(3, Math.floor(stars)));
+  const worth = s > 0 ? FK_CLEAR_COINS + FK_STAR_COINS * s : 0;
+  return Math.max(0, worth - Math.max(0, paid));
+}

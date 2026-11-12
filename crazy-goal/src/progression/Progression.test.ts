@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
+import { CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, fkStagePayout, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -154,5 +154,21 @@ describe('chapter star gates', () => {
   it('only counts houma stars: Free Kicks stars do not open chapters', () => {
     expect(isLevelUnlocked(progress(11, 1), levels, 12)).toBe(false);
     expect(totalStars(progress(11, 1), 20)).toBe(32);
+  });
+});
+
+describe('fkStagePayout', () => {
+  it('pays 20 for the clear and 10 per star: 4 goals (2 stars) pay 40', () => {
+    expect(fkStagePayout(2, 0)).toBe(40);
+    expect(fkStagePayout(1, 0)).toBe(30);
+    expect(fkStagePayout(3, 0)).toBe(50);
+  });
+  it('pays only the difference on a better run, nothing on a repeat or a worse one', () => {
+    expect(fkStagePayout(2, 40)).toBe(0);
+    expect(fkStagePayout(3, 40)).toBe(10);
+    expect(fkStagePayout(1, 40)).toBe(0);
+  });
+  it('pays nothing for no stars', () => {
+    expect(fkStagePayout(0, 0)).toBe(0);
   });
 });

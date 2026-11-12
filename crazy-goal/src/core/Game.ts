@@ -47,6 +47,7 @@ import { FIXED_DT, type ContactListener } from '../physics/PhysicsWorld';
 import type { RigidBody } from '../physics/RigidBody';
 import { aimOffset } from '../rendering/AimArt';
 import { saveSession, loadSession, type SessionScreen } from './session';
+import { fkStars, fkStarMax } from '../shell/fkProgress';
 import { Camera } from '../rendering/Camera';
 import { Renderer } from '../rendering/Renderer';
 import { SaveManager, freshLevelRecord, type LevelRecord } from '../save/SaveManager';
@@ -341,14 +342,17 @@ export class Game {
         saveLang(next);
         location.reload();
       },
-      skins: () => SKINS.map((s) => ({ ...s, open: this.totalStars() >= s.need, selected: s.id === this.skin.id })),
+      skins: () => {
+        const total = this.totalStars();
+        return SKINS.map((s) => ({ ...s, open: total >= s.need, selected: s.id === this.skin.id }));
+      },
       pickSkin: (id) => {
         this.skin = skinOf(id);
         this.save.data.skin = this.skin.id;
         this.save.save();
         this.sounds.ui();
       },
-      stars: () => ({ n: this.totalStars(), max: this.levels.length * 3 }),
+      stars: () => ({ n: this.totalStars(), max: this.maxStars() }),
       resetProgress: () => this.resetProgress(),
       levels: () => this.openLevels(),
       select: (index) => this.selectLevel(index),
@@ -430,8 +434,60 @@ export class Game {
     this.onLevelEntered();
   }
 
-  private totalStars(): number {
+  /** Stars won in the houmas alone: what opens chapters. */
+  classicStars(): number {
     return totalStars(this.save.data);
+  }
+
+  /** Every star in the career, Free Kicks included: what opens balls. */
+  totalStars(): number {
+    return totalStars(this.save.data, fkStars());
+  }
+
+  /** The most stars there are to win right now. */
+  maxStars(): number {
+    return this.levels.length * 3 + fkStarMax();
+  }
+
+  /** Something Free Kicks did may have changed what the menu shows or which balls are open. */
+  starsChanged(): void {
+    this.refreshMenu();
+  }
+
+  /** Listeners for mute and volume changes (the shell hands them to Free Kicks). */
+  readonly audioListeners = new Set<(muted: boolean, volume: number) => void>();
+  private notifyAudio(): void {
+    for (const cb of [...this.audioListeners]) {
+      try {
+        cb(this.save.data.muted, this.save.data.sound);
+      } catch {
+        /* a broken listener must not stop the others */
+      }
+    }
+  }
+
+  /** Free Kicks' menu tile: how to open it, and a redraw request when what it shows changes. */
+  readonly modeTiles = new Map<string, () => void>();
+  registerModeTile(id: string, open: () => void): void {
+    this.modeTiles.set(id, open);
+    this.refreshMenu();
+  }
+
+  refreshMenu(): void {
+    if (this.state === 'menu') this.overlay.refreshMenu();
+  }
+
+  /** Adds coins to the wallet from outside the houmas (Free Kicks stages, the Daily Kick). */
+  earnCoins(n: number, _reason: string): void {
+    const amount = Math.floor(n);
+    if (!(amount > 0) || amount > 100000) return;
+    this.save.data.coins += amount;
+    this.save.save();
+  }
+
+  /** Opens the settings card over whatever is showing; `onClose` runs when it is left. */
+  openSettings(onClose?: () => void): void {
+    this.overlay.openSettings(onClose ?? null);
   }
 
   /** Erases every record and puts the player back on the first alley. */
@@ -454,6 +510,7 @@ export class Game {
     this.save.data.sound = sound;
     this.save.data.music = music;
     this.save.save();
+    this.notifyAudio();
   }
 
   /** A level is open once the one before it has been scored on. */
@@ -789,6 +846,7 @@ export class Game {
     this.audio.setMuted(muted);
     this.save.data.muted = muted;
     this.save.save();
+    this.notifyAudio();
     return !muted;
   }
 

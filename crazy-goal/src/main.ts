@@ -6,6 +6,7 @@ import { installTestHooks } from './debug/TestHooks';
 import { isCrazyGames, portal } from './portal/Portal';
 import './styles.css';
 import './freeKicksAssets';
+import { installShell } from './shell/Shell';
 
 /** How long the splash stays up at minimum, so it is actually seen. */
 const SPLASH_MIN_MS = 1100;
@@ -31,6 +32,8 @@ function boot(): void {
   void portal.init().then(() => portal.applyLocale());
   const game = new Game(canvas, overlay, LEVELS);
   game.start();
+  // The bridge Free Kicks uses to join the career. Built before the deferred Free Kicks scripts run.
+  installShell(game);
   if (import.meta.env.DEV) installTestHooks(game);
   // Keep the splash up for at least SPLASH_MIN_MS so it is actually seen, then fade it out.
   const wait = Math.max(0, SPLASH_MIN_MS - (performance.now() - splashStart));

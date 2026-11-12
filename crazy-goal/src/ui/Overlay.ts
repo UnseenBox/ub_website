@@ -138,6 +138,7 @@ export class Overlay {
   private readonly rewardButton: HTMLButtonElement;
   private readonly screens: HTMLElement[];
   private settingsFrom: HTMLElement;
+  private settingsClose: (() => void) | null = null;
   private resetArmed = false;
   private readonly resetButton: HTMLButtonElement;
   private readonly rewardLabel: HTMLElement;
@@ -256,7 +257,12 @@ export class Overlay {
     }
     langs.append(el('span', 'setting-name', 'LANGUAGE'), pick);
     this.resetButton = button('btn btn-ghost reset-button', 'RESET PROGRESS', () => this.confirmReset());
-    prefs.append(el('h2', 'panel-title', 'SETTINGS'), sound.row, music.row, langs, this.resetButton, button('btn btn-primary', 'BACK', () => this.show(this.settingsFrom)));
+    prefs.append(el('h2', 'panel-title', 'SETTINGS'), sound.row, music.row, langs, this.resetButton, button('btn btn-primary', 'BACK', () => {
+      this.show(this.settingsFrom);
+      const close = this.settingsClose;
+      this.settingsClose = null;
+      close?.();
+    }));
     this.settings.append(prefs);
 
     this.skins = el('div', 'screen levels');
@@ -347,6 +353,19 @@ export class Overlay {
   setReward(offer: { label: string } | null): void {
     this.rewardButton.hidden = offer === null;
     if (offer) this.rewardLabel.textContent = tr(offer.label);
+  }
+
+  /** Settings over whatever is up (Free Kicks' arena); `onClose` runs after BACK. */
+  openSettings(onClose: (() => void) | null): void {
+    this.settingsClose = onClose;
+    this.showSettings();
+  }
+
+  /** Redraws the menu's numbers (stars, tiles) while it is on screen. */
+  refreshMenu(): void {
+    if (this.menu.hidden) return;
+    const { n, max } = this.handlers.stars();
+    this.starText.textContent = tr('STARS {n} / {max}', { n, max });
   }
 
   private showSettings(): void {
