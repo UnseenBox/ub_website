@@ -2434,3 +2434,33 @@ body {
     animation: none;
   }
 }
+
+/* The "stuck" offer under the boost cards, and the "x2 COINS" ad button on the result card. */
+.ability-help {
+  max-width: 120px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  color: var(--navy);
+  background: var(--sun);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--sun-dark);
+  cursor: pointer;
+}
+
+.ability-help[hidden] {
+  display: none;
+}
+
+.ability-help:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.result-double[hidden] {
+  display: none;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { starsToNextSkin, unseenSkins, DAILY_PERFECT_COINS, applyDaily, dateKey, previousDay, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, fkStagePayout, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
+import { STUCK_MISSES, isStuck, starsToNextSkin, unseenSkins, DAILY_PERFECT_COINS, applyDaily, dateKey, previousDay, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, fkStagePayout, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 100 }, (_, i) => ({ id: `houma-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -242,5 +242,14 @@ describe('ball unlocks', () => {
     expect(starsToNextSkin(0, skins)).toBe(3);
     expect(starsToNextSkin(4, skins)).toBe(2);
     expect(starsToNextSkin(10, skins)).toBeNull();
+  });
+});
+
+describe('stuck assist', () => {
+  it('offers help after four misses on one houma', () => {
+    expect(STUCK_MISSES).toBe(4);
+    expect(isStuck(3)).toBe(false);
+    expect(isStuck(4)).toBe(true);
+    expect(isStuck(9)).toBe(true);
   });
 });

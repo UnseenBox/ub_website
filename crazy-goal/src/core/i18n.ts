@@ -635,6 +635,10 @@ const AR: Readonly<Record<string, string>> = {
   'NEW BALL: {name}': 'كرة جديدة: {name}',
   'USE IT': 'استعملها',
   '{n} STARS TO THE NEXT BALL': '{n} نجمة للكرة التالية',
+  // Rewarded help (4.1).
+  'STUCK? FREE MAGNET': 'عالق؟ مغناطيس مجاني',
+  'WATCH AN AD': 'شاهد إعلانًا',
+  'x2 COINS': 'عملات ×2',
 };
 
 function stored(): Lang {

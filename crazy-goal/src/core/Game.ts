@@ -37,7 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { starsToNextSkin, unseenSkins, BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, chapterStart, chapterTitle, coinsForGoal, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
+import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, chapterStart, chapterTitle, coinsForGoal, gateStatus, isFreeKicksUnlocked, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import { coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -254,6 +254,11 @@ export class Game {
   coinTaken = false;
   /** Kora Coins the last solo goal paid (first clear and new stars), shown on the result card. */
   goalCoins = 0;
+  /** The last solo goal was the level's first clear, and its coins have been doubled by an ad. */
+  private goalFirstClear = false;
+  private goalDoubled = false;
+  /** Misses on this houma since it loaded or was last scored: the "stuck" offer counts them. */
+  private missStreak = 0;
   /** Stars missing for the next ball, as of the last solo goal (the result card shows it). */
   ballGap: number | null = null;
   readonly duel: DuelController;
@@ -358,6 +363,7 @@ export class Game {
       select: (index) => this.selectLevel(index),
       closeLevels: () => this.closeLevels(),
       next: () => this.nextLevel(),
+      double: () => this.doubleCoins(),
       retry: () => this.resetShot(),
       duel: () => this.duel.open(),
     });
@@ -366,6 +372,8 @@ export class Game {
       wallet: () => this.save.data.coins,
       armed: () => this.armedBoost,
       free: () => this.save.data.freeBoosts,
+      stuck: () => this.stuckOffer(),
+      claimStuck: () => this.claimStuck(),
       canShow: () => this.shopVisible(),
       buy: (id) => this.buyAbility(id),
     });
@@ -664,6 +672,7 @@ export class Game {
     this.net = new GoalNet(this.level.goal);
     this.record = record;
     this.placeCoin(level);
+    this.missStreak = 0;
     this.shotTaken = false;
     this.lastScore = 0;
     this.lastPath.clear();
@@ -853,9 +862,47 @@ export class Game {
     this.abilities.refresh(BOOST_COSTS);
   }
 
+  /** The rewarded offers share one rule: a live ad path, solo play, and the cooldown over. */
+  private rewardReady(): boolean {
+    return portal.ads && !this.duel.active && this.shotRule === 'free' && portal.rewardCooldown() <= 0;
+  }
+
+  /** "STUCK? FREE MAGNET": after four misses on a houma, while the ball waits and the boost column is up. */
+  private stuckOffer(): boolean {
+    return this.missStreak >= STUCK_MISSES && this.state === 'ready' && this.rewardReady();
+  }
+
+  private claimStuck(): void {
+    if (!this.stuckOffer()) return;
+    portal.rewarded(this, () => {
+      this.save.data.freeBoosts.magnet = (this.save.data.freeBoosts.magnet ?? 0) + 1;
+      this.missStreak = 0;
+      this.save.save();
+      this.sounds.card(true);
+      this.abilities.refresh(BOOST_COSTS);
+    });
+  }
+
+  /** "x2 COINS" on the result card of a first clear that paid coins, once. */
+  private doubleOffer(): boolean {
+    return this.goalFirstClear && !this.goalDoubled && this.goalCoins > 0 && this.rewardReady();
+  }
+
+  private doubleCoins(): void {
+    if (!this.doubleOffer()) return;
+    portal.rewarded(this, () => {
+      this.goalDoubled = true;
+      this.save.data.coins += this.goalCoins;
+      this.goalCoins *= 2;
+      this.save.save();
+      this.sounds.card(true);
+      this.overlay.setDouble(false);
+    });
+  }
+
   /** A rewarded ad for coins, offered in the pause menu while one can be shown. */
   private rewardOffer(): { label: string } | null {
-    if (!portal.ads || this.duel.active || this.shotRule !== 'free' || portal.rewardCooldown() > 0) return null;
+    if (!PAUSE_REWARD_ENABLED || !this.rewardReady()) return null;
     return { label: tr('+30 COINS') };
   }
 
@@ -1185,6 +1232,9 @@ export class Game {
     const goal = this.level.goal;
     const card = scoreShot(this.analyzer.finish(true, b, goal, this.level.hasKeeper), this.record.best, this.level.def.stars);
     const firstClear = this.record.goals === 0;
+    this.goalFirstClear = firstClear && this.shotRule === 'free';
+    this.goalDoubled = false;
+    this.missStreak = 0;
     this.record.goals++;
     this.lastScore = card.total;
     this.goalCoins = 0;
@@ -1236,6 +1286,7 @@ export class Game {
     b.vy = 0;
     this.path.push(b.x, b.y);
     this.missKind = classifyMiss(this.analyzer.finish(false, b, this.level.goal, this.level.hasKeeper));
+    if (this.shotRule === 'free') this.missStreak++;
     this.setState('missed');
     this.events.emit('SHOT_FAILED', { kind: this.missKind, x: b.x, y: b.y });
     if (this.shotRule === 'single') this.onShotEnd?.({ goal: false, score: 0, path: this.path, events: this.shotEvents, movers: this.shotMovers });
@@ -1382,7 +1433,7 @@ export class Game {
     const want = this.shotRule === 'free' && this.state === 'goal' && this.celebration.active && this.celebration.t >= CELEBRATION_TIMING.buttonsAfter && !this.paused;
     if (want === this.buttonsUp && !force) return;
     this.buttonsUp = want;
-    this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1));
+    this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1), want && this.doubleOffer());
     if (want && !force) {
       this.offerFreeKicks();
       if (!this.paused) this.offerBallToast();

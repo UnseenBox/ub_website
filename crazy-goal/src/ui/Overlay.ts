@@ -31,6 +31,8 @@ export interface OverlayHandlers {
   select(index: number): void;
   closeLevels(): void;
   next(): void;
+  /** Watch an ad to double the first-clear coins. */
+  double(): void;
   retry(): void;
   duel(): void;
   volumes(): { sound: number; music: number };
@@ -189,6 +191,7 @@ export class Overlay {
   private readonly playButton: HTMLButtonElement;
   private readonly result: HTMLElement;
   private readonly nextButton: HTMLButtonElement;
+  private readonly doubleButton: HTMLButtonElement;
   private readonly rewardButton: HTMLButtonElement;
   private readonly screens: HTMLElement[];
   private settingsFrom: HTMLElement;
@@ -390,7 +393,12 @@ export class Overlay {
 
     this.result = el('div', 'result');
     this.nextButton = button('btn btn-primary', 'NEXT HOUMA', handlers.next);
-    this.result.append(button('btn btn-navy', 'AGAIN', handlers.retry), this.nextButton);
+    this.doubleButton = button('btn btn-sun result-double', '', handlers.double);
+    const doubleArt = el('span', 'btn-icon');
+    doubleArt.innerHTML = AD_SVG;
+    this.doubleButton.append(doubleArt, el('span', 'btn-label', 'x2 COINS'));
+    this.doubleButton.hidden = true;
+    this.result.append(button('btn btn-navy', 'AGAIN', handlers.retry), this.nextButton, this.doubleButton);
     this.result.hidden = true;
     this.toast = el('div', 'toast');
     this.toast.hidden = true;
@@ -720,8 +728,14 @@ export class Overlay {
     buttons[focus ?? current]?.scrollIntoView({ block: 'center' });
   }
 
-  setResult(visible: boolean, hasNext: boolean): void {
+  /** Shows or hides the "x2 COINS" ad button on the result card. */
+  setDouble(visible: boolean): void {
+    this.doubleButton.hidden = !visible;
+  }
+
+  setResult(visible: boolean, hasNext: boolean, double = false): void {
     this.result.hidden = !visible;
+    this.doubleButton.hidden = !(visible && double);
     this.nextButton.textContent = tr(hasNext ? 'NEXT HOUMA' : 'THE HOUMA');
   }
 

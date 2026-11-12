@@ -269,3 +269,10 @@ export function starsToNextSkin(total: number, skins: readonly UnlockableSkin[])
   for (const s of skins) if (s.need > total && (best === null || s.need < best)) best = s.need;
   return best === null ? null : best - total;
 }
+
+/** Rewarded help: misses on one houma before the "stuck" offer (a free MAGNET for an ad) appears. */
+export const STUCK_MISSES = 4;
+/** The pause-menu +30 coins ad, replaced by the moments above. Flip to true only if the owner wants it kept as a fallback. */
+export const PAUSE_REWARD_ENABLED = false;
+
+export const isStuck = (misses: number): boolean => misses >= STUCK_MISSES;

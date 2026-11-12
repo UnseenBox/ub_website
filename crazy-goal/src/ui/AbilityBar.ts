@@ -13,6 +13,9 @@ export interface AbilityBarHandlers {
   /** Solo free play, ball waiting to be struck, nothing covering the screen. */
   canShow(): boolean;
   buy(id: Boost): void;
+  /** The "stuck" offer is due: show the free-MAGNET-for-an-ad chip. */
+  stuck(): boolean;
+  claimStuck(): void;
 }
 
 const SHOP: readonly Boost[] = ['fire', 'magnet', 'rubber'];
@@ -37,6 +40,7 @@ export class AbilityBar {
   readonly walletEl: HTMLElement;
   private readonly coinCount: HTMLElement;
   private readonly buttons = new Map<Boost, HTMLButtonElement>();
+  private readonly stuckChip: HTMLButtonElement;
   private last = '';
 
   constructor(private readonly handlers: AbilityBarHandlers) {
@@ -81,6 +85,14 @@ export class AbilityBar {
       this.buttons.set(id, b);
       this.el.append(b);
     }
+
+    // After a few misses on one houma: a free MAGNET for watching an ad. Coins stay the no-ad way.
+    this.stuckChip = document.createElement('button');
+    this.stuckChip.type = 'button';
+    this.stuckChip.className = 'ability-help';
+    this.stuckChip.hidden = true;
+    this.stuckChip.addEventListener('click', () => this.handlers.claimStuck());
+    this.el.append(this.stuckChip);
   }
 
   refresh(costs: Readonly<Record<Boost, number>>): void {
@@ -88,12 +100,19 @@ export class AbilityBar {
     const wallet = this.handlers.wallet();
     const armed = this.handlers.armed();
     const free = this.handlers.free();
-    const key = `${visible}|${wallet}|${armed}|${free.fire ?? 0}|${free.magnet ?? 0}|${free.rubber ?? 0}`;
+    const stuck = visible && this.handlers.stuck();
+    const key = `${visible}|${wallet}|${armed}|${free.fire ?? 0}|${free.magnet ?? 0}|${free.rubber ?? 0}|${stuck}`;
     if (key === this.last) return;
     this.last = key;
     this.el.hidden = !visible;
     this.walletEl.hidden = !visible;
     if (!visible) return;
+    this.stuckChip.hidden = !stuck;
+    if (stuck) {
+      const label = `${tr('STUCK? FREE MAGNET')} ▶`;
+      this.stuckChip.textContent = label;
+      this.stuckChip.setAttribute('aria-label', `${tr('STUCK? FREE MAGNET')}. ${tr('WATCH AN AD')}`);
+    }
     this.coinCount.textContent = String(wallet);
     this.walletEl.setAttribute('aria-label', tr('{n} COINS', { n: wallet }));
     for (const [id, b] of this.buttons) {
