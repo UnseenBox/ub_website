@@ -704,6 +704,33 @@ export class Game {
     this.audio.play(`boost_${id}`, { gain: 1 });
   }
 
+  /** The first result after Free Kicks opens (a goal in houma 3): one card, once, with TRY IT and KEEP GOING. */
+  private offerFreeKicks(): void {
+    if (this.save.data.tips.includes('fkUnlock') || !this.modeTiles.has('freeKicks') || this.shotRule !== 'free') return;
+    const stages = readFkStages();
+    if (!isFreeKicksUnlocked(this.save.data, this.levels, fkPlayed(stages))) return;
+    this.save.data.tips.push('fkUnlock');
+    this.save.save();
+    // Anyone who has already played it has nothing to be told.
+    if (fkPlayed(stages)) return;
+    this.paused = true;
+    const leave = (): void => {
+      this.paused = false;
+      this.overlay.hide();
+      this.syncButtons(true);
+      this.abilities.refresh(BOOST_COSTS);
+    };
+    this.overlay.showFkUnlock(
+      () => {
+        this.paused = false;
+        this.returnToMenu();
+        this.modeTiles.get('freeKicks')?.();
+      },
+      leave,
+    );
+    this.abilities.refresh(BOOST_COSTS);
+  }
+
   /** Shows a tip once ever (kept in the save) and holds it over the street until the next shot. */
   offerTip(key: TipKey, text: string): void {
     if (this.save.data.tips.includes(key)) return;
@@ -1306,6 +1333,7 @@ export class Game {
     if (want === this.buttonsUp && !force) return;
     this.buttonsUp = want;
     this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1));
+    if (want && !force) this.offerFreeKicks();
   }
 
   private updateVisuals(dt: number, realDt: number): void {

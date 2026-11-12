@@ -620,6 +620,11 @@ const AR: Readonly<Record<string, string>> = {
   'FREE KICKS OPENS WHEN YOU SCORE IN HOUMA 3.': 'تُفتح الركلات الحرة عندما تسجّل في الحومة 3.',
   'DAILY KICK': 'ركلة اليوم',
   DAILY: 'اليومية',
+  // Free Kicks unlock (2.2).
+  'FREE KICKS IS OPEN': 'الركلات الحرة مفتوحة',
+  'FIVE KICKS. ONE WALL. MIMI IN GOAL.': 'خمس ركلات. حائط واحد. وميمي في المرمى.',
+  'TRY IT': 'جرّبها',
+  'KEEP GOING': 'تابع',
 };
 
 function stored(): Lang {

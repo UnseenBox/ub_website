@@ -186,6 +186,8 @@ export class Overlay {
   private readonly resetButton: HTMLButtonElement;
   private readonly rewardLabel: HTMLElement;
   private readonly boostIntro: HTMLElement;
+  private readonly fkUnlock: HTMLElement;
+  private fkUnlockActions: { tryIt: () => void; keep: () => void } | null = null;
   private boostIntroDone: (() => void) | null = null;
 
   constructor(
@@ -357,8 +359,21 @@ export class Overlay {
     intro.append(list, el('p', 'boost-intro-gift', 'A FREE MAGNET IS WAITING ON THE RIGHT.'), button('btn btn-primary', 'GOT IT', () => this.closeBoostIntro()));
     this.boostIntro.append(intro);
 
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro];
+    // Free Kicks opens with a goal in houma 3: one card, shown once, over the result.
+    this.fkUnlock = el('div', 'screen pause');
+    const unlock = el('div', 'panel boost-intro');
+    unlock.setAttribute('role', 'dialog');
+    unlock.setAttribute('aria-modal', 'true');
+    unlock.append(
+      el('h2', 'panel-title', 'FREE KICKS IS OPEN'),
+      el('p', 'boost-intro-lead', 'FIVE KICKS. ONE WALL. MIMI IN GOAL.'),
+      button('btn btn-primary', 'TRY IT', () => this.closeFkUnlock(true)),
+      button('btn btn-ghost', 'KEEP GOING', () => this.closeFkUnlock(false)),
+    );
+    this.fkUnlock.append(unlock);
+
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro, this.fkUnlock);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro, this.fkUnlock];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -420,6 +435,18 @@ export class Overlay {
   showBoostIntro(done: () => void): void {
     this.boostIntroDone = done;
     this.show(this.boostIntro);
+  }
+
+  /** The Free Kicks unlock card. TRY IT goes to the mode, KEEP GOING back to the result. */
+  showFkUnlock(tryIt: () => void, keep: () => void): void {
+    this.fkUnlockActions = { tryIt, keep };
+    this.show(this.fkUnlock);
+  }
+
+  private closeFkUnlock(tryIt: boolean): void {
+    const actions = this.fkUnlockActions;
+    this.fkUnlockActions = null;
+    if (actions) (tryIt ? actions.tryIt : actions.keep)();
   }
 
   private closeBoostIntro(): void {

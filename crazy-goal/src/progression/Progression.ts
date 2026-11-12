@@ -169,7 +169,7 @@ export const BOOST_INTRO_FREE_MAGNETS = 1;
 export const BANK_TIP_LEVEL = 1;
 
 /** Keys of the one-time tips kept in `save.tips`. */
-export type TipKey = 'bank' | 'labels' | 'chain';
+export type TipKey = 'bank' | 'labels' | 'chain' | 'fkUnlock';
 
 /** Free Kicks: the Street Cup has five stages of three stars; the Legend stage adds three more once stage 5 has a star. */
 export const FK_CAMPAIGN_STAR_MAX = 15;
