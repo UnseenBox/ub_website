@@ -2,7 +2,7 @@ import { Rng, hashString } from '../core/Random';
 import type { EnemyTypeId } from '../entities/EnemyTypes';
 import { ObjectRegistry } from '../objects/ObjectRegistry';
 import { GENERIC_CHALLENGES } from './ChallengeSystem';
-import type { RoomDefinition, RoomEnemySpec, RoomObjectSpec, RoomTheme, RoomZoneSpec, Side } from './Room';
+import { doorPosition, type RoomDefinition, type RoomEnemySpec, type RoomObjectSpec, type RoomTheme, type RoomZoneSpec, type Side } from './Room';
 
 interface Placed {
   x: number;
@@ -163,6 +163,61 @@ function radiusOf(type: string): number {
  */
 export function depthFor(index: number): number {
   return Math.max(1, index - 7);
+}
+
+/**
+ * One twist per room, so the player can read it: a zone that does something to the movers.
+ * Only zone kinds that (a) draw, (b) have an interaction rule and (c) cannot hurt or trap the
+ * player are here; wind, steam, slick and trap are left out on purpose (no art or no lane spec).
+ */
+interface Gimmick {
+  readonly kind: 'music' | 'glass' | 'foam' | 'magnet';
+  readonly radius: readonly [number, number];
+  /** One line, shown on the door card and the first visit. */
+  readonly teaser: string;
+}
+
+const GIMMICK_BY_KIND: Readonly<Record<Gimmick['kind'], Gimmick>> = {
+  music: { kind: 'music', radius: [70, 90], teaser: 'a dance floor: whoever steps on it cannot help dancing' },
+  glass: { kind: 'glass', radius: [42, 56], teaser: 'broken glass on the floor: bare feet hate it' },
+  foam: { kind: 'foam', radius: [62, 80], teaser: 'a drift of foam: they slow down and stagger' },
+  magnet: { kind: 'magnet', radius: [58, 70], teaser: 'a magnet pad: metal flies to it, helmets too' },
+};
+
+const GIMMICK_FOR_THEME: Readonly<Record<RoomTheme, Gimmick['kind']>> = {
+  bedroom: 'music', office: 'magnet', bathroom: 'foam', living: 'glass', kitchen: 'foam', garage: 'magnet',
+  garden: 'music', pool: 'foam', jail: 'glass', porch: 'music', basement: 'glass',
+};
+
+/** A stable number in [0, 1) from the seed, so a gimmick never moves the room's random stream. */
+function seedUnit(seed: number, salt: number): number {
+  let h = (seed ^ Math.imul(salt, 0x9e3779b1)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * The room's gimmick zone, or null. A room with a boss or an objective never has one. The pad sits in
+ * the middle band, clear of the hero's start and both doors, so nobody spawns on it or is blocked by it.
+ */
+export function gimmickFor(
+  theme: RoomTheme, seed: number, width: number, height: number,
+  doors: ReadonlyArray<{ x: number; y: number }>, start: { x: number; y: number },
+  taken: boolean,
+): { zone: RoomZoneSpec; teaser: string } | null {
+  if (taken || seedUnit(seed, 1) >= 0.6) return null;
+  const gimmick = GIMMICK_BY_KIND[GIMMICK_FOR_THEME[theme]];
+  const r = gimmick.radius[0] + seedUnit(seed, 2) * (gimmick.radius[1] - gimmick.radius[0]);
+  const clear = [...doors, start];
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const x = width * (0.3 + 0.45 * seedUnit(seed, 10 + attempt * 2));
+    const y = 110 + (height - 220) * seedUnit(seed, 11 + attempt * 2);
+    if (clear.every((p) => Math.hypot(p.x - x, p.y - y) >= r + 95)) {
+      return { zone: { kind: gimmick.kind, x: Math.round(x), y: Math.round(y), r: Math.round(r) }, teaser: gimmick.teaser };
+    }
+  }
+  return null;
 }
 
 export function generateRoom(
@@ -624,6 +679,17 @@ export function generateRoom(
     }
   }
 
+  // One twist per room: never alongside an objective or a boss.
+  const gimmick = hasBoss
+    ? null
+    : gimmickFor(
+      theme, seed, width, height,
+      [doorPosition({ width, height } as RoomDefinition, { side: entranceSide, pos: entrancePos }, 20),
+        doorPosition({ width, height } as RoomDefinition, { side: exitSide, pos: exitPos }, 20)],
+      playerStart, wantsObjective,
+    );
+  if (gimmick) zones.push(gimmick.zone);
+
   return {
     id: `generated-${seed}`,
     name: rng.pick(kit.names),
@@ -642,6 +708,7 @@ export function generateRoom(
         ? { x: width / 2, y: height / 2 + 30, w: rng.range(260, 380), h: rng.range(160, 220), color: rng.pick(kit.rugs) }
         : undefined,
     challenge: challengeOverride ?? rng.pick(GENERIC_CHALLENGES),
+    teaser: gimmick?.teaser,
     objective: !wantsObjective ? undefined
       : objectiveKind === 'survive' ? { kind: 'survive', seconds: Math.round(survive ?? 45) }
         : objectiveKind === 'trick' ? { kind: 'trick', kills: Math.min(4, 2 + Math.floor(depth / 6)) }

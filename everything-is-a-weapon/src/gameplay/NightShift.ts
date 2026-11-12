@@ -154,6 +154,9 @@ function riskFor(index: number, def: RoomDefinition): DoorRisk {
   if (def.objective?.kind === 'survive') {
     return { label: 'CLOCK', detail: `survive ${def.objective.seconds}s` };
   }
+  if (def.teaser && def.id.startsWith('generated-') && !def.objective) {
+    return { label: 'TWIST', detail: def.teaser };
+  }
   if (def.objective?.kind === 'trick') {
     return { label: 'TRICKS', detail: `${def.objective.kills} tricks end it early` };
   }

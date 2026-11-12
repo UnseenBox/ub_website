@@ -713,7 +713,8 @@ export class Game {
         def.objective?.kind === 'survive' ? `survive ${def.objective.seconds}s`
           : def.objective?.kind === 'trick' ? `${def.objective.kills} tricks and it is over`
             : def.objective?.kind === 'chain' ? `one ${def.objective.length}-chain and it is over`
-              : briefing.objective;
+              : def.teaser && def.id.startsWith('generated-') ? def.teaser
+                : briefing.objective;
       this.hud.hint(`${index + 1} · ${def.name}`, goal, 3);
     }
     if (this.endless) {
