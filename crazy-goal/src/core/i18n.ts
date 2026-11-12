@@ -625,6 +625,9 @@ const AR: Readonly<Record<string, string>> = {
   'FIVE KICKS. ONE WALL. MIMI IN GOAL.': 'خمس ركلات. حائط واحد. وميمي في المرمى.',
   'TRY IT': 'جرّبها',
   'KEEP GOING': 'تابع',
+  // Level map (2.4).
+  '{n} STARS TO OPEN. YOU HAVE {have}.': 'تحتاج {n} نجمة للفتح. لديك {have}.',
+  'COIN TO COLLECT': 'عملة بانتظارك',
 };
 
 function stored(): Lang {

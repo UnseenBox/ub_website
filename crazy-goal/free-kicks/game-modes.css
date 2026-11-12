@@ -14,16 +14,18 @@
 }
 
 .gm-root {
-  --gm-cream: #f4ffe2;
-  --gm-night: #0b4d1f;
-  --gm-night-deep: #083a17;
-  --gm-green: #1fc24c;
-  --gm-green-hi: #4ce16c;
-  --gm-green-deep: #0e7a30;
-  --gm-sun: #ffc83a;
-  --gm-sun-deep: #e0a41c;
-  --gm-terra: #cd3a24;
-  --gm-navy: #1b2540;
+  /* One palette with Classic: each token follows the game's own (src/styles.css :root) and
+     falls back to the same value when this layer runs alone. */
+  --gm-cream: var(--cream, #f4ffe2);
+  --gm-night: var(--green-night, #0b4d1f);
+  --gm-night-deep: var(--blue-dark, #083a17);
+  --gm-green: var(--green, #1fc24c);
+  --gm-green-hi: var(--green-hi, #4ce16c);
+  --gm-green-deep: var(--green-deep, #0e7a30);
+  --gm-sun: var(--sun, #ffc83a);
+  --gm-sun-deep: var(--sun-dark, #e0a41c);
+  --gm-terra: var(--terra, #cd3a24);
+  --gm-navy: var(--navy, #1b2540);
   --gm-ink: #40513f;
 
   position: fixed;

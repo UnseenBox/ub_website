@@ -14,6 +14,7 @@
   --green-night: #0b4d1f;
   --red: #cd3a24;
   --red-deep: #8f2314;
+  --cream: #f4ffe2;
   --display: 'Unbounded', 'Arial Black', 'Segoe UI Black', Impact, system-ui, sans-serif;
 }
 
@@ -1830,11 +1831,68 @@ body {
 }
 
 .chapter-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
   margin: 10px 2px 2px;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.3em;
   color: var(--terra);
+}
+
+.chapter-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--green-night);
+  font-variant-numeric: tabular-nums;
+}
+
+.chapter-stars img {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+/* A shut chapter says what opens it. */
+.chapter-gate {
+  margin: 0 2px 2px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--green-night);
+  background: rgba(255, 200, 58, 0.35);
+  border-radius: 8px;
+}
+
+.tile {
+  position: relative;
+}
+
+/* The alley's coin is still out there. */
+.tile-coin {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+  width: 18px;
+  height: 18px;
+}
+
+.tile-coin img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tile-lock svg {
+  display: block;
+  width: 14px;
+  height: 14px;
 }
 
 .chapter-title:first-child {

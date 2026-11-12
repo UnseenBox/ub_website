@@ -81,6 +81,15 @@ export interface LevelTile {
   next?: { star: number; target: number };
   /** Set when the chapter's star gate is the only thing keeping this level shut. */
   gate?: { need: number; have: number };
+  /** The level's coin has not been collected yet. */
+  coin?: boolean;
+}
+
+/** One chapter's gate, for the header on the map: stars asked, stars had, and whether it blocks. */
+export interface ChapterGate {
+  need: number;
+  have: number;
+  open: boolean;
 }
 
 /** The arcade star sprite used wherever a star shows in the DOM. */
@@ -546,7 +555,7 @@ export class Overlay {
     this.show(this.skins);
   }
 
-  showLevels(tiles: readonly LevelTile[], current: number, focus?: number): void {
+  showLevels(tiles: readonly LevelTile[], current: number, focus?: number, gates: Readonly<Record<number, ChapterGate>> = {}): void {
     const { n, max } = this.handlers.stars();
     const open = tiles.filter((t) => t.unlocked).length;
     const pct = max > 0 ? Math.round((n / max) * 100) : 0;
@@ -571,15 +580,42 @@ export class Overlay {
     this.levelBody.innerHTML = '';
     let chapter = '';
     let grid: HTMLElement | null = null;
+    // Stars won and available in each chapter, for the headers.
+    const chapterTotals = new Map<number, { stars: number; max: number }>();
+    tiles.forEach((t, i) => {
+      const c = chapterOf(i);
+      const sum = chapterTotals.get(c) ?? { stars: 0, max: 0 };
+      sum.stars += t.stars;
+      sum.max += 3;
+      chapterTotals.set(c, sum);
+    });
     const buttons: HTMLButtonElement[] = [];
     tiles.forEach((tile, i) => {
       const want = chapterTitle(chapterOf(i));
       if (want !== chapter) {
         chapter = want;
+        const num = chapterOf(i);
+        const total = chapterTotals.get(num);
+        const gate = gates[num];
         const h = document.createElement('h3');
         h.className = 'chapter-title';
-        h.textContent = tr(chapter);
+        const name = document.createElement('span');
+        name.textContent = tr(chapter);
+        h.append(name);
+        if (total) {
+          const stars = document.createElement('span');
+          stars.className = 'chapter-stars';
+          stars.append(starSprite(), document.createTextNode(`${total.stars} / ${total.max}`));
+          stars.setAttribute('aria-label', tr('STARS {n} / {max}', { n: total.stars, max: total.max }));
+          h.append(stars);
+        }
         this.levelBody.append(h);
+        if (gate && !gate.open) {
+          const note = document.createElement('p');
+          note.className = 'chapter-gate';
+          note.textContent = tr('{n} STARS TO OPEN. YOU HAVE {have}.', { n: gate.need, have: gate.have });
+          this.levelBody.append(note);
+        }
         grid = document.createElement('div');
         grid.className = 'grid';
         this.levelBody.append(grid);
@@ -597,7 +633,13 @@ export class Overlay {
       }
       const bestLine = document.createElement('span');
       bestLine.className = 'tile-best';
-      bestLine.textContent = tile.best > 0 ? String(tile.best) : tile.unlocked ? '—' : '🔒';
+      if (tile.best > 0) bestLine.textContent = String(tile.best);
+      else if (tile.unlocked) bestLine.textContent = '—';
+      else {
+        // A padlock drawn as a shape, not an emoji that would ignore the theme and the language.
+        bestLine.classList.add('tile-lock');
+        bestLine.innerHTML = LOCK_SVG;
+      }
       const nameLine = tile.unlocked ? el('span', 'tile-name', tile.name) : tile.gate ? el('span', 'tile-name tile-gate') : el('span', 'tile-name', 'LOCKED');
       if (tile.gate) {
         nameLine.textContent = tr('{n} STARS TO OPEN', { n: tile.gate.need });
@@ -605,6 +647,17 @@ export class Overlay {
         b.setAttribute('aria-label', `${tr(tile.name)}, ${b.title}`);
       }
       b.append(el('span', 'tile-number', String(i + 1).padStart(2, '0')), nameLine, stars, bestLine);
+      if (tile.unlocked && tile.coin) {
+        // The alley's coin is still out there.
+        const coin = el('span', 'tile-coin');
+        const img = document.createElement('img');
+        img.src = coinUrl;
+        img.alt = '';
+        img.draggable = false;
+        coin.append(img);
+        b.append(coin);
+        b.setAttribute('aria-label', `${b.getAttribute('aria-label')}, ${tr('COIN TO COLLECT')}`);
+      }
       if (tile.unlocked && tile.next) {
         // What the next star needs, so a player blocked by a gate can see where stars are still to be had.
         const next = el('span', 'tile-next');

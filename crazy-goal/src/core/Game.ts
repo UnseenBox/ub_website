@@ -835,14 +835,17 @@ export class Game {
     if (this.state === 'aiming') this.cancelAim();
     if (this.state !== 'menu') this.paused = true;
     portal.gameplayStop();
+    const gates: Record<number, { need: number; have: number; open: boolean }> = {};
+    for (let c = 2; c <= 9; c++) gates[c] = gateStatus(this.save.data, this.levels, c);
     this.overlay.showLevels(
       this.levels.map((def, i) => {
         const rec = this.save.level(def.id);
         const gate = isGateBlocked(this.save.data, this.levels, i) ? gateStatus(this.save.data, this.levels, chapterOf(i)) : undefined;
-        return { name: def.name, hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate };
+        return { name: def.name, hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin };
       }),
       this.level.index,
       focus,
+      gates,
     );
     this.abilities.refresh(BOOST_COSTS);
     this.remember('levels');

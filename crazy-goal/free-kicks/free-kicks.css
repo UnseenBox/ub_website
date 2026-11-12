@@ -6,14 +6,15 @@
    ========================================================================== */
 
 .fk-shell {
-  --fk-night: #0b4d1f;
-  --fk-sun: #ffc83a;
-  --fk-sun-dark: #e0a41c;
-  --fk-navy: #1b2540;
-  --fk-terra: #cd3a24;
+  /* Follows Classic's palette and type (src/styles.css :root); the fallbacks keep it standalone. */
+  --fk-night: var(--green-night, #0b4d1f);
+  --fk-sun: var(--sun, #ffc83a);
+  --fk-sun-dark: var(--sun-dark, #e0a41c);
+  --fk-navy: var(--navy, #1b2540);
+  --fk-terra: var(--terra, #cd3a24);
   --fk-cream: #fbf7ee;
   --fk-blue: #1f5fa8;
-  --fk-font: "Unbounded", "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif;
+  --fk-font: var(--display, "Unbounded", "Arial Black", "Segoe UI Black", Impact, system-ui, sans-serif);
   position: absolute;
   inset: 0;
   overflow: hidden;
