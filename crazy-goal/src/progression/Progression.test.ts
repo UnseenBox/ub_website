@@ -15,7 +15,7 @@ describe('chapters', () => {
     expect(CHAPTERS).toHaveLength(9);
   });
   it('titles and starts line up', () => {
-    expect(chapterTitle(1)).toBe('STADIUMS');
+    expect(chapterTitle(1)).toBe('OPENING SEASON');
     expect(chapterTitle(9)).toBe('THE FINALS');
     expect(chapterStart(1)).toBe(0);
     expect(chapterStart(2)).toBe(12);

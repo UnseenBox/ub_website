@@ -22,7 +22,7 @@ export interface ProgressLevel {
 
 /** Chapters of twelve houmas; the last one is the four finals. */
 export const CHAPTERS: ReadonlyArray<{ until: number; title: string }> = [
-  { until: 12, title: 'STADIUMS' },
+  { until: 12, title: 'OPENING SEASON' },
   { until: 24, title: 'NEW GROUNDS' },
   { until: 36, title: 'CRAZY LEAGUE' },
   { until: 48, title: 'LEGENDS' },

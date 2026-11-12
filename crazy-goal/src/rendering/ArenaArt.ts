@@ -60,6 +60,7 @@ const CLOTH = [C.terra, C.blue, C.sun, C.white, C.blueLite] as const;
 const THEME_ROOFS: Readonly<Record<Theme, readonly string[]>> = {
   street: ROOFS,
   pitch: ['#e3f2e4', '#d7ecd9', '#eef7ee', '#cde6cf'],
+  stadium: ['#274a8f', '#1d3a75', '#274a8f', '#1d3a75'],
   beach: ['#fdf3d8', '#f7e7bd', '#fffaf0', '#f2dfae'],
   court: ['#e8f1fe', '#dce8fb', '#f4f8ff', '#d2e2f8'],
   clay: ['#f6ddd0', '#f2cfbd', '#fae9dd', '#ecc4ab'],
@@ -73,6 +74,7 @@ const THEME_ROOFS: Readonly<Record<Theme, readonly string[]>> = {
 const THEME_STREET: Readonly<Record<Theme, string>> = {
   street: '#b3a48c',
   pitch: '#4c8a52',
+  stadium: '#0f1830',
   beach: '#d9a75f',
   court: '#2c5cb8',
   clay: '#a34a2c',
@@ -88,6 +90,10 @@ const THEME_STREET: Readonly<Record<Theme, string>> = {
  */
 export function paintBackdrop(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level): void {
   const theme = level.def.theme ?? 'street';
+  if (theme === 'stadium') {
+    paintStands(ctx, view, level);
+    return;
+  }
   const roofs = THEME_ROOFS[theme];
   const rng = seededRandom(hashString(level.def.id));
   const pick = <T>(list: readonly T[]): T => list[Math.floor(rng() * list.length)];
@@ -109,6 +115,101 @@ export function paintBackdrop(ctx: CanvasRenderingContext2D, view: ViewRect, lev
       y += h;
     }
     x += w;
+  }
+}
+
+/** Seat colours of the bowl, inside out; the crowd sits on them. */
+const TIERS = ['#6b7287', '#2c4f98', '#223f7e', '#2c4f98', '#223f7e', '#1a3166', '#152850', '#0f1c3c'] as const;
+const CROWD = [C.terra, C.sun, C.white, '#7cc4ff', '#ff7aa8', '#ffffff'] as const;
+
+/**
+ * A stadium seen from above: a walkway round the pitch, then tier after tier of stands with the
+ * crowd in them, and a floodlight in every corner. Seeded from the level id, so it is the same
+ * every time, and cached with the rest of the static layer.
+ */
+function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level): void {
+  const { arena } = level.def;
+  const rng = seededRandom(hashString(level.def.id) ^ 0x51ad1);
+  const first = 34;
+  const step = 58;
+  const ring = (d: number): [number, number, number, number] => [arena.x - d, arena.y - d, arena.w + d * 2, arena.h + d * 2];
+
+  // Outside in: each tier is a bigger rectangle laid under the smaller ones.
+  ctx.fillStyle = TIERS[TIERS.length - 1];
+  ctx.fillRect(view.x, view.y, view.w, view.h);
+  for (let i = TIERS.length - 1; i >= 0; i--) {
+    const [x, y, w, h] = ring(first + (i + 1) * step);
+    ctx.fillStyle = TIERS[i];
+    ctx.fillRect(x, y, w, h);
+    // The step edge: a lit lip and the shade under it.
+    ctx.strokeStyle = rgba('#ffffff', i === 0 ? 0.35 : 0.14);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+  }
+
+  // Aisles: a lighter stripe running outward from the pitch every so often.
+  ctx.strokeStyle = rgba('#ffffff', 0.12);
+  ctx.lineWidth = 4;
+  const outer = first + TIERS.length * step;
+  ctx.beginPath();
+  for (let t = -outer; t <= arena.w + outer; t += 150) {
+    ctx.moveTo(arena.x + t, arena.y - first - step);
+    ctx.lineTo(arena.x + t, arena.y - outer);
+    ctx.moveTo(arena.x + t, arena.y + arena.h + first + step);
+    ctx.lineTo(arena.x + t, arena.y + arena.h + outer);
+  }
+  for (let t = -outer; t <= arena.h + outer; t += 150) {
+    ctx.moveTo(arena.x - first - step, arena.y + t);
+    ctx.lineTo(arena.x - outer, arena.y + t);
+    ctx.moveTo(arena.x + arena.w + first + step, arena.y + t);
+    ctx.lineTo(arena.x + arena.w + outer, arena.y + t);
+  }
+  ctx.stroke();
+
+  // The crowd, a head every few units along each row of seats (the walkway stays empty).
+  for (let i = 1; i < TIERS.length; i++) for (const row of [-19, 0, 19]) {
+    const d = first + i * step + step * 0.5 + row;
+    const [x, y, w, h] = ring(d);
+    const place = (px: number, py: number): void => {
+      if (px < view.x - 8 || px > view.x + view.w + 8 || py < view.y - 8 || py > view.y + view.h + 8) return;
+      if (rng() < 0.12) return; // an empty seat
+      ctx.fillStyle = CROWD[Math.floor(rng() * CROWD.length)];
+      ctx.globalAlpha = 0.72 + rng() * 0.25;
+      ctx.beginPath();
+      ctx.arc(px + (rng() - 0.5) * 3, py + (rng() - 0.5) * 3, 4.6, 0, TAU);
+      ctx.fill();
+    };
+    for (let px = x; px <= x + w; px += 15) {
+      place(px, y);
+      place(px, y + h);
+    }
+    for (let py = y + 15; py < y + h; py += 15) {
+      place(x, py);
+      place(x + w, py);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Floodlights in the four corners: a pool of light and the lamp head.
+  const [lx, ly, lw, lh] = ring(first + 2 * step);
+  for (const [cx, cy] of [
+    [lx, ly],
+    [lx + lw, ly],
+    [lx, ly + lh],
+    [lx + lw, ly + lh],
+  ]) {
+    const glow = ctx.createRadialGradient(cx, cy, 6, cx, cy, 260);
+    glow.addColorStop(0, 'rgba(255, 243, 190, 0.55)');
+    glow.addColorStop(1, 'rgba(255, 243, 190, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(cx - 260, cy - 260, 520, 520);
+    ctx.fillStyle = '#fffbe8';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 15, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = rgba('#1b2540', 0.8);
+    ctx.lineWidth = 4;
+    ctx.stroke();
   }
 }
 
@@ -323,7 +424,7 @@ const LOOKS: Readonly<Record<Block['kind'], BlockLook>> = {
 };
 
 /** A pillar cap for a shared boundary vertex: shadow, blue body, white cap, blue band. */
-export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: number; y: number }): void {
+export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: number; y: number }, boards = false): void {
   const r = 17;
   const lift = 22;
   ctx.fillStyle = rgba(C.shadow, 0.3);
@@ -331,7 +432,7 @@ export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: num
   ctx.ellipse(joint.x + r * SUN_X * 0.6, joint.y + r * SUN_Y * 0.6, r * 1.15, r * 0.55, 0, 0, TAU);
   ctx.fill();
   // Pillar body, with a darker lower crescent for depth.
-  ctx.fillStyle = C.blue;
+  ctx.fillStyle = boards ? '#10172b' : C.blue;
   ctx.beginPath();
   ctx.arc(joint.x, joint.y - 2, r, 0, TAU);
   ctx.fill();
@@ -340,19 +441,19 @@ export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: num
   ctx.arc(joint.x, joint.y - 2, r, Math.PI * 0.15, Math.PI * 0.85);
   ctx.fill();
   // White cap on top, rimmed in blue, with the trim dash like the wall faces.
-  ctx.fillStyle = C.white;
+  ctx.fillStyle = boards ? '#e8ecf5' : C.white;
   ctx.beginPath();
   ctx.arc(joint.x, joint.y - lift, r, 0, TAU);
   ctx.fill();
-  ctx.strokeStyle = rgba(C.blue, 0.9);
+  ctx.strokeStyle = boards ? rgba(C.terra, 0.95) : rgba(C.blue, 0.9);
   ctx.lineWidth = 2.5;
   ctx.stroke();
-  ctx.fillStyle = rgba(C.blue, 0.85);
+  ctx.fillStyle = boards ? rgba(C.terra, 0.95) : rgba(C.blue, 0.85);
   ctx.fillRect(joint.x - 8, joint.y - lift - 1.5, 16, 3);
 }
 
 /** A solid block in the game's oblique view: footprint on the ground, top face lifted straight up. */
-export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
+export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = false): void {
   // Recoil away from the ball, easing out with the square of the hit.
   const push = b.hit * b.hit * 5;
   const ox = -b.hitNx * push;
@@ -366,7 +467,9 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
   const blk = shrink > 0 ? { ...b, w: b.w - shrink } : b;
   const p = footprint(blk, ox, oy);
   const lift = blk.lift;
-  const look = LOOKS[blk.kind];
+  // Round a stadium the boundary walls are advertising boards.
+  const board = boards && blk.boundary && blk.kind === 'wall';
+  const look = board ? { top: '#1b2540', side: '#eef1f8' } : LOOKS[blk.kind];
 
   // Side faces. Only those turned towards the viewer end up visible; the top covers the rest.
   ctx.fillStyle = look.side;
@@ -411,6 +514,23 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block): void {
         ctx.arc(x - 3.5, y - 4, 3, 0, TAU);
         ctx.fill();
       }
+    }
+  } else if (board) {
+    // Advertising boards: panels of colour along the face, separated by a thin dark seam.
+    const along = blk.w >= blk.h;
+    const len = along ? blk.w : blk.h;
+    const wid = along ? blk.h : blk.w;
+    const panel = 96;
+    const colours = [C.terra, C.sun, C.white, '#3f8cff'] as const;
+    for (let d = -len / 2, i = 0; d < len / 2; d += panel, i++) {
+      const size = Math.min(panel, len / 2 - d) - 4;
+      if (size <= 6) continue;
+      ctx.fillStyle = colours[i % colours.length];
+      if (along) ctx.fillRect(d + 2, -wid / 2 + 3, size, wid - 6);
+      else ctx.fillRect(-wid / 2 + 3, d + 2, wid - 6, size);
+      ctx.fillStyle = rgba('#1b2540', 0.75);
+      if (along) ctx.fillRect(d + 2 + size * 0.18, -2, size * 0.64, 4);
+      else ctx.fillRect(-2, d + 2 + size * 0.18, 4, size * 0.64);
     }
   } else if (blk.kind === 'wall') {
     // A line of blue tile along the cap.

@@ -591,7 +591,7 @@ export class Hud {
         }
         if (ballGap !== null) {
           const by = ny + (next ? 52 : 36);
-          text(ctx, tr('{n} STARS TO THE NEXT BALL', { n: ballGap }), cx, by, { size: 10.5, color: rgba(C.navy, 0.6), align: 'center', weight: 700, spacing: 1.2, alpha: tail });
+          text(ctx, tr(ballGap === 1 ? '1 STAR TO THE NEXT BALL' : '{n} STARS TO THE NEXT BALL', { n: ballGap }), cx, by, { size: 10.5, color: rgba(C.navy, 0.6), align: 'center', weight: 700, spacing: 1.2, alpha: tail });
         }
       }
     }

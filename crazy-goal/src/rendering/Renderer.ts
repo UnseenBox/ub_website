@@ -160,10 +160,12 @@ export class Renderer {
     drawBallShadow(ctx, ball, bx, by);
 
     // Solids. Anything whose base is further up the screen than the ball goes behind it.
+    // In a stadium the boundary walls are advertising boards.
+    const boards = level.def.theme === 'stadium';
     const inGoal = ball.renderY < goal.lineY - 2;
     const sortY = Math.max(ball.renderY, goal.lineY + 1);
-    for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b);
-    for (const j of level.boundaryJoints) if (!j.kerb && j.y < sortY) drawBoundaryJoint(ctx, j);
+    for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b, boards);
+    for (const j of level.boundaryJoints) if (!j.kerb && j.y < sortY) drawBoundaryJoint(ctx, j, boards);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY < sortY) drawMechanicSolid(ctx, m, time);
     const patch = look ? look.attacker : g.skin.patch;
     const paintBall = (): void => {
@@ -176,8 +178,8 @@ export class Renderer {
     drawNet(ctx, g.net);
     drawGoalFrame(ctx, goal, g.goalFlash, look ? look.defender : C.blue);
     if (!inGoal) paintBall();
-    for (const b of level.blocks) if (b.y >= sortY && !b.gone) drawBlock(ctx, b);
-    for (const j of level.boundaryJoints) if (!j.kerb && j.y >= sortY) drawBoundaryJoint(ctx, j);
+    for (const b of level.blocks) if (b.y >= sortY && !b.gone) drawBlock(ctx, b, boards);
+    for (const j of level.boundaryJoints) if (!j.kerb && j.y >= sortY) drawBoundaryJoint(ctx, j, boards);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY >= sortY) drawMechanicSolid(ctx, m, time);
 
     g.particles.draw(ctx);

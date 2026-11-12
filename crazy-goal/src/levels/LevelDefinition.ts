@@ -174,7 +174,7 @@ export type MechanicDef =
   /** A fan blowing along `angle`: a gusty wind that pushes the ball while it is inside. */
   | { type: 'fan'; x: number; y: number; w: number; h: number; angle: number; strength?: number };
 
-export type Theme = 'street' | 'pitch' | 'beach' | 'court' | 'clay' | 'roof' | 'snow' | 'sunset' | 'night';
+export type Theme = 'street' | 'pitch' | 'stadium' | 'beach' | 'court' | 'clay' | 'roof' | 'snow' | 'sunset' | 'night';
 
 /**
  * Everything that makes one challenge. Levels are plain data: gameplay code never names a

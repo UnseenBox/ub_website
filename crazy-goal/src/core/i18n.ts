@@ -645,6 +645,8 @@ const AR: Readonly<Record<string, string>> = {
   'NEXT MATCH': 'المباراة التالية',
   'PERFECT MATCH': 'مباراة كاملة',
   'OPENING NIGHT': 'ليلة الافتتاح',
+  '1 STAR TO THE NEXT BALL': 'نجمة واحدة للكرة التالية',
+  'OPENING SEASON': 'الموسم الأول',
 };
 
 function stored(): Lang {
