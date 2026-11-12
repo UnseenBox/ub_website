@@ -47,9 +47,6 @@ function boot(): Game {
   (game.loop as unknown as { start(): void }).start = () => {};
   game.start();
   game.tutorial.skip();
-  // A boss needs a roomy, empty floor: the opening cellar is a narrow aisle full of shelving.
-  game.playFrom(1);
-  for (const o of [...game.objects]) if (!o.held) o.destroy(game);
   // Room 1 now opens with the pan already in hand. These tests are about a boss
   // hurting itself with its own furniture, so put the pan well out of the way
   // instead of letting a chasing boss walk into it and take an unrelated hit.

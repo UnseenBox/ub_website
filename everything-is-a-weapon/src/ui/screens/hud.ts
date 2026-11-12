@@ -82,11 +82,12 @@ export class HUD {
   private mugs: Mug[] = [];
   private readonly powerChips = new Map<string, HTMLElement>();
   private readonly powerCool = new Map<string, number>();
-  private last = { room: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', scrap: -1, coach: '', touch: false };
+  private last = { room: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', scrap: -1, coach: '', lesson: '', touch: false };
   private shownScore = 0;
   private bannerTimer = 0;
   private hintTimer = 0;
   private readonly hintBox: HTMLElement;
+  private readonly lessonBox: HTMLElement;
   private bannerSeed = 1;
   private stampTimer = 0;
   private toastTimer = 0;
@@ -213,6 +214,8 @@ export class HUD {
     this.bannerBox = el('div', 'hud-banner b2-hud__banner');
     this.hintBox = el('div', 'hud-hint b2-hint');
     this.hintBox.setAttribute('role', 'status');
+    this.lessonBox = el('div', 'hud-lesson b2-lesson');
+    this.lessonBox.setAttribute('role', 'status');
     this.incomingBox = el('div', 'hud-incoming b2-hud__incoming');
     this.stampBox = el('div', 'hud-stamp b2-hud__stamp');
 
@@ -238,6 +241,7 @@ export class HUD {
       this.powers,
       this.bannerBox,
       this.hintBox,
+      this.lessonBox,
       this.incomingBox,
       this.stampBox,
       this.toast,
@@ -383,11 +387,13 @@ export class HUD {
       // The real POWER button pulses instead (body.coach-power).
       if (icon === 'power') return [];
       if (icon === 'move') return [wrap('coach-pad', el('i', 'coach-thumb'))];
+      if (icon === 'dash') return [wrap('coach-tap', el('i', 'coach-thumb'))];
       return [wrap(icon === 'throw' ? 'coach-tap hold' : 'coach-tap', el('i', 'coach-thumb'))];
     }
     if (icon === 'move') return [wrap('coach-keys', ...[...moveKeysLabel()].map((c) => el('kbd', '', c)))];
     const mouse = (mode: string): HTMLElement => wrap(`coach-mouse ${mode}`, el('i'));
     if (icon === 'power') return [wrap('coach-row', mouse('aim'), el('kbd', '', 'P'))];
+    if (icon === 'dash') return [wrap('coach-keys', el('kbd', 'wide', 'SPACE'))];
     if (icon === 'throw') return [mouse('hold'), wrap('coach-bar', el('i'))];
     return [mouse('click')];
   }
@@ -395,6 +401,19 @@ export class HUD {
   private updateCoach(touch: boolean): void {
     const game = this.game;
     const g = game.tutorial.guide;
+    // The lesson card: which lesson, and the one thing to do next.
+    const card = game.state === 'playing' ? game.tutorial.card : null;
+    const cardKey = card ? `${card.n}|${card.text}` : '';
+    if (cardKey !== this.last.lesson) {
+      this.last.lesson = cardKey;
+      if (card) {
+        this.lessonBox.replaceChildren(
+          el('span', 'b2-lesson__kicker', `LESSON ${card.n} OF ${card.of} · ${card.title}`),
+          el('span', 'b2-lesson__text', card.text),
+        );
+      }
+      this.lessonBox.classList.toggle('show', !!card);
+    }
     const icon = game.state === 'playing' ? g.icon : null;
     const key = icon ? `${icon}|${touch}|${g.caption}|${moveKeysLabel()}` : '';
     if (key !== this.last.coach) {
@@ -457,6 +476,8 @@ export class HUD {
   reset(): void {
     this.bannerBox.classList.remove('show');
     this.hintBox.classList.remove('show');
+    this.lessonBox.classList.remove('show');
+    this.last.lesson = '';
     this.hintTimer = 0;
     this.incomingBox.classList.remove('show');
     this.bossBox.classList.add('hidden');

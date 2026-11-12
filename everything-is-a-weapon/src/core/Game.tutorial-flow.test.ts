@@ -113,136 +113,218 @@ const boot = (): Game => {
   return game;
 };
 
-const opening = (game: Game): { phase: string; start(p: string): void } =>
-  (game.tutorial as unknown as { opening: { phase: string; start(p: string): void } }).opening;
+const throwAtNearest = (game: Game): boolean => {
+  const t = (window as unknown as { __t: { throwAt(x: number, y: number, c?: number): void } }).__t;
+  const enemy = game.enemies.find((e) => !e.defeated);
+  if (!enemy) return false;
+  t.throwAt(enemy.body.x + enemy.body.vx * 0.25, enemy.body.y + enemy.body.vy * 0.25, 40);
+  return true;
+};
 
-it('boot → first visit → the cellar: a conga first, then the dance floor, then the Foreman', () => {
+type Hooks = {
+  step(n: number): void;
+  fetch(id: string): boolean;
+  throwAt(x: number, y: number, c?: number): void;
+  aim(x: number, y: number): void;
+  press(): void;
+  release(): void;
+  dodge(): void;
+  walkTo(x: number, y: number, m?: number, tol?: number): number;
+};
+const hooks = (): Hooks => (window as unknown as { __t: Hooks }).__t;
+
+it('first sight: an empty room, the hero, one pan, one sleeping box, one line of text', () => {
   const game = boot();
   expect(game.state).toBe('playing');
   expect(game.room.index).toBe(0);
-  expect(game.room.def.name).toBe('THE CELLAR');
-  // Action first: the pan is already in hand and the first mover is already at the door.
+  expect(game.room.def.id).toBe('lesson-throw');
   expect(game.tutorial.step).toBe('throw');
-  expect(game.player.held?.def.id).toBe('pan');
+  // Exactly one object and one enemy, and nobody else on the way.
+  expect(game.objects.filter((o) => o.alive).map((o) => o.def.id)).toEqual(['pan']);
+  expect(game.enemies.length).toBe(1);
+  expect(game.room.pending.length).toBe(0);
+  expect(game.player.held).toBeNull();
   game.tick(FIXED_DT);
-  expect(game.player.held?.def.id).toBe('pan');
-  expect(game.room.totalEnemies).toBe(11);
-  expect(opening(game).phase).toBe('timber');
-
-  // Sweeping the conga moves the show on, and the lesson with it.
-  waitFor(game, () => game.enemies.length >= 5, 8);
-  waitFor(game, () => { sweep(game); return opening(game).phase === 'dance'; }, 20);
-  expect(game.tutorial.step).toBe('free');
-  expect(game.save.data.abilities).not.toContain('blast');
-  waitFor(game, () => { sweep(game); return opening(game).phase === 'big'; }, 30);
-  // The Foreman's act hands over the BIG RED BUTTON.
-  expect(game.save.data.abilities).toContain('blast');
-  expect(game.abilities.ready('blast')).toBe(true);
+  expect(game.tutorial.card?.text).toMatch(/PICK IT UP/);
+  // It stays asleep until you are armed.
+  advance(game, 3);
+  expect(game.enemies[0]!.ai).toBe('idle');
+  expect(game.player.hp).toBe(game.player.maxHp);
 });
 
-it('only the first knockout gets the FIRST BONK! treatment', () => {
-  const game = boot();
-  const burst = vi.spyOn(game.fx, 'burst');
-  const first = () => burst.mock.calls.filter((c) => c[0] === 'FIRST BONK!').length;
-  waitFor(game, () => game.enemies.length > 0, 8);
-  sweep(game);
-  expect(first()).toBe(1);
-  waitFor(game, () => { sweep(game); return !game.tutorial.active; }, 120);
-  expect(first()).toBe(1);
-});
-
-it('a player who does nothing still gets the first mover within ~2s', () => {
-  const game = boot();
-  expect(game.tutorial.step).toBe('throw');
-  expect(game.enemies.length).toBe(0);
-  // The first door is already rattling: no walk, no grab lesson.
-  waitFor(game, () => game.enemies.length > 0, 3);
-  expect(game.tutorial.step).toBe('throw');
-});
-
-it('a player who follows the prompt throws the pan within 8 s of control', () => {
-  const game = new Game(fakeCanvas());
-  vi.spyOn(game.loop, 'start').mockImplementation(() => {});
-  const marks: Record<string, number> = {};
-  game.analytics.addSink({ track: (name) => { marks[name] ??= game.time; } });
-  game.start();
-  const raw = game.input.raw;
-  const point = { x: 0, y: 0 };
-  // The mover is already at the door: aim at it, hold the throw, let go.
-  waitFor(game, () => game.enemies.length > 0, 3);
-  const target = game.enemies[0]!;
-  game.camera.worldToScreen(target.body.x, target.body.y, point);
-  raw.pointerX = point.x;
-  raw.pointerY = point.y;
-  raw.primaryDown = true;
-  raw.primaryPresses++;
-  advance(game, 0.5);
-  raw.primaryDown = false;
-  raw.primaryReleases++;
-  advance(game, 0.2);
-  expect(marks.first_throw, 'first_throw happened').toBeDefined();
-  expect(marks.first_throw!).toBeLessThanOrEqual(8);
-});
-
-
-it('TIMBER: a throw at the conga brings the shelves down on it', () => {
+it('lesson 1: grabbing the pan wakes the box; one throw clears the room and opens lesson 2', () => {
   const game = boot();
   installTestHooks(game);
-  const t = (window as unknown as { __t: { step(n: number): void; throwAt(x: number, y: number, c?: number): void } }).__t;
+  const t = hooks();
+  expect(t.fetch('pan')).toBe(true);
+  t.step(10);
+  expect(game.tutorial.card?.text).toMatch(/HOLD, AIM/);
+  for (let i = 0; i < 400; i++) {
+    t.step(2);
+    const e = game.enemies.find((x) => !x.defeated);
+    if (e && Math.hypot(e.body.x - game.player.body.x, e.body.y - game.player.body.y) < 230) break;
+  }
+  throwAtNearest(game);
+  waitFor(game, () => game.room.def.id === 'lesson-zap', 12);
+  expect(game.tutorial.step).toBe('zap');
+  expect(game.save.data.tutorial).toBe('zap');
+  expect(game.state, 'no results screen between lessons').toBe('playing');
+});
+
+it('a player who walks up to the pan and throws it does so within 10 s of control', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = hooks();
+  t.fetch('pan');
+  let thrownAt = -1;
+  game.bus.on('OBJECT_THROWN', () => {
+    if (thrownAt < 0) thrownAt = game.time;
+  });
+  for (let i = 0; i < 600 && thrownAt < 0; i++) {
+    t.step(2);
+    const e = game.enemies.find((x) => !x.defeated);
+    if (e && Math.hypot(e.body.x - game.player.body.x, e.body.y - game.player.body.y) < 230) throwAtNearest(game);
+  }
+  expect(thrownAt).toBeGreaterThan(0);
+  expect(thrownAt).toBeLessThan(10);
+});
+
+it('every lesson room loads, shows its own card, and cannot knock the hero out', () => {
+  const game = boot();
+  const lessons = ['throw', 'zap', 'dash', 'power', 'pet'] as const;
+  for (const lesson of lessons) {
+    game.playLesson(lesson);
+    expect(game.room.def.id).toBe(`lesson-${lesson}`);
+    expect(game.tutorial.step).toBe(lesson);
+    game.player.hp = 1;
+    advance(game, 0.5);
+    expect(game.tutorial.card?.n).toBe(lessons.indexOf(lesson) + 1);
+  }
+});
+
+it('lesson 2: a thrown bottle at the socket makes the floor live and the movers walk into it', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = hooks();
+  game.playLesson('zap');
+  const socket = game.zones.zones.find((z) => z.tags.has('outlet'))!;
+  expect(socket).toBeTruthy();
+  expect(game.room.pending.every((p) => p.delay === Infinity), 'they wait outside').toBe(true);
+  t.fetch('bottle');
+  t.step(15);
+  expect(game.tutorial.card?.text).toMatch(/SOCKET/);
+  t.throwAt(socket.x + 16, socket.y + 22, 60);
+  t.step(40);
+  expect(game.zones.zones.some((z) => z.zone === 'water' && z.tags.has('energized'))).toBe(true);
   const kills: string[] = [];
   game.bus.on('ENEMY_DEFEATED', (e) => kills.push(e.cause.type));
-  let thrown = false;
-  for (let i = 0; i < 1500 && !thrown; i++) {
+  t.step(240);
+  expect(kills).toContain('shock');
+});
+
+it('lesson 2 never soft-locks: nobody does anything and the movers come in anyway', () => {
+  const game = boot();
+  game.playLesson('zap');
+  advance(game, 31);
+  advance(game, 6);
+  expect(game.enemies.length + game.room.pending.length).toBeGreaterThan(0);
+  expect(game.room.pending.every((p) => p.delay !== Infinity), 'released by the fallback').toBe(true);
+});
+
+it('lesson 3: dashing is noticed, then the room says to throw', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = hooks();
+  game.playLesson('dash');
+  game.tick(FIXED_DT);
+  expect(game.tutorial.card?.text).toMatch(/DASH/);
+  let dashed = false;
+  for (let i = 0; i < 900 && !dashed; i++) {
     t.step(2);
-    const lead = game.enemies.find((e) => !e.defeated);
-    if (lead && lead.body.x < 780) {
-      t.throwAt(lead.body.x, lead.body.y, 55);
-      thrown = true;
+    const e = game.enemies.find((x) => !x.defeated);
+    if (e && (e as unknown as { ai: string }).ai === 'windup') {
+      t.dodge();
+      dashed = true;
     }
   }
-  expect(thrown).toBe(true);
-  for (let k = 0; k < 12; k++) t.step(30);
-  expect(kills.filter((k) => k === 'slam').length, 'the shelves take the line').toBeGreaterThanOrEqual(4);
+  expect(dashed, 'the mover charges at you').toBe(true);
+  t.step(10);
+  expect(game.tutorial.card?.text).toMatch(/DASHED/);
 });
 
-it('TIMBER happens even if nobody throws: the lead reaching the end of the aisle springs it', () => {
+it('lesson 4: the Power is handed over on arrival and clears a crowd', () => {
   const game = boot();
   installTestHooks(game);
-  const t = (window as unknown as { __t: { step(n: number): void } }).__t;
-  const fallen: number[] = [];
-  game.bus.on('OBJECT_FALLEN', (e) => { if (e.object.def.id === 'bookshelf') fallen.push(Math.round(e.object.body.x)); });
-  for (let i = 0; i < 40; i++) t.step(30);
-  expect(fallen.length, 'at least one pair came down on its own').toBeGreaterThanOrEqual(2);
+  const t = hooks();
+  game.playLesson('power');
+  expect(game.save.data.abilities).toContain('blast');
+  expect(game.abilities.ready('blast')).toBe(true);
+  t.step(100);
+  const live = game.enemies.filter((e) => !e.defeated);
+  expect(live.length).toBeGreaterThanOrEqual(2);
+  const cx = live.reduce((a, e) => a + e.body.x, 0) / live.length;
+  const cy = live.reduce((a, e) => a + e.body.y, 0) / live.length;
+  t.aim(cx, cy);
+  game.input.raw.abilitySlot = -1;
+  t.step(8);
+  expect(game.enemies.filter((e) => !e.defeated).length).toBeLessThan(live.length);
 });
 
-it('THE FOREMAN: one falling shelf is the answer, and the Foreman walks into it', () => {
+it('lesson 5: the pet food is on the floor, and grabbing it lets the movers in', () => {
   const game = boot();
   installTestHooks(game);
-  const t = (window as unknown as { __t: { step(n: number): void } }).__t;
-  game.tutorial.skip();
-  game.room.pending = [{ type: 'bulwark', delay: Infinity }];
-  for (const e of [...game.enemies]) e.alive = false;
-  game.enemies.length = 0;
-  opening(game).start('big');
-  const deaths: string[] = [];
-  game.bus.on('ENEMY_DEFEATED', (e) => deaths.push(`${e.enemy.type.id}:${e.cause.type}`));
-  for (let i = 0; i < 60 && deaths.length === 0; i++) t.step(30);
-  expect(deaths).toEqual(['bulwark:slam']);
+  const t = hooks();
+  game.playLesson('pet');
+  game.tick(FIXED_DT);
+  const food = game.objects.find((o) => o.alive && o.def.id === game.pet!.treat)!;
+  expect(food).toBeTruthy();
+  expect(game.tutorial.card?.text).toMatch(/FEED YOUR PET/);
+  expect(game.room.pending.every((p) => p.delay === Infinity)).toBe(true);
+  t.walkTo(food.body.x, food.body.y, 600, 20);
+  t.aim(food.body.x, food.body.y);
+  t.press();
+  t.step(3);
+  t.release();
+  t.step(20);
+  expect(game.pet!.frenzy).toBeGreaterThan(0);
+  expect(game.room.pending.some((p) => p.delay !== Infinity)).toBe(true);
 });
 
-it('the whole show runs on its own clock and ends in a clear, whatever the player does', () => {
+it('clearing the five lessons ends in campaign room 1 with the tutorial done', () => {
   const game = boot();
-  // The player only ever gets swept: a stand-in for somebody who ignores every prompt.
-  const seen = new Set<string>();
+  const seen: string[] = [];
   waitFor(game, () => {
-    for (const e of game.enemies) seen.add(e.type.id);
+    if (!seen.includes(game.room.def.id)) seen.push(game.room.def.id);
     sweep(game);
-    return game.state === 'cleared';
-  }, 150);
-  expect(seen.has('fragile')).toBe(true);
-  expect(seen.has('bulwark')).toBe(true);
+    return game.room.def.id === 'room-1';
+  }, 240);
+  expect(seen).toEqual(['lesson-throw', 'lesson-zap', 'lesson-dash', 'lesson-power', 'lesson-pet', 'room-1']);
   expect(game.save.data.tutorial).toBe('done');
   expect(game.tutorial.active).toBe(false);
+  expect(game.save.data.abilities).toContain('blast');
+  expect(game.room.index).toBe(0);
+});
+
+it('SKIP leaves the lessons: campaign room 1, tutorial done, Power in hand', () => {
+  const game = boot();
+  game.tutorial.skip();
+  expect(game.room.def.id).toBe('room-1');
+  expect(game.save.data.tutorial).toBe('done');
+  expect(game.save.data.abilities).toContain('blast');
+  expect(game.tutorial.active).toBe(false);
+});
+
+it('an old save that says it was mid-lesson starts the lessons from the top; a finished one never sees them', () => {
+  const game = boot();
+  expect(game.room.def.id).toBe('lesson-throw');
+  game.save.data.tutorial = 'free';
+  game.save.write();
+  game.playFrom(0);
+  expect(game.room.def.id).toBe('lesson-throw');
+  game.save.data.tutorial = 'done';
+  game.save.write();
+  game.playFrom(0);
+  expect(game.room.def.id).toBe('room-1');
 });
 
 it('tutorial → clear → results with ledger claim → door choice → chosen room', async () => {

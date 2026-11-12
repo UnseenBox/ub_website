@@ -1,27 +1,17 @@
 import type { Game } from '../core/Game';
 import type { Enemy } from '../entities/Enemy';
+import { ENEMY_TYPES } from '../entities/EnemyTypes';
 import type { PhysicsObject } from '../entities/PhysicsObject';
-import { Opening } from './Opening';
+import { LESSONS, TUTORIAL_ROOMS, tutorialRoom, type Lesson } from './TutorialRooms';
 
-/** Room 1's lessons, in the order they are taught. */
-export type Lesson = 'move' | 'grab' | 'throw' | 'power' | 'pet' | 'zap' | 'free';
-/**
- * Room 1 is a directed set-piece, not a lesson (gameplay/Opening.ts runs it): the cellar, 3 a.m.
- * `throw` is the first act, a conga line walking into a shelf-lined aisle (the hero already holds
- * the pan and the guide arc is on the lead mover); `free` is the rest of the show. Old saves that
- * point at the retired `power` / `pet` / `zap` lessons resume in `free`.
- */
-export const LESSONS: readonly Lesson[] = ['throw', 'free'];
+export { LESSONS };
+export type { Lesson };
 
-/** Movers the throw lesson (the first act) lets through the door. Room 1 lists them first. */
-const MOVERS: Readonly<Record<Lesson, number>> = { move: 0, grab: 0, throw: 5, power: 0, pet: 0, zap: 0, free: 0 };
-
-export type GuideIcon = 'move' | 'grab' | 'throw' | 'power';
+export type GuideIcon = 'move' | 'grab' | 'throw' | 'power' | 'dash';
 
 /**
  * What to show the player right now. The HUD turns `icon` into keycaps and a mouse, or
- * into thumbs on a phone; the renderer draws `line` on the floor. Text is `caption`
- * only, and only once somebody has been stuck for a while.
+ * into thumbs on a phone; the renderer draws `line` on the floor.
  */
 export interface Guide {
   icon: GuideIcon | null;
@@ -35,22 +25,31 @@ export interface Guide {
   caption: string;
 }
 
+/** The card at the top of a lesson room: which lesson, and the one thing to do next. */
+export interface LessonCard {
+  n: number;
+  of: number;
+  title: string;
+  text: string;
+}
+
 const WAITING = Infinity;
-/** Seconds of walking about / reaching for a weapon before the first mover comes in regardless. */
-const IDLE_RELEASE = 7;
+/** A lesson whose trigger never happens lets its movers in anyway after this long. */
+const FALLBACK_RELEASE = 30;
 
 /**
- * Room 1 as a staged lesson plan. The opening is action first: the pan is already
- * in hand, the first mover is already at the door, and the plan goes throw → power
- * → free brawl. The pet's treat and water on a socket are still in the room, but
- * they are optional toys named once in the brawl banner instead of stopping the
- * action. Movers wait outside until the lesson that needs them, and nothing in a
- * guided lesson can knock the hero out. Progress is saved per lesson.
+ * The opening: five tiny rooms, one idea each (gameplay/TutorialRooms.ts), then the campaign.
+ * This class runs whichever lesson room is loaded: it points at what to do next, writes the
+ * one line on the lesson card, and lets the room's movers in when the lesson is ready for
+ * them. Clearing the room is what finishes a lesson (Game.advanceTutorial walks into the
+ * next). Nothing in a lesson can knock the hero out. Progress is saved per lesson.
  */
 export class Tutorial {
   /** Object to pulse so it reads as "this one". */
   focus: PhysicsObject | null = null;
   readonly guide: Guide = { icon: null, x: 0, y: 0, line: 'none', tx: 0, ty: 0, caption: '' };
+  /** The lesson card for the HUD (null outside a lesson). */
+  card: LessonCard | null = null;
   /** Lesson running now (null: not teaching). */
   step: Lesson | null = null;
   /** Where a restart of this room picks up. */
@@ -58,35 +57,23 @@ export class Tutorial {
   /**
    * A first visit to a later room is a one-beat lesson: the new toys glow and the
    * teaser line rides under the icon until one is picked up, then the room is a room.
-   * It is not a full staged lesson — that is room 1's job — but it teaches one thing.
    */
   spotStep = false;
 
   private stepTime = 0;
-  /** The director of room 1's three set-pieces. */
-  private readonly opening: Opening;
   private misses = 0;
-  private moved = 0;
-  private passed = false;
   private released = false;
+  private dashed = false;
+  private thrown = false;
   private treat: PhysicsObject | null = null;
   private scent = 0;
+  private lastDrop = -99;
   /** Later rooms: object ids worth a look on a first visit, and for how long. */
   spot: readonly string[] = [];
   private spotLeft = 0;
 
   constructor(private readonly game: Game) {
-    this.opening = new Opening(game, {
-      givePower: () => {
-        this.grantPower(true);
-        game.hud.hint('BIG RED BUTTON', game.input.touch ? 'TAP POWER' : 'AIM + P', 4);
-      },
-      glow: (ids, seconds) => {
-        this.spot = ids;
-        this.spotLeft = seconds;
-      },
-    });
-    game.bus.on('OBJECT_GRABBED', (e) => {
+    game.bus.on('OBJECT_GRABBED', () => {
       this.spotLeft = 0;
       if (this.spotStep) {
         // A first visit to a later room ends the beat the moment one of the new
@@ -95,16 +82,20 @@ export class Tutorial {
         this.spot = [];
         this.guide.caption = '';
       }
-      if ((this.step === 'move' || this.step === 'grab') && e.object.def.throwable) this.enter('throw');
+      // The sleeping box wakes up the moment you arm yourself.
+      if (this.step === 'throw') this.wake();
     });
     game.bus.on('OBJECT_THROWN', () => {
-      if (this.step === 'throw' && !this.passed) this.misses++;
+      if (this.step === 'throw' || this.step === 'zap' || this.step === 'dash') {
+        this.thrown = true;
+        this.misses++;
+      }
     });
     game.bus.on('ENEMY_HIT', (e) => {
-      if (this.step === 'throw' && e.cause.type === 'impact' && e.cause.source?.kind === 'object') this.passed = true;
+      if (this.step === 'throw' && e.cause.type === 'impact' && e.cause.source?.kind === 'object') this.misses = 0;
     });
     game.bus.on('PLAYER_HIT', () => {
-      // A lesson is not the place to lose: the brawl at the end is.
+      // A lesson is not the place to lose.
       if (this.step && game.player.hp < 2) game.player.hp = 2;
     });
   }
@@ -113,38 +104,61 @@ export class Tutorial {
     return this.step !== null;
   }
 
+  private get touch(): boolean {
+    return this.game.input.touch;
+  }
+
   /** True for anything the renderer should halo. */
   lit(object: PhysicsObject): boolean {
     return object === this.focus || (this.spotLeft > 0 && this.spot.includes(object.def.id));
   }
 
-  /** Starts teaching the current room from `from`, or (null) not at all. */
+  /** Starts the lesson in the room that has just loaded, or (null) no lesson at all. */
   begin(from: Lesson | null): void {
+    const game = this.game;
     this.step = this.resume = null;
-    this.opening.stop();
+    this.card = null;
     this.focus = this.treat = null;
     this.spotLeft = 0;
-    this.moved = 0;
     this.clearGuide();
     document.body.classList.remove('tutorial');
     if (!from) return;
-    // Old saves may point at a retired lesson. Walking and grabbing are already done
-    // by the time the room opens; pet and zap are optional now.
-    const start: Lesson =
-      from === 'throw' || from === 'free'
-        ? from
-        : from === 'power' || from === 'pet' || from === 'zap'
-          ? 'free'
-          : 'throw';
-    const room = this.game.room;
-    let skipped = 0;
-    for (const lesson of LESSONS) {
-      if (lesson === start) break;
-      skipped += MOVERS[lesson];
+    const spec = tutorialRoom(from);
+    const room = game.room;
+    // Everyone waits outside until the lesson needs them.
+    room.pending = room.pending.map((p) => ({ type: p.type, delay: WAITING }));
+    room.totalEnemies = room.pending.length + (spec.sleeper ? 1 : 0);
+    this.step = this.resume = from;
+    this.stepTime = 0;
+    this.misses = 0;
+    this.released = false;
+    this.dashed = false;
+    this.thrown = false;
+    this.lastDrop = -99;
+    game.save.data.tutorial = from;
+    game.save.write();
+    document.body.classList.add('tutorial');
+
+    switch (from) {
+      case 'throw': {
+        const s = spec.sleeper;
+        if (s) {
+          // Awake only when you are armed: until then it just stands there.
+          const sleeper = game.spawnEnemyType({ ...ENEMY_TYPES[s.type], awareness: 1 }, s.x, s.y, -1, 0);
+          sleeper.ai = 'idle';
+          sleeper.aware = false;
+        }
+        break;
+      }
+      case 'power':
+        this.grantPower(true);
+        break;
+      case 'pet':
+        if (game.pet) this.treat = this.dropNear(game.pet.treat);
+        break;
+      default:
+        break;
     }
-    room.pending = room.pending.slice(skipped).map((spec) => ({ type: spec.type, delay: WAITING }));
-    room.totalEnemies = room.pending.length;
-    this.enter(start);
   }
 
   /** A first visit to a later room: its new toys glow until one is picked up, and the
@@ -163,21 +177,14 @@ export class Tutorial {
     }
   }
 
-  /** "I know all this": everyone still outside comes in, and the room is just a room. */
+  /** "I know all this": straight to the campaign, with the Power in the pocket. */
   skip(): void {
     if (!this.step) return;
     this.game.markTutorialSkipped();
-    this.opening.stop();
     this.grantPower(false);
-    const room = this.game.room;
-    // Everyone still outside comes in, 3.5 s apart, but never more than ~30 s in total.
-    const gap = Math.min(3.5, 30 / Math.max(1, room.pending.filter((spec) => spec.delay === WAITING).length));
-    let n = 0;
-    room.pending = room.pending.map((spec) =>
-      spec.delay === WAITING ? { type: spec.type, delay: room.elapsed + 1 + gap * n++ } : spec,
-    );
-    this.finish();
-    this.resume = null;
+    this.step = this.resume = null;
+    this.card = null;
+    this.game.leaveTutorial();
   }
 
   update(dt: number): void {
@@ -191,205 +198,245 @@ export class Tutorial {
       this.spot = [];
       this.guide.caption = '';
     }
-    this.opening.update(dt);
     const step = this.step;
-    if (!step) return;
-    this.stepTime += dt;
-    if (step === 'throw' && this.opening.phase !== 'timber') {
-      this.enter('free');
+    if (!step) {
+      this.card = null;
       return;
     }
-
-    const game = this.game;
-    const g = this.guide;
-    const player = game.player;
-    const pb = player.body;
-    const overHead = (): void => {
-      g.x = pb.x;
-      g.y = pb.y - 78;
-    };
-
+    this.stepTime += dt;
     switch (step) {
-      case 'move':
-      case 'grab': {
-        // A slow start must not leave the room dead: after a few seconds the first mover knocks
-        // and comes in anyway, and the throw lesson keeps pointing at the weapon.
-        if (this.stepTime > IDLE_RELEASE) {
-          this.enter('throw');
-          break;
-        }
-        const target = this.weapon();
-        if (!target) break;
-        if (step === 'move') {
-          if (pb.speed() > 60) this.moved += dt;
-          this.focus = target;
-          this.trailTo(target.body.x, target.body.y);
-          // The keys fade the moment they have been used; the footsteps stay.
-          if (this.moved < 0.6) {
-            g.icon = 'move';
-            overHead();
-          }
-          if (this.inReach(target)) this.enter('grab');
-        } else {
-          this.pointAt(target);
-          if (this.stepTime > 8 && g.icon) g.caption = 'TAP';
-        }
+      case 'throw':
+        this.updateThrow();
         break;
-      }
-
-      case 'throw': {
-        if (this.passed) break;
-        if (!player.held) {
-          const target = this.weapon();
-          if (target) this.pointAt(target);
-          break;
-        }
-        const enemy = this.nearestEnemy();
-        if (!enemy) break;
-        g.icon = 'throw';
-        overHead();
-        g.line = 'arc';
-        g.tx = enemy.body.x;
-        g.ty = enemy.body.y;
-        if (this.misses >= 2) {
-          // Two misses: it stands still while you line it up, and the words come out.
-          enemy.stun = Math.max(enemy.stun, 0.3);
-          g.caption = 'HOLD → LET GO';
-        }
+      case 'zap':
+        this.updateZap();
         break;
-      }
-
+      case 'dash':
+        this.updateDash();
+        break;
       case 'power':
-        // Retired as a lesson: the Power is handed over in the middle of `free`.
-        this.enter('free');
+        this.updatePower();
         break;
-
-      case 'pet': {
-        const pet = game.pet;
-        if (!pet) {
-          this.enter('zap');
-          return;
-        }
-        if (pet.frenzy > 0 && !this.released) {
-          // Fed first, then the knock at the door: there is no missing what the treat did.
-          game.camera.focus(pet.x, pet.y, 1.1, 1.12);
-          this.release();
-        }
-        if (this.released) break;
-        if (!this.treat || !this.treat.alive) this.treat = this.dropNear(pet.treat);
-        const treat = this.treat;
-        if (!treat) break;
-        this.pointAt(treat);
-        this.scent -= dt;
-        if (this.scent <= 0) {
-          this.scent = 0.28;
-          game.particles.burst('steam', treat.body.x, treat.body.y - 10, 1, 46, { dirX: 0, dirY: -1, spread: 0.5 });
-          game.particles.burst('star', treat.body.x, treat.body.y - 6, 1, 70);
-        }
-        if (this.stepTime > 10) g.caption = pet.treatLabel;
-        break;
-      }
-
-      case 'zap': {
-        let live = false;
-        let socket = null;
-        for (const zone of game.zones.zones) {
-          if (!zone.alive) continue;
-          if (zone.zone === 'water' && zone.tags.has('energized')) live = true;
-          else if (zone.tags.has('outlet')) socket = zone;
-        }
-        if (live || !socket) {
-          // The floor is live: now somebody walks in to find out.
-          if (!this.released) this.release();
-          break;
-        }
-        let bottle = player.held && player.held.def.id === 'bottle' ? player.held : null;
-        if (!bottle) bottle = game.objects.find((o) => o.alive && o.def.id === 'bottle') ?? null;
-        if (!bottle) {
-          bottle = this.dropNear('bottle');
-          this.misses++;
-        }
-        if (!bottle) break;
-        if (player.held === bottle) {
-          g.icon = 'throw';
-          overHead();
-          g.line = 'arc';
-          g.tx = socket.x + 16;
-          g.ty = socket.y + 22;
-        } else if (!player.held) {
-          this.pointAt(bottle);
-        } else {
-          this.focus = bottle;
-        }
-        if (this.misses >= 2 || this.stepTime > 14) g.caption = 'WATER → SOCKET';
-        break;
-      }
-
-      case 'free':
-        this.updateFree();
+      case 'pet':
+        this.updatePet(dt);
         break;
     }
-  }
-
-  /** The rest of the show belongs to the director; the lesson ends when it does. */
-  private updateFree(): void {
-    if (this.opening.done) this.finish();
   }
 
   // ───────────── lessons ─────────────
 
-  private enter(step: Lesson): void {
+  /** One line on the card. */
+  private say(text: string): void {
+    const i = Math.max(0, LESSONS.indexOf(this.step ?? 'throw'));
+    const card = this.card;
+    if (card && card.n === i + 1 && card.text === text) return;
+    this.card = { n: i + 1, of: LESSONS.length, title: TUTORIAL_ROOMS[i]!.title, text };
+  }
+
+  private overHead(): void {
+    const g = this.guide;
+    const pb = this.game.player.body;
+    g.x = pb.x;
+    g.y = pb.y - 78;
+  }
+
+  /** 1. Pick it up, throw it at the box. */
+  private updateThrow(): void {
     const game = this.game;
-    this.step = this.resume = step;
-    this.stepTime = 0;
-    this.misses = 0;
-    this.passed = false;
-    this.released = false;
-    this.treat = null;
-    game.save.data.tutorial = step;
-    game.save.write();
-    document.body.classList.add('tutorial');
+    const g = this.guide;
+    const player = game.player;
+    if (!player.held) {
+      const target = this.weapon();
+      if (target) this.pointAt(target);
+      this.say(this.thrown ? 'PICK IT UP AGAIN' : this.touch ? 'TAP THE PAN TO PICK IT UP' : 'CLICK THE PAN TO PICK IT UP');
+      return;
+    }
+    const enemy = this.nearestEnemy();
+    if (!enemy) return;
+    g.icon = 'throw';
+    this.overHead();
+    g.line = 'arc';
+    g.tx = enemy.body.x;
+    g.ty = enemy.body.y;
+    this.say('HOLD, AIM AT THE BOX, LET GO');
+    // Two misses: it stands still while you line it up.
+    if (this.misses >= 2) enemy.stun = Math.max(enemy.stun, 0.3);
+  }
 
-    switch (step) {
-      case 'throw':
-        // The conga walks into the aisle; the guide arc is on the lead mover.
-        this.opening.start('timber');
-        break;
-      case 'power':
-        break;
-      case 'free':
-        // The first act has ended (or a resumed room starts here): on to the dance floor.
-        if (this.opening.phase === 'off' && !this.opening.done) this.opening.start('dance');
-        // The SKIP chip belongs to the opening, not to a set-piece in full swing.
-        document.body.classList.remove('tutorial');
-        break;
-      default:
-        break;
+  /** 2. Water on a live socket. */
+  private updateZap(): void {
+    const game = this.game;
+    const g = this.guide;
+    const player = game.player;
+    let live = false;
+    let socket = null;
+    for (const zone of game.zones.zones) {
+      if (!zone.alive) continue;
+      if (zone.zone === 'water' && zone.tags.has('energized')) live = true;
+      else if (zone.tags.has('outlet')) socket = zone;
+    }
+    if (live || !socket || this.stepTime > FALLBACK_RELEASE) {
+      // The floor is live: now somebody walks in to find out.
+      if (!this.released) this.release(0.5, 0.6);
+      this.say(live ? 'IT IS LIVE! WATCH THEM WALK INTO IT' : 'THROW SOMETHING AT THEM');
+      this.armed();
+      if (!player.held) {
+        const weapon = this.weapon();
+        if (weapon) this.pointAt(weapon);
+      }
+      return;
+    }
+    let bottle = player.held && player.held.def.id === 'bottle' ? player.held : null;
+    if (!bottle) bottle = game.objects.find((o) => o.alive && o.def.id === 'bottle') ?? null;
+    if (!bottle) bottle = this.dropNear('bottle');
+    if (!bottle) return;
+    if (player.held === bottle) {
+      g.icon = 'throw';
+      this.overHead();
+      g.line = 'arc';
+      g.tx = socket.x + 16;
+      g.ty = socket.y + 22;
+      this.say('THROW THE WATER AT THE SOCKET');
+    } else {
+      if (!player.held) this.pointAt(bottle);
+      else this.focus = bottle;
+      this.say(this.touch ? 'TAP THE BOTTLE TO PICK IT UP' : 'PICK UP THE BOTTLE');
     }
   }
 
-  private finish(): void {
-    this.step = null;
-    this.focus = null;
-    this.clearGuide();
-    this.game.save.data.tutorial = 'done';
-    this.game.save.write();
-    document.body.classList.remove('tutorial');
+  /** 3. Dash out of the way, then answer. */
+  private updateDash(): void {
+    const game = this.game;
+    const g = this.guide;
+    const player = game.player;
+    if (!this.released) this.release(0.6, 1.2);
+    if (player.dashTime > 0) this.dashed = true;
+    this.armed();
+    const enemy = this.nearestEnemy();
+    if (!this.dashed) {
+      if (enemy && Math.hypot(enemy.body.x - player.body.x, enemy.body.y - player.body.y) < 190) {
+        g.icon = 'dash';
+        this.overHead();
+      }
+      this.say(this.touch ? 'WHEN IT CHARGES, TAP DODGE' : 'WHEN IT CHARGES, PRESS SPACE TO DASH');
+      return;
+    }
+    if (player.held && enemy) {
+      g.icon = 'throw';
+      this.overHead();
+      g.line = 'arc';
+      g.tx = enemy.body.x;
+      g.ty = enemy.body.y;
+      this.say('NOW THROW IT BACK');
+      return;
+    }
+    const target = this.weapon();
+    if (target) this.pointAt(target);
+    this.say('DASHED! NOW GRAB THE CHAIR');
   }
 
-  /** Opens the door to this lesson's movers. */
-  private release(gap = 0.6, lead = 0.9): void {
+  /** 4. The BIG RED BUTTON on a crowd. */
+  private updatePower(): void {
+    const game = this.game;
+    const g = this.guide;
+    const player = game.player;
+    if (!this.released) this.release(0.12, 0.6);
+    this.armed();
+    if (!game.abilities.ready('blast')) {
+      this.say('NICE! FINISH THE REST');
+      return;
+    }
+    this.say(this.touch ? 'WHEN THEY BUNCH UP, TAP POWER' : 'AIM AT THE CROWD, PRESS P');
+    let n = 0;
+    let cx = 0;
+    let cy = 0;
+    for (const enemy of game.enemies) {
+      if (enemy.defeated) continue;
+      cx += enemy.body.x;
+      cy += enemy.body.y;
+      n++;
+    }
+    if (n >= 3) {
+      g.icon = 'power';
+      g.x = player.body.x;
+      g.y = player.body.y - 78;
+      g.line = 'ring';
+      g.tx = cx / n;
+      g.ty = cy / n;
+    }
+  }
+
+  /** 5. Feed the pet, then it gets to work. */
+  private updatePet(dt: number): void {
+    const game = this.game;
+    const pet = game.pet;
+    if (!pet) {
+      if (!this.released) this.release(0.8, 0.8);
+      return;
+    }
+    if (pet.frenzy > 0 && !this.released) {
+      // Fed first, then the knock at the door: there is no missing what the treat did.
+      game.camera.focus(pet.x, pet.y, 1.1, 1.12);
+      this.release(0.9, 0.9);
+    }
+    if (this.released) {
+      this.say('YOUR PET IS ON THE JOB');
+      this.armed();
+      return;
+    }
+    if (this.stepTime > FALLBACK_RELEASE) {
+      this.release(0.9, 0.9);
+      return;
+    }
+    if (!this.treat || !this.treat.alive) this.treat = this.dropNear(pet.treat);
+    const treat = this.treat;
+    if (!treat) return;
+    this.pointAt(treat);
+    this.scent -= dt;
+    if (this.scent <= 0) {
+      this.scent = 0.28;
+      game.particles.burst('steam', treat.body.x, treat.body.y - 10, 1, 46, { dirX: 0, dirY: -1, spread: 0.5 });
+      game.particles.burst('star', treat.body.x, treat.body.y - 6, 1, 70);
+    }
+    this.say(this.touch ? `TAP THE ${pet.treatLabel} TO FEED YOUR PET` : `PICK UP THE ${pet.treatLabel} TO FEED YOUR PET`);
+  }
+
+  /**
+   * Whoever is still standing must always be answerable: when nothing is left to throw, a chair
+   * turns up (and glows), so no lesson can strand the player with an enemy they cannot touch.
+   */
+  private armed(): void {
+    const game = this.game;
+    const player = game.player;
+    if (player.held || this.stepTime - this.lastDrop < 4) return;
+    if (!game.enemies.some((e) => !e.defeated) && game.room.pending.length === 0) return;
+    const spare = game.objects.find((o) => o.alive && !o.held && !o.burning && o.def.throwable && !o.def.consume && o.def.id !== 'bottle');
+    if (spare) return;
+    this.lastDrop = this.stepTime;
+    this.dropNear('chair');
+  }
+
+  /** Wakes whoever is standing about. */
+  private wake(): void {
+    for (const enemy of this.game.enemies) {
+      if (enemy.defeated) continue;
+      enemy.aware = true;
+      enemy.aiTimer = 0;
+    }
+  }
+
+  /** Lets this lesson's movers through the door. */
+  private release(gap: number, lead: number): void {
     const room = this.game.room;
-    const count = this.step ? MOVERS[this.step] : 0;
-    let i = room.pending.findIndex((spec) => spec.delay === WAITING);
-    for (let n = 0; i >= 0 && n < count && i < room.pending.length; n++, i++) {
-      room.pending[i] = { type: room.pending[i]!.type, delay: room.elapsed + lead + n * gap };
-    }
+    let n = 0;
+    room.pending = room.pending.map((spec) =>
+      spec.delay === WAITING ? { type: spec.type, delay: room.elapsed + lead + gap * n++ } : spec,
+    );
     this.released = true;
   }
 
-  /** The BIG RED BUTTON is what room 1 pays out: owned for good, and ready now. */
-  private grantPower(announce: boolean): void {
+  /** The BIG RED BUTTON: owned for good, and ready now. */
+  grantPower(announce: boolean): void {
     const game = this.game;
     game.abilities.resetRoom();
     if (game.abilities.owned('blast')) return;

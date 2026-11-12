@@ -1,6 +1,10 @@
 import { moveKeysLabel } from '../../input/KeyLabels';
 import { ABILITIES, type AbilityId } from '../../gameplay/Abilities';
 import { LESSONS, type Lesson } from '../../gameplay/Tutorial';
+
+const TUTORIAL_LABELS: Readonly<Record<Lesson, string>> = {
+  throw: 'THROW', zap: 'ZAP', dash: 'DASH', power: 'POWER', pet: 'PET',
+};
 import type { Game } from '../../core/Game';
 import { el } from '../dom';
 import { buildAbilityCard } from './shopCards';
@@ -145,7 +149,7 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
   }
   const lessons = el('div', 'b2-pause__lessons');
   for (const id of LESSONS) {
-    const again = el('button', 'b2-btn b2-btn--sm b2-btn--lavender', id === 'free' ? 'BRAWL' : id.toUpperCase());
+    const again = el('button', 'b2-btn b2-btn--sm b2-btn--lavender', TUTORIAL_LABELS[id]);
     again.type = 'button';
     again.title = runActive ? 'Starts a fresh run from room 1 and clears your Edges' : '';
     again.setAttribute('aria-label', `Replay the ${id} tutorial in room 1${runActive ? ', ending the current run' : ''}`);

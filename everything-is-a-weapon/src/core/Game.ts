@@ -33,7 +33,8 @@ import {
   claimLedger, descendStart, LEDGER, ledgerBonus, startingEdgeRarity, type LedgerMilestone,
 } from '../gameplay/StarLedger';
 import { ScoreSystem } from '../gameplay/ScoreSystem';
-import { LESSONS, Tutorial, type Lesson } from '../gameplay/Tutorial';
+import { Tutorial, type Lesson } from '../gameplay/Tutorial';
+import { nextLesson, toLesson, tutorialRoom } from '../gameplay/TutorialRooms';
 import { buyUpgrade as purchaseUpgrade, maxHealthBonus, upgradePetMultiplier, type UpgradeId } from '../gameplay/Upgrades';
 import { nextUnlock, type UnlockGoal } from '../gameplay/Progression';
 import { isPetOutfitId, PET_OUTFITS, PET_OUTFIT_IDS } from '../gameplay/PetOutfits';
@@ -650,7 +651,14 @@ export class Game {
     return def.objective?.kind === 'survive' ? null : enforcerSpec(index);
   }
 
-  private enterRoom(def: RoomDefinition, index: number, daily: boolean): void {
+  private enterRoom(campaignDef: RoomDefinition, index: number, daily: boolean): void {
+    // The opening: room 1 is five tiny lesson rooms first, until they have been sat through once
+    // (a replay from the pause menu names its own lesson). They all live at index 0.
+    const saved = this.save.data.tutorial;
+    const lesson: Lesson | null =
+      !daily && !this.endless && index === 0 ? this.lessonFrom ?? (saved === 'done' ? null : toLesson(saved)) : null;
+    this.lessonFrom = null;
+    const def = lesson ? tutorialRoom(lesson).def : campaignDef;
     const incident = this.incidentFor(def, index, daily);
     this.loadRoom(def, index, daily, incident);
     // Endless: hearts carry over from floor to floor.
@@ -667,19 +675,9 @@ export class Game {
     }
     this.heat.reset(this.room);
     this.tutorialSkippedThisRoom = false;
-    // Room 1 teaches until it has been sat through once; a replay names its lesson.
-    const saved = this.save.data.tutorial;
-    const lesson = this.lessonFrom ?? (saved === 'done' ? null : LESSONS.find((l) => l === saved) ?? 'throw');
-    this.lessonFrom = null;
     const firstVisit = !daily && this.save.data.deepest <= index;
-    if (def.tutorial && !daily) {
-      this.tutorial.begin(lesson);
-      // Action first: the pan is already in hand and the door is already rattling.
-      if (this.tutorial.step === 'throw') {
-        const pan = this.objects.find((o) => o.alive && !o.held && o.def.id === 'pan');
-        if (pan) this.player.equip(this, pan);
-      }
-    } else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight, def.teaser);
+    if (lesson) this.tutorial.begin(lesson);
+    else if (firstVisit && def.spotlight) this.tutorial.spotlight(def.spotlight, def.teaser);
     this.portal.setContext({ room: this.endless ? `endless-${this.endless.floor}` : daily ? 'daily' : index + 1, hero: this.hero });
     this.setState('playing');
     this.funnelT0 = performance.now();
@@ -1291,6 +1289,30 @@ export class Game {
     }
   }
 
+  /**
+   * Lesson rooms chain without a results screen: clearing one walks into the next, and the
+   * last hands over to campaign room 1. Returns true when it took over.
+   */
+  private advanceTutorial(): boolean {
+    const step = this.tutorial.step;
+    if (!step || this.room.daily || this.endless) return false;
+    const next = nextLesson(step);
+    this.analytics.track('tutorial_step', { step, seconds: Math.round(this.score.stats.time) });
+    this.save.data.tutorial = next ?? 'done';
+    this.save.write();
+    this.scoreAtRoomStart = this.score.score;
+    this.enterRoom(this.rooms.definition(0), 0, false);
+    return true;
+  }
+
+  /** SKIP: the rest of the lessons are done; on to campaign room 1. */
+  leaveTutorial(): void {
+    this.save.data.tutorial = 'done';
+    this.save.write();
+    this.scoreAtRoomStart = this.score.score;
+    this.enterRoom(this.rooms.definition(0), 0, false);
+  }
+
   private completeRoom(): void {
     this.trackRoomEnd('clear');
     const bonus = this.challenges.resolve();
@@ -1305,6 +1327,7 @@ export class Game {
       seconds: Math.round(this.score.stats.time),
       bestChain: this.score.stats.bestChain,
     });
+    if (this.advanceTutorial()) return;
     if (!this.room.daily && this.room.index === 0 && !this.funnelClear) {
       this.funnelClear = true;
       this.analytics.track('first_clear', { ms: Math.round(performance.now() - this.funnelT0) });

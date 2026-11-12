@@ -760,3 +760,13 @@ Tutorial: `LESSONS = ['throw','free']`; `throw` is act 1 (`opening.start('timber
 Side effects handled in tests: `Enemy.signature.test.ts` and `Enemy.bossOwnHits.test.ts` used room 1 as a roomy test arena; they now boot room 3 / an emptied room 2. Suite: 307 passed, 1 skipped; build 2.57 MB.
 
 Honest limits: the simulator and the screenshots (1280x720) prove the three set-pieces fire and read clearly; they cannot prove it is *fun*. Bot clear time about 55-60 s. Room is 960 wide: on a window narrower than about 1000 px the camera follows the hero and the far end of the aisle is off-screen (phones in landscape fit the whole room).
+
+### Revision 4: five tiny lesson rooms (replaces the cellar)
+
+Owner: "a simple, completely empty room: the player, one object, one enemy; pick the item, shoot the enemy. Then room 2 teaches water and electricity, room 3 dashing, room 4 abilities, room 5 pet food, and the game goes on like that." The cellar was dropped. Now:
+
+* `gameplay/TutorialRooms.ts`: five small rooms (all at campaign index 0, so no index, act, boss or save shifts): **throw** (empty room, pan, one box asleep until you grab the pan), **zap** (bottle + socket beside the door), **dash** (one charger, a chair for afterwards), **power** (BIG RED BUTTON handed over, crowd of five), **pet** (its food on the floor, grab it, two movers in). Adding a lesson = an entry there plus a `case` in `Tutorial.ts`.
+* `Tutorial.ts` rewritten: points at the next thing, writes ONE line on a lesson card (HUD top centre, "LESSON 2 OF 5"), lets the movers in when the lesson is ready, and never lets the hero drop below 2 hearts. `armed()` drops a chair if nothing is left to throw, so no lesson can strand the player; zap/pet release their movers after 30 s regardless.
+* `Game.advanceTutorial`: clearing a lesson walks into the next with no results screen; the last hands over to campaign room 1 (the original calm bedroom, 6 movers, restored). SKIP goes straight there with the Power. Old saves that say `free`/`power`... start from lesson 1; `save.tutorial === 'done'` never sees them. The pause menu replays any lesson.
+* Removed: `Opening.ts` (the cellar director). Kept: the Kaboom blast boost.
+* Tests: 311 pass; the lesson tests cover each room's payoff, the fallbacks and the full chain. **Not verified by a human**, and not on a phone.

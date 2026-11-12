@@ -1401,3 +1401,58 @@ body.touch .b2-hud__powerkey {
   .b2-hud .hud-pause span:first-child { left: 13px; }
   .b2-hud .hud-pause span:last-child { right: 13px; }
 }
+
+/* The lesson card: which lesson this is and the one thing to do next. Top-centre, under the health plate. */
+.b2-hud .b2-lesson {
+  position: absolute;
+  left: 50%;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: min(64vw, 640px);
+  padding: 7px 18px 9px;
+  background: var(--b2-cream);
+  color: var(--b2-ink);
+  border: 3px solid var(--b2-ink);
+  box-shadow: 0 4px 0 var(--b2-ink);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -8px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.b2-hud .b2-lesson.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.b2-hud .b2-lesson__kicker {
+  font-family: var(--b2-display);
+  font-size: clamp(10px, 1.2vw, 13px);
+  letter-spacing: 0.08em;
+  opacity: 0.65;
+}
+
+.b2-hud .b2-lesson__text {
+  font-family: var(--b2-display);
+  font-size: clamp(15px, 2.2vw, 24px);
+  line-height: 1.1;
+}
+
+@media (max-width: 760px) {
+  .b2-hud .b2-lesson {
+    top: calc(env(safe-area-inset-top, 0px) + 58px);
+    max-width: 80vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b2-hud .b2-lesson {
+    transition: none;
+    transform: translate(-50%, 0);
+  }
+}

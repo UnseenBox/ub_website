@@ -32,6 +32,7 @@ export type AnalyticsEventName =
   | 'daily_already_paid'
   | 'ledger_claim'
   | 'tutorial_skip'
+  | 'tutorial_step'
   | 'boot'
   | 'gameplay_first'
   | 'first_kill'
