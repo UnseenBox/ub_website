@@ -1,5 +1,5 @@
 import type { Boost } from '../abilities/Cards';
-import { BOOST_COSTS, coinsFor } from '../abilities/Cards';
+import { BOOST_COSTS } from '../abilities/Cards';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
@@ -37,6 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
+import { coinsForGoal, isLevelUnlocked, totalStars } from '../progression/Progression';
 import { COIN_VALUE, coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -420,7 +421,7 @@ export class Game {
   }
 
   private totalStars(): number {
-    return this.levels.reduce((sum, def) => sum + this.save.level(def.id).stars, 0);
+    return totalStars(this.save.data);
   }
 
   /** Erases every record and puts the player back on the first alley. */
@@ -445,7 +446,7 @@ export class Game {
 
   /** A level is open once the one before it has been scored on. */
   isUnlocked(index: number): boolean {
-    return index === 0 || this.save.level(this.levels[index - 1].id).goals > 0;
+    return isLevelUnlocked(this.save.data, this.levels, index);
   }
 
   private furthestUnlocked(): number {
@@ -937,7 +938,7 @@ export class Game {
     this.lastScore = card.total;
     // Every solo goal mints Kora Coins for the ability shop, and ends the level.
     if (this.shotRule === 'free') {
-      this.save.data.coins += coinsFor(card.total);
+      this.save.data.coins += coinsForGoal({ total: card.total });
       portal.gameplayStop();
     }
     if (card.newBest) this.record.best = card.total;

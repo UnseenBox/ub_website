@@ -4,6 +4,7 @@ import logoUrl from '../assets/ui/logo.png';
 import playUrl from '../assets/ui/play.png';
 import starUrl from '../assets/ui/arcade-star.png';
 import { lang, tr, type Lang } from '../core/i18n';
+import { chapterOf, chapterTitle } from '../progression/Progression';
 
 export interface SkinTile {
   id: string;
@@ -59,23 +60,6 @@ const starSprite = (): HTMLImageElement => {
 };
 
 const GEAR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>`;
-
-const CHAPTERS: ReadonlyArray<{ until: number; title: string }> = [
-  { until: 12, title: 'THE HOUMA' },
-  { until: 24, title: 'NEW GROUNDS' },
-  { until: 36, title: 'CRAZY LEAGUE' },
-  { until: 48, title: 'LEGENDS' },
-  { until: 60, title: 'STREET KINGS' },
-  { until: 72, title: 'NIGHT LEAGUE' },
-  { until: 84, title: 'GOLDEN HOUR' },
-  { until: 96, title: 'HALL OF FAME' },
-  { until: Number.POSITIVE_INFINITY, title: 'THE FINALS' },
-];
-
-function chapterOf(index: number): string {
-  for (const c of CHAPTERS) if (index < c.until) return c.title;
-  return CHAPTERS[CHAPTERS.length - 1].title;
-}
 
 let uiClick: (() => void) | null = null;
 /** Registers the sound played on menu/UI button taps. */
@@ -400,7 +384,7 @@ export class Overlay {
     let chapter = '';
     let grid: HTMLElement | null = null;
     tiles.forEach((tile, i) => {
-      const want = chapterOf(i);
+      const want = chapterTitle(chapterOf(i));
       if (want !== chapter) {
         chapter = want;
         const h = document.createElement('h3');

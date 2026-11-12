@@ -9,13 +9,15 @@
     "build": "tsc --noEmit && vite build",
     "build:crazygames": "tsc --noEmit && vite build --mode crazygames",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@fontsource-variable/unbounded": "^5.3.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2"
+    "vite": "^8.3.2",
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

@@ -39,7 +39,5 @@ export const BOOST_COSTS: Readonly<Record<Boost, number>> = {
   rubber: 15,
 };
 
-/** Coins earned for a solo goal: always at least a little, more for a crazier score. */
-export const coinsFor = (total: number): number => Math.max(5, Math.round(total / 100));
 export const asBoost = (id: CardId | null | undefined): Boost | null => (id === 'fire' || id === 'magnet' || id === 'rubber' ? id : null);
 export const asTrick = (id: CardId | null | undefined): Trick | null => (id === 'cat' || id === 'shutter' || id === 'smoke' ? id : null);
