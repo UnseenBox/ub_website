@@ -37,7 +37,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars } from '../progression/Progression';
+import { BANK_TIP_LEVEL, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import { coinSpot } from '../levels/coinPlacement';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
@@ -51,6 +51,7 @@ import { Camera } from '../rendering/Camera';
 import { Renderer } from '../rendering/Renderer';
 import { SaveManager, freshLevelRecord, type LevelRecord } from '../save/SaveManager';
 import { scoreShot } from '../scoring/ScoreSystem';
+import { STREET_LABELS } from '../scoring/StyleRecognizer';
 import { ShotAnalyzer } from '../scoring/ShotAnalyzer';
 import { Hud } from '../ui/HUD';
 import { AbilityBar } from '../ui/AbilityBar';
@@ -231,8 +232,12 @@ export class Game {
   onShotEnd: ((outcome: ShotOutcome) => void) | null = null;
   /** Called as a duel shot leaves the boot, before anything else happens to it. */
   onShotStart: (() => void) | null = null;
-  /** The boost that will ride on the next shot (a duel card). */
+  /** The boost that will ride on the next shot (a duel card, or one bought or won in solo play). */
   armedBoost: Boost | null = null;
+  /** The armed boost was a free charge, not coins: taking it back returns the charge. */
+  private armedFree = false;
+  /** A one-time scoring tip to show over the street until the next shot, or null. */
+  tip: { key: string; text: string } | null = null;
   /** The boost on the ball that is flying, or being replayed. */
   flightBoost: Boost | null = null;
   /** 0 to 1: how thick the smoke over the street is (a duel trick), easing towards its target. */
@@ -356,6 +361,7 @@ export class Game {
     this.abilities = new AbilityBar({
       wallet: () => this.save.data.coins,
       armed: () => this.armedBoost,
+      free: () => this.save.data.freeBoosts,
       canShow: () => this.shopVisible(),
       buy: (id) => this.buyAbility(id),
     });
@@ -421,6 +427,7 @@ export class Game {
     portal.gameplayStart();
     this.abilities.refresh(BOOST_COSTS);
     this.remember('game');
+    this.onLevelEntered();
   }
 
   private totalStars(): number {
@@ -431,6 +438,8 @@ export class Game {
   resetProgress(): void {
     // Drop an armed boost first: loadLevel would otherwise refund it into the fresh wallet.
     this.armedBoost = null;
+    this.armedFree = false;
+    this.tip = null;
     this.save.data.levels = {};
     this.save.data.coins = 0;
     this.save.data.skin = 'classic';
@@ -479,6 +488,8 @@ export class Game {
   private clearDuelState(): void {
     this.onShotStart = null;
     this.armedBoost = null;
+    this.armedFree = false;
+    this.tip = null;
     this.flightBoost = null;
     this.smoke = 0;
     this.smokeTarget = 0;
@@ -490,10 +501,9 @@ export class Game {
   loadLevel(index: number): void {
     const def = this.levels[index];
     if (!def) return;
-    // A paid boost never vanishes into a loading screen: hand the coins back.
+    // A paid boost never vanishes into a loading screen: hand the coins (or the free charge) back.
     if (this.armedBoost) {
-      this.save.data.coins += BOOST_COSTS[this.armedBoost];
-      this.armedBoost = null;
+      this.disarm();
       this.save.save();
     }
     this.shotRule = 'free';
@@ -563,6 +573,8 @@ export class Game {
   private shopVisible(): boolean {
     return (
       this.shotRule === 'free' &&
+      // The boost column is introduced at houma 6; before that it would only be clutter.
+      this.save.data.boostIntro &&
       !this.duelScore &&
       !this.duel.active &&
       !this.paused &&
@@ -570,23 +582,72 @@ export class Game {
     );
   }
 
-  /** Buys a boost for the next shot, or takes it back off for a refund. */
+  /** Takes an armed boost back off: a paid one returns its coins, a free one its charge. */
+  private disarm(): void {
+    const id = this.armedBoost;
+    if (!id) return;
+    if (this.armedFree) this.save.data.freeBoosts[id] = (this.save.data.freeBoosts[id] ?? 0) + 1;
+    else this.save.data.coins += BOOST_COSTS[id];
+    this.armedBoost = null;
+    this.armedFree = false;
+  }
+
+  /** Arms a boost for the next shot (a free charge first, else coins), or takes it back off for a refund. */
   buyAbility(id: Boost): void {
     if (!this.shopVisible()) return;
     this.audio.unlock();
     if (this.armedBoost === id) {
-      this.armedBoost = null;
-      this.save.data.coins += BOOST_COSTS[id];
+      this.disarm();
       this.save.save();
       this.sounds.card(false);
       return;
     }
-    const spare = this.armedBoost ? BOOST_COSTS[this.armedBoost] : 0;
-    if (this.save.data.coins + spare < BOOST_COSTS[id]) return;
-    this.save.data.coins += spare - BOOST_COSTS[id];
+    const free = this.save.data.freeBoosts[id] ?? 0;
+    const spare = this.armedBoost && !this.armedFree ? BOOST_COSTS[this.armedBoost] : 0;
+    if (free <= 0 && this.save.data.coins + spare < BOOST_COSTS[id]) return;
+    this.disarm();
+    if (free > 0) {
+      if (free === 1) delete this.save.data.freeBoosts[id];
+      else this.save.data.freeBoosts[id] = free - 1;
+      this.armedFree = true;
+    } else {
+      this.save.data.coins -= BOOST_COSTS[id];
+    }
     this.armedBoost = id;
     this.save.save();
     this.audio.play(`boost_${id}`, { gain: 1 });
+  }
+
+  /** Shows a tip once ever (kept in the save) and holds it over the street until the next shot. */
+  offerTip(key: TipKey, text: string): void {
+    if (this.save.data.tips.includes(key)) return;
+    this.save.data.tips.push(key);
+    this.save.save();
+    this.tip = { key, text };
+  }
+
+  /**
+   * Things a player is told the first time they arrive on a houma: the bank tip on houma 2, and
+   * the boost column with one free MAGNET on houma 6.
+   */
+  private onLevelEntered(): void {
+    if (this.shotRule !== 'free' || this.level.index < 0 || this.paused) return;
+    if (this.level.index === BANK_TIP_LEVEL && this.record.goals === 0) this.offerTip('bank', 'BOUNCE IT OFF A WALL. EVERY BOUNCE MULTIPLIES YOUR SCORE.');
+    if (this.level.index >= BOOST_INTRO_LEVEL && !this.save.data.boostIntro) {
+      this.save.data.boostIntro = true;
+      this.save.data.freeBoosts.magnet = (this.save.data.freeBoosts.magnet ?? 0) + BOOST_INTRO_FREE_MAGNETS;
+      this.save.save();
+      this.paused = true;
+      portal.gameplayStop();
+      this.overlay.showBoostIntro(() => {
+        this.paused = false;
+        this.overlay.hide();
+        this.syncButtons(true);
+        portal.gameplayStart();
+        this.abilities.refresh(BOOST_COSTS);
+      });
+      this.abilities.refresh(BOOST_COSTS);
+    }
   }
 
   /** Back to the title card, on the furthest solo houma reached. */
@@ -609,6 +670,7 @@ export class Game {
     this.ball.reset(this.level.def.ballStart.x, this.level.def.ballStart.y);
     portal.gameplayStart();
     this.remember('game');
+    this.onLevelEntered();
   }
 
   setPaused(paused: boolean): void {
@@ -696,6 +758,7 @@ export class Game {
     this.loadLevel(index);
     portal.gameplayStart();
     this.remember('game');
+    this.onLevelEntered();
   }
 
   /** True when a midgame ad cannot interrupt a shot, a moving ball or a celebration still landing. */
@@ -832,6 +895,8 @@ export class Game {
     this.level.arm(this.armedBoost, b);
     this.flightBoost = this.armedBoost;
     this.armedBoost = null;
+    this.armedFree = false;
+    this.tip = null;
     this.smokeTarget = 0;
     this.shotEvents = [];
     this.shotMovers = this.level.moverState();
@@ -968,6 +1033,7 @@ export class Game {
       this.save.data.coins += this.goalCoins;
       portal.gameplayStop();
     }
+    if (this.shotRule === 'free') this.offerGoalTips(card.lines.map((l) => l.label));
     if (card.newBest) this.record.best = card.total;
     if (card.stars > this.record.stars) this.record.stars = card.stars;
     this.save.save();
@@ -985,6 +1051,19 @@ export class Game {
     this.net.punch(b.x, b.vx * 0.16, b.vy * 0.12);
     this.events.emit('GOAL_SCORED', { x: b.x, y: b.y, speed: Math.hypot(b.vx, b.vy), total: card.total, bounces: card.bounces, stars: card.stars, newBest: card.newBest });
     if (this.shotRule === 'single') this.onShotEnd?.({ goal: true, score: card.total, path: this.path, events: this.shotEvents, movers: this.shotMovers });
+  }
+
+  /** The first street trick and the first CHAIN REACTION each get one explaining line, shown on the next shot. */
+  private offerGoalTips(labels: readonly string[]): void {
+    const street = labels.find((l) => STREET_LABELS.has(l));
+    if (!street) return;
+    if (labels.includes('CHAIN REACTION')) {
+      // A chain implies the first-trick tip: say the bigger thing once.
+      if (!this.save.data.tips.includes('labels')) this.save.data.tips.push('labels');
+      this.offerTip('chain', 'THREE DIFFERENT THINGS IN ONE SHOT: CHAIN REACTION.');
+    } else {
+      this.offerTip('labels', tr('{label}! USING THE STREET EARNS BONUS POINTS.', { label: tr(street) }));
+    }
   }
 
   private missShot(): void {

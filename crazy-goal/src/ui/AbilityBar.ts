@@ -8,6 +8,8 @@ import { tr } from '../core/i18n';
 export interface AbilityBarHandlers {
   wallet(): number;
   armed(): Boost | null;
+  /** Free charges per boost (a gift, not bought): shown as FREE instead of a price. */
+  free(): Readonly<Partial<Record<Boost, number>>>;
   /** Solo free play, ball waiting to be struck, nothing covering the screen. */
   canShow(): boolean;
   buy(id: Boost): void;
@@ -85,7 +87,8 @@ export class AbilityBar {
     const visible = this.handlers.canShow();
     const wallet = this.handlers.wallet();
     const armed = this.handlers.armed();
-    const key = `${visible}|${wallet}|${armed}`;
+    const free = this.handlers.free();
+    const key = `${visible}|${wallet}|${armed}|${free.fire ?? 0}|${free.magnet ?? 0}|${free.rubber ?? 0}`;
     if (key === this.last) return;
     this.last = key;
     this.el.hidden = !visible;
@@ -97,13 +100,14 @@ export class AbilityBar {
       const card = cardOf(id);
       const cost = costs[id];
       const isArmed = armed === id;
-      const afford = wallet >= cost;
+      const gift = (free[id] ?? 0) > 0;
+      const afford = gift || wallet >= cost;
       b.disabled = !isArmed && !afford;
       b.classList.toggle('is-armed', isArmed);
       b.title = tr(card.blurb);
       b.setAttribute('aria-label', isArmed ? `${tr(card.name)} — ${tr('ARMED')}` : afford ? `${tr(card.name)} — ${tr(card.blurb)}` : tr('NOT ENOUGH COINS'));
       (b.querySelector('.ability-name') as HTMLElement).textContent = tr(card.name);
-      (b.querySelector('.ability-cost') as HTMLElement).textContent = isArmed ? '✓' : String(cost);
+      (b.querySelector('.ability-cost') as HTMLElement).textContent = isArmed ? '✓' : gift ? tr('FREE') : String(cost);
     }
   }
 }

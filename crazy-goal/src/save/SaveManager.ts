@@ -129,6 +129,9 @@ export function parseSave(raw: string | null): SaveData {
     }
   }
   if (legacy) {
+    // A v1 player who has already played houma 6 had the boost column all along: no introduction.
+    const six = out.levels['houma-06'];
+    out.boostIntro = !!six && (six.attempts > 0 || six.goals > 0);
     // Everything a v1 player has already earned is old news, not a surprise to announce.
     let stars = 0;
     for (const rec of Object.values(out.levels)) stars += rec.stars;

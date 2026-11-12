@@ -160,3 +160,13 @@ export function starHint(goal: GoalFacts): string {
   if (!goal.street) return 'USE THE STREET';
   return 'GO CRAZIER';
 }
+
+/** Onboarding: the boost column stays hidden until this houma (0-based index 5 is houma 6). */
+export const BOOST_INTRO_LEVEL = 5;
+/** The free MAGNET handed over with the boost introduction. */
+export const BOOST_INTRO_FREE_MAGNETS = 1;
+/** The houma where the scoring tip about banks is shown, before its first shot (0-based). */
+export const BANK_TIP_LEVEL = 1;
+
+/** Keys of the one-time tips kept in `save.tips`. */
+export type TipKey = 'bank' | 'labels' | 'chain';

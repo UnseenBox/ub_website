@@ -3,7 +3,7 @@ import { rtl, tr } from '../core/i18n';
 import { clamp01, easeOutBack, easeOutCubic, lerp, TAU } from '../core/math';
 import { CELEBRATION_TIMING } from '../goal/GoalCelebration';
 import { MISS_LABEL } from '../goal/GoalDetector';
-import { formatScore, roundRect, signText, text } from '../rendering/DrawUtils';
+import { formatScore, roundRect, signText, text, wrapText } from '../rendering/DrawUtils';
 import { C, FONT, rgba } from '../rendering/Palette';
 import { nextStarTarget, starHint } from '../progression/Progression';
 import arcadeStarUrl from '../assets/ui/arcade-star.png';
@@ -71,8 +71,9 @@ export class Hud {
     if (g.state === 'menu') return;
 
     if (g.level.index === 0 && g.record.goals === 0 && (g.state === 'ready' || g.state === 'aiming')) this.drawPrompt(ctx, g, u);
+    if (g.tip && (g.state === 'ready' || g.state === 'aiming') && !g.paused) this.drawTip(ctx, g, u, g.tip.text);
     // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
-    if ((g.state === 'ready' || g.state === 'aiming') && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active) {
+    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active) {
       const keys = !cam.portrait && !g.input.pointer.touch;
       this.drawTargets(ctx, g, u, left, top + 18 * u + (keys ? 124 * u : 0));
     }
@@ -293,6 +294,30 @@ export class Hud {
       }
     }
     ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  /** A one-time scoring tip: up to two lines in a pill under the kerb, until the next shot. */
+  private drawTip(ctx: CanvasRenderingContext2D, g: Game, u: number, str: string): void {
+    const { arena } = g.level.def;
+    const size = 12 * u;
+    const maxW = (arena.w + 60) * Math.min(1, 1.15 / Math.max(1, u));
+    ctx.font = `900 ${size}px ${FONT}`;
+    const lines = wrapText(ctx, tr(str), maxW - size * 2.4);
+    const lineH = size * 1.45;
+    const w = Math.min(maxW, Math.max(...lines.map((l) => ctx.measureText(l).width)) + size * 2.4);
+    const h = lines.length * lineH + size * 1.1;
+    const cx = arena.x + arena.w / 2;
+    const top = arena.y + arena.h + 10 + Math.sin(g.time.elapsed * 3) * 1.5;
+    ctx.globalAlpha = clamp01(g.stateT * 6 + 0.5);
+    roundRect(ctx, cx - w / 2, top, w, h, Math.min(h / 2, 18 * u));
+    ctx.fillStyle = C.navy;
+    ctx.fill();
+    ctx.fillStyle = C.sun;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    lines.forEach((line, i) => ctx.fillText(line, cx, top + size * 0.55 + lineH * (i + 0.5)));
     ctx.globalAlpha = 1;
     ctx.textBaseline = 'alphabetic';
   }

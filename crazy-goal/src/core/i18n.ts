@@ -603,6 +603,14 @@ const AR: Readonly<Record<string, string>> = {
   '+{n} COINS': '+{n} عملة',
   '{n} STARS TO OPEN': '{n} نجمة للفتح',
   'YOU HAVE {have} OF {need} STARS': 'لديك {have} من {need} نجمة',
+  // Onboarding (1.4).
+  BOOSTS: 'التعزيزات',
+  'STUCK? BURN THROUGH, PULL IT IN, OR BOUNCE FOREVER.': 'عالق؟ اخترق، اسحبها للمرمى، أو ارتدِ بلا نهاية.',
+  'A FREE MAGNET IS WAITING ON THE RIGHT.': 'مغناطيس مجاني ينتظرك على اليمين.',
+  FREE: 'مجاني',
+  'BOUNCE IT OFF A WALL. EVERY BOUNCE MULTIPLIES YOUR SCORE.': 'ارتدِ بها عن الحائط. كل ارتداد يضاعف نقاطك.',
+  '{label}! USING THE STREET EARNS BONUS POINTS.': '{label}! استعمال الحومة يمنحك نقاطاً إضافية.',
+  'THREE DIFFERENT THINGS IN ONE SHOT: CHAIN REACTION.': 'ثلاثة أشياء مختلفة في تسديدة واحدة: تفاعل متسلسل.',
 };
 
 function stored(): Lang {

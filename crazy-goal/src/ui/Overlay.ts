@@ -3,6 +3,7 @@ import levelsUrl from '../assets/ui/levels.png';
 import logoUrl from '../assets/ui/logo.png';
 import playUrl from '../assets/ui/play.png';
 import starUrl from '../assets/ui/arcade-star.png';
+import { cardOf } from '../abilities/Cards';
 import { lang, tr, type Lang } from '../core/i18n';
 import { chapterOf, chapterTitle } from '../progression/Progression';
 
@@ -140,6 +141,8 @@ export class Overlay {
   private resetArmed = false;
   private readonly resetButton: HTMLButtonElement;
   private readonly rewardLabel: HTMLElement;
+  private readonly boostIntro: HTMLElement;
+  private boostIntroDone: (() => void) | null = null;
 
   constructor(
     private readonly root: HTMLElement,
@@ -263,8 +266,25 @@ export class Overlay {
     balls.append(el('h2', 'panel-title', 'BALLS'), this.skinProgress, this.skinGrid, button('btn btn-ghost', 'BACK', () => this.showMenu()));
     this.skins.append(balls);
 
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins];
+    // The one-time boost introduction, shown when houma 6 is first reached.
+    this.boostIntro = el('div', 'screen pause');
+    const intro = el('div', 'panel boost-intro');
+    intro.setAttribute('role', 'dialog');
+    intro.setAttribute('aria-modal', 'true');
+    intro.append(el('h2', 'panel-title', 'BOOSTS'), el('p', 'boost-intro-lead', 'STUCK? BURN THROUGH, PULL IT IN, OR BOUNCE FOREVER.'));
+    const list = el('ul', 'boost-intro-list');
+    for (const id of ['fire', 'magnet', 'rubber'] as const) {
+      const card = cardOf(id);
+      const row = el('li', 'boost-intro-row');
+      row.style.setProperty('--card', card.color);
+      row.append(el('strong', 'boost-intro-name', card.name), el('span', 'boost-intro-blurb', card.blurb));
+      list.append(row);
+    }
+    intro.append(list, el('p', 'boost-intro-gift', 'A FREE MAGNET IS WAITING ON THE RIGHT.'), button('btn btn-primary', 'GOT IT', () => this.closeBoostIntro()));
+    this.boostIntro.append(intro);
+
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.boostIntro];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -305,6 +325,18 @@ export class Overlay {
     const { n, max } = this.handlers.stars();
     this.starText.textContent = tr('STARS {n} / {max}', { n, max });
     this.show(this.menu);
+  }
+
+  /** The boost column's one-time introduction; `done` runs when the player dismisses it. */
+  showBoostIntro(done: () => void): void {
+    this.boostIntroDone = done;
+    this.show(this.boostIntro);
+  }
+
+  private closeBoostIntro(): void {
+    const done = this.boostIntroDone;
+    this.boostIntroDone = null;
+    done?.();
   }
 
   showPause(): void {
