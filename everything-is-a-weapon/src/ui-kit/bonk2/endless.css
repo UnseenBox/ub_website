@@ -123,6 +123,14 @@
   letter-spacing: 0.06em;
 }
 
+.b2-lobby__caption {
+  font-size: 0.55em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  opacity: 0.85;
+}
+
 .b2-lobby__dailytop {
   display: inline-flex;
   align-items: center;
@@ -183,6 +191,9 @@
 
 /* Short screens (landscape phones): keep PLAY, the mode row and the nav all on screen. */
 @media (max-height: 520px) {
+  .b2-lobby__caption {
+    display: none;
+  }
   .b2-lobby__subrow .b2-btn {
     min-height: 40px;
     padding-top: 2px;

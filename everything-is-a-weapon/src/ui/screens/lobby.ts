@@ -270,7 +270,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   const endlessBtn = el('button', 'b2-btn b2-btn--blue b2-lobby__endless');
   endlessBtn.type = 'button';
   const bestFloor = game.save.data.endlessBestFloor;
-  endlessBtn.append(el('span', 'b2-lobby__playlabel', 'ENDLESS'));
+  endlessBtn.append(el('span', 'b2-lobby__playlabel', 'ENDLESS'), el('span', 'b2-lobby__caption', 'how deep can you go'));
   if (bestFloor > 0) endlessBtn.append(el('span', 'b2-lobby__endlessbest', `BEST: FLOOR ${bestFloor}`));
   endlessBtn.addEventListener('click', () => actions.endless());
   // DAILY: today's shared room, with the week's streak row (ready = a prize is waiting).
@@ -294,7 +294,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     const pip = el('span', `b2-lobby__pip${i <= view.pips ? ' is-on' : ''}${i === 3 || i === 7 ? ' is-big' : ''}${!view.doneToday && i === view.pips + 1 ? ' is-next' : ''}`);
     pips.append(pip);
   }
-  dailyBtn.append(dailyTop, pips);
+  dailyBtn.append(dailyTop, pips, el('span', 'b2-lobby__caption', 'same room for everyone'));
   dailyBtn.addEventListener('click', () => actions.daily());
   const subRow = el('div', 'b2-lobby__subrow');
   subRow.append(endlessBtn, dailyBtn);
