@@ -567,9 +567,13 @@ export function generateRoom(
   const enemies: RoomEnemySpec[] = [];
   const areaFactor = Math.min(1.3, Math.max(0.55, (width * height) / 560000));
   let budget = (4.5 + depth * 1.1) * areaFactor;
-  // A third of depths rooms are survival: outlast the clock, killing is optional.
+  // About three in ten rooms have a bonus objective (survive the clock, pull off tricks, one long
+  // chain). Only every other index is eligible, so two in a row never happens, and never a boss room.
+  // The chance is drawn for every non-boss room, so the rest of the room does not change with it.
   const hasBoss = (index + 1) % 3 === 0;
-  const survive = !hasBoss && rng.chance(0.35) ? Math.min(90, 45 + depth * 5) : null;
+  const wantsObjective = !hasBoss && rng.chance(0.6) && index % 2 === 1;
+  const objectiveKind = (['survive', 'trick', 'chain'] as const)[(seed >>> 3) % 3]!;
+  const survive = wantsObjective && objectiveKind === 'survive' ? Math.min(90, 45 + depth * 5) : null;
   let delay = 1.8;
   const have = new Map<EnemyTypeId, number>();
   while (budget >= 1 && enemies.length < crewSize(depth)) {
@@ -638,7 +642,10 @@ export function generateRoom(
         ? { x: width / 2, y: height / 2 + 30, w: rng.range(260, 380), h: rng.range(160, 220), color: rng.pick(kit.rugs) }
         : undefined,
     challenge: challengeOverride ?? rng.pick(GENERIC_CHALLENGES),
-    objective: survive ? { kind: 'survive', seconds: Math.round(survive) } : undefined,
+    objective: !wantsObjective ? undefined
+      : objectiveKind === 'survive' ? { kind: 'survive', seconds: Math.round(survive ?? 45) }
+        : objectiveKind === 'trick' ? { kind: 'trick', kills: Math.min(4, 2 + Math.floor(depth / 6)) }
+          : { kind: 'chain', length: depth >= 8 ? 4 : 3 },
   };
 }
 

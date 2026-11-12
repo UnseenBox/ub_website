@@ -154,6 +154,12 @@ function riskFor(index: number, def: RoomDefinition): DoorRisk {
   if (def.objective?.kind === 'survive') {
     return { label: 'CLOCK', detail: `survive ${def.objective.seconds}s` };
   }
+  if (def.objective?.kind === 'trick') {
+    return { label: 'TRICKS', detail: `${def.objective.kills} tricks end it early` };
+  }
+  if (def.objective?.kind === 'chain') {
+    return { label: 'CHAIN', detail: `a ${def.objective.length}-chain ends it early` };
+  }
   if (def.challenge) {
     return { label: 'OBJECTIVE', detail: 'a bonus objective is inside' };
   }

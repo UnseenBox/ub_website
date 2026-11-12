@@ -62,6 +62,8 @@ export class HUD {
   private readonly lineup: HTMLElement;
   private readonly sticky: HTMLElement;
   private readonly stickyText: HTMLElement;
+  /** Trick and chain rooms: "TRICKS 1/3". */
+  private readonly goalChip: HTMLElement;
   private readonly score: HTMLElement;
   private readonly combo: HTMLElement;
   private readonly comboValue: HTMLElement;
@@ -82,7 +84,7 @@ export class HUD {
   private mugs: Mug[] = [];
   private readonly powerChips = new Map<string, HTMLElement>();
   private readonly powerCool = new Map<string, number>();
-  private last = { room: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', scrap: -1, coach: '', lesson: '', touch: false };
+  private last = { goal: '', room: '', hp: -1, pending: -1, challenge: '', combo: -1, carrying: false, cinema: false, comboT: -1, powers: '', scrap: -1, coach: '', lesson: '', touch: false };
   private shownScore = 0;
   private bannerTimer = 0;
   private hintTimer = 0;
@@ -153,7 +155,9 @@ export class HUD {
     this.sticky = el('div', 'sticky b2-hud__sticky hidden');
     this.stickyText = el('span', 'sticky-text b2-hud__stickytext');
     this.sticky.append(el('span', 'sticky-box b2-hud__stickytab'), this.stickyText);
-    center.append(this.lineup, this.sticky);
+    this.goalChip = el('div', 'sticky b2-hud__sticky hidden');
+    this.goalChip.setAttribute('role', 'status');
+    center.append(this.lineup, this.sticky, this.goalChip);
 
     // ── right: score, scrap, combo, pause ──
     const right = el('div', 'b2-hud__right');
@@ -657,6 +661,15 @@ export class HUD {
       this.sticky.classList.toggle('failed', status === 'failed');
       this.stickyText.textContent = challenge ? challenge.short.toLowerCase() : '';
       this.sticky.title = challenge ? challenge.text.toLowerCase() : '';
+    }
+
+    // Trick and chain rooms: how close the shortcut is.
+    const goal = game.room.goal;
+    const goalText = goal ? `${goal.kind === 'trick' ? 'TRICKS' : 'CHAIN'} ${Math.min(goal.target, game.goalProgress())}/${goal.target}` : '';
+    if (goalText !== last.goal) {
+      last.goal = goalText;
+      this.goalChip.classList.toggle('hidden', !goal);
+      this.goalChip.textContent = goalText;
     }
 
     // The total rolls up like a till instead of jumping.

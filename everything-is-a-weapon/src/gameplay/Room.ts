@@ -46,13 +46,17 @@ export interface RugSpec {
   readonly color: string;
 }
 
-/** How a generated room is won. Omitted: kill everything that walks in. */
-export interface RoomObjective {
+/**
+ * How a generated room is won. Omitted: kill everything that walks in. `trick` and `chain` are
+ * shortcuts, not traps: reach the goal and whoever is left flees, or just clear the room as usual.
+ */
+export type RoomObjective =
   /** Survive the clock: whoever is left standing flees when it runs out. */
-  readonly kind: 'survive';
-  /** Seconds to stay breathing. */
-  readonly seconds: number;
-}
+  | { readonly kind: 'survive'; readonly seconds: number }
+  /** Knock out this many movers with the room instead of your hands (fire, shocks, blasts, falling things). */
+  | { readonly kind: 'trick'; readonly kills: number }
+  /** Get one chain reaction this long. */
+  | { readonly kind: 'chain'; readonly length: number };
 
 /** A room is pure data. Coordinates are in interior space: (0,0) is the top-left floor corner. */
 export interface RoomDefinition {

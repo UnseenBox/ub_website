@@ -45,6 +45,8 @@ export interface RoomRuntime {
   hasEnforcer: boolean;
   /** Survival rooms: seconds to outlast (null: kill everything). */
   survive: number | null;
+  /** Trick and chain rooms: what to reach, as a count (null: kill everything). */
+  goal: { readonly kind: 'trick' | 'chain'; readonly target: number } | null;
 }
 
 /**
@@ -220,6 +222,10 @@ export class RoomManager {
       heatEnabled: incident !== null || def.objective?.kind === 'survive',
       hasEnforcer: incident?.kind === 'enforcer',
       survive: def.objective?.kind === 'survive' ? def.objective.seconds : null,
+      goal:
+        def.objective?.kind === 'trick' ? { kind: 'trick', target: def.objective.kills }
+          : def.objective?.kind === 'chain' ? { kind: 'chain', target: def.objective.length }
+            : null,
     };
   }
 

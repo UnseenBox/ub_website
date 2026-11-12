@@ -709,7 +709,11 @@ export class Game {
     if (firstVisit && !def.tutorial && index > 0 && act.from === index) {
       this.hud.hint(act.name, act.tagline, 3.2);
     } else if (firstVisit && !def.tutorial) {
-      const goal = def.objective?.kind === 'survive' ? `survive ${def.objective.seconds}s` : briefing.objective;
+      const goal =
+        def.objective?.kind === 'survive' ? `survive ${def.objective.seconds}s`
+          : def.objective?.kind === 'trick' ? `${def.objective.kills} tricks and it is over`
+            : def.objective?.kind === 'chain' ? `one ${def.objective.length}-chain and it is over`
+              : briefing.objective;
       this.hud.hint(`${index + 1} · ${def.name}`, goal, 3);
     }
     if (this.endless) {
@@ -1327,6 +1331,29 @@ export class Game {
     this.enterRoom(this.rooms.definition(0), 0, false);
   }
 
+  /** Trick and chain rooms: how far along the goal is (0 for any other room). */
+  goalProgress(): number {
+    const goal = this.room.goal;
+    if (!goal) return 0;
+    return goal.kind === 'trick' ? this.score.stats.hazardKills : this.score.stats.bestChain;
+  }
+
+  /** Whoever is left walks off: the room is won before the last mover falls. */
+  private endRoomEarly(word: string): void {
+    const room = this.room;
+    room.pending.length = 0;
+    for (const enemy of this.enemies) {
+      if (enemy.defeated) continue;
+      enemy.defeated = true;
+      enemy.alive = false;
+      this.particles.burst('dust', enemy.body.x, enemy.body.y, 8, 120);
+    }
+    this.audio.play('poof', 0.6);
+    room.cleared = true;
+    room.clearTimer = 0;
+    this.hud.stamp(word);
+  }
+
   private completeRoom(): void {
     this.trackRoomEnd('clear');
     const bonus = this.challenges.resolve();
@@ -1468,19 +1495,10 @@ export class Game {
       this.hud.stamp('CLEARED');
     }
     // Survival rooms: outlast the clock and whoever is left flees.
-    if (!room.cleared && room.survive !== null && room.elapsed >= room.survive) {
-      room.pending.length = 0;
-      for (const enemy of this.enemies) {
-        if (enemy.defeated) continue;
-        enemy.defeated = true;
-        enemy.alive = false;
-        this.particles.burst('dust', enemy.body.x, enemy.body.y, 8, 120);
-      }
-      this.audio.play('poof', 0.6);
-      room.cleared = true;
-      room.clearTimer = 0;
-      this.hud.stamp('SURVIVED');
-    }
+    if (!room.cleared && room.survive !== null && room.elapsed >= room.survive) this.endRoomEarly('SURVIVED');
+    // Trick and chain rooms: reach the goal and the rest of the crew gives up.
+    const goal = room.goal;
+    if (!room.cleared && goal && this.goalProgress() >= goal.target) this.endRoomEarly(goal.kind === 'trick' ? 'TRICKED' : 'CHAINED');
     if (room.cleared) {
       room.clearTimer += dt;
       room.exitOpen = Math.min(1, room.exitOpen + dt * 2);
