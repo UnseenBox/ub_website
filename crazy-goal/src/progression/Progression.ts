@@ -20,17 +20,19 @@ export interface ProgressLevel {
   id: string;
 }
 
-/** Chapters of twelve houmas; the last one is the four finals. */
+/**
+ * The chapters are the worlds of the campaign (`world` in `data/levels/campaign.ts`): the first holds the
+ * tutorial and matches 2 and 3, then one for each world of the campaign, five or six matches each.
+ */
 export const CHAPTERS: ReadonlyArray<{ until: number; title: string }> = [
-  { until: 12, title: 'OPENING SEASON' },
-  { until: 24, title: 'NEW GROUNDS' },
-  { until: 36, title: 'CRAZY LEAGUE' },
-  { until: 48, title: 'LEGENDS' },
-  { until: 60, title: 'STREET KINGS' },
-  { until: 72, title: 'NIGHT LEAGUE' },
-  { until: 84, title: 'GOLDEN HOUR' },
-  { until: 96, title: 'HALL OF FAME' },
-  { until: Number.POSITIVE_INFINITY, title: 'THE FINALS' },
+  { until: 10, title: 'OPENING SEASON' },
+  { until: 15, title: 'GROUND RULES' },
+  { until: 21, title: 'STREET OBJECTS' },
+  { until: 27, title: 'KEEPERS AND MOVERS' },
+  { until: 32, title: 'WEATHER' },
+  { until: 37, title: 'AFTER DARK' },
+  { until: 42, title: 'ROOFTOPS AND HARBOUR' },
+  { until: Number.POSITIVE_INFINITY, title: 'BIG MATCHES' },
 ];
 
 /** The chapter a level (0-based index) belongs to, counted from 1. */
@@ -47,8 +49,8 @@ export const chapterStart = (chapter: number): number => (chapter <= 1 ? 0 : CHA
 
 const goalsOf = (save: ProgressSave, id: string): number => save.levels[id]?.goals ?? 0;
 
-/** Stars needed per chapter after the first: chapter `c` opens at `GATE_PER_CHAPTER * (c - 1)`. Twelve levels give twelve, so four more come from style. */
-export const GATE_PER_CHAPTER = 16;
+/** Stars needed per chapter after the first: chapter `c` opens at `GATE_PER_CHAPTER * (c - 1)`. A world has about five matches, so a star and a half each is enough. */
+export const GATE_PER_CHAPTER = 10;
 
 /** Stars won in the houmas alone: Free Kicks does not open chapters. */
 export function classicStars(save: ProgressSave): number {

@@ -72,6 +72,8 @@ export class PhysicsWorld {
     for (let i = 0; i < this.movers.length; i++) {
       const o = this.movers[i];
       if ((o.layer & b.mask) === 0) continue;
+      // A lofted ball flies over a keeper's head or a scooter's seat.
+      if (b.z > 0 && o.clear < b.z) continue;
       if (!circleVsBody(b.x, b.y, r, o, c)) continue;
       // Bounce in the mover's frame of reference, so a body coming at the ball adds its pace.
       b.vx -= o.vx;

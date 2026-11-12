@@ -39,7 +39,7 @@ export class Cat extends Mechanic {
     this.homeX = goal.cx;
     this.minX = goal.cx - goal.width / 2 + 6;
     this.maxX = goal.cx + goal.width / 2 - 6;
-    this.body = world.addMover(createBody({ shape: circle(CAT_RADIUS), surface: 'cat', x: goal.cx, y: goal.lineY + STAND_OFF, restitution: 0.3, friction: 0.3 }));
+    this.body = world.addMover(createBody({ shape: circle(CAT_RADIUS), surface: 'cat', x: goal.cx, y: goal.lineY + STAND_OFF, restitution: 0.3, friction: 0.3, clear: 48 }));
     this.bodies.push(this.body);
     this.sortY = this.body.y;
   }

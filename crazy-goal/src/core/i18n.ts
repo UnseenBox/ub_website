@@ -682,6 +682,14 @@ const AR: Readonly<Record<string, string>> = {
   'Burn through it.': 'اخترقها بالنار.',
   'Let the goal pull it in.': 'دع المرمى يسحبها.',
   'Keep the bounce.': 'حافظ على الارتداد.',
+  // The worlds of the campaign.
+  'GROUND RULES': 'قواعد الأرض',
+  'STREET OBJECTS': 'أشياء الشارع',
+  'KEEPERS AND MOVERS': 'الحراس والمتحركات',
+  WEATHER: 'الطقس',
+  'AFTER DARK': 'بعد الغروب',
+  'ROOFTOPS AND HARBOUR': 'السطوح والميناء',
+  'BIG MATCHES': 'المباريات الكبرى',
 };
 
 function stored(): Lang {

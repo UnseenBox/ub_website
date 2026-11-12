@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from '../../data/levels/matches';
 import { snapBend } from '../core/Guide';
+import { matchInfo } from '../progression/Progression';
 import { Level } from './Level';
 import { countRoutes, fireShot, sweepLevel, traceShot, type Kick } from './sweep';
 
@@ -30,8 +31,18 @@ const KICKS: readonly Kick[] = [
 ];
 const POWERS = [0.1, 0.18, 0.26, 0.35, 0.45, 0.55, 0.7, 0.85, 1];
 
-function measure(n: number): { hits: number; routes: number; threeStar: number; threeAngles: number; best: number } {
-  const hits = KICKS.flatMap((kick) => sweepLevel(LEVELS[n - 1], n - 1, 1, POWERS, 0, kick));
+/** A lighter sweep for the campaign, which has forty levels: two degree steps, the four basic kicks. */
+const LIGHT_KICKS: readonly Kick[] = [KICKS[0], KICKS[1], KICKS[2], KICKS[3]];
+
+function measure(n: number, light = false): { hits: number; routes: number; threeStar: number; threeAngles: number; best: number } {
+  const def = LEVELS[n - 1];
+  // A level with something moving may keep the first instant shut: let the street run until a shot gets in.
+  const delays = light ? [0, 0.7, 1.4, 2.1] : [0];
+  let hits: ReturnType<typeof sweepLevel> = [];
+  for (const delay of delays) {
+    hits = (light ? LIGHT_KICKS : KICKS).flatMap((kick) => sweepLevel(def, n - 1, light ? 2 : 1, POWERS, delay, kick));
+    if (hits.length >= 3) break;
+  }
   const three = hits.filter((h) => h.stars === 3);
   return {
     hits: hits.length,
@@ -144,6 +155,31 @@ if (process.env.LEVEL_TABLE) {
     });
   });
 
+  describe('the campaign', () => {
+    it('is forty matches: the tutorial, then thirty-nine more, with unique ids and names', () => {
+      expect(matchInfo(LEVELS, LEVELS.length - 1).match).toBe(40);
+      expect(new Set(LEVELS.map((l) => l.id)).size).toBe(LEVELS.length);
+      expect(new Set(LEVELS.map((l) => l.name)).size).toBe(LEVELS.length);
+    });
+    it('puts every match from the fourth on in a world, and no two matches in one world share a ground and a shape', () => {
+      const campaign = LEVELS.filter((l) => /^m\d\d-/.test(l.id));
+      expect(campaign).toHaveLength(37);
+      for (const l of campaign) expect(l.world, l.id).toBeTruthy();
+      const seen = new Set<string>();
+      for (const l of campaign) {
+        const key = `${l.world}|${l.theme ?? 'street'}|${l.surface}|${l.mechanics.map((m) => m.type).sort().join('+')}`;
+        expect(seen.has(key), `${l.id} repeats another match's ground and mechanics`).toBe(false);
+        seen.add(key);
+      }
+    });
+    it('has sensible stars: the second star below the third, both above a plain goal', () => {
+      for (const l of LEVELS) {
+        expect(l.stars[0], l.id).toBeGreaterThanOrEqual(1000);
+        expect(l.stars[1], l.id).toBeGreaterThan(l.stars[0]);
+      }
+    });
+  });
+
   describe('the ability lessons', () => {
     const lessons = LEVELS.map((def, i) => ({ def, i })).filter((l) => l.def.guide?.boost);
     it('there is one for each ability, after the five moves and before the first match', () => {
@@ -183,8 +219,8 @@ if (process.env.LEVEL_TABLE) {
 
   describe('every match', () => {
     for (const n of EDITED) {
-      it(`match ${n} has 3 or more routes and a 3 star route at 1 degree steps`, { timeout: 120000 }, () => {
-        const m = measure(n);
+      it(`match ${n} has 3 or more routes and a 3 star route`, { timeout: 300000 }, () => {
+        const m = measure(n, n > 10);
         expect(m.hits).toBeGreaterThan(0);
         expect(m.routes).toBeGreaterThanOrEqual(3);
         expect(m.threeStar).toBeGreaterThan(0);

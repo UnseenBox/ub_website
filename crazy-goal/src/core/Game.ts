@@ -1046,7 +1046,7 @@ export class Game {
         const rec = this.save.level(def.id);
         const gate = isGateBlocked(this.save.data, this.levels, i) ? gateStatus(this.save.data, this.levels, chapterOf(i)) : undefined;
         const m = matchInfo(this.levels, i);
-        return { name: def.name, group: m.lesson ? 'TUTORIAL' : 'MATCHES', label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin };
+        return { name: def.name, group: m.lesson ? 'TUTORIAL' : (def.world ?? 'OPENING SEASON'), label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin };
       }),
       this.level.index,
       focus,

@@ -35,7 +35,7 @@ export class Scooter extends Mechanic {
     this.ux = dx / this.length;
     this.uy = dy / this.length;
     this.body = world.addMover(
-      createBody({ shape: box(SCOOTER_LENGTH, SCOOTER_WIDTH), surface: 'scooter', x: def.x1, y: def.y1, angle: Math.atan2(dy, dx), restitution: 0.9, friction: 0.15 }),
+      createBody({ shape: box(SCOOTER_LENGTH, SCOOTER_WIDTH), surface: 'scooter', x: def.x1, y: def.y1, angle: Math.atan2(dy, dx), restitution: 0.9, friction: 0.15, clear: 36 }),
     );
     this.bodies.push(this.body);
     this.sortY = def.y1;

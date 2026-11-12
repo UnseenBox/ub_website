@@ -205,6 +205,8 @@ export type Theme = 'street' | 'pitch' | 'stadium' | 'beach' | 'court' | 'clay' 
 export interface LevelDefinition {
   id: string;
   name: string;
+  /** The group of matches it is listed under in the stadium list. */
+  world?: string;
   /** One short line under the name. */
   hint: string;
   arena: ArenaDef;

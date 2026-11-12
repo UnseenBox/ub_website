@@ -1,4 +1,5 @@
 import type { ArenaDef, GoalDef, GuideDef, LevelDefinition, MechanicDef, WallDef } from '../../src/levels/LevelDefinition';
+import { CAMPAIGN } from './campaign';
 import { roundedRect } from './shapes';
 
 /**
@@ -115,4 +116,6 @@ export const LEVELS: readonly LevelDefinition[] = [
     coin: { x: 800, y: 500 },
     stars: [2500, 6000],
   }),
+
+  ...CAMPAIGN,
 ];

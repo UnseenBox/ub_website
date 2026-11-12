@@ -29,7 +29,7 @@ All the rules of progress are pure functions with named constants in `src/progre
 
 - **Stars.** Any goal is 1 star; each level sets the Crazy Scores for 2 and 3 (`stars` in level data). The HUD shows the three targets while you aim, and the result card says what the next star needs.
 - **Coins are for progress, not farming.** The first clear of a level pays `max(10, score / 100)`; each star a level has ever shown pays 10 once (`paidStars` in the save); the coin hanging in each alley pays 10 once ever (`coin` in the save); replaying a level for nothing new pays 0. Duel streets have no coin.
-- **Chapters are gated by stars.** The first level of chapter `c >= 2` also needs `16 x (c - 1)` houma stars; any chapter in which a level already has a goal stays open (grandfathering).
+- **Chapters are the worlds of the campaign and are gated by stars.** The first level of chapter `c >= 2` also needs `10 x (c - 1)` stars; any chapter in which a level already has a goal stays open (grandfathering).
 - **Boosts** (HARISSA, MAGNET, RUBBER) are taught by three ability lessons right after the five moves (see "One game, built match by match"); the shop stays hidden until the first match after them, which also hands over one free MAGNET.
 - **Balls** unlock by total stars (`src/ball/Skins.ts`). With only a few matches the higher balls cannot be reached yet; how balls unlock as matches grow is an open design question.
 
@@ -46,6 +46,20 @@ The free-kick moves are part of the one gameplay style (`src/physics/Flight.ts`)
 **The stadium** is `roundedRect` in `data/levels/shapes.ts`: a pitch with rounded corners (an `explicit` boundary, so there is no wedge by the goal), ad boards whose panels run on round the corners, a low kerb along the near end, touchlines and corner flags (`paintPitchLines`), a running track, oval stands with the crowd following the bowl, floodlights, a players' tunnel and the big screen (`paintStands` in `src/rendering/ArenaArt.ts`).
 
 **Layout.** On a narrow screen the camera fits the pitch between a strip for the coach card and coins above it and a strip for the controls below it (`pad` in `Camera.setFrames`), the boosts become a row of chips above the free-kick dock, and the coach card keeps left of the coin counter, so nothing is drawn over the pitch. On a wide screen the controls sit over the stands either side, the coach card top right and the coin counter top left. The stadium and balls sheets (`.sheet`) are never wider than the room inside the screen's padding.
+
+**The campaign: 40 matches.** Match 1 is the tutorial (eight lessons), matches 2 and 3 are in `data/levels/matches.ts`, and matches 4 to 40 are in `data/levels/campaign.ts`, in seven worlds, each a different idea on a different ground (`theme`, `surface`, `boundary` outline and `mechanics` all differ):
+
+| World | Matches | What is new |
+| --- | --- | --- |
+| GROUND RULES | 4-8 | the ground changes the ball: ice, sand and puddles, a slope, boost strips, a gust of wind |
+| STREET OBJECTS | 9-14 | things in the way: tyres, a manhole that teleports, a pane of glass, a doorbell that opens a shutter, a taxi, hedges |
+| KEEPERS AND MOVERS | 15-20 | timing: a scooter, Mimi the keeper (a lob flies over her), a turnstile, bumpers, a spinning market, night traffic |
+| WEATHER | 21-25 | wind, snow, rain and heat, each pushing the ball |
+| AFTER DARK | 26-30 | night streets: bumpers, sewer pipes with spinners, a hedge maze, frozen ground, the keeper again |
+| ROOFTOPS AND HARBOUR | 31-35 | a tin roof, the tide, a conductor's spinners, the docks, a carousel |
+| BIG MATCHES | 36-40 | everything at once, ending on THE FINAL WHISTLE |
+
+Every match is checked by `src/levels/levels.validate.test.ts` (it can be scored, it has at least three routes, a three star route exists), and its two star thresholds come from sweeping it with every kind of shot (`src/levels/stars.test.ts` prints them). A lofted ball flies over Mimi and over a scooter (`clear` on their bodies), so the free-kick moves matter in the campaign too. The matches came from the old hundred houmas (kept in the git tag below), picked for variety and eased where they were too tight for the new moves.
 
 Everything removed is in git: `git checkout kora-houmas-and-freekicks-v1` (the commit just before the reset) has the 100 houmas, the Free Kicks mode, the Daily Kick, `window.CrazyKoraShell` and `docs/FREE_KICKS.md`.
 
@@ -75,8 +89,8 @@ What the portal edition changes, all behind `src/portal/Portal.ts`:
 - **SDK v3** (`src/portal/Portal.ts`): loaded dynamically with a timeout, `init()` in the background, every call guarded. Outside `local` and `crazygames` environments it stays off, so the itch build behaves byte-for-byte as before.
 - **Loading:** `loadingStart` at boot, `loadingStop` on the first painted menu.
 - **Gameplay signals:** `gameplayStart` on PLAY / level select / resume / duel shots, `gameplayStop` on pause / level list / menu / goal / duel waits. First start measures ~6 MB initial download (limit 50, 20 for the mobile homepage).
-- **Midgame ads** at the one natural break: tapping NEXT HOUMA after a goal. The game freezes (no input, muted, shop hidden, no pause card) until `adFinished`/`adError`, then the next street loads. Never in duels, never mid-shot. Too-early requests are ignored by the SDK itself.
-- **Rewarded ads** at two moments of need (a free MAGNET after four misses on a houma, doubled coins on a first clear; see "Analytics and ads"), with a 90 s cooldown, always with the coin shop standing as the no-ad alternative. No reward on `adError`, ever.
+- **Midgame ads** at the one natural break: tapping NEXT MATCH after a goal. The game freezes (no input, muted, shop hidden, no pause card) until `adFinished`/`adError`, then the next street loads. Never in duels, never mid-shot. Too-early requests are ignored by the SDK itself.
+- **Rewarded ads** at two moments of need (a free MAGNET after four misses on a match, doubled coins on a first clear; see "Analytics and ads"), with a 90 s cooldown, always with the coin shop standing as the no-ad alternative. No reward on `adError`, ever.
 - **Housekeeping the QA checks:** tab-hide auto-pauses, no external assets (font, sounds and art are all bundled), no `alert`/`prompt`, no custom fullscreen button, English default with Arabic switch, physics on a fixed 240 Hz step (consistent on 144/165 Hz screens).
 
 `npm run dev` serves the plain build. Locally the SDK starts in `local` mode by itself, so ad calls show test overlays; no query parameter is needed.
@@ -98,7 +112,8 @@ Touch uses the same code path as the mouse through Pointer Events. On screen the
 ## How it fits together
 
 ```
-data/levels/houma.ts   the 100 level definitions (plain data)
+data/levels/matches.ts   the tutorial, matches 2 and 3 (plain data)
+data/levels/campaign.ts   matches 4 to 40 (plain data)
 src/
   core/        Game (state machine), GameLoop, Time, EventBus
   progression/ Progression: every rule of stars, coins, gates and unlocks (pure, tested)
@@ -144,7 +159,7 @@ Feel is tuned in `BALL_TUNING` (`ball/Ball.ts`), `SHOT_TUNING` (`ball/ShotContro
 
 ## Adding a level
 
-1. Add an entry to `LEVELS` in `data/levels/houma.ts`: where the ball starts, the goal, `walls`, `mechanics`, and the scores for two and three stars.
+1. Add an entry to `CAMPAIGN` in `data/levels/campaign.ts`: where the ball starts, the goal, `walls`, `mechanics`, and the scores for two and three stars.
 2. Run the game and call `__cg.sweep(n)` in the console, where `n` is its number. It fires every angle at several powers at a private copy of the level and lists the shots that score, with bounce counts and which mechanics they used. An empty list means the level is impossible; if every hit looks the same, it has only one answer.
 
 ## Adding a mechanic
@@ -216,7 +231,7 @@ The dev server also accepts `POST /__poster/<name>` with a JPEG body and writes 
 
 **Ads** sit behind `src/portal/Portal.ts` (see "CrazyGames"). Rewarded ads are offered only where a player wants help, only in solo play, never during aiming, flight or a celebration, never in a duel, and they share one 90 second cooldown:
 
-- **Stuck assist.** After 4 misses on one houma (`STUCK_MISSES`), a chip under the boost cards offers a free MAGNET for an ad. The coin shop stays the no-ad way.
+- **Stuck assist.** After 4 misses on one match (`STUCK_MISSES`), a chip under the boost cards offers a free MAGNET for an ad. The coin shop stays the no-ad way.
 - **x2 COINS.** On the result card of a level's first clear, an ad doubles the coins that clear paid, once.
 - The old pause-menu +30 coins offer is switched off (`PAUSE_REWARD_ENABLED` in `Progression.ts`).
 
