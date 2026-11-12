@@ -105,6 +105,8 @@ Three steps (AIM AND POWER, CHOOSE YOUR SHOT, APPLY BEND) in `free-kicks.js` (`T
 - Quick Five (`quick.draw(seed)` pure function of a 6-character seed): slots Easy, Easy|Medium, Medium, Medium, Hard; no Expert; no two adjacent kicks with the same intended route; contains a lob and a curl/bend; mirror 50% when it changes anything; ball jitter up to the card's `jitter` (10 px), clamped so the ball stays 300 px from the goal axis.
 - Validator rules: every campaign kick needs a touch make rate of at least 35%, and at most one kick per five-kick set may be below 60%. Quick Five jitter corners are validated the same way.
 
+- **Daily Kick** (`seedForDate(date)`, `beginRun("daily")`, `finishDaily`): the Quick Five draw seeded from the local date `YYYY-MM-DD`, so everybody gets the same five on a date (pure; `quick.seedForDate`, pinned in `tools/tests/daily.test.js`). The menu layer passes `opts.daily = { date, done }` and `opts.onDailyEnd({ date, goals, line })`, which the shell answers with `{ already, streak, coins }` (`shell.daily.record`, rules in `src/progression/Progression.ts`: 5 coins per goal, +25 for 5/5, streak +1 when yesterday was played). The first finished run of a date is the one scored; later runs are marked practice and record nothing. The result card shows the five results as a line of ball and cross emoji, the streak and a SHARE button (`navigator.share`, else the clipboard); the text holds the date, the line and the game's address without its query string, nothing personal. A run abandoned before its fifth kick is not scored.
+
 **Approved but NOT implemented**
 - The Legend set as a player-facing mode (a hub entry and its 2/3/4-star exception). `legend-future` exists as data and is reachable only through `start(..., {set: "legend-future"})`; it uses the universal 3/4/5 rule.
 - A Quick Five seed-entry screen, a difficulty setting, a reset-progress control.
@@ -157,6 +159,7 @@ node check-strings.js           # EN/AR parity, every key the game asks for exis
 node check-quick.js             # 20,000 Quick Five draws obey every rule
 node tests/physics.test.js      # posts, bar, bounded bend, leap envelope
 node tests/progress.test.js     # progress / unlock rules
+node tests/daily.test.js        # the Daily Kick seed: deterministic, valid for every date of two years
 node validate.js --check        # stored metrics match the current physics and cards (exit 1 when stale)
 node validate.js --workers 5    # full validation, rewrites cards.v1.metrics.json (about 3 minutes on 12 threads; ask before running on someone's machine)
 node validate.js --jitter-only --out cards.v1.jitter.raw.json --workers 5 && node jitter-corners.js

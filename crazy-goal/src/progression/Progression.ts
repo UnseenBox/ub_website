@@ -198,3 +198,56 @@ export function isFreeKicksUnlocked(save: ProgressSave, levels: readonly Progres
   const gate = levels[FK_UNLOCK_LEVEL];
   return !!gate && goalsOf(save, gate.id) > 0;
 }
+
+/** Daily Kick: coins per goal, and the bonus for five out of five. */
+export const DAILY_GOAL_COINS = 5;
+export const DAILY_PERFECT_COINS = 25;
+/** How many past dates the save keeps results for. */
+export const DAILY_HISTORY_DAYS = 60;
+
+/** The part of the save the Daily Kick rules read and write. */
+export interface DailyState {
+  lastDate: string;
+  streak: number;
+  results: Record<string, string>;
+}
+
+/** A local calendar date as `YYYY-MM-DD`. */
+export function dateKey(d: Date): string {
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** The calendar day before a `YYYY-MM-DD` date (local calendar, so daylight saving cannot skip or repeat a day). */
+export function previousDay(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return dateKey(new Date(y, m - 1, d - 1));
+}
+
+export interface DailyOutcome {
+  /** Today's scored attempt was already in: nothing changed, nothing paid. */
+  already: boolean;
+  streak: number;
+  coins: number;
+  state: DailyState;
+}
+
+/**
+ * Records the Daily Kick's one scored attempt for `date`. The streak goes up by one when the day before
+ * was played, and starts again at 1 otherwise. A second record for the same date changes nothing.
+ */
+export function applyDaily(state: DailyState, date: string, goals: number, line: string): DailyOutcome {
+  if (state.results[date] !== undefined) return { already: true, streak: state.streak, coins: 0, state };
+  const g = Math.max(0, Math.min(5, Math.floor(goals) || 0));
+  const streak = state.lastDate !== '' && state.lastDate === previousDay(date) ? state.streak + 1 : 1;
+  const results = { ...state.results, [date]: line };
+  const keep = Object.keys(results).sort().slice(-DAILY_HISTORY_DAYS);
+  const trimmed: Record<string, string> = {};
+  for (const k of keep) trimmed[k] = results[k];
+  return {
+    already: false,
+    streak,
+    coins: g * DAILY_GOAL_COINS + (g === 5 ? DAILY_PERFECT_COINS : 0),
+    state: { lastDate: date, streak, results: trimmed },
+  };
+}

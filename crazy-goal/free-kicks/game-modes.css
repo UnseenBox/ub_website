@@ -364,6 +364,86 @@
   line-height: 1.55;
 }
 
+/* The Daily Kick card, first in the hub. */
+.gm-daily {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: clamp(11px, 1.8vh, 16px) clamp(14px, 2vw, 20px);
+  border: 3px solid var(--gm-night);
+  border-radius: 18px;
+  background: var(--gm-sun);
+  box-shadow: 0 6px 0 #0b4d1c40;
+}
+
+.gm-daily[hidden] {
+  display: none;
+}
+
+.gm-daily-text {
+  min-width: 0;
+}
+
+.gm-daily-label {
+  margin: 0 0 3px;
+  color: var(--gm-night);
+  font-size: clamp(11px, 1.7vmin, 14px);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.gm-daily-meta {
+  margin: 0;
+  color: var(--gm-navy);
+  font-size: clamp(9.5px, 1.35vmin, 12px);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.gm-daily-line {
+  margin: 4px 0 0;
+  font-size: 16px;
+  letter-spacing: 0.1em;
+}
+
+.gm-daily-line[hidden] {
+  display: none;
+}
+
+.gm-daily-play {
+  flex: none;
+  min-height: 42px;
+  padding: 8px 18px;
+  border: 3px solid var(--gm-night);
+  border-radius: 13px;
+  background: var(--gm-night);
+  color: var(--gm-cream);
+  font-family: inherit;
+  font-size: clamp(11px, 1.7vmin, 14px);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--gm-night-deep);
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out;
+}
+
+.gm-daily-play:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--gm-night-deep);
+}
+
+.gm-daily-play:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--gm-night-deep);
+}
+
+.gm-daily-play:focus-visible {
+  outline: 3px solid var(--gm-navy);
+  outline-offset: 3px;
+}
+
 .gm-play {
   display: inline-flex;
   align-items: center;

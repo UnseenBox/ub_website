@@ -479,6 +479,12 @@ export class Game {
     this.overlay.refreshMenu();
   }
 
+  /** Today's Daily Kick has not been played yet (drives the DAILY dot on the Free Kicks tile). */
+  private dailyWaiting(): boolean {
+    const shell = window.CrazyKoraShell;
+    return !!shell && !shell.daily.state().done;
+  }
+
   /** What the main menu draws: continue target, chapter progress, the Free Kicks tile. */
   private menuInfo(): MenuInfo {
     const at = this.furthestUnlocked();
@@ -500,7 +506,7 @@ export class Game {
         available: this.modeTiles.has('freeKicks'),
         open: isFreeKicksUnlocked(this.save.data, this.levels, fkPlayed(stages)),
         stage: fkNextStage(stages),
-        daily: false,
+        daily: this.dailyWaiting(),
       },
       newBall: false,
     };

@@ -29,6 +29,12 @@
   const COPY = {
     en: {
       freeKicks: "FREE KICKS",
+      dailyKick: "DAILY KICK",
+      dailyIntro: "The same five kicks for everyone today. One scored try.",
+      dailyPlay: "PLAY",
+      dailyPractise: "PRACTISE",
+      dailyDone: "DONE TODAY. COME BACK TOMORROW.",
+      dailyStreak: "{n} DAY STREAK",
       freeKicksDesc: "Bend it around the wall. Curve the ball through impossible angles. Find the perfect shot!",
       play: "PLAY",
       playNote: "One kick. One chance. Bend it around — or over — the wall.",
@@ -79,6 +85,12 @@
     },
     ar: {
       freeKicks: "الركلات الحرة",
+      dailyKick: "ركلة اليوم",
+      dailyIntro: "الركلات الخمس نفسها للجميع اليوم. محاولة واحدة محتسبة.",
+      dailyPlay: "العب",
+      dailyPractise: "تدرّب",
+      dailyDone: "تمّت اليوم. عد غدًا.",
+      dailyStreak: "{n} أيام متتالية",
       freeKicksDesc: "لُفّ الكرة حول الحائط. قوّسها بزوايا مستحيلة. ابحث عن التسديدة المثالية!",
       play: "العب",
       playNote: "ركلة واحدة، فرصة واحدة. لُفّها حول الحائط أو فوقه.",
@@ -350,6 +362,14 @@
           </div>
 
           <div class="gm-fk-info">
+            <div class="gm-daily" data-fk-daily hidden>
+              <div class="gm-daily-text">
+                <p class="gm-daily-label">${esc(t("dailyKick"))}</p>
+                <p class="gm-daily-meta" data-daily-meta></p>
+                <p class="gm-daily-line" data-daily-line dir="ltr" hidden></p>
+              </div>
+              <button type="button" class="gm-daily-play" data-action="play-daily" data-daily-btn></button>
+            </div>
             <div class="gm-objective">
               <span class="gm-objective-icon">${ICONS.target}</span>
               <div>
@@ -381,6 +401,10 @@
   /* Free Kicks stage hub (Street Cup): stages, stars, locks                */
   /* ---------------------------------------------------------------------- */
 
+  const dailyEl = fkScreen.querySelector("[data-fk-daily]");
+  const dailyMeta = fkScreen.querySelector("[data-daily-meta]");
+  const dailyLine = fkScreen.querySelector("[data-daily-line]");
+  const dailyBtn = fkScreen.querySelector("[data-daily-btn]");
   const cupEl = fkScreen.querySelector("[data-fk-cup]");
   const primaryBtn = fkScreen.querySelector("[data-fk-primary]");
   const nextNote = fkScreen.querySelector("[data-fk-next]");
@@ -388,7 +412,22 @@
   const stageName = (s) => (s.name && (s.name[LANG] || s.name.en)) || s.id;
 
   /* Re-read on every open, so the list always shows the latest saved stars. */
+  function renderDaily() {
+    const shell = window.CrazyKoraShell;
+    const api = window.CrazyKoraFreeKicks;
+    const info = shell && shell.daily && api && api.quick && api.quick.seedForDate ? shell.daily.state() : null;
+    dailyEl.hidden = !info;
+    if (!info) return;
+    const streak = info.streak > 0 ? " · " + fill(t("dailyStreak"), { n: info.streak }) : "";
+    dailyMeta.textContent = info.done ? t("dailyDone") + streak : t("dailyIntro") + streak;
+    dailyLine.hidden = !(info.done && info.line);
+    dailyLine.textContent = info.line;
+    dailyBtn.textContent = info.done ? t("dailyPractise") : t("dailyPlay");
+    dailyBtn.setAttribute("aria-label", `${t("dailyKick")}. ${dailyMeta.textContent}. ${dailyBtn.textContent}`);
+  }
+
   function renderHub() {
+    renderDaily();
     const api = window.CrazyKoraFreeKicks;
     const list = api && api.sets ? api.sets().filter((s) => s.kind === "campaign") : [];
     const progress = api && api.progress;
@@ -519,8 +558,13 @@
     const mount = gameScreen.querySelector("[data-fk-mount]");
     if (!mount) return;
 
+    /* the Daily Kick: today's date (the shell's, so a mocked date reaches here too) and whether today's scored try is in */
+    const dailyInfo = setId === "daily" && shell && shell.daily ? shell.daily.state() : null;
+
     window.CrazyKoraFreeKicks.start(mount, {
       lang: LANG,
+      daily: dailyInfo ? { date: dailyInfo.date, done: dailyInfo.done } : undefined,
+      onDailyEnd: dailyInfo ? (r) => shell.daily.record(r.date, r.goals, r.line) : undefined,
       strings: COPY[LANG],
       star: ASSETS.star,
       sfx: ASSETS.sfx,
@@ -609,6 +653,9 @@
         // a locked stage stays focusable (so its hint can be read) but does nothing
         if (trigger.getAttribute("aria-disabled") === "true") break;
         launchFreeKicks(trigger.dataset.stage);
+        break;
+      case "play-daily":
+        launchFreeKicks("daily");
         break;
       case "play-quick":
         if (trigger.getAttribute("aria-disabled") === "true") break;

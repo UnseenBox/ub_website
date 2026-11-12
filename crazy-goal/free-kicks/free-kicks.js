@@ -902,6 +902,7 @@
      tools/free-kicks/validate.js --jitter-only). A seed makes a set repeatable.
      ========================================================================== */
   const QUICK_NAME = { en: "Quick Five", ar: "خمسة سريعة" };
+  const DAILY_NAME = { en: "Daily Kick", ar: "ركلة اليوم" };
   /* Difficulty curve by authored tier. Only one Hard slot: a set may hold at
      most one kick under 60% touch (the approved campaign fairness rule). */
   const QUICK_SLOTS = [["Easy"], ["Easy", "Medium"], ["Medium"], ["Medium"], ["Hard"]];
@@ -913,6 +914,29 @@
     for (let i = 0; i < SEED_LEN; i++) s += SEED_CHARS[(Math.random() * SEED_CHARS.length) | 0];
     return s;
   }
+
+  /* The Daily Kick's seed for a local calendar date "YYYY-MM-DD": the same six characters for everybody on that date,
+     on every device (nothing but the date feeds it). Anything that is not such a date gives null. */
+  function seedForDate(date) {
+    const text = String(date == null ? "" : date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+    const rng = rngFromSeed("daily:" + text);
+    let seed = "";
+    for (let i = 0; i < SEED_LEN; i++) seed += SEED_CHARS[(rng() * SEED_CHARS.length) | 0];
+    return seed;
+  }
+
+  /* The five results as a line of emoji (a ball for a goal, a cross for a miss), for the share text. */
+  const dailyLineOf = (results) => results.map((r) => (r.goal ? "\u26BD" : "\u274C")).join("");
+
+  /* The game's address without the query or hash (an invite link carries a friend's id), so a share text holds no personal data. */
+  const shareUrl = () => {
+    try {
+      return location.origin + location.pathname;
+    } catch {
+      return "";
+    }
+  };
 
   /* A seed typed or stored by a person: upper-case, valid characters only, exact length. */
   function normalizeSeed(raw) {
@@ -1041,6 +1065,13 @@
       runSeed: "SEED {s}",
       runPractice: "PRACTICE",
       runCoins: "+{n} COINS",
+      dailyTitle: "DAILY KICK",
+      dailyShare: "SHARE",
+      dailyCopied: "COPIED",
+      dailyAgain: "PRACTISE AGAIN",
+      dailyStreak: "{n} DAY STREAK",
+      dailyPractice: "PRACTICE. TODAY'S RESULT IS ALREADY IN.",
+      dailyShareText: "CRAZY KORA · DAILY KICK {date}",
       runNotScored: "NOT SCORED",
       runPracticeHint: "TAP A KICK TO PRACTISE IT",
       runPracticeKick: "Practise kick {k}: {n}, {r}",
@@ -1106,6 +1137,13 @@
       runSeed: "الرمز {s}",
       runPractice: "تمرين",
       runCoins: "+{n} عملة",
+      dailyTitle: "ركلة اليوم",
+      dailyShare: "مشاركة",
+      dailyCopied: "تم النسخ",
+      dailyAgain: "تدرّب مجددًا",
+      dailyStreak: "{n} أيام متتالية",
+      dailyPractice: "تمرين. نتيجة اليوم محسوبة بالفعل.",
+      dailyShareText: "كرة كورا · ركلة اليوم {date}",
       runNotScored: "غير محتسبة",
       runPracticeHint: "اضغط على ركلة لتتدرّب عليها",
       runPracticeKick: "تدرّب على الركلة {k}: {n}، {r}",
@@ -1689,6 +1727,9 @@
           <h3 class="fk-result-title" data-fk-sr-title></h3>
           <p class="fk-setresult-goals" data-fk-sr-goals></p>
           <p class="fk-setresult-coins" data-fk-sr-coins hidden></p>
+          <p class="fk-setresult-line" data-fk-sr-line hidden></p>
+          <p class="fk-setresult-streak" data-fk-sr-streak hidden></p>
+          <button type="button" class="fk-btn2 fk-setresult-share" data-fk-sr-share hidden></button>
           <p class="fk-setresult-seed" data-fk-sr-seed hidden></p>
           <ol class="fk-pips fk-pips--result" data-fk-sr-pips>
             <li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="0"><i></i></button></li><li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="1"><i></i></button></li><li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="2"><i></i></button></li><li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="3"><i></i></button></li><li class="fk-pip"><button type="button" class="fk-pip-btn" data-fk-practice="4"><i></i></button></li>
@@ -1998,6 +2039,15 @@
           kicks = draw.kicks.map(resolveQuickKick);
           Progress.noteQuick(draw.kicks.map((k) => k.card));
         } else kicks = [];
+      } else if (setId === "daily") {
+        /* the Daily Kick: the seeded five of the date the menu layer passed in; it never touches Quick Five's record */
+        const date = this.opts.daily && this.opts.daily.date;
+        const seed = seedForDate(date);
+        const draw = seed ? drawQuick(seed) : null;
+        if (draw) {
+          set = { id: "daily", kind: "daily", name: DAILY_NAME, seed: draw.seed, date };
+          kicks = draw.kicks.map(resolveQuickKick);
+        } else kicks = [];
       } else {
         set = CARD_LIBRARY.sets.find((s) => s.id === setId);
         kicks = set ? set.kicks.map(resolveKick) : [];
@@ -2240,7 +2290,12 @@
       const starsText = this.s("runStars").replace("{s}", String(stars));
       this.srStars.setAttribute("aria-label", starsText);
       const quick = run.set.kind === "quick";
-      this.srTitle.textContent = this.s(stars ? (quick ? "runQuickClear" : "runClear") : "runFail");
+      const daily = run.set.kind === "daily";
+      this.srLine.hidden = true;
+      this.srStreak.hidden = true;
+      this.srShare.hidden = true;
+      this.dailyShare = null;
+      this.srTitle.textContent = this.s(daily ? "dailyTitle" : stars ? (quick ? "runQuickClear" : "runClear") : "runFail");
       this.srGoals.textContent = this.s("runGoals").replace("{g}", String(goals));
       this.srPips.querySelectorAll(".fk-pip").forEach((li, i) => {
         li.className = "fk-pip " + (run.results[i].goal ? "is-goal" : "is-miss");
@@ -2252,18 +2307,23 @@
           .replace("{r}", this.s(run.results[i].goal ? "runGoalWord" : "runMissWord")));
       });
       this.srHint.textContent = this.s("runPracticeHint");
-      this.srNote.textContent = this.s(quick && stars < 2 ? "runQuickNote" + stars : "runNoteStars" + stars);
+      this.srNote.textContent = this.s((quick || daily) && stars < 2 ? "runQuickNote" + stars : "runNoteStars" + stars);
       this.srSeed.hidden = !quick;
       if (quick) this.srSeed.textContent = this.s("runSeed").replace("{s}", run.set.seed);
       this.srBack.textContent = this.s("back");
-      const saved = quick ? Progress.recordQuick(goals) : Progress.record(run.set.id, goals);
+      const saved = daily ? null : quick ? Progress.recordQuick(goals) : Progress.record(run.set.id, goals);
       this.gameplay(false);
-      const reward = this.reportSetEnd(run, quick, goals, stars, saved);   // coins the shell paid for this result
+      const reward = daily ? this.finishDaily(run, goals) : this.reportSetEnd(run, quick, goals, stars, saved);   // coins the shell paid for this result
       this.srCoins.hidden = !(reward > 0);
       if (reward > 0) this.srCoins.textContent = this.s("runCoins").replace("{n}", String(reward));
       const nextSet = !quick && stars ? this.nextStage(run.set.id) : null;
       const next = nextSet && Progress.unlocked(nextSet.id) ? nextSet : null;
-      if (quick) {
+      if (daily) {
+        this.srPrimary.dataset.act = "retry";   // the same five again, unscored
+        delete this.srPrimary.dataset.set;
+        this.srPrimary.textContent = this.s("dailyAgain");
+        this.srSecondary.hidden = true;
+      } else if (quick) {
         this.srPrimary.dataset.act = "newquick";
         delete this.srPrimary.dataset.set;
         this.srPrimary.textContent = this.s("runNewFive");
@@ -2288,6 +2348,69 @@
       requestAnimationFrame(() => {
         if (this.running && this.srPrimary) this.srPrimary.focus({ preventScroll: true });
       });
+    }
+
+    /* A Daily Kick run ended. The first finished run of a date is the scored one: the menu layer records it (and pays);
+       every later run is practice. Returns the coins paid. */
+    finishDaily(run, goals) {
+      const date = run.set.date;
+      const line = dailyLineOf(run.results);
+      this.srLine.textContent = line;
+      this.srLine.hidden = false;
+      const practice = this.dailyDone || typeof this.opts.onDailyEnd !== "function";
+      let outcome = null;
+      if (!practice) {
+        try {
+          outcome = this.opts.onDailyEnd({ date, goals, line });
+        } catch {
+          outcome = null;
+        }
+      }
+      if (outcome && typeof outcome === "object" && !outcome.already) {
+        this.dailyDone = true;
+        const streak = Math.max(1, Math.floor(Number(outcome.streak)) || 1);
+        this.srStreak.textContent = this.s("dailyStreak").replace("{n}", String(streak));
+        this.srStreak.hidden = false;
+        this.srShare.textContent = this.s("dailyShare");
+        this.srShare.hidden = false;
+        this.dailyShare = { date, line, goals, streak };
+        const coins = Math.floor(Number(outcome.coins));
+        return Number.isFinite(coins) && coins > 0 ? coins : 0;
+      }
+      this.dailyDone = true;
+      this.srStreak.textContent = this.s("dailyPractice");
+      this.srStreak.hidden = false;
+      return 0;
+    }
+
+    /* SHARE: the system share sheet when there is one, else the clipboard. The text holds the date, the line and the game's address, nothing personal. */
+    async shareDaily() {
+      const d = this.dailyShare;
+      if (!d) return;
+      const text = [
+        this.s("dailyShareText").replace("{date}", d.date),
+        d.line + " " + d.goals + "/5",
+        d.streak > 1 ? this.s("dailyStreak").replace("{n}", String(d.streak)) : "",
+        shareUrl(),
+      ].filter(Boolean).join("\n");
+      try {
+        if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+          await navigator.share({ text });
+          return;
+        }
+      } catch (err) {
+        if (err && err.name === "AbortError") return;   // the player closed the sheet
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        this.srShare.textContent = this.s("dailyCopied");
+        this.announce(this.s("dailyCopied"));
+        setTimeout(() => {
+          if (this.running && this.srShare) this.srShare.textContent = this.s("dailyShare");
+        }, 2000);
+      } catch {
+        /* nowhere to put it: the line is on the card for the player to copy */
+      }
     }
 
     /* Tells the menu layer a stage or Quick Five run ended. It may answer with the coins it paid (a number or { coins }). */
@@ -2347,6 +2470,11 @@
       this.srGoals = q("[data-fk-sr-goals]");
       this.srSeed = q("[data-fk-sr-seed]");
       this.srCoins = q("[data-fk-sr-coins]");
+      this.srLine = q("[data-fk-sr-line]");
+      this.srStreak = q("[data-fk-sr-streak]");
+      this.srShare = q("[data-fk-sr-share]");
+      this.dailyShare = null;
+      this.dailyDone = !!(this.opts.daily && this.opts.daily.done);   // today's scored attempt is already in: runs are practice
       this.srPips = q("[data-fk-sr-pips]");
       this.live = q("[data-fk-live]");
       this.srHint = q("[data-fk-sr-hint]");
@@ -2496,6 +2624,10 @@
         if (act === "next") this.beginRun(this.srPrimary.dataset.set);
         else if (act === "newquick") this.beginRun("quick");
         else this.beginRun(this.run.set.id);
+      }, { signal });
+      this.srShare.addEventListener("click", () => {
+        this.audio?.play("click", 0.6);
+        this.shareDaily();
       }, { signal });
       this.srSecondary.addEventListener("click", () => {
         this.audio?.play("click", 0.6);
@@ -4508,6 +4640,7 @@
       draw: drawQuick,
       drawNew: drawNewQuick,
       newSeed,
+      seedForDate,
       resolve: resolveQuickKick,
       slots: () => JSON.parse(JSON.stringify(QUICK_SLOTS)),
     },
