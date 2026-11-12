@@ -31,7 +31,16 @@ export type AnalyticsEventName =
   | 'daily_clear'
   | 'daily_already_paid'
   | 'ledger_claim'
-  | 'tutorial_skip';
+  | 'tutorial_skip'
+  | 'boot'
+  | 'gameplay_first'
+  | 'first_kill'
+  | 'first_chain'
+  | 'room_end'
+  | 'death_cause'
+  | 'door_pick'
+  | 'session_resume'
+  | 'perf_sample';
 
 export type AnalyticsParams = Readonly<Record<string, string | number | boolean>>;
 

@@ -109,8 +109,24 @@ export function buildSettings(game: Game, onBack: () => void): HTMLElement {
     onBack();
   });
 
+  // Tester aid: copies the local funnel summary. No network request is made.
+  const diagnostics = el('button', 'b2-btn b2-btn--lavender b2-settings__diagnostics');
+  diagnostics.type = 'button';
+  diagnostics.textContent = 'COPY DIAGNOSTICS';
+  diagnostics.addEventListener('click', () => {
+    const done = (label: string): void => {
+      diagnostics.textContent = label;
+      window.setTimeout(() => (diagnostics.textContent = 'COPY DIAGNOSTICS'), 1600);
+    };
+    try {
+      void navigator.clipboard.writeText(game.funnel.summary()).then(() => done('COPIED'), () => done('COPY FAILED'));
+    } catch {
+      done('COPY FAILED');
+    }
+  });
+
   const settingsActions = el('div', 'b2-settings__actions');
-  settingsActions.append(shred, controls);
+  settingsActions.append(shred, diagnostics, controls);
   settingsPane.append(volume, switches, settingsActions);
 
   panel.append(body);

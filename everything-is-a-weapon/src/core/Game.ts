@@ -1,5 +1,6 @@
 import { AdManager } from '../ads/AdManager';
 import { AnalyticsManager } from '../analytics/AnalyticsManager';
+import { FunnelLog } from '../analytics/FunnelLog';
 import { AudioManager } from '../audio/AudioManager';
 import { createPet, type Pet } from '../entities/Pets';
 import { Enemy } from '../entities/Enemy';
@@ -199,6 +200,8 @@ export class Game {
   edges: EdgeSystem;
   readonly heat = new HeatSystem();
   readonly analytics = new AnalyticsManager();
+  /** Local funnel counters and recent events (see FunnelLog); readable from Settings. */
+  readonly funnel = new FunnelLog();
   readonly ads: AdManager;
   readonly replay = new ReplayRecorder();
   readonly nav = new NavField();
@@ -256,6 +259,14 @@ export class Game {
   private funnelThrow = false;
   private funnelHit = false;
   private funnelClear = false;
+  private funnelKill = false;
+  private funnelChain = false;
+  private funnelGameplay = false;
+  private roomEnded = true;
+  private bossSeen = false;
+  private lastHitCause = '';
+  private perfSamples: number[] = [];
+  private perfClock = 0;
   private devEdges: EdgeId[] = [];
   private objectHeatWindow = 0;
   private objectHeatTimer = 0;
@@ -377,6 +388,14 @@ export class Game {
     this.applySettings();
     void this.ads.initialize();
     this.reportProgress();
+    this.analytics.addSink(this.funnel);
+    this.analytics.track('boot', {
+      ms: Math.round(performance.now()),
+      portal: this.portal.name,
+      touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
+      dpr: Math.round((window.devicePixelRatio || 1) * 100) / 100,
+    });
+    if (this.funnel.daysSinceLast > 0) this.analytics.track('session_resume', { daysSinceLast: this.funnel.daysSinceLast });
     this.analytics.track('game_start', { discoveries: this.discoveries.count });
     if (!save.runActive && save.roomsCleared === 0 && save.unlockedRoom === 0 && save.discoveries.length === 0) {
       // First visit: straight into the first room, which teaches by doing. The menu
@@ -409,6 +428,10 @@ export class Game {
     const playing = state === 'playing';
     if (playing !== this.inGameplay) {
       this.inGameplay = playing;
+      if (playing && !this.funnelGameplay) {
+        this.funnelGameplay = true;
+        this.analytics.track('gameplay_first', { ms: Math.round(performance.now()) });
+      }
       if (playing) this.portal.gameplayStart();
       else this.portal.gameplayStop();
     }
@@ -555,6 +578,7 @@ export class Game {
       this.save.data.runBoosts.push(startingEdge(this.rng, rarity).id);
       if (this.save.data.dailyRareEdge) this.save.data.dailyRareEdge = false;
     }
+    this.analytics.track('run_start', { start, edges: save.runBoosts.length });
     this.tutorialSkippedThisRoom = false;
     this.scoreAtRoomStart = 0;
     this.consecutiveFailures = 0;
@@ -566,6 +590,7 @@ export class Game {
   continueRun(): void {
     const save = this.save.data;
     if (!save.runActive || save.runFloor > FINAL_ROOM_INDEX) return;
+    this.analytics.track('run_continue', { floor: save.runFloor, rooms: save.runPath.length });
     this.scoreAtRoomStart = save.runScore;
     this.consecutiveFailures = 0;
     // Quit on the door card: CONTINUE reopens the same three doors, same rewards.
@@ -655,6 +680,9 @@ export class Game {
     this.setState('playing');
     this.funnelT0 = performance.now();
     this.funnelInput = this.funnelGrab = this.funnelThrow = this.funnelHit = false;
+    this.funnelKill = this.funnelChain = this.bossSeen = false;
+    this.roomEnded = false;
+    this.lastHitCause = '';
     this.bus.emit({ type: 'ROOM_START', room: index });
     // Campaign briefing: every room says what it is and what the mini-goal is,
     // once per first visit. New acts announce themselves; survival rooms name
@@ -844,6 +872,7 @@ export class Game {
       save.runBoosts,
     ).find((candidate) => candidate.index === index);
     if (!door) return;
+    this.analytics.track('door_pick', { index, step, rewardKind: door.reward.kind, risk: door.risk.label });
     save.runDoors = [];
     if (!save.runPath.includes(index)) save.runPath.push(index);
     save.runFloor = index;
@@ -870,6 +899,7 @@ export class Game {
     if (!id) return;
     if (edgeStacks(save.runBoosts, id) < EDGE_STACK_CAP) {
       save.runBoosts.push(id);
+      this.analytics.track('edge_pick', { id, stacks: edgeStacks(save.runBoosts, id) });
       return;
     }
     // That Edge is maxed: pay out the next one that still fits, or scrap.
@@ -881,6 +911,7 @@ export class Game {
   /** Leaves a failed run and returns to the menu. */
   abandonRun(): void {
     if (this.save.data.runActive) {
+      this.analytics.track('run_end', { outcome: 'abandon', rooms: this.save.data.runPath.length });
       endRun(this.save.data);
       this.save.write();
     }
@@ -889,6 +920,7 @@ export class Game {
 
   /** SKIP was pressed during this attempt (the save keeps the historical flag too). */
   markTutorialSkipped(): void {
+    this.analytics.track('tutorial_skip', { room: this.room.index + 1 });
     this.save.data.tutorialSkipped = true;
     this.tutorialSkippedThisRoom = true;
     this.save.write();
@@ -914,6 +946,7 @@ export class Game {
   }
 
   toMenu(): void {
+    if (this.state === 'playing' || this.state === 'paused') this.trackRoomEnd('quit');
     this.endless = null;
     if (this.save.data.runOffer.length > 0) {
       this.save.data.runOffer = [];
@@ -1113,7 +1146,10 @@ export class Game {
 
     const finale = cleared && !daily && index === FINAL_ROOM_INDEX;
     runEnded = finale;
-    if (finale) endRun(save);
+    if (finale) {
+      this.analytics.track('run_end', { outcome: 'clear', rooms: save.runPath.length, score: Math.round(this.score.score) });
+      endRun(save);
+    }
 
     // Night Shift: generate the next doors while the result card is up. Storing
     // them means quitting to the menu and pressing CONTINUE reopens the same
@@ -1205,7 +1241,42 @@ export class Game {
     };
   }
 
+  /** One row per attempt: how it ended, how long it took, what it cost. */
+  private trackRoomEnd(outcome: 'clear' | 'fail' | 'quit'): void {
+    if (this.roomEnded) return;
+    this.roomEnded = true;
+    const stats = this.score.stats;
+    this.analytics.track('room_end', {
+      room: this.room.index + 1,
+      outcome,
+      seconds: Math.round(stats.time),
+      hits_taken: stats.damageTaken,
+      kills: stats.kills,
+      hazard_kills: stats.hazardKills,
+    });
+  }
+
+  /** Cheap 1 Hz bookkeeping while playing: frame-rate samples and the first sight of a boss. */
+  private sampleOncePerSecond(dt: number): void {
+    this.perfClock += dt;
+    if (this.perfClock < 1) return;
+    this.perfClock -= 1;
+    if (!this.bossSeen && this.enemies.some((e) => e.type.boss)) {
+      this.bossSeen = true;
+      const boss = this.enemies.find((e) => e.type.boss);
+      this.analytics.track('boss_arrive', { boss: boss?.type.id ?? '', room: this.room.index + 1, seconds: Math.round(this.room.elapsed) });
+    }
+    this.perfSamples.push(this.loop.fps);
+    if (this.perfSamples.length >= 30) {
+      const sorted = [...this.perfSamples].sort((a, b) => a - b);
+      const avg = sorted.reduce((sum, v) => sum + v, 0) / sorted.length;
+      this.analytics.track('perf_sample', { fpsAvg: Math.round(avg), fpsP5: Math.round(sorted[Math.floor(sorted.length * 0.05)] ?? 0) });
+      this.perfSamples = [];
+    }
+  }
+
   private completeRoom(): void {
+    this.trackRoomEnd('clear');
     const bonus = this.challenges.resolve();
     this.score.score += bonus;
     this.consecutiveFailures = 0;
@@ -1247,6 +1318,8 @@ export class Game {
     this.audio.play('fail', 1);
     this.bus.emit({ type: 'ROOM_FAIL', room: this.room.index });
     this.analytics.track('room_fail', { room: this.room.index + 1, failures: this.consecutiveFailures });
+    this.trackRoomEnd('fail');
+    this.analytics.track('death_cause', { room: this.room.index + 1, cause: this.lastHitCause || 'unknown' });
     if (this.endless) {
       this.endEndless();
       return;
@@ -1285,6 +1358,7 @@ export class Game {
 
     this.time += dt;
     this.tickCount++;
+    this.sampleOncePerSecond(dt);
     this.replay.record(input);
 
     const room = this.room;
@@ -1629,6 +1703,22 @@ export class Game {
       if (this.funnelThrow) return;
       this.funnelThrow = true;
       this.analytics.track('first_throw', { room: room(), ms: elapsed() });
+    });
+    this.bus.on('PLAYER_HIT', (e) => {
+      this.lastHitCause = e.cause;
+    });
+    this.bus.on('ENEMY_DEFEATED', (e) => {
+      if (e.enemy.type.boss) {
+        this.analytics.track('boss_defeat', { boss: e.enemy.type.id, room: room(), seconds: Math.round(this.room.elapsed) });
+      }
+      if (this.funnelKill) return;
+      this.funnelKill = true;
+      this.analytics.track('first_kill', { room: room(), ms: elapsed() });
+    });
+    this.bus.on('CHAIN', (e) => {
+      if (this.funnelChain) return;
+      this.funnelChain = true;
+      this.analytics.track('first_chain', { room: room(), ms: elapsed(), length: e.length });
     });
     this.bus.on('ENEMY_HIT', () => {
       if (this.funnelHit) return;
