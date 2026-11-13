@@ -10,6 +10,8 @@ import trophyIcon from '../../ui-kit/bonk2/assets/icons/trophy@2x.png';
 export interface ResultsActions {
   next(): void;
   retry(): void;
+  /** Opens the store; its BACK returns here. Optional so older callers still build. */
+  store?(): void;
   continueWithReward(): void;
   home(): void;
   /** Called at the moment the rubber stamp hits the page. */
@@ -252,15 +254,15 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     notes.append(noteLine('CHALLENGE', `+${formatScore(summary.challengeBonus)}`, 'objective'));
   }
   if (summary.firstClearBonus > 0) {
-    notes.append(noteLine('FIRST CLEAR', `+${summary.firstClearBonus} SCRAP`, 'contract'));
+    notes.append(noteLine('FIRST CLEAR', `+${summary.firstClearBonus} COINS`, 'contract'));
   }
   if (summary.isNewRoomBest) notes.append(noteLine('ROOM BEST', 'NEW ROOM BEST', 'contract'));
   for (const contract of summary.contractsNew) {
-    notes.append(noteLine('CONTRACT', `${contract.name} · +${contract.reward} SCRAP`, 'contract'));
+    notes.append(noteLine('CONTRACT', `${contract.name} · +${contract.reward} COINS`, 'contract'));
   }
   if (summary.daily) {
     notes.append(noteLine('DAILY STREAK', `${summary.dailyStreak} ${summary.dailyStreak === 1 ? 'DAY' : 'DAYS'}`, 'daily'));
-    if (summary.dailyBonus > 0) notes.append(noteLine('DAILY BONUS', `+${summary.dailyBonus} SCRAP`, 'daily'));
+    if (summary.dailyBonus > 0) notes.append(noteLine('DAILY BONUS', `+${summary.dailyBonus} COINS`, 'daily'));
     if (summary.dailyGift) notes.append(noteLine('STREAK GIFT', summary.dailyGift, 'daily'));
     if (summary.dailyFreezeEarned) notes.append(noteLine('STREAK FREEZE', 'EARNED — FORGIVES A MISSED DAY', 'daily'));
     if (summary.dailyFreezeUsed) notes.append(noteLine('STREAK FREEZE', 'USED — YOUR STREAK SURVIVED', 'daily'));
@@ -349,8 +351,8 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   scoreWrap.append(score, el('div', 'b2-label b2-report__scorelabel', 'BILL · CHAOS POINTS'));
   countUp(score, summary.score);
 
-  const stamp = el('div', 'b2-report__stamp', 'GNOMES OUT');
-  stamp.setAttribute('aria-label', 'Evicted');
+  const stamp = el('div', 'b2-report__stamp', 'GNOMED!');
+  stamp.setAttribute('aria-label', 'The gnomes won this one');
   hero.append(scoreWrap, stamp);
 
   const summaryBody = el('div', 'b2-report__bodycopy');
@@ -393,21 +395,38 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
     summaryBody.append(runNote);
   }
 
-  const noSalvage = el('div', 'b2-report__nosalvage');
-  noSalvage.append(el('span', 'b2-report__nosalvagekind', 'NO SALVAGE'));
-  noSalvage.append(el(
-    'span',
-    'b2-report__nosalvagetext',
-    summary.daily ? 'PRACTICE · NO REWARD.' : 'THE FAILED ROOM PAID NOTHING.',
-  ));
-  summaryBody.append(noSalvage);
+  // The coins knocked out of the gnomes are kept: the loss is the next upgrade.
+  const coins = summary.coins ?? 0;
+  const ready = summary.upgradesReady ?? 0;
+  const purse = el('div', `b2-report__nosalvage b2-report__coins${ready > 0 ? ' is-ready' : ''}`);
+  if (summary.noSalvage) {
+    purse.append(el('span', 'b2-report__nosalvagekind', 'PRACTICE'));
+    purse.append(el('span', 'b2-report__nosalvagetext', 'A DAILY REPLAY PAYS NOTHING.'));
+  } else {
+    purse.append(el('span', 'b2-report__nosalvagekind', `+${coins} COINS KEPT`));
+    purse.append(el(
+      'span',
+      'b2-report__nosalvagetext',
+      ready > 0
+        ? `${summary.coinsTotal ?? 0} COINS · ${ready} UPGRADE${ready === 1 ? '' : 'S'} READY. COME BACK STRONGER.`
+        : `${summary.coinsTotal ?? 0} COINS. KNOCK OUT MORE GNOMES FOR THE NEXT UPGRADE.`,
+    ));
+  }
+  summaryBody.append(purse);
 
   body.append(meta, summaryBody);
   panel.append(body);
   shell.append(panel);
 
   const actionsRow = el('div', 'b2-results__actions');
-  actionsRow.append(actionButton('RETRY', 'lime', actions.retry, true));
+  // With coins to spend, upgrading is the first thing offered: then the retry is a fair fight.
+  if (actions.store && ready > 0 && !summary.daily) {
+    actionsRow.append(actionButton(`UPGRADE (${ready})`, 'lime', actions.store, true));
+    actionsRow.append(actionButton('RETRY', 'blue', actions.retry));
+  } else {
+    actionsRow.append(actionButton('RETRY', 'lime', actions.retry, true));
+    if (actions.store && !summary.daily) actionsRow.append(actionButton('STORE', 'blue', actions.store));
+  }
   // Only offered when a rewarded ad is genuinely available; never forced.
   // The label says plainly that it costs an advert; RETRY beside it is free.
   if (summary.canContinue) {

@@ -13,23 +13,25 @@ export interface RoomOutcome {
 }
 
 /**
- * Classifies a finished room. The only thing that pays salvage, score, a room best,
- * stars, counters, or campaign progress is a genuine clear; a daily replay is practice.
+ * Classifies a finished room. Score, a room best, stars, counters and campaign progress
+ * need a genuine clear; coins are kept win or lose; a daily replay is practice.
  */
 export function roomOutcome(cleared: boolean, daily: boolean, dailyReplay: boolean): RoomOutcome {
   if (!cleared) {
+    // The coins knocked out of the gnomes are kept even when the room is lost: that is what
+    // turns a loss into the next upgrade (a daily replay stays pure practice).
     return {
       cleared: false,
       daily,
       dailyReplay,
-      paysSalvage: false,
+      paysSalvage: !dailyReplay,
       updatesHighScore: false,
       updatesRoomBest: false,
       awardsStars: false,
       countsClear: false,
       countsCounters: false,
       advancesRun: false,
-      noSalvage: true,
+      noSalvage: dailyReplay,
     };
   }
 

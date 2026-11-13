@@ -2,6 +2,7 @@ import type { Game } from '../../core/Game';
 import type { HeroId } from '../../core/Hero';
 import { DIFFICULTY_LABELS, type Difficulty } from '../../save/SaveManager';
 import { el } from '../dom';
+import { affordableUpgrades } from '../../gameplay/Upgrades';
 import { buildCharactersPane, heroPair, heroPortrait } from './characters';
 import { buildRoomsPane } from './rooms';
 
@@ -152,7 +153,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   scrapIcon.alt = '';
   const scrapCopy = el('span', 'b2-chip__text');
   const scrapValue = el('span', 'b2-chip__value b2-num', String(save.scrap));
-  scrapCopy.append(scrapValue, el('span', 'b2-chip__label', 'SCRAP'));
+  scrapCopy.append(scrapValue, el('span', 'b2-chip__label', 'COINS'));
   scrap.append(scrapIcon, scrapCopy);
 
   top.append(night, scrap);
@@ -320,6 +321,15 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
     node.addEventListener('click', onClick);
     return node;
   };
+  // The store says when the purse can buy something: the reason to open it.
+  const ready = affordableUpgrades(game.save.data);
+  const storeItem = navItem('STORE', 'M5 8h14l-1.2 12H6.2zM9 8V6a3 3 0 0 1 6 0v2', () => actions.store());
+  if (ready > 0) {
+    const badge = el('span', 'b2-nav__badge', String(ready));
+    badge.setAttribute('aria-label', `${ready} upgrade${ready === 1 ? '' : 's'} ready`);
+    storeItem.append(badge);
+    storeItem.classList.add('has-badge');
+  }
   nav.append(
     navItem(
       'HOME',
@@ -336,7 +346,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
       'M9 11a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 9 11zm6.5 1a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2zM3 20c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6zm12.2-5.5c3 .2 5.3 2.3 5.3 5.5h-4.2c0-2.2-.4-4-1.1-5.5z',
       () => openMode('characters'),
     ),
-    navItem('STORE', 'M5 8h14l-1.2 12H6.2zM9 8V6a3 3 0 0 1 6 0v2', () => actions.store()),
+    storeItem,
     navItem('SETTINGS', 'M4 7h16M4 12h16M4 17h16M8 5v4M16 10v4M10 15v4', () => actions.settings()),
   );
 

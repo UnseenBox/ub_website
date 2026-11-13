@@ -12,6 +12,7 @@ import {
   UPGRADES,
   upgradeEffect,
   upgradeLevel,
+  type UpgradeIcon,
   type UpgradeId,
 } from '../../gameplay/Upgrades';
 import { el } from '../dom';
@@ -25,6 +26,10 @@ import petHamsterUrl from '../../ui-kit/bonk2/assets/icons/pet-hamster@2x.png?ur
 import petParrotUrl from '../../ui-kit/bonk2/assets/icons/pet-parrot@2x.png?url';
 import powerDashUrl from '../../ui-kit/bonk2/assets/icons/power-dash@2x.png?url';
 import trophyUrl from '../../ui-kit/bonk2/assets/icons/trophy@2x.png?url';
+import heartUrl from '../../ui-kit/bonk2/assets/icons/heart@2x.png?url';
+import panUrl from '../../ui-kit/bonk2/assets/icons/pan@2x.png?url';
+import slipperUrl from '../../ui-kit/bonk2/assets/icons/slipper@2x.png?url';
+import boltUrl from '../../ui-kit/bonk2/assets/icons/bolt@2x.png?url';
 
 export interface StoreActions {
   /** '' on success, otherwise the reason. */
@@ -39,7 +44,11 @@ export interface StoreActions {
 }
 
 /** Existing kit art for each upgrade track. */
-const UPGRADE_ICONS: Record<'key' | 'coin' | 'dash' | 'trophy', string> = {
+const UPGRADE_ICONS: Record<Exclude<UpgradeIcon, 'pet'>, string> = {
+  heart: heartUrl,
+  pan: panUrl,
+  slipper: slipperUrl,
+  bolt: boltUrl,
   key: keyUrl,
   coin: coinUrl,
   dash: powerDashUrl,
@@ -71,7 +80,7 @@ function icon(src: string, className: string): HTMLImageElement {
   return node;
 }
 
-function upgradeIcon(game: Game, key: 'key' | 'coin' | 'dash' | 'trophy' | 'pet'): string {
+function upgradeIcon(game: Game, key: UpgradeIcon): string {
   return key === 'pet' ? PET_ICONS[game.hero] : UPGRADE_ICONS[key];
 }
 
@@ -96,15 +105,15 @@ export function buildStore(game: Game, actions: StoreActions): HTMLElement {
   const head = el('div', 'b2-panel__head b2-store__head');
   const title = el('h2', 'b2-panel__title', 'THE STORE');
   title.id = 'b2-store-title';
-  const promise = el('p', 'b2-store__promise', 'SALVAGE IN. PERMANENT POWER OUT.');
+  const promise = el('p', 'b2-store__promise', 'COINS IN. PERMANENT POWER OUT.');
 
   const wallet = el('div', 'b2-chip b2-store__wallet');
   wallet.setAttribute('role', 'status');
-  wallet.setAttribute('aria-label', `${save.scrap} scrap`);
+  wallet.setAttribute('aria-label', `${save.scrap} coins`);
   const walletText = el('span', 'b2-chip__text');
   const walletValue = el('span', 'b2-chip__value b2-num', String(save.scrap));
   walletValue.setAttribute('aria-live', 'polite');
-  walletText.append(walletValue, el('span', 'b2-chip__label', 'SCRAP'));
+  walletText.append(walletValue, el('span', 'b2-chip__label', 'COINS'));
   wallet.append(icon(coinUrl, 'b2-chip__icon'), walletText);
 
   const back = el('button', 'b2-btn b2-btn--lavender b2-btn--sm b2-store__back', 'BACK');
@@ -167,7 +176,7 @@ export function buildStore(game: Game, actions: StoreActions): HTMLElement {
 
   const refreshWallet = (): void => {
     walletValue.textContent = String(save.scrap);
-    wallet.setAttribute('aria-label', `${save.scrap} scrap`);
+    wallet.setAttribute('aria-label', `${save.scrap} coins`);
   };
 
   const refreshGoal = (): void => {
@@ -178,7 +187,7 @@ export function buildStore(game: Game, actions: StoreActions): HTMLElement {
     goalFill.style.setProperty('--b2-value', `${next.progress}%`);
   };
 
-  // ── upgrades: five permanent tracks ─────────────────────────────────────
+  // ── upgrades: permanent, bought with coins, kept across runs ────────────
   const upgradesPane = el('div', 'b2-store__pane b2-store__upgrades');
   upgradesPane.id = 'b2-store-upgrades';
   upgradesPane.setAttribute('role', 'tabpanel');
@@ -196,10 +205,11 @@ export function buildStore(game: Game, actions: StoreActions): HTMLElement {
     const name = el('h3', 'b2-shop-card__name', def.name);
     const levelPips = el('span', 'b2-upgrade__pips');
     nameRow.append(name, levelPips);
+    const blurb = el('p', 'b2-upgrade__blurb', def.blurb);
     const current = el('p', 'b2-upgrade__effect');
     const next = el('p', 'b2-upgrade__next');
     const meta = el('div', 'b2-shop-card__meta');
-    copy.append(nameRow, current, next, meta);
+    copy.append(nameRow, blurb, current, next, meta);
 
     const paint = (): void => {
       const level = upgradeLevel(save, def.id);
@@ -223,9 +233,9 @@ export function buildStore(game: Game, actions: StoreActions): HTMLElement {
       const buy = el('button', 'b2-btn b2-btn--lime b2-btn--sm b2-shop-card__buy');
       buy.type = 'button';
       const affordable = save.scrap >= cost;
-      buy.textContent = affordable ? 'BUY' : `NEEDS ${cost} SCRAP`;
+      buy.textContent = affordable ? 'UPGRADE' : `NEED ${cost - save.scrap} MORE`;
       buy.disabled = !affordable;
-      buy.setAttribute('aria-label', affordable ? `Buy ${def.name} for ${cost} scrap` : `Needs ${cost} scrap`);
+      buy.setAttribute('aria-label', affordable ? `Upgrade ${def.name} for ${cost} coins` : `Needs ${cost} coins`);
       buy.addEventListener('click', () => {
         const reason = actions.buyUpgrade(def.id);
         if (reason) {
@@ -313,9 +323,9 @@ export function buildStore(game: Game, actions: StoreActions): HTMLElement {
         const affordable = save.scrap >= def.cost;
         const buy = el('button', 'b2-btn b2-btn--lime b2-btn--sm b2-shop-card__buy');
         buy.type = 'button';
-        buy.textContent = affordable ? 'BUY' : `NEEDS ${def.cost} SCRAP`;
+        buy.textContent = affordable ? 'BUY' : `NEEDS ${def.cost} COINS`;
         buy.disabled = !affordable;
-        buy.setAttribute('aria-label', affordable ? `Buy ${def.name} for ${def.cost} scrap` : `Needs ${def.cost} scrap`);
+        buy.setAttribute('aria-label', affordable ? `Buy ${def.name} for ${def.cost} coins` : `Needs ${def.cost} coins`);
         buy.addEventListener('click', () => {
           const reason = actions.buyOutfit(def.id);
           if (reason) {

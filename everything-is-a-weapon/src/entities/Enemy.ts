@@ -7,6 +7,7 @@ import { extendChain, startChain } from '../gameplay/Chain';
 import { wallAvoidance } from '../gameplay/Navigation';
 import type { EnemyType, EnemyTypeId } from './EnemyTypes';
 import type { PhysicsObject } from './PhysicsObject';
+import { upgradeDamageMultiplier } from '../gameplay/Upgrades';
 import { createBossScript, type BossScript } from './bossScripts/BossScript';
 
 type AiState = 'entering' | 'idle' | 'investigate' | 'chase' | 'windup' | 'lunge' | 'recover' | 'hurl' | 'slam' | 'lash';
@@ -1694,6 +1695,8 @@ export class Enemy {
     }
 
     damage *= game.edges.impactDamageMultiplier(chain ? chain.steps.length : 0);
+    // HEAVY ARM, bought in the store.
+    damage *= upgradeDamageMultiplier(game.save.data);
 
     const stagger = clamp(impulse / 4200, 0.45, 1.5) * this.type.staggerFactor;
     this.stun = Math.max(this.stun, stagger);

@@ -189,7 +189,7 @@ function rewardFor(
   if (kind === 'scrap') {
     const rng = new Rng(hashString(`${seed}:${index}:scrap`));
     const scrap = 40 + tier * 25 + rng.int(0, 30);
-    return { kind: 'scrap', label: `+${scrap} SCRAP`, detail: 'straight to the purse', scrap };
+    return { kind: 'scrap', label: `+${scrap} COINS`, detail: 'straight to the purse', scrap };
   }
   if (kind === 'armor') {
     return { kind: 'armor', label: '+1 BUBBLE WRAP', detail: 'start the next room armoured' };
@@ -200,7 +200,7 @@ function rewardFor(
     // Every Edge is maxed: pay scrap rather than promise something unusable.
     const fallback = new Rng(hashString(`${seed}:${index}:scrap`));
     const scrap = 40 + tier * 25 + fallback.int(0, 30);
-    return { kind: 'scrap', label: `+${scrap} SCRAP`, detail: 'straight to the purse', scrap };
+    return { kind: 'scrap', label: `+${scrap} COINS`, detail: 'straight to the purse', scrap };
   }
   const edge = eligible[rng.int(0, eligible.length - 1)]!;
   return { kind: 'edge', label: edge.name, detail: edge.effect, edge: edge.id };

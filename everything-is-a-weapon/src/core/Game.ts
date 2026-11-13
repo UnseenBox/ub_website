@@ -35,7 +35,7 @@ import {
 import { ScoreSystem } from '../gameplay/ScoreSystem';
 import { Tutorial, type Lesson } from '../gameplay/Tutorial';
 import { nextLesson, toLesson, tutorialRoom } from '../gameplay/TutorialRooms';
-import { buyUpgrade as purchaseUpgrade, maxHealthBonus, upgradePetMultiplier, type UpgradeId } from '../gameplay/Upgrades';
+import { affordableUpgrades, buyUpgrade as purchaseUpgrade, maxHealthBonus, upgradePetMultiplier, type UpgradeId } from '../gameplay/Upgrades';
 import { nextUnlock, type UnlockGoal } from '../gameplay/Progression';
 import { isPetOutfitId, PET_OUTFITS, PET_OUTFIT_IDS } from '../gameplay/PetOutfits';
 
@@ -130,6 +130,12 @@ export interface RoomSummary {
   dailyFreezeEarned?: boolean;
   dailyFreezeUsed?: boolean;
   noSalvage: boolean;
+  /** Coins this room paid out (kept win or lose). */
+  coins?: number;
+  /** Coins in the purse now. */
+  coinsTotal?: number;
+  /** Store upgrades the purse can buy right now. */
+  upgradesReady?: number;
   buildMaxed: boolean;
   run: {
     floor: number;
@@ -1037,7 +1043,7 @@ export class Game {
     const save = this.save.data;
     if (save.petOutfits.includes(id)) return 'ALREADY OWNED';
     const def = PET_OUTFITS[id];
-    if (save.scrap < def.cost) return `NEEDS ${def.cost} SCRAP`;
+    if (save.scrap < def.cost) return `NEEDS ${def.cost} COINS`;
     save.scrap -= def.cost;
     save.petOutfits.push(id);
     save.petOutfit = id;
@@ -1264,6 +1270,9 @@ export class Game {
       dailyFreezeEarned,
       dailyFreezeUsed,
       noSalvage: outcome.noSalvage,
+      coins: outcome.paysSalvage ? this.score.stats.scrap : 0,
+      coinsTotal: save.scrap,
+      upgradesReady: affordableUpgrades(save),
       buildMaxed: EDGES.every((edge) => edgeStacks(build, edge.id) >= EDGE_STACK_CAP),
       run: {
         floor: index + 1,

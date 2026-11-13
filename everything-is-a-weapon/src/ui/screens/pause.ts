@@ -109,7 +109,7 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
   const scrapText = el('span', 'b2-chip__text');
   const scrapValue = el('span', 'b2-chip__value b2-num', String(game.save.data.scrap));
   scrapValue.setAttribute('aria-live', 'polite');
-  scrapText.append(scrapValue, el('span', 'b2-chip__label', 'SCRAP'));
+  scrapText.append(scrapValue, el('span', 'b2-chip__label', 'COINS'));
   scrapChip.append(icon(coinUrl, 'b2-chip__icon'), scrapText);
   scrapChip.setAttribute('aria-label', `${game.save.data.scrap} scrap`);
   scrapChip.setAttribute('role', 'status');

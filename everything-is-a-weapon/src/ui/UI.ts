@@ -1,6 +1,7 @@
 import type { Game, GameState, GameUi, RoomSummary } from '../core/Game';
 import type { EndlessSummary } from '../gameplay/Endless';
 import type { Door } from '../gameplay/NightShift';
+import { affordableUpgrades } from '../gameplay/Upgrades';
 import { HUD } from './HUD';
 import { buildMainMenu } from './MainMenu';
 import { buildPauseMenu, buildSettings } from './PauseMenu';
@@ -120,6 +121,14 @@ export class UI implements GameUi {
             if (!revived && game.state === 'failed') this.showSummary({ ...summary, canContinue: false, adMissed: true });
           }),
         home: () => (summary.runEnded ? game.abandonRun() : game.toMenu()),
+        // From a lost room the store comes back here, with the purse brought up to date.
+        store: summary.cleared
+          ? undefined
+          : () => this.showStore(() => this.showSummary({
+            ...summary,
+            coinsTotal: game.save.data.scrap,
+            upgradesReady: affordableUpgrades(game.save.data),
+          })),
         stamped: () => game.audio.play('stamp', 1),
       }),
     );
@@ -194,7 +203,7 @@ export class UI implements GameUi {
     );
   }
 
-  private showStore(): void {
+  private showStore(back: () => void = () => this.showMenu()): void {
     const game = this.game;
     this.show(
       buildStore(game, {
@@ -202,7 +211,7 @@ export class UI implements GameUi {
         buyAbility: (id) => game.buyAbility(id),
         buyOutfit: (id) => game.buyOutfit(id),
         equipOutfit: (id) => game.equipOutfit(id),
-        back: () => this.showMenu(),
+        back,
       }),
     );
   }

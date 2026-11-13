@@ -141,13 +141,14 @@ it('arms replay when run would be lost', () => {
   expect(acts.retry).toHaveBeenCalledOnce();
 });
 
-it('reports failure with no salvage, kept Edges and the next goal', () => {
+it('reports a failure that keeps its coins, kept Edges and the next goal', () => {
   document.body.append(buildResults(summary({
-    cleared: false,
+    cleared: false, coins: 84, coinsTotal: 240, upgradesReady: 2,
     run: { floor: 12, nextFloor: null, streak: 0, score: 5000, types: 2, stacks: 5, boosts: ['quick_feet', 'quick_feet', 'heavy_hands'], ended: false },
     nextGoal: { kind: 'ledger', kicker: 'NEXT STAR', name: 'SCRAP STIPEND', detail: '2 STARS TO GO · +100 SCRAP', progress: 33, action: 'ledger' },
   }), actions()));
-  expect(document.body.textContent).toContain('NO SALVAGE');
+  expect(document.body.textContent).toContain('+84 COINS KEPT');
+  expect(document.body.textContent).toContain('2 UPGRADES READY');
   expect(document.body.textContent).toContain('EDGES KEPT · STREAK RESET');
   expect(document.body.textContent).toContain('NEXT STAR · SCRAP STIPEND');
   expect(document.body.textContent).toContain('RUN SCORE');
@@ -158,8 +159,8 @@ it('keeps a daily failure to practice notes without the campaign run report', ()
     cleared: false, daily: true, score: 900, noSalvage: true,
     run: { floor: 7, nextFloor: null, streak: 3, score: 5000, types: 2, stacks: 3, boosts: [], ended: false },
   }), actions()));
-  expect(document.body.textContent).toContain('NO SALVAGE');
-  expect(document.body.textContent).toContain('PRACTICE · NO REWARD');
+  expect(document.body.textContent).toContain('PRACTICE');
+  expect(document.body.textContent).toContain('A DAILY REPLAY PAYS NOTHING');
   expect(document.querySelector('.b2-report__runreport')).toBeNull();
   expect(document.body.textContent).not.toContain('RUN · FLOOR');
 });

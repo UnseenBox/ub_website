@@ -10,8 +10,8 @@ it('puts a Ledger milestone first when fewer than three stars remain', () => {
   expect(goal).toMatchObject({
     kind: 'ledger',
     kicker: 'NEXT STAR',
-    name: 'SCRAP STIPEND',
-    detail: '2 STARS TO GO · +100 SCRAP',
+    name: 'COIN STIPEND',
+    detail: '2 STARS TO GO · +100 COINS',
     progress: 33,
     action: 'ledger',
   });
@@ -21,17 +21,18 @@ it('does not treat exactly three remaining stars as close', () => {
   const goal = nextUnlock(state({ scrap: 500 }), 0);
   expect(goal.kind).toBe('store');
   expect(goal.kicker).toBe('READY TO BUY');
-  expect(goal.name).toBe('SUGAR RUSH');
-  expect(goal.detail).toBe('120 SCRAP · READY NOW');
+  // HEAVY ARM (100) is the cheapest thing in the store
+  expect(goal.name).toBe('HEAVY ARM');
+  expect(goal.detail).toBe('100 COINS · READY NOW');
 });
 
 it('picks the cheapest affordable store item', () => {
-  const goal = nextUnlock(state({ scrap: 130, abilities: ['overdrive'] }), 0);
+  const goal = nextUnlock(state({ scrap: 130, abilities: ['overdrive'], upgrades: { damage: 1 } }), 0);
   expect(goal).toMatchObject({
     kind: 'store',
     kicker: 'READY TO BUY',
     name: 'DEEP FREEZE',
-    detail: '120 SCRAP · READY NOW',
+    detail: '120 COINS · READY NOW',
     progress: 100,
     action: 'store',
   });
@@ -53,9 +54,9 @@ it('shows a save-up store goal when the star track is complete', () => {
   expect(goal).toMatchObject({
     kind: 'store',
     kicker: 'SAVE UP',
-    name: 'SUGAR RUSH',
-    detail: '10 / 120 SCRAP · 110 TO GO',
-    progress: 8,
+    name: 'HEAVY ARM',
+    detail: '10 / 100 COINS · 90 TO GO',
+    progress: 10,
     action: 'store',
   });
 });
@@ -64,13 +65,13 @@ it('reports done only when every power, upgrade and star is complete', () => {
   const maxed = state({
     scrap: 0,
     abilities: ['blast', 'overdrive', 'freeze'],
-    upgrades: { door: 2, scrap: 4, cooldown: 4, score: 4, pet: 4 },
+    upgrades: { door: 5, damage: 8, speed: 5, power: 5, scrap: 4, cooldown: 4, score: 4, pet: 4 },
   });
   expect(nextUnlock(maxed, 27)).toEqual({
     kind: 'done',
     kicker: 'DONE',
     name: 'EVERYTHING UNLOCKED',
-    detail: 'THE LEASE IS YOURS.',
+    detail: 'THE HOUSE IS YOURS.',
     progress: 100,
     action: null,
   });

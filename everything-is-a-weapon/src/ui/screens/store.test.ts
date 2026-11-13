@@ -60,14 +60,15 @@ beforeEach(() => {
   document.body.innerHTML = '';
 });
 
-it('shows the wallet, five upgrade tracks, and the next unlock', () => {
+it('shows the wallet, eight upgrade tracks, and the next unlock', () => {
   const game = boot();
-  game.save.data.scrap = 300;
+  game.save.data.scrap = 150;
   document.body.append(store(game));
-  expect(document.querySelectorAll('[data-upgrade]')).toHaveLength(5);
-  expect(document.querySelector('.b2-store__wallet')!.textContent).toContain('300');
+  expect(document.querySelectorAll('[data-upgrade]')).toHaveLength(8);
+  expect(document.querySelector('.b2-store__wallet')!.textContent).toContain('150');
   expect(document.querySelector('.b2-store__goal')!.textContent).toContain('READY TO BUY');
-  expect(document.querySelector('[data-upgrade="door"]')!.textContent).toContain('NEEDS 400 SCRAP');
+  expect(document.querySelector('[data-upgrade="door"]')!.textContent).toContain('NEED 30 MORE');
+  expect(document.querySelector('[data-upgrade="damage"]')!.textContent).toContain('UPGRADE');
 });
 
 it('buys in place and updates pips, effect, wallet, and goal', () => {
@@ -81,20 +82,20 @@ it('buys in place and updates pips, effect, wallet, and goal', () => {
   expect(game.save.data.scrap).toBe(800);
   expect(card.dataset.level).toBe('1');
   expect(card.querySelector('.b2-upgrade__pips')!.textContent).toBe('●○○○');
-  expect(card.textContent).toContain('+10% SCRAP FROM INTRUDERS');
-  expect(card.textContent).toContain('NEXT: +10% SCRAP');
+  expect(card.textContent).toContain('+10% COINS');
+  expect(card.textContent).toContain('NEXT: +10% COINS');
   expect(document.querySelector('.b2-store__wallet')!.textContent).toContain('800');
 });
 
 it('shows MAXED and no buy button at the cap', () => {
   const game = boot();
   game.save.data.scrap = 10000;
-  game.save.data.upgrades.door = 2;
+  game.save.data.upgrades.door = 5;
   document.body.append(store(game));
   const card = document.querySelector<HTMLElement>('[data-upgrade="door"]')!;
   expect(card.querySelector('.b2-shop-card__buy')).toBeNull();
   expect(card.textContent).toContain('MAXED');
-  expect(card.textContent).toContain('7 MAX HEARTS');
+  expect(card.textContent).toContain('+5 MAX HEARTS');
 });
 
 it('switches to the powers tab and buys an ability', () => {

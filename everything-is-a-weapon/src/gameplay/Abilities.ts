@@ -2,7 +2,7 @@ import { rageStart, snoozeChime } from '../audio/CompanionSounds';
 import type { Game } from '../core/Game';
 import { startChain } from './Chain';
 import { ledgerCooldownMultiplier } from './StarLedger';
-import { upgradeCooldownMultiplier } from './Upgrades';
+import { upgradeCooldownMultiplier, upgradePowerMultiplier, upgradePowerRadiusMultiplier } from './Upgrades';
 
 export type AbilityId = 'blast' | 'overdrive' | 'freeze';
 
@@ -118,8 +118,10 @@ export class AbilitySystem {
         y = enemy.body.y;
       }
     }
+    // BIGGER BOOM, bought in the store: more damage and a wider blast.
+    const save = game.save.data;
     game.explode(
-      x, y, BLAST_RADIUS, BLAST_DAMAGE, 1.15,
+      x, y, BLAST_RADIUS * upgradePowerRadiusMultiplier(save), BLAST_DAMAGE * upgradePowerMultiplier(save), 1.15,
       startChain(game.time, player.uid, 'BIG RED BUTTON'), player, 'fire',
     );
     game.discoveries.unlock('big_red_button');

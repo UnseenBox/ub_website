@@ -161,7 +161,8 @@ describe('SaveManager v9', () => {
       version: 6,
       upgrades: { door: 99, scrap: -2, cooldown: 2.9, score: '3', pet: 4, nope: 2 },
     });
-    expect(save.upgrades).toEqual({ door: 2, cooldown: 2, pet: 4 });
+    // door is the hearts track: five levels now
+    expect(save.upgrades).toEqual({ door: 5, cooldown: 2, pet: 4 });
   });
 
   it('caps duplicate run Edges and drops unknown ids', () => {

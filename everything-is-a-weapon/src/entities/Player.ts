@@ -6,6 +6,7 @@ import { angleDiff, clamp, lerp } from '../core/math';
 import { Layer, RigidBody } from '../physics/RigidBody';
 import { startChain } from '../gameplay/Chain';
 import { RAGE_CHARGE, RAGE_SPEED, RAGE_THROW, absorbHit, consumePickup } from '../gameplay/Pickups';
+import { upgradeSpeedMultiplier } from '../gameplay/Upgrades';
 import type { PhysicsObject } from './PhysicsObject';
 
 export const PLAYER_RADIUS = 15;
@@ -136,7 +137,7 @@ export class Player {
       my /= ml;
     }
 
-    let speed = MOVE_SPEED * game.edges.moveSpeedMultiplier() * heroPerk(game.hero).speed;
+    let speed = MOVE_SPEED * game.edges.moveSpeedMultiplier() * heroPerk(game.hero).speed * upgradeSpeedMultiplier(game.save.data);
     if (this.rage > 0) speed *= RAGE_SPEED;
     const held = this.held;
     if (held) speed *= held.def.throwable ? 1 / (1 + held.body.mass / 55) : 0.5;

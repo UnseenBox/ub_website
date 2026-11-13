@@ -182,8 +182,8 @@ export const DISCOVERIES: readonly DiscoveryDefinition[] = [
   { id: 'incoming', title: 'INCOMING', recipe: ['CHUCKER', 'THROWS BACK', 'DUCK'], group: 'impact' },
   { id: 'down_to_earth', title: 'DOWN TO EARTH', recipe: ['FLOOR SLAM', 'YOU', 'FLAT'], group: 'impact' },
   { id: 'taste_test', title: 'TASTE TEST', recipe: ['SPRAY CAN', 'BIG MOUTH', 'INDIGESTION'], group: 'gadget' },
-  { id: 'big_red_button', title: 'BIG RED BUTTON', recipe: ['SCRAP', 'AN ABILITY', 'KABOOM ON DEMAND'], group: 'style' },
-  { id: 'deep_freeze', title: 'DEEP FREEZE', recipe: ['SCRAP', 'AN ABILITY', 'EVERYONE CHILLS OUT'], group: 'style' },
+  { id: 'big_red_button', title: 'BIG RED BUTTON', recipe: ['COINS', 'AN ABILITY', 'KABOOM ON DEMAND'], group: 'style' },
+  { id: 'deep_freeze', title: 'DEEP FREEZE', recipe: ['COINS', 'AN ABILITY', 'EVERYONE CHILLS OUT'], group: 'style' },
 ];
 
 export const DISCOVERY_BY_ID: ReadonlyMap<string, DiscoveryDefinition> = new Map(DISCOVERIES.map((d) => [d.id, d]));

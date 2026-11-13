@@ -10,12 +10,12 @@ it('pays a campaign clear and advances the run', () => {
   });
 });
 
-it('pays nothing for a campaign failure', () => {
+it('a campaign failure keeps its coins and nothing else', () => {
   expect(roomOutcome(false, false, false)).toEqual({
     cleared: false, daily: false, dailyReplay: false,
-    paysSalvage: false, updatesHighScore: false, updatesRoomBest: false,
+    paysSalvage: true, updatesHighScore: false, updatesRoomBest: false,
     awardsStars: false, countsClear: false, countsCounters: false,
-    advancesRun: false, noSalvage: true,
+    advancesRun: false, noSalvage: false,
   });
 });
 
@@ -36,10 +36,11 @@ it('makes a daily replay pure practice', () => {
   });
 });
 
-it('pays nothing for a daily failure', () => {
+it('a daily failure keeps its coins; a failed daily replay pays nothing', () => {
   expect(roomOutcome(false, true, false)).toMatchObject({
-    paysSalvage: false, updatesHighScore: false, updatesRoomBest: false,
+    paysSalvage: true, updatesHighScore: false, updatesRoomBest: false,
     awardsStars: false, countsClear: false, countsCounters: false,
-    advancesRun: false, noSalvage: true,
+    advancesRun: false, noSalvage: false,
   });
+  expect(roomOutcome(false, true, true)).toMatchObject({ paysSalvage: false, noSalvage: true });
 });

@@ -996,3 +996,51 @@
     display: none;
   }
 }
+
+/* A count on the STORE tab when the purse can buy an upgrade. */
+.b2-nav__item.has-badge {
+  position: relative;
+}
+
+.b2-nav__badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 2px solid var(--b2-ink);
+  border-radius: 10px;
+  background: var(--b2-red);
+  color: var(--b2-white);
+  font-family: var(--b2-display);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 2px 0 var(--b2-ink);
+  animation: b2-badge-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes b2-badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b2-nav__badge { animation: none; }
+}
+
+/* Store cards: the one-line reason under the name. */
+.b2-upgrade__blurb {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* A lost room's purse: green when it can buy something. */
+.b2-report__coins.is-ready {
+  background: rgba(255, 166, 43, 0.18);
+  border-color: var(--b2-lime);
+}

@@ -57,7 +57,7 @@ function setRoomStart(game: Game, score: number): void {
   (game as unknown as { scoreAtRoomStart: number }).scoreAtRoomStart = score;
 }
 
-it('pays no salvage, high score, room best, stars or counters on failure', () => {
+it('a failure keeps its coins but pays no high score, room best, stars or counters', () => {
   const game = new Game(fakeCanvas());
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
@@ -73,9 +73,10 @@ it('pays no salvage, high score, room best, stars or counters on failure', () =>
   game.score.stats.kills = 4;
   game.score.stats.bestChain = 3;
   const summary = summarize(game, false);
-  expect(summary.noSalvage).toBe(true);
+  expect(summary.noSalvage).toBe(false);
+  expect(summary.coins).toBe(25);
   expect(summary.run.score).toBe(0);
-  expect(game.save.data.scrap).toBe(before.scrap);
+  expect(game.save.data.scrap).toBe(before.scrap + 25);
   expect(game.save.data.highScore).toBe(before.highScore);
   expect(game.save.data.roomBests).toEqual({});
   expect(game.save.data.roomsCleared).toBe(before.cleared);
@@ -220,6 +221,6 @@ it('buys a permanent upgrade and writes the save', () => {
   game.save.data.scrap = 1000;
   expect(game.buyUpgrade('door')).toBe('');
   expect(game.save.data.upgrades.door).toBe(1);
-  expect(game.save.data.scrap).toBe(600);
+  expect(game.save.data.scrap).toBe(820);
   expect(game.buyUpgrade('nope' as never)).toBe('UNKNOWN UPGRADE');
 });

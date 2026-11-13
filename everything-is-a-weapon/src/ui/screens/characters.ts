@@ -6,6 +6,7 @@ import tenantArt from '../../assets/characters/tenant.webp';
 import flatmateArt from '../../assets/characters/flatmate.webp';
 import granArt from '../../assets/characters/gran.webp';
 import kidArt from '../../assets/characters/kid.webp';
+import { paintHeroPortrait } from '../../rendering/HeroPortrait';
 
 interface RosterArt {
   readonly portrait: string;
@@ -21,9 +22,13 @@ const ROSTER: Record<HeroId, RosterArt> = {
   kid: { portrait: kidArt, accent: 'lime' },
 };
 
-/** The selected hero's card art, shared by the roster and the main menu. */
+/**
+ * The selected hero's card art, shared by the roster and the main menu: painted from the
+ * in-game sprite and pet (rendering/HeroPortrait.ts), so it always matches what you play.
+ * The older sticker illustrations are the fallback where no canvas is available.
+ */
 export function heroPortrait(heroId: HeroId): string {
-  return ROSTER[heroId].portrait;
+  return paintHeroPortrait(heroId) ?? ROSTER[heroId].portrait;
 }
 
 /** 'the tenant & waffle' for the summary line. */
@@ -45,8 +50,8 @@ export function buildCharactersPane(game: Game, options: CharactersPaneOptions =
 
   const head = el('header', 'b2-roster__head');
   head.append(
-    el('h3', 'b2-roster__title b2-display b2-outlined', 'THE NIGHT SHIFT'),
-    el('p', 'b2-roster__sub', 'FOUR SLEEPY HEROES. FOUR LOYAL SIDEKICKS.'),
+    el('h3', 'b2-roster__title b2-display b2-outlined', 'THE HOUSEHOLD'),
+    el('p', 'b2-roster__sub', 'FOUR DEFENDERS. FOUR LOYAL PETS. ONE HOUSE.'),
   );
 
   const current = el('strong', 'b2-roster__current b2-display', heroPair(game.hero));

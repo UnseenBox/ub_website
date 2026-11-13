@@ -59,8 +59,8 @@ export const EDGES: readonly EdgeDefinition[] = [
   },
   {
     id: 'scrap_luck', category: 'greed', rarity: 'common',
-    name: 'SCRAP LUCK',
-    effect: '+20% scrap from everything.',
+    name: 'COIN LUCK',
+    effect: '+20% coins from everything.',
     flavor: '“Everything is worth something.”',
   },
   {
@@ -72,7 +72,7 @@ export const EDGES: readonly EdgeDefinition[] = [
   {
     id: 'magnate', category: 'greed', rarity: 'legendary',
     name: 'MAGNATE',
-    effect: '+40% scrap, but -10% score.',
+    effect: '+40% coins, but -10% score.',
     flavor: '“You can’t spend applause.”',
   },
   {

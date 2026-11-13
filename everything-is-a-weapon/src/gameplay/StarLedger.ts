@@ -17,13 +17,13 @@ export interface LedgerMilestone {
 
 /** Nine permanent rewards, one every three stars. Scrap milestones all stack. */
 export const LEDGER: readonly LedgerMilestone[] = [
-  { id: 'scrap_3', stars: 3, name: 'SCRAP STIPEND', reward: '+100 scrap', scrap: 100 },
+  { id: 'scrap_3', stars: 3, name: 'COIN STIPEND', reward: '+100 coins', scrap: 100 },
   { id: 'score_6', stars: 6, name: 'CROWD FAVOURITE', reward: '+15% score', scrap: 0 },
   { id: 'edge_9', stars: 9, name: 'HEAD START', reward: 'start each run with a common Edge', scrap: 0 },
-  { id: 'scrap_12', stars: 12, name: 'SCRAP STIPEND II', reward: '+150 scrap', scrap: 150 },
-  { id: 'scrap_15', stars: 15, name: 'SALVAGE RIGHTS', reward: '+20% scrap', scrap: 0 },
+  { id: 'scrap_12', stars: 12, name: 'COIN STIPEND II', reward: '+150 coins', scrap: 150 },
+  { id: 'scrap_15', stars: 15, name: 'COIN RIGHTS', reward: '+20% coins', scrap: 0 },
   { id: 'edge_18', stars: 18, name: 'HEAD START II', reward: 'start each run with a rare Edge', scrap: 0 },
-  { id: 'scrap_21', stars: 21, name: 'SCRAP STIPEND III', reward: '+200 scrap', scrap: 200 },
+  { id: 'scrap_21', stars: 21, name: 'COIN STIPEND III', reward: '+200 coins', scrap: 200 },
   { id: 'cooldown_24', stars: 24, name: 'QUICK HANDS', reward: '-15% ability cooldowns', scrap: 0 },
   { id: 'master_key', stars: 27, name: 'MASTER KEY', reward: 'DESCEND begins at Depths depth 10 (floor 19)', scrap: 0 },
 ];

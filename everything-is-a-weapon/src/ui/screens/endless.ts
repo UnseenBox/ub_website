@@ -41,7 +41,7 @@ export function buildEndlessOver(summary: EndlessSummary, actions: EndlessAction
     row('BEST FLOOR', String(Math.max(summary.bestFloor, 0)), summary.newBestFloor),
     row('BEST SCORE', formatScore(summary.bestScore)),
     row('BOSSES', String(summary.bosses)),
-    row('SCRAP', `+${summary.scrap}`),
+    row('COINS', `+${summary.scrap}`),
   );
 
   const actionsBox = el('div', 'b2-endless__actions');

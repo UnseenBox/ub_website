@@ -9,9 +9,9 @@ export interface HeroInfo {
 }
 
 export const HEROES: readonly HeroInfo[] = [
-  { id: 'tenant', name: 'the tenant', note: '+ waffle, who wants a bone' },
-  { id: 'flatmate', name: 'the flatmate', note: '+ biscuit, who wants tuna' },
-  { id: 'gran', name: 'gran', note: '+ captain, who wants a cracker' },
+  { id: 'tenant', name: 'the homeowner', note: '+ waffle, who wants a bone' },
+  { id: 'flatmate', name: 'the teen', note: '+ biscuit, who wants tuna' },
+  { id: 'gran', name: 'grandma', note: '+ captain, who wants a cracker' },
   { id: 'kid', name: 'the kid', note: '+ nugget, who wants seeds' },
 ];
 

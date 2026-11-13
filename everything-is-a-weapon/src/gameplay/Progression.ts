@@ -78,8 +78,8 @@ function storeGoal(candidate: StoreCandidate, scrap: number, affordable: boolean
     kicker: affordable ? 'READY TO BUY' : 'SAVE UP',
     name: candidate.name,
     detail: affordable
-      ? `${candidate.cost} SCRAP · READY NOW`
-      : `${scrap} / ${candidate.cost} SCRAP · ${candidate.cost - scrap} TO GO`,
+      ? `${candidate.cost} COINS · READY NOW`
+      : `${scrap} / ${candidate.cost} COINS · ${candidate.cost - scrap} TO GO`,
     progress: percent(scrap, candidate.cost),
     action: 'store',
   };
@@ -90,7 +90,7 @@ function doneGoal(): UnlockGoal {
     kind: 'done',
     kicker: 'DONE',
     name: 'EVERYTHING UNLOCKED',
-    detail: 'THE LEASE IS YOURS.',
+    detail: 'THE HOUSE IS YOURS.',
     progress: 100,
     action: null,
   };
