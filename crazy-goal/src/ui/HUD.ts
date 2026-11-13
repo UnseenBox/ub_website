@@ -27,6 +27,36 @@ const BALL_H = 26;
 const PLAQUE_GAP = 46;
 
 /**
+ * The HUD's glass: a navy pill with a drop below it, a lit rim and a sheen across the top half, so the
+ * scoreboard and tips read as raised plates over the pitch, like the buttons round them.
+ */
+function hudPill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.save();
+  roundRect(ctx, x, y + 3, w, h, r);
+  ctx.fillStyle = rgba('#000000', 0.3);
+  ctx.fill();
+  roundRect(ctx, x, y, w, h, r);
+  const body = ctx.createLinearGradient(0, y, 0, y + h);
+  body.addColorStop(0, rgba('#2a3a6a', 0.96));
+  body.addColorStop(1, rgba('#111a33', 0.96));
+  ctx.fillStyle = body;
+  ctx.fill();
+  ctx.clip();
+  const sheen = ctx.createLinearGradient(0, y, 0, y + h * 0.5);
+  sheen.addColorStop(0, rgba('#ffffff', 0.14));
+  sheen.addColorStop(1, rgba('#ffffff', 0));
+  ctx.fillStyle = sheen;
+  ctx.fillRect(x, y, w, h * 0.5);
+  ctx.restore();
+  ctx.save();
+  roundRect(ctx, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1));
+  ctx.strokeStyle = rgba('#ffffff', 0.24);
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
  * Everything written on screen during play, drawn on the canvas in steady world units.
  * Solo play keeps the street bare: just the prompts, the miss call and the goal celebration.
  * Duels keep a white board with the running score. On small screens each piece is enlarged
@@ -207,18 +237,19 @@ export class Hud {
 
   private drawKeys(ctx: CanvasRenderingContext2D, g: Game, w: number): void {
     const keys = this.keyList(g);
-    roundRect(ctx, 0, 0, w, 26 + keys.length * 28, 14);
-    ctx.fillStyle = rgba(C.white, 0.88);
-    ctx.fill();
+    hudPill(ctx, 0, 0, w, 26 + keys.length * 28, 14);
     keys.forEach(([key, label], i) => {
       const ky = 32 + i * 28;
       const kw = key.length > 1 ? 44 : 26;
+      // Each key a little raised keycap: a dark lip under a pale top.
+      roundRect(ctx, 20, ky - 13, kw, 21, 6);
+      ctx.fillStyle = rgba('#000000', 0.35);
+      ctx.fill();
       roundRect(ctx, 20, ky - 15, kw, 21, 6);
-      ctx.strokeStyle = rgba(C.navy, 0.55);
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      text(ctx, key, 20 + kw / 2, ky, { size: 10, color: C.navy, align: 'center', weight: 700 });
-      text(ctx, label, 76, ky, { size: 10, color: C.navy, weight: 700, spacing: 1.5 });
+      ctx.fillStyle = '#eef1fa';
+      ctx.fill();
+      text(ctx, key, 20 + kw / 2, ky, { size: 10, color: C.navy, align: 'center', weight: 900 });
+      text(ctx, label, 76, ky, { size: 10, color: rgba(C.white, 0.9), weight: 700, spacing: 1.5 });
     });
   }
 
@@ -238,8 +269,10 @@ export class Hud {
     ];
     const STAR = 17;
     const FS = 13;
+    // The first star not yet won is the one to play for: its chip is lit.
+    const next = Math.min(3, earned + 1);
     const drawStars = (n: number, x: number, cy: number, on: boolean): void => {
-      ctx.globalAlpha = on ? 1 : 0.32;
+      ctx.globalAlpha = on ? 1 : 0.4;
       for (let k = 0; k < n; k++) ctx.drawImage(arcadeStar, x + k * (STAR - 3), cy - STAR / 2, STAR, STAR);
       ctx.globalAlpha = 1;
     };
@@ -251,12 +284,19 @@ export class Hud {
       const h = rowH * 3 + 14;
       ctx.translate(left, colTop);
       ctx.scale(u, u);
-      roundRect(ctx, 0, 0, w, h, 14);
-      ctx.fillStyle = rgba(C.navy, 0.92);
-      ctx.fill();
+      hudPill(ctx, 0, 0, w, h, 14);
       segs.forEach((seg, i) => {
         const cy = 7 + rowH * i + rowH / 2;
         const on = earned >= seg.n;
+        if (seg.n === next && !on) {
+          roundRect(ctx, 6, cy - rowH / 2 + 2, w - 12, rowH - 4, 9);
+          ctx.fillStyle = rgba(C.sun, 0.16);
+          ctx.fill();
+        }
+        if (i > 0) {
+          ctx.fillStyle = rgba(C.white, 0.1);
+          ctx.fillRect(14, cy - rowH / 2, w - 28, 1.5);
+        }
         drawStars(seg.n, 16, cy, on);
         text(ctx, seg.label, w - 16, cy + 1, { size: FS, color: on ? C.sun : rgba(C.white, 0.85), align: 'right', baseline: 'middle', weight: 900, spacing: 1 });
       });
@@ -271,18 +311,26 @@ export class Hud {
       const fit = Math.min(1, (arena.w + 90) / (w * u));
       ctx.translate(arena.x + arena.w / 2, Math.max(cam.visible.y + 74 * u, arena.y - 215));
       ctx.scale(u * fit, u * fit);
-      roundRect(ctx, -w / 2, -h / 2, w, h, h / 2);
-      ctx.fillStyle = rgba(C.navy, 0.92);
-      ctx.fill();
+      hudPill(ctx, -w / 2, -h / 2, w, h, h / 2);
       const order = rtl ? [...segs].reverse() : segs;
       let x = -w / 2 + PAD;
-      for (const seg of order) {
+      order.forEach((seg, i) => {
         const on = earned >= seg.n;
+        const segW = widths[segs.indexOf(seg)];
+        if (seg.n === next && !on) {
+          roundRect(ctx, x - GAP / 2 + 3, -h / 2 + 5, segW + GAP - 6, h - 10, (h - 10) / 2);
+          ctx.fillStyle = rgba(C.sun, 0.16);
+          ctx.fill();
+        }
+        if (i > 0) {
+          ctx.fillStyle = rgba(C.white, 0.14);
+          ctx.fillRect(x - GAP / 2 - 0.75, -h / 2 + 10, 1.5, h - 20);
+        }
         drawStars(seg.n, x, 0, on);
         const sw = seg.n * (STAR - 3) + 3 + 8;
         text(ctx, seg.label, x + sw, 1, { size: FS, color: on ? C.sun : rgba(C.white, 0.85), baseline: 'middle', weight: 900, spacing: 1 });
-        x += widths[segs.indexOf(seg)] + GAP;
-      }
+        x += segW + GAP;
+      });
     }
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -302,9 +350,7 @@ export class Hud {
     const cx = arena.x + arena.w / 2;
     const top = arena.y + arena.h + 10 + Math.sin(g.time.elapsed * 3) * 1.5;
     ctx.globalAlpha = clamp01(g.stateT * 6 + 0.5);
-    roundRect(ctx, cx - w / 2, top, w, h, Math.min(h / 2, 18 * u));
-    ctx.fillStyle = C.navy;
-    ctx.fill();
+    hudPill(ctx, cx - w / 2, top, w, h, Math.min(h / 2, 18 * u));
     ctx.fillStyle = C.sun;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
