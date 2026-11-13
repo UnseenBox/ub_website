@@ -246,6 +246,9 @@ export class Player {
     for (const object of game.objects) {
       if (!object.alive || object.tipProgress >= 0 || object.def.fixed) continue;
       const ob = object.body;
+      // What just left your hand is not up for grabs: a quick tap after a throw (touch grabs the
+      // nearest thing) would catch it again and cancel the throw.
+      if (ob.ignoreId === b.id && ob.ignoreTimer > 0) continue;
       const toPlayer = Math.hypot(ob.x - b.x, ob.y - b.y);
       if (auto) {
         // No cursor: the nearest thing wins, with a nudge towards whatever you are facing.

@@ -39,6 +39,8 @@ export interface Portal {
   setContext(context: Record<string, string | number> | null): void;
   /** Calls back now, and again whenever the portal's own mute switch changes. */
   onMuteChange(listener: (muted: boolean) => void): void;
+  /** The portal's own read of the device, when it has one (CrazyGames asks games to use it). */
+  deviceType?(): 'desktop' | 'tablet' | 'mobile' | null;
 }
 
 export class WebPortal implements Portal {

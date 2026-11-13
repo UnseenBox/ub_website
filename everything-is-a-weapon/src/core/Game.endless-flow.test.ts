@@ -16,6 +16,7 @@ import { MomScript, GUARD_CHIP, OPEN_BONUS } from '../entities/bossScripts/MomSc
 import { MowerScript, STALL_BONUS } from '../entities/bossScripts/MowerScript';
 import { PianoScript, BEAT_WINDOW, ON_BEAT_BONUS, OFF_BEAT_FACTOR } from '../entities/bossScripts/PianoScript';
 import { KrakenScript, COZY_CHIP, EXPOSED_BONUS as KRAKEN_EXPOSED } from '../entities/bossScripts/KrakenScript';
+import { BOSS_PART_COINS } from '../gameplay/ScoreSystem';
 import { FridgeScript, FRONT_CHIP, BACK_BONUS } from '../entities/bossScripts/FridgeScript';
 import { FlusherScript, LID_ARMOUR } from '../entities/bossScripts/FlusherScript';
 import { BLOCKED_CHIP, COPIERS, ChairmanScript, EXPOSED_BONUS, INTERRUPT_DAMAGE, RAM_DAMAGE } from '../entities/bossScripts/ChairmanScript';
@@ -898,7 +899,8 @@ it('kraken: the sofa is cozy until every tentacle is down; thrown things cut ten
   run(game, 0.05);
   expect(t0.hp).toBeLessThan(before);
 
-  // cut them all down
+  // cut them all down: each one pays coins, so a lost fight still pays for an upgrade
+  const coins = game.score.stats.scrap;
   for (const t of script.tentacles) {
     for (let k = 0; k < 12 && t.state !== 'dead'; k++) {
       lob(game, t);
@@ -906,6 +908,7 @@ it('kraken: the sofa is cozy until every tentacle is down; thrown things cut ten
     }
     expect(t.state).toBe('dead');
   }
+  expect(game.score.stats.scrap - coins).toBeGreaterThanOrEqual(4 * BOSS_PART_COINS);
   expect(script.exposed).toBeGreaterThan(0);
   const hp2 = boss.hp;
   boss.damage(game, 20, PUSH);
@@ -915,6 +918,16 @@ it('kraken: the sofa is cozy until every tentacle is down; thrown things cut ten
   run(game, 6);
   expect(script.alive).toBe(4);
   expect(script.regrowths).toBe(1);
+});
+
+it('kraken: three hits on the cozy sofa bring back the hint to throw at the tentacles', { timeout: 90_000 }, () => {
+  const { game, boss } = krakenFight();
+  const hint = vi.spyOn(game.hud, 'hint');
+  for (let k = 0; k < 3; k++) {
+    boss.damage(game, 5, PUSH);
+    run(game, 1.4);
+  }
+  expect(hint.mock.calls.some(([title]) => title === 'TOO COZY')).toBe(true);
 });
 
 it('kraken: a slam lands where its ring said, a grab holds you until you cut the tentacle', { timeout: 90_000 }, () => {

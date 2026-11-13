@@ -35,8 +35,9 @@ freezes between rooms and the "watch ad" button removes itself after the first r
 ## Submitting
 
 1. Create a developer account at https://developer.crazygames.com and choose **Submit game**.
-2. Game engine: **HTML5**. Upload `dist-crazygames/index.html`. If the page comes up as plain
-   unstyled text, an older multi-file build was uploaded: delete it and upload this one file.
+2. Game engine: **HTML5**. Upload `my-house-my-rules-crazygames.zip` as it is (`index.html` and
+   the `sfx/` folder at the top level). If the page comes up as plain unstyled text, an older
+   build was uploaded: delete it and upload this zip.
 3. When asked about saving progress, choose **"Yes, using the Data Module from the CrazyGames
    SDK"**. The game saves through it; with any other answer the SDK refuses the saves and the
    game falls back to the browser's own storage.
@@ -48,27 +49,26 @@ freezes between rooms and the "watch ad" button removes itself after the first r
 
 ### Text for the form
 
-**Title:** BONK! Everything Is a Weapon
+**Title:** My House, My Rules
 
-(The longer title is deliberate. CrazyGames asks for names that cannot be confused with
-another game, and "Bonk" on its own is close to other physics games such as bonk.io and
-Bonk Survivor. The covers show only "BONK!", which is part of this title.)
+(Not the old "BONK!" title: this is a new game page, with new covers.)
 
-**Category:** Action (tags: physics, funny, sandbox, 2D, mouse, mobile)
+**Category:** Action (tags: physics, funny, 2D, upgrade, mouse, mobile)
 
 **Description:**
 
-> It is 3 a.m. and a removal crew of living cardboard boxes is trying to move you out of your
-> own flat. You have no weapon. Good. The flat is full of them.
+> It is 3:07 a.m. and the garden gnomes have got into the house. All of them. They brought a king.
 >
-> Grab the chair, the toaster, the frying pan or the cat's dinner and throw it. Tip the lamp
-> into the puddle. Set off the bag of flour. Knock the bookshelf onto three movers at once.
-> Everything in every room can be used, and things set each other off: there are over 130
-> ways for it to go wrong for them, and the game keeps a board of the ones you have found.
+> You have no weapon. Good: the house is full of them. Grab the frying pan, the chair, the toaster
+> or the cat's dinner and throw it. Tip the lamp into the puddle. Knock the bookshelf onto three
+> gnomes at once and watch their hats fly. Everything in every room can be used, and things set
+> each other off: there are over 130 ways for it to go wrong for them.
 >
-> Pick one of four heroes, each with a pet that has its own way of helping: a dog that will
-> not let go, a cat that disappears into a fight cloud, a dive-bombing parrot and a hamster
-> in a very large ball.
+> Every gnome you knock out drops coins, and you keep them even when a room beats you. Spend
+> them in the store on extra hearts, a heavier throw, faster feet and a bigger Power, then go
+> back and take the room. Fifty rooms, twenty bosses, four heroes, each with a pet that helps:
+> a dog that will not let go, a cat that vanishes into a fight cloud, a dive-bombing parrot and
+> a hamster in a very large ball.
 
 **Controls (desktop):**
 
@@ -78,13 +78,13 @@ Bonk Survivor. The covers show only "BONK!", which is part of this title.)
 - Right click: drop
 - Space: dodge
 - R: restart the room
-- Esc: pause
+- P or Esc: pause
 
 **Controls (mobile):**
 
 - Left thumb: move
 - Tap the right side: grab the nearest thing
-- Hold the right side and release: throw at the nearest mover
+- Hold the right side and release: throw at the nearest gnome
 - Buttons on the right: dodge, drop
 
 ## What the build does for CrazyGames
@@ -110,6 +110,8 @@ All of it lives in `src/platform/` and is only compiled into this build
 - **Progress percentage** (campaign rooms cleared, out of 50) is reported at start and after each room.
 - **Confetti** (`happytime`) once: the first time room 50 is cleared.
 - **Game context** (room number and hero) is attached for player feedback.
+- **Device type** comes from the SDK's system info: on a phone or tablet the touch controls are
+  shown from the first frame (a coarse pointer or the first touch also switches them on).
 - **No custom fullscreen** in this build, no links out of the game, no other ad network.
 
 ## How the build meets their quality guidelines
@@ -118,25 +120,26 @@ Checked against https://docs.crazygames.com/requirements/quality/ and the Basic 
 
 | Guideline | In this build |
 | --- | --- |
-| New players land directly in gameplay | A first-time visitor starts in room 1 with no menu. The menu (heroes, daily challenge, settings) appears after that room. Returning players get the menu: one click to play. |
-| Onboarding inside gameplay, visual, short, skippable | Room 1 is the tutorial: a sticky note over the hero shows the movement keys, then "click to grab", then "hold, aim, release". Each note goes away when the player does the thing; nothing blocks play. |
+| New players land directly in gameplay | A first-time visitor starts in House Rule 1 with no menu ("3:07 A.M. THE GNOMES GOT IN."). Returning players get the menu: one click to play. |
+| Onboarding inside gameplay, visual, short, skippable | Five short House Rules, each one move: throw, water + electricity, dodge, the Power, the pet. A prompt says what to do and goes when the player does it; nothing blocks play. |
 | Show how to control the game | A strip of key caps along the bottom of the screen during play, and the full list on the pause screen. |
 | Keys adapt to the keyboard layout | Movement uses physical key positions, so it is the same four keys on every keyboard. The hints show what is printed on them (WASD, or ZQSD on a French AZERTY keyboard). Arrow keys also move. |
 | Avoid Escape as the only way to do something | P pauses as well as Esc (Esc also leaves fullscreen in a browser). |
-| Readable at their frame sizes | Checked at 821x462 and 907x510: no text under 11px, nothing outside the frame on the HUD, menu, pause, settings and results screens. |
+| Readable at their frame sizes | Checked at 800x450, 821x462 and 907x510; the store and the loss report have a compact layout under 520px of height. |
 | Same physics at any refresh rate | Fixed 120 Hz simulation step, independent of the display. |
 | Clear goals, progression, a reason to return | Clear the room; a 50-room campaign in five acts with all 20 bosses; 131 discoveries on an evidence board; 4 heroes; a daily challenge; progress saved to the CrazyGames account. |
-| Fast to load | About 2.6 MB in total (1.4 MB gzipped); no loading screen. |
+| Fast to load | 3.3 MB in total: `index.html` 2.45 MB (1.3 MB gzipped) plus 71 small sounds fetched after the first tap; no loading screen. |
 | No ads before the player has played | No mid-game ad in the first 75 seconds of a visit, on top of CrazyGames' own spacing. |
 | Buttons honest about ads | "WATCH AD: CONTINUE" is the same size as RETRY, labelled as an advert, and never delayed or pre-selected. |
 | Safe areas in the CrazyGames app | HUD and touch buttons are padded with the device safe-area insets. |
 | Keyboard focus in their frame | The game takes focus at start and on every click, so keys work without an extra click. |
-| English, PEGI 12, no cross-promotion | English only; cartoon slapstick against cardboard boxes; no links out of the game. |
+| English, PEGI 12, no cross-promotion | English only; cartoon slapstick against garden gnomes (they lose their hats, nobody bleeds); no links out of the game. |
+| Stuck players have a way forward | Coins are kept when a room is lost: gnomes pay as they fall, bosses as they are hurt or lose a tentacle or head. The loss screen leads with UPGRADE when the purse can buy something. A scripted player clears 44 of the 50 rooms with no upgrades and 47 with them, and every room it loses still pays coins. |
 
 Two things in their guidelines cannot be settled from here:
 
-- **Audio quality.** All sound is synthesised and has not been listened to by a person on
-  good speakers. Play it with sound on before submitting.
+- **Audio quality.** Recorded sounds (`sfx/`) with synthesised fallbacks; not yet listened to
+  by a person on good speakers. Play it with sound on before submitting.
 - **Difficulty.** Balance comes from scripted play. If the later acts feel unfair to a human,
   say so and the numbers can be eased; average play time and next-day return are the two
   metrics CrazyGames uses to decide on Full Launch.
@@ -147,7 +150,8 @@ Two things in their guidelines cannot be settled from here:
 npm run build:crazygames
 ```
 
-That writes `dist-crazygames/index.html`. Upload that file as a new version in the developer portal.
+That writes `dist-crazygames/index.html`. Zip it with `public/sfx/*.mp3` under `sfx/` (see the
+top of this file) and upload the zip as a new version in the developer portal.
 
 To test the integration locally:
 
@@ -158,8 +162,9 @@ npm run dev:crazygames
 On localhost the SDK runs in its test mode: ads are replaced by a placeholder overlay and
 every SDK call is logged to the browser console.
 
-To redraw the covers after changing the character art, run `npm run dev`, open the game and
-paste `scripts/render-covers.js` into the browser console; it writes the three PNGs into `covers/`.
+To redraw the covers after changing the character art, run `npm run dev`, open the game and run
+`await (await import('/src/debug/renderCovers.ts')).renderCovers()` in the browser console; it
+writes the three PNGs into `covers/`.
 
 ## Not done here
 

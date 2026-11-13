@@ -15,6 +15,9 @@ const MOVE_ZONE = 0.42;
  * The adapter only fills in RawInput; gameplay never knows a touch screen is involved.
  */
 export class TouchInput implements InputSource {
+  /** @param handheld the portal says this is a phone or tablet: show the touch controls from the start. */
+  constructor(private readonly handheld = false) {}
+
   private raw: RawInput | null = null;
   private target: HTMLElement | null = null;
   private readonly abort = new AbortController();
@@ -44,7 +47,7 @@ export class TouchInput implements InputSource {
     target.addEventListener('touchstart', (event) => event.preventDefault(), options);
 
     this.buildUi(target.parentElement ?? document.body);
-    if (window.matchMedia?.('(pointer: coarse)').matches) this.enterTouchMode();
+    if (this.handheld || window.matchMedia?.('(pointer: coarse)').matches) this.enterTouchMode();
   }
 
   detach(): void {

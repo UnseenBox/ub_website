@@ -90,6 +90,7 @@ export class KrakenScript implements BossScript {
   private tauntedHalf = false;
   private gap = 2.0;
   private cozyAt = -9;
+  private cozyHits = 0;
   private heldBy: Tentacle | null = null;
   private heldT = 0;
   private squeezeT = 0;
@@ -163,6 +164,8 @@ export class KrakenScript implements BossScript {
     if (game.time - this.cozyAt > 1.3) {
       this.cozyAt = game.time;
       game.fx.burst('COZY...', boss.body.x, boss.body.y - 80, 0.8, '#ffd6ec', true);
+      // Three shrugged-off hits and the player has not found the rule yet: say it again, once.
+      if (++this.cozyHits === 3) game.hud.hint('TOO COZY', 'throw things at the tentacles', 2.6);
     }
     return amount * COZY_CHIP;
   }
@@ -220,6 +223,7 @@ export class KrakenScript implements BossScript {
       this.erupted++;
       if (this.erupted === 1) {
         game.fx.burst('IT WANTS A HUG!', b.x, b.y - 100, 1.3, '#ffb3d9', true);
+        game.hint('HIT THE TENTACLES', 'the sofa is too cozy: cut all four down, then hit him', 3.8, 'boss:KrakenScript');
         this.taunt(game, boss, pickLine(['Come sit.', 'Stay a while.', 'Make yourself comfortable.']), '#ffd6ec', true);
       }
     }
@@ -496,6 +500,7 @@ export class KrakenScript implements BossScript {
     t.state = 'dead';
     t.attack = null;
     if (this.heldBy === t) this.heldBy = null;
+    game.score.payBossPart();
     game.fx.burst('SEVERED!', t.px, t.py - 30, 1.1, '#ff7ab8', true);
     game.fx.ring(t.px, t.py, 6, 80, 0.4, 'rgba(255,122,184,0.9)', 4);
     game.audio.play('plop', 0.8);

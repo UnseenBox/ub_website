@@ -277,6 +277,34 @@ it('lesson 3: the charger is a Trolley, and after the dash any hit finishes it',
   expect(game.tutorial.step, 'any hit after the dash clears the lesson').toBe('power');
 });
 
+it('a tap straight after a throw does not catch the thing you just threw', () => {
+  const game = boot();
+  installTestHooks(game);
+  const t = hooks();
+  game.playLesson('throw');
+  t.step(30);
+  expect(t.fetch('pan')).toBe(true);
+  const pan = game.player.held!;
+  expect(pan.def.id).toBe('pan');
+  // touch play: aim with the stick, hold and release, then tap again at once
+  const raw = game.input.raw;
+  raw.directional = true;
+  raw.aimDirX = 1;
+  raw.aimDirY = 0;
+  raw.aimIdle = false;
+  t.press();
+  t.step(40);
+  t.release();
+  t.step(1);
+  expect(game.player.held).toBeNull();
+  t.press();
+  t.step(2);
+  t.release();
+  t.step(1);
+  expect(game.player.held).toBeNull();
+  expect(pan.body.speed()).toBeGreaterThan(200);
+});
+
 it('lesson 4: the Power is handed over on arrival and clears a crowd', () => {
   const game = boot();
   installTestHooks(game);

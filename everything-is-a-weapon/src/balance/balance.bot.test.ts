@@ -87,15 +87,19 @@ const PROFILES: Record<string, Profile> = {
 
 interface BotState { charging: boolean; chargeT: number; dodgeCd: number; }
 
-function nearestEnemy(game: Game): { d: number; dx: number; dy: number } | null {
+function nearestEnemy(game: Game, parts = true): { d: number; dx: number; dy: number } | null {
   const p = game.player.body;
   let best: { d: number; dx: number; dy: number } | null = null;
   for (const e of game.enemies) {
     if (e.defeated || !e.alive) continue;
-    const dx = e.body.x - p.x;
-    const dy = e.body.y - p.y;
-    const d = Math.hypot(dx, dy);
-    if (!best || d < best.d) best = { d, dx, dy };
+    // Bosses in parts (tentacles, heads, cables) say where to throw, as touch aim assist does.
+    const targets = (parts ? e.script?.aimPoints?.(e) : null) ?? [{ x: e.body.x, y: e.body.y }];
+    for (const t of targets) {
+      const dx = t.x - p.x;
+      const dy = t.y - p.y;
+      const d = Math.hypot(dx, dy);
+      if (!best || d < best.d) best = { d, dx, dy };
+    }
   }
   return best;
 }
@@ -110,11 +114,19 @@ function botStep(game: Game, st: BotState, profile: Profile, dt: number): void {
   const p = player.body;
   st.dodgeCd -= dt;
   const enemy = nearestEnemy(game);
-  if (profile.dodge && enemy && enemy.d < 78 && st.dodgeCd <= 0) {
+  // dodging and backing off are about bodies; aiming is about weak points
+  const body = nearestEnemy(game, false);
+  if (profile.dodge && body && body.d < 78 && st.dodgeCd <= 0) {
     raw.dodgePresses++;
     st.dodgeCd = 1.1;
   }
   if (player.held) {
+    // a person looks where they are about to throw
+    if (enemy && enemy.d > 1) {
+      raw.aimDirX = enemy.dx / enemy.d;
+      raw.aimDirY = enemy.dy / enemy.d;
+      raw.aimIdle = false;
+    }
     if (!st.charging) {
       if (!enemy || enemy.d < 560) {
         raw.primaryDown = true;
@@ -130,10 +142,10 @@ function botStep(game: Game, st: BotState, profile: Profile, dt: number): void {
         st.charging = false;
       }
     }
-    if (profile.kite && enemy) {
-      if (enemy.d < 170) {
-        raw.moveX = -enemy.dx / enemy.d;
-        raw.moveY = -enemy.dy / enemy.d;
+    if (profile.kite && body) {
+      if (body.d < 170) {
+        raw.moveX = -body.dx / body.d;
+        raw.moveY = -body.dy / body.d;
       }
     }
     return;
@@ -149,7 +161,7 @@ function botStep(game: Game, st: BotState, profile: Profile, dt: number): void {
     if (d < bestD) { bestD = d; target = o; }
   }
   if (!target) {
-    if (enemy && enemy.d < 200) { raw.moveX = -enemy.dx / enemy.d; raw.moveY = -enemy.dy / enemy.d; }
+    if (body && body.d < 200) { raw.moveX = -body.dx / body.d; raw.moveY = -body.dy / body.d; }
     return;
   }
   const dx = target.body.x - p.x;
@@ -176,11 +188,27 @@ function playRoom(game: Game, label: string, profile: Profile): Result {
   for (const spec of game.room.pending) counts.set(spec.type, (counts.get(spec.type) ?? 0) + 1);
   const crewSummary = [...counts].map(([t, n]) => `${n}${t}`).join(',');
   const enemies = game.room.pending.length + game.enemies.length;
+  let throws = 0;
+  const throwDist: string[] = [];
+  game.bus.on('OBJECT_THROWN', (ev) => {
+    throws++;
+    const e = nearestEnemy(game);
+    if (env.BALANCE_DEBUG && e) throwDist.push(`${ev.object.def.id}@${Math.round(e.d)}`);
+    if (env.BALANCE_DEBUG && traced.length < 3) traced.push({ o: ev.object, t0: game.time, log: [] });
+  });
+  const traced: Array<{ o: Game['objects'][number]; t0: number; log: string[] }> = [];
   let lowest = game.player.hp;
   const steps = Math.round(CAP / FIXED_DT);
   for (let i = 0; i < steps; i++) {
     botStep(game, st, profile, FIXED_DT);
     game.tick(FIXED_DT);
+    for (const tr of traced) {
+      const age = game.time - tr.t0;
+      if (age < 1.2 && i % 12 === 0) {
+        const p = game.player.body;
+        tr.log.push(`${age.toFixed(1)}s o(${Math.round(tr.o.body.x)},${Math.round(tr.o.body.y)} z${Math.round(tr.o.body.z)} v${Math.round(tr.o.body.speed())}${tr.o.held ? ' HELD' : ''}) p(${Math.round(p.x)},${Math.round(p.y)})`);
+      }
+    }
     if (i % 6 === 0) (game as unknown as { frame(a: number, d: number): void }).frame(1, FIXED_DT * 6);
     lowest = Math.min(lowest, game.player.hp);
     if (game.state === 'cleared' || game.state === 'failed') break;
@@ -188,6 +216,17 @@ function playRoom(game: Game, label: string, profile: Profile): Result {
   }
   const cleared = game.room.cleared || game.state === 'cleared';
   const died = !game.player.alive || game.state === 'failed';
+  if (env.BALANCE_DEBUG) {
+    for (const e of game.enemies.filter((x) => x.type.boss)) {
+      const s = e.script as unknown as { tentacles?: Array<{ hp: number; state: string }>; heads?: Array<{ hp: number; state: string }> } | null;
+      const parts = (s?.tentacles ?? s?.heads ?? []).map((t) => `${t.state}:${Math.round(t.hp)}`).join(' ');
+      report(`BAL DEBUG ${label} ${e.type.id} hp ${Math.round(e.hp)}/${e.maxHp} throws ${throws} parts [${parts}] objects ${game.objects.filter((o) => o.alive && !o.def.fixed).length}`);
+      report(`BAL DEBUG throw distances ${throwDist.slice(0, 40).join(' ')}`);
+      for (const tr of traced) report(`BAL DEBUG trace ${tr.o.def.id}: ${tr.log.join(' | ')}`);
+      const aim = e.script?.aimPoints?.(e);
+      report(`BAL DEBUG boss at ${Math.round(e.body.x)},${Math.round(e.body.y)} aim ${JSON.stringify(aim?.map((a) => [Math.round(a.x), Math.round(a.y)]))}`);
+    }
+  }
   return {
     crew: crewSummary + ' | hits: ' + [...hits].map(([k, v]) => `${k}x${v}`).join(','), label, cleared: cleared && !died, died, seconds: Math.round(game.room.elapsed),
     heartsLost: Math.round((startHp - lowest) * 10) / 10, enemies, hp: game.player.hp, coins: game.score.stats.scrap,

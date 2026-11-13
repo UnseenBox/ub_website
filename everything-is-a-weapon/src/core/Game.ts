@@ -311,7 +311,8 @@ export class Game {
     this.ads = new AdManager(portal.ads);
     this.input = new InputManager(canvas);
     this.input.addSource(new KeyboardMouseInput());
-    this.input.addSource(new TouchInput());
+    const device = portal.deviceType?.() ?? null;
+    this.input.addSource(new TouchInput(device === 'mobile' || device === 'tablet'));
     this.renderer = new Renderer(this, canvas);
     this.interactions = new InteractionSystem(this, [...INTERACTION_RULES, ...HOUSE_RULES, ...GADGET_RULES, ...MORE_RULES]);
     this.impacts = new ImpactSystem(this);

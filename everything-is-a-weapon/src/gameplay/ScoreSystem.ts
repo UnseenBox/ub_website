@@ -36,6 +36,9 @@ export const COMBO_WINDOW = 5;
 const MAX_COMBO = 8;
 /** Coins a boss pays across its whole health bar, as it is hurt (the kill pays 150 more on top). */
 export const BOSS_HIT_COINS = 120;
+/** Coins for cutting a piece off a boss in parts (a tentacle, a head), and the most a room pays for them. */
+export const BOSS_PART_COINS = 15;
+export const BOSS_PART_CAP = 90;
 
 const FUNNY_KILLS: Readonly<Record<string, { discovery: string; line: string }>> = {
   shoe: { discovery: 'shoe_kill', line: 'You killed him with a SHOE.' },
@@ -67,6 +70,7 @@ export class ScoreSystem {
   private reactionCooldown = 0;
   /** Fractional coins from hurting a boss, paid out as they reach a whole coin. */
   private bossCoins = 0;
+  private partCoins = 0;
 
   constructor(private readonly game: Game) {
     const bus = game.bus;
@@ -99,6 +103,18 @@ export class ScoreSystem {
     this.stats.scrap += Math.round(base * 0.5 * this.coinMultiplier());
   }
 
+  /**
+   * A boss in parts is fought through its parts: its body shrugs hits off until they are down. So
+   * cutting one pays too, or a player stuck on that fight would lose it with nothing for the store.
+   * Capped per room, because parts grow back.
+   */
+  payBossPart(): void {
+    if (this.partCoins >= BOSS_PART_CAP) return;
+    const coins = Math.min(BOSS_PART_COINS, BOSS_PART_CAP - this.partCoins);
+    this.partCoins += coins;
+    this.stats.scrap += Math.round(coins * this.coinMultiplier());
+  }
+
   /** Every coin source shares the same bonuses: Edges, the Star Ledger, COIN MAGNET, difficulty. */
   private coinMultiplier(): number {
     const game = this.game;
@@ -110,6 +126,7 @@ export class ScoreSystem {
 
   resetRoom(scoreAtStart: number): void {
     this.bossCoins = 0;
+    this.partCoins = 0;
     this.score = scoreAtStart;
     this.combo = 1;
     this.comboTimer = 0;

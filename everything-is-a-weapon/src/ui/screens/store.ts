@@ -217,7 +217,8 @@ export function buildStore(game: Game, actions: StoreActions): HTMLElement {
       card.classList.toggle('is-owned', isUpgradeMaxed(save, def.id));
       levelPips.textContent = pips(level, def.maxLevel);
       levelPips.setAttribute('aria-label', `${level} of ${def.maxLevel} levels`);
-      current.textContent = upgradeEffect(save, def.id);
+      // Nothing bought yet: say what the first level gives, not "+0%".
+      current.textContent = level === 0 ? `LEVEL 1: ${nextUpgradeEffect(save, def.id)}` : upgradeEffect(save, def.id);
       next.textContent = isUpgradeMaxed(save, def.id)
         ? 'ALL TIERS BOUGHT'
         : `NEXT: ${nextUpgradeEffect(save, def.id)}`;

@@ -34,6 +34,7 @@ interface CrazySdk {
     clearGameContext?(): void;
   };
   readonly data: PortalStorage;
+  readonly user?: { readonly systemInfo?: { readonly device?: { readonly type?: string } } };
 }
 
 declare global {
@@ -191,6 +192,11 @@ export class CrazyGamesPortal implements Portal {
 
   gameplayStop(): void {
     this.safe(() => this.sdk?.game.gameplayStop());
+  }
+
+  deviceType(): 'desktop' | 'tablet' | 'mobile' | null {
+    const type = this.sdk?.user?.systemInfo?.device?.type;
+    return type === 'desktop' || type === 'tablet' || type === 'mobile' ? type : null;
   }
 
   celebrate(): void {

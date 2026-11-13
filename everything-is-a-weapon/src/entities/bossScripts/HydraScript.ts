@@ -478,6 +478,7 @@ export class HydraScript implements BossScript {
   private killHead(game: Game, boss: Enemy, h: Head, cauterized: boolean): void {
     h.state = 'dead';
     h.attack = null;
+    game.score.payBossPart();
     game.hitStop(0.05);
     if (cauterized) {
       game.fx.burst('CAUTERIZED!', h.px, h.py - 30, 1.2, '#ffb347', true);
