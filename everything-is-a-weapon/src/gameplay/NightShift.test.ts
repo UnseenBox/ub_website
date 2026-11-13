@@ -127,7 +127,7 @@ describe('Night Shift', () => {
     const door = buildDoor(FINAL_ROOM_INDEX, room(FINAL_ROOM_INDEX), 4, 1, 'edge');
     expect(door.number).toBe(50);
     expect(door.reward.kind).toBe('scrap');
-    expect(door.reward.label).toBe('THE LEASE');
+    expect(door.reward.label).toBe('THE STUDY');
     expect(door.reward.scrap).toBe(0);
   });
 });

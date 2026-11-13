@@ -147,7 +147,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   const scrap = el('div', 'b2-chip b2-lobby__scrap');
   scrap.setAttribute('role', 'status');
-  scrap.setAttribute('aria-label', `${save.scrap} scrap`);
+  scrap.setAttribute('aria-label', `${save.scrap} coins`);
   const scrapIcon = el('img', 'b2-chip__icon b2-lobby__scrapicon');
   scrapIcon.src = coinUrl;
   scrapIcon.alt = '';

@@ -181,7 +181,7 @@ function rewardFor(
   if (index === FINAL_ROOM_INDEX) {
     return {
       kind: 'scrap',
-      label: 'THE LEASE',
+      label: 'THE STUDY',
       detail: 'the last door. the king is behind it.',
       scrap: 0,
     };

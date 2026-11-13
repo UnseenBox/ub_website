@@ -70,7 +70,7 @@ it('turns the last choice into one door and names the king behind it', () => {
   const acts = actions();
   const finale = door(49, {
     name: 'THE LAST DOOR',
-    reward: { kind: 'scrap', label: 'THE LEASE', detail: 'the last door. the king is behind it.', scrap: 0 },
+    reward: { kind: 'scrap', label: 'THE STUDY', detail: 'the last door. the king is behind it.', scrap: 0 },
     risk: { label: 'BOSS', detail: 'the King of Cardboard' },
   });
   const screen = buildDoors([finale], 9, 9, acts);
@@ -81,7 +81,7 @@ it('turns the last choice into one door and names the king behind it', () => {
   expect(screen.querySelector('.b2-doors__sub')?.textContent).toBe('THE KING OF CARDBOARD IS BEHIND IT.');
   expect(screen.querySelector('.b2-doors__grid')?.className).toContain('b2-doors__grid--1');
   const card = screen.querySelector<HTMLButtonElement>('.b2-door');
-  expect(card?.textContent).toContain('THE LEASE');
+  expect(card?.textContent).toContain('THE STUDY');
   card?.click();
   expect(acts.pick).toHaveBeenCalledWith(49);
 });

@@ -1494,6 +1494,33 @@ it('hydra: the machine is soaked; a head cut down splits in two unless the stump
   expect(script.alive).toBe(3);
 });
 
+it('hydra: one iron hit seals a head, so anything can finish it without a split', { timeout: 90_000 }, () => {
+  const { game, script } = hydraFight();
+  const h = script.heads[0]!;
+  hit(game, h, 'iron');
+  run(game, 0.4);
+  expect(h.sealed).toBe(true);
+  expect(h.state).not.toBe('dead');
+  for (let k = 0; k < 14 && h.state !== 'dead'; k++) {
+    hit(game, h);
+    run(game, 0.4);
+  }
+  expect(h.state).toBe('dead');
+  expect(script.alive).toBe(2);
+});
+
+it('hydra: a lost iron is rolled back in, so the fight can always be won', { timeout: 90_000 }, () => {
+  const { game, script } = hydraFight();
+  for (const o of game.objects.filter((o) => o.def.id === 'iron')) o.destroy(game);
+  run(game, 1);
+  expect(script.irons).toHaveLength(0);
+  run(game, 3.5);
+  expect(script.irons).toHaveLength(1);
+  run(game, 4.2);
+  expect(script.irons).toHaveLength(2);
+  expect(script.irons.every((o) => o.alive)).toBe(true);
+});
+
 it('hydra: with every head burned off the machine is headless and takes extra damage', { timeout: 90_000 }, () => {
   const { game, boss, script } = hydraFight();
   for (let round = 0; round < 6 && script.alive > 0; round++) {

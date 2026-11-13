@@ -933,3 +933,23 @@
     transition: none;
   }
 }
+
+/* Landscape phones: on a loss the purse is the news. Slim header, coins first, the rest scrolls. */
+@media (max-height: 520px) {
+  .b2-report__head {
+    min-height: 0;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .b2-report__head .b2-panel__title {
+    font-size: 18px;
+  }
+  .b2-report--failed .b2-report__bodycopy {
+    display: flex;
+    flex-direction: column;
+  }
+  .b2-report--failed .b2-report__coins {
+    order: -1;
+    margin-bottom: 6px;
+  }
+}

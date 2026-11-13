@@ -36,7 +36,7 @@ function summary(overrides: Partial<RoomSummary>): RoomSummary {
     isNewRoomBest: false,
     nextRoom: null,
     doorChoice: false,
-    nextGoal: { kind: 'store', kicker: 'READY TO BUY', name: 'EVERYTHING UNLOCKED', detail: 'THE LEASE IS YOURS.', progress: 100, action: null },
+    nextGoal: { kind: 'store', kicker: 'READY TO BUY', name: 'EVERYTHING UNLOCKED', detail: 'THE HOUSE IS YOURS.', progress: 100, action: null },
     ledgerNext: null,
     ledgerStars: 12,
     totalStars: 12,

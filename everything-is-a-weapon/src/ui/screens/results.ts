@@ -2,7 +2,6 @@ import type { RoomSummary } from '../../core/Game';
 import { EDGE_BY_ID } from '../../gameplay/Edges';
 import { el, formatScore } from '../dom';
 
-import defeatBanner from '../../ui-kit/bonk2/assets/banners/defeat@2x.png';
 import newBestBanner from '../../ui-kit/bonk2/assets/banners/new-best@2x.png';
 import victoryBanner from '../../ui-kit/bonk2/assets/banners/victory@2x.png';
 import trophyIcon from '../../ui-kit/bonk2/assets/icons/trophy@2x.png';
@@ -328,10 +327,8 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   if (summary.cleared) return buildVictory(summary, actions);
 
   const screen = el('div', 'screen results failed b2-stage b2-stage--navy b2-results b2-results--failed');
+  // No ribbon on a loss: the red header and the GNOMED! stamp say it, and a phone needs the room.
   const shell = el('div', 'b2-results__shell');
-
-  const ribbon = banner(defeatBanner);
-  shell.append(ribbon);
 
   const panel = el('section', 'b2-panel b2-report b2-report--failed');
   const titleId = 'b2-incident-report-title';

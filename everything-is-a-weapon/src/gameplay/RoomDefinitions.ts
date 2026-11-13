@@ -44,7 +44,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // everything on it goes sliding across the open floor, where one good throw
   // can catch two movers.
   {
-    id: 'room-2', name: 'CUBICLE FARM', theme: 'office', width: 960, height: 540, seed: 202, challenge: 'no_chair',
+    id: 'room-2', name: 'HOME OFFICE', theme: 'office', width: 960, height: 540, seed: 202, challenge: 'no_chair',
     teaser: 'shove a desk and everything on it goes too', spotlight: ['table', 'officechair'],
     playerStart: { x: 130, y: 420 },
     entrance: { side: 'right', pos: 270 },
@@ -298,7 +298,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // 8 — PENTHOUSE: the Landlord himself, phased and furious, with the whole crew.
   // Everything you have learned, all at once, on expensive carpet.
   {
-    id: 'room-8', name: 'PENTHOUSE', theme: 'living', width: 1040, height: 580, seed: 606, challenge: 'kill_with_book',
+    id: 'room-8', name: 'FRONT ROOM', theme: 'living', width: 1040, height: 580, seed: 606, challenge: 'kill_with_book',
     teaser: 'everything you know, all at once', spotlight: ['boombox', 'boomerang'],
     playerStart: { x: 150, y: 290 },
     entrance: { side: 'right', pos: 290 },
@@ -347,7 +347,7 @@ export const HANDCRAFTED_ROOMS: readonly RoomDefinition[] = [
   // right and splitting around both ends. Behind you the last lamp is still
   // lit. Ahead, the building itself stands up. Evict it and the flat is yours.
   {
-    id: 'room-9', name: 'THE LEASE', theme: 'office', width: 1080, height: 600, seed: 909, challenge: 'untouched',
+    id: 'room-9', name: 'THE STUDY', theme: 'office', width: 1080, height: 600, seed: 909, challenge: 'untouched',
     teaser: 'evict the house itself', spotlight: ['book', 'extinguisher'],
     playerStart: { x: 150, y: 300 },
     entrance: { side: 'right', pos: 300 },

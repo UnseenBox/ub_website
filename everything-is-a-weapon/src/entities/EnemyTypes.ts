@@ -562,7 +562,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#6b5a86', shade: '#453a58', scoreBonus: 800, voice: 65,
     boss: true, bossTitle: 'JUNK REMOVED', bossDiscovery: 'junk_removed',
     bossBanner: 'KING OF JUNK', bossBlurb: 'your deposit is forfeit. so are you.',
-    signature: { name: 'SCRAP CRASH', sound: 'slams', effect: 'scrap_ring', trail: 'junk' },
+    signature: { name: 'JUNK CRASH', sound: 'slams', effect: 'scrap_ring', trail: 'junk' },
     death: { sound: 'slams', effect: 'scrap_ring' },
     // His fight lives in bossScripts/JunkScript.ts: a ring of rubbish for armour that his own attacks thin out.
     phases: [

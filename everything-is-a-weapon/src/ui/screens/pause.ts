@@ -111,7 +111,7 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
   scrapValue.setAttribute('aria-live', 'polite');
   scrapText.append(scrapValue, el('span', 'b2-chip__label', 'COINS'));
   scrapChip.append(icon(coinUrl, 'b2-chip__icon'), scrapText);
-  scrapChip.setAttribute('aria-label', `${game.save.data.scrap} scrap`);
+  scrapChip.setAttribute('aria-label', `${game.save.data.scrap} coins`);
   scrapChip.setAttribute('role', 'status');
   shopHead.append(scrapChip);
   shop.append(shopHead);
@@ -124,7 +124,7 @@ export function buildPauseMenu(touch: boolean, game: Game, actions: PauseActions
       buy: actions.buyAbility,
       onBought: () => {
         scrapValue.textContent = String(game.save.data.scrap);
-        scrapChip.setAttribute('aria-label', `${game.save.data.scrap} scrap`);
+        scrapChip.setAttribute('aria-label', `${game.save.data.scrap} coins`);
       },
     }));
   }

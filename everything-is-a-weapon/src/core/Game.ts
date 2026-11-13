@@ -1022,7 +1022,7 @@ export class Game {
     if (!def) return 'no such ability';
     const save = this.save.data;
     if (save.abilities.includes(id)) return 'already owned';
-    if (save.scrap < def.cost) return `needs ${def.cost} scrap`;
+    if (save.scrap < def.cost) return `NEEDS ${def.cost} COINS`;
     save.scrap -= def.cost;
     save.abilities.push(id);
     this.save.write();

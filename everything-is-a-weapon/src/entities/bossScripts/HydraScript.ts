@@ -14,8 +14,9 @@ const TAU = Math.PI * 2;
  * THE OLD PROBLEM. A washing machine with three sock-puppet heads on long necks. The machine
  * itself is soaked through: hits on it barely count while any head is alive. Heads can be
  * knocked down by thrown things, BUT CUT A HEAD OFF AND TWO GROW BACK (smaller, up to six).
- * Unless you burn the stump: a head struck by something HOT (the irons rolled into the corners,
- * or anything on fire) is CAUTERIZED and stays gone. Kill every head for good and the machine is
+ * Unless you burn it: a head struck by something HOT (the irons rolled into the corners, or
+ * anything on fire) is SEALED, and a sealed head stays gone when it goes down, whatever finishes it.
+ * An iron that breaks is replaced: the fight can always be won. Kill every head for good and the machine is
  * left HEADLESS: wide open, and he can only watch.
  *
  * HEAD ATTACKS (telegraphed, never more than three at once):
@@ -42,6 +43,8 @@ const SWEEP_SPEED = 2.0;
 const SWEEP_WIDTH = 32;
 const HEAD_COLOURS = ['#e0534e', '#4a8fd6', '#e8c24a', '#62b86a', '#b36ad6', '#e08a3c'];
 const IRONS = 2;
+/** Seconds before a broken or lost iron is rolled back in. */
+const IRON_RESPAWN = 4;
 
 type HState = 'rising' | 'idle' | 'windup' | 'strike' | 'stuck' | 'dead';
 type HAttack = 'bite' | 'sweep';
@@ -66,6 +69,8 @@ export interface Head {
   sway: number;
   colour: string;
   small: boolean;
+  /** Struck by something hot: it will not grow back when it goes down. */
+  sealed: boolean;
 }
 
 function pickLine(lines: readonly string[]): string {
@@ -79,6 +84,8 @@ export class HydraScript implements BossScript {
   time = 0;
   heads: Head[] = [];
   irons: PhysicsObject[] = [];
+  private ironCd = IRON_RESPAWN;
+  private splitHinted = false;
   /** Every head is gone for good. */
   headless = false;
   private tauntAt = -9;
@@ -111,6 +118,15 @@ export class HydraScript implements BossScript {
     b.vy = 0;
     boss.aware = true;
     this.irons = this.irons.filter((o) => o.alive && o.structural !== 'broken');
+    if (!this.headless && this.irons.length < IRONS) {
+      this.ironCd -= dt;
+      if (this.ironCd <= 0) {
+        this.ironCd = IRON_RESPAWN;
+        this.rollInIron(game);
+      }
+    } else {
+      this.ironCd = IRON_RESPAWN;
+    }
     for (const h of this.heads) this.updateHead(game, boss, h, dt);
     this.strikeHeads(game, boss);
     if (!this.headless) {
@@ -192,7 +208,7 @@ export class HydraScript implements BossScript {
       game.audio.play('plop', 0.8);
       this.burst++;
       if (this.burst === 1) {
-        game.hint('CUT A HEAD, TWO GROW BACK', 'burn the stump: throw a hot iron', 3.6, 'boss:HydraScript');
+        game.hint('CUT A HEAD, TWO GROW BACK', 'hit a head with the hot iron and it stays gone', 3.6, 'boss:HydraScript');
         this.taunt(game, boss, pickLine(['Spin cycle: complete.', 'Fresh out of the dryer!']), '#e0f1ff', true);
       }
     }
@@ -229,6 +245,7 @@ export class HydraScript implements BossScript {
     return {
       angle, hp: maxHp, maxHp, state: 'dead', t: 0, rise: 0, attack: null, tx: 0, ty: 0, px: 0, py: 0,
       sweepFrom: 0, sweepTo: 0, sweepAngle: 0, hit: false, hitCd: 0, sway: Math.random() * TAU, colour, small,
+      sealed: false,
     };
   }
 
@@ -268,6 +285,25 @@ export class HydraScript implements BossScript {
       }
     }
     void boss;
+  }
+
+  /** A fresh iron rolls in from the free corner nearest you, so the answer never runs out. */
+  private rollInIron(game: Game): void {
+    const bounds = game.world.bounds;
+    const corners: Array<[number, number]> = [
+      [bounds.x0 + 70, bounds.y0 + 70], [bounds.x1 - 70, bounds.y0 + 70],
+      [bounds.x0 + 70, bounds.y1 - 70], [bounds.x1 - 70, bounds.y1 - 70],
+    ];
+    const p = game.player.body;
+    const free = corners.filter(([x, y]) => this.irons.every((o) => Math.hypot(o.body.x - x, o.body.y - y) > 90));
+    const pool = free.length > 0 ? free : corners;
+    pool.sort((a, c) => Math.hypot(a[0] - p.x, a[1] - p.y) - Math.hypot(c[0] - p.x, c[1] - p.y));
+    const [x, y] = pool[0]!;
+    const iron = game.spawnObject('iron', x, y, Math.random() * TAU);
+    if (!iron) return;
+    this.irons.push(iron);
+    game.fx.ring(x, y, 4, 40, 0.4, 'rgba(255,150,90,0.9)', 3);
+    game.fx.burst('NEW IRON!', x, y - 30, 0.9, '#ffb347', true);
   }
 
   // ───────────── heads ─────────────
@@ -427,8 +463,13 @@ export class HydraScript implements BossScript {
         if (hot) {
           // a hot hit seals the head even if it is not the killing blow: it will not split
           h.hp -= h.maxHp * 0.25;
+          if (!h.sealed && h.hp > 0) {
+            game.fx.burst('SEALED!', h.px, h.py - 30, 0.9, '#ffb347', true);
+            game.particles.burst('smoke', h.px, h.py, 2, 60);
+          }
+          h.sealed = true;
         }
-        if (h.hp <= 0) this.killHead(game, boss, h, hot);
+        if (h.hp <= 0) this.killHead(game, boss, h, h.sealed);
         break;
       }
     }
@@ -456,6 +497,10 @@ export class HydraScript implements BossScript {
         this.heads.push(n);
       }
       this.taunt(game, boss, pickLine(['Two for the price of one!', 'Heads I win!']), '#ffd6d6', true);
+      if (!this.splitHinted) {
+        this.splitHinted = true;
+        game.hud.hint('GRAB THE IRON', 'a head hit by the hot iron never grows back', 2.8);
+      }
     } else {
       game.fx.burst('SEVERED!', h.px, h.py - 30, 1.0, '#ff9f9f', true);
     }
@@ -587,12 +632,29 @@ export class HydraScript implements BossScript {
       ctx.beginPath();
       ctx.ellipse(0, 7, 8, h.state === 'windup' ? 6 : 3.4, 0, 0, TAU);
       ctx.fill();
+      if (h.sealed) {
+        // the iron's mark: a scorched triangle on the brow, still glowing
+        ctx.fillStyle = '#3a2418';
+        ctx.beginPath();
+        ctx.moveTo(-9, -13);
+        ctx.lineTo(9, -13);
+        ctx.lineTo(0, -4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 150, 60, ${0.55 + 0.35 * Math.sin(time * 9 + h.sway)})`;
+        ctx.beginPath();
+        ctx.moveTo(-5, -12);
+        ctx.lineTo(5, -12);
+        ctx.lineTo(0, -7);
+        ctx.closePath();
+        ctx.fill();
+      }
       ctx.restore();
       if (h.state !== 'rising') {
         const bw = 34;
         ctx.fillStyle = 'rgba(16, 12, 24, 0.85)';
         ctx.fillRect(tipX - bw / 2 - 2, tipY - 34, bw + 4, 8);
-        ctx.fillStyle = stuck ? '#ffe28a' : '#7ec8ff';
+        ctx.fillStyle = stuck ? '#ffe28a' : h.sealed ? '#ffb347' : '#7ec8ff';
         ctx.fillRect(tipX - bw / 2, tipY - 32, bw * Math.max(0, h.hp / h.maxHp), 4);
       }
     }
