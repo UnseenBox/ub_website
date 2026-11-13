@@ -149,10 +149,16 @@ export class Renderer {
       ? 0.5 + 0.5 * smoothstep(280, 1500, ball.speed)
       : smoothstep(480, 1850, ball.speed) * (0.55 + 0.45 * Math.min(1, juice.combo / 6));
     const trailColour = boost ? BOOST_TRAIL[boost] : juice.combo >= 2 ? juice.comboColor() : C.white;
+    // Ground zones (water, wind, ice, ramps) are painted inside the walls only, never over the rooftops beyond.
+    ctx.save();
+    streetPath(ctx, level);
+    ctx.rect(goal.leftPostX, goal.backY, goal.rightPostX - goal.leftPostX, goal.depth);
+    ctx.clip();
     for (const m of level.mechanics) {
       drawMechanicGround(ctx, m, time);
       if (m instanceof Tyre && m.gone) drawScorch(ctx, m.x, m.y, TYRE_RADIUS * 2, TYRE_RADIUS * 2, 0);
     }
+    ctx.restore();
     for (const b of level.blocks) if (b.gone) drawScorch(ctx, b.x, b.y, b.w, b.h, b.angle);
     if (boost === 'magnet') drawMagnetField(ctx, goal, time, bx, by, level.magnetOn && !aiming && g.state !== 'ready');
     drawPath(ctx, g.lastPath, look ? look.attacker : C.chalk);

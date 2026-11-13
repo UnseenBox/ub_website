@@ -567,7 +567,8 @@ export class Overlay {
         bestLine.classList.add('tile-lock');
         bestLine.innerHTML = LOCK_SVG;
       }
-      const nameLine = tile.unlocked ? el('span', 'tile-name', tile.name) : tile.gate ? el('span', 'tile-name tile-gate') : el('span', 'tile-name', 'LOCKED');
+      // A locked match still shows its name (greyed, with the padlock below), so the player can see what is coming.
+      const nameLine = tile.gate ? el('span', 'tile-name tile-gate') : el('span', 'tile-name', tile.name);
       if (tile.gate) {
         nameLine.textContent = tr('{n} STARS TO OPEN', { n: tile.gate.need });
         b.title = tr('YOU HAVE {have} OF {need} STARS', { have: tile.gate.have, need: tile.gate.need });

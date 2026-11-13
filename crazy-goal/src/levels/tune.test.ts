@@ -12,10 +12,12 @@ it.skipIf(!process.env.TUNE)('tune', { timeout: 3600000 }, () => {
   for (const id of ids) {
     const i = LEVELS.findIndex((l) => l.id === id);
     const def = LEVELS[i];
-    const hits = kicks.flatMap((k) => sweepLevel(def, i, 1, powers, 0, k));
+    // TUNE_DELAYS=0,0.7,1.4 averages over the moment of the shot (spinners, scooters, the cat).
+    const delays = (process.env.TUNE_DELAYS ?? '0').split(',').map(Number);
+    const hits = delays.flatMap((d) => kicks.flatMap((k) => sweepLevel(def, i, 1, powers, d, k)));
     const t = hits.map((h) => h.total).sort((a, b) => a - b);
     const q = (p: number): number => t[Math.min(t.length - 1, Math.floor(t.length * p))] ?? 0;
-    out.push(`${id}: hits ${hits.length} routes ${countRoutes(hits)} ground ${hits.filter((h) => !h.air && h.bend === 0).length} bend ${hits.filter((h) => !h.air && h.bend !== 0).length} air ${hits.filter((h) => h.air).length} p35 ${q(0.35)} p75 ${q(0.75)} max ${t[t.length - 1] ?? 0}`);
+    out.push(`${id}: hits/delay ${Math.round(hits.length / delays.length)} hits ${hits.length} routes ${countRoutes(hits)} ground ${hits.filter((h) => !h.air && h.bend === 0).length} bend ${hits.filter((h) => !h.air && h.bend !== 0).length} air ${hits.filter((h) => h.air).length} p35 ${q(0.35)} p75 ${q(0.75)} max ${t[t.length - 1] ?? 0}`);
   }
   writeFileSync('node_modules/.cache/tune.txt', out.join('\n'));
 });
