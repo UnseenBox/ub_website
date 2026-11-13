@@ -8,6 +8,8 @@ Everything needed for the submission is in this folder:
 | Landscape cover, 1920x1080 | `covers/cover-landscape-1920x1080.png` |
 | Portrait cover, 800x1200 | `covers/cover-portrait-800x1200.png` |
 | Square cover, 800x800 | `covers/cover-square-800x800.png` |
+| Preview video, landscape 1080p | `covers/preview-landscape-1920x1080.mp4` |
+| Preview video, portrait 1080p (2:3) | `covers/preview-portrait-1080x1620.mp4` |
 
 The code, styles and UI art are one file, `index.html`, of about 2.5 MB (`npm run build:crazygames` fails above 3.0 MB).
 The only other files are the recorded sounds in `sfx/`, fetched after the first tap; without them the game falls back to
@@ -43,8 +45,9 @@ freezes between rooms and the "watch ad" button removes itself after the first r
    game falls back to the browser's own storage.
 4. Orientation: **landscape** on mobile. (The game's own "rotate your phone" prompt is off in
    this build; CrazyGames shows theirs.)
-5. Upload the three covers. A preview video is also asked for; that has to be recorded from
-   real play and is not in this folder.
+5. Upload the three covers and the two preview videos. The videos are under 20 seconds, silent,
+   open on the cover, and show real play with no HUD or cursor. They were filmed by
+   `src/debug/recordTrailer.ts` and cut by `scripts/make-trailer.py` (instructions in both files).
 6. Open the **preview / QA tool** they give you and play a few rooms before sending it for review.
 
 ### Text for the form
@@ -168,7 +171,8 @@ writes the three PNGs into `covers/`.
 
 ## Not done here
 
-- **Preview video.** CrazyGames asks for one; it needs recording from real play.
+- **Preview video by a person.** The previews are real play by a simple scripted player; a
+  human recording of a good run would show off more.
 - **Played in CrazyGames' own preview tool.** The integration was checked against the SDK's
   local test mode only. Their QA tool is the real test and needs your developer account.
 - **Touch controls on a real phone** have still only been checked in a desktop browser.

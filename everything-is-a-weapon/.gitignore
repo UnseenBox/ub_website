@@ -7,3 +7,7 @@ dist
 # Raw sound libraries (hundreds of MB) used to curate the shipped samples.
 # Only the recordings the game actually plays ship, in public/sfx/.
 assets/sfx/
+
+# Raw footage filmed by src/debug/recordTrailer.ts (hundreds of MB); only the cut previews are kept.
+covers/trailer-*.mjpeg
+covers/trailer-*.json

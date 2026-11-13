@@ -219,5 +219,7 @@ export async function renderCovers(): Promise<string[]> {
     await save(paint(1920, 1080, 'landscape'), 'cover-landscape-1920x1080.png'),
     await save(paint(800, 1200, 'portrait'), 'cover-portrait-800x1200.png'),
     await save(paint(800, 800, 'square'), 'cover-square-800x800.png'),
+    // the portrait preview video opens on the cover at its own 1080x1620 size
+    await save(paint(1080, 1620, 'portrait'), 'cover-portrait-1080x1620.png'),
   ];
 }
