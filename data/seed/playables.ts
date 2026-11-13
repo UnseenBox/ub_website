@@ -98,16 +98,16 @@ export const playables: Playable[] = [
   {
     id: "play_bonk",
     slug: "bonk",
-    title: "BONK!",
+    title: "My House, My Rules",
     added: "2026-10-02",
     moods: ["chaos", "phone"],
     src: "/arcade/bonk/index.html",
     poster: "/arcade/bonk/poster.jpg",
     genre: L("Physics action sandbox", "Bac à sable d’action physique", "أكشن فيزيائي حرّ"),
     summary: L(
-      "Living cardboard boxes break in at 3 a.m. to move you out. You have no weapon. Good. The flat is full of them. Throw the toaster, topple the lamp into the puddle, and find over 130 ways it can go wrong for them.",
-      "Des cartons vivants débarquent à 3 h du matin pour vous déménager de force. Vous n’avez pas d’arme. Tant mieux : l’appartement en est plein. Lancez le grille-pain, faites tomber la lampe dans la flaque et découvrez plus de 130 façons dont ça peut mal tourner pour eux.",
-      "صناديق كرتونية حيّة تقتحم شقتك في الثالثة فجراً لتُخرجك منها. لا تملك سلاحاً. جيد، فالشقة مليئة بالأسلحة. ارمِ محمصة الخبز، أسقط المصباح في بركة الماء، واكتشف أكثر من 130 طريقة تسوء بها الأمور عليهم.",
+      "It is 3:07 a.m. and the garden gnomes have got into the house. You have no weapon. Good: the house is full of them. Throw the frying pan, tip the lamp into the puddle, knock the bookshelf onto three gnomes at once, and spend the coins they drop on hearts, a heavier throw and faster feet.",
+      "Il est 3 h 07 du matin et les nains de jardin ont envahi la maison. Vous n’avez pas d’arme. Tant mieux : la maison en est pleine. Lancez la poêle, faites tomber la lampe dans la flaque, renversez la bibliothèque sur trois nains d’un coup, et dépensez les pièces qu’ils lâchent en cœurs, en lancers plus puissants et en pas plus rapides.",
+      "الساعة الثالثة وسبع دقائق فجراً، وأقزام الحديقة اقتحموا البيت. لا تملك سلاحاً. جيد، فالبيت مليء بالأسلحة. ارمِ المقلاة، أسقط المصباح في بركة الماء، أوقع رف الكتب على ثلاثة أقزام دفعة واحدة، وأنفق العملات التي يتركونها على قلوب إضافية ورمية أقوى وخطوات أسرع.",
     ),
     desktopControls: L(
       "WASD to move · click to grab · hold and release to throw · space to dodge",
