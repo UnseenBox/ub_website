@@ -362,6 +362,11 @@ export class Overlay {
     else screen?.querySelector('button')?.focus({ preventScroll: true });
   }
 
+  /** True while the stadium list or the balls screen is up: menus, where the match's sound stops. */
+  get inMenus(): boolean {
+    return this.root.classList.contains('is-open') && (!this.levels.hidden || !this.skins.hidden);
+  }
+
   showMenu(): void {
     this.refreshMenu();
     this.show(this.menu);

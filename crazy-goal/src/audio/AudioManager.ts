@@ -51,6 +51,12 @@ export class AudioManager {
   private clips = new Map<string, AudioBuffer>();
   private clipData = new Map<string, ArrayBuffer>();
   private musicSrc: AudioBufferSourceNode | null = null;
+  /** The music track's own fader, so it can fade out without touching the music bus. */
+  private musicFade: GainNode | null = null;
+  /** Whether the background track should be playing: only inside a match, never on the menus. */
+  private musicWanted = false;
+  /** When each effect was started, so a change of scene spares the click that caused it. */
+  private readonly started = new WeakMap<AudioBufferSourceNode, number>();
   private musicLoop: { name: string; variant: number } | null = null;
   private active = new Map<string, Set<AudioBufferSourceNode>>();
   private musicBus: GainNode | null = null;
@@ -174,17 +180,89 @@ export class AudioManager {
     this.startMusic();
   }
 
+  /**
+   * Turns the background track on or off. Off fades it out and drops it; on starts it again
+   * from the beginning. Asking for what is already the case does nothing.
+   */
+  setMusicOn(on: boolean): void {
+    if (on === this.musicWanted) return;
+    this.musicWanted = on;
+    if (on) this.startMusic();
+    else this.dropMusic();
+  }
+
+  /** A new stadium: the track starts over from its first second. */
+  restartMusic(): void {
+    if (!this.musicWanted) return;
+    this.dropMusic();
+    this.startMusic();
+  }
+
+  private dropMusic(): void {
+    const src = this.musicSrc;
+    const fade = this.musicFade;
+    this.musicSrc = null;
+    this.musicFade = null;
+    if (!src) return;
+    const ctx = this.ctx;
+    if (ctx && fade) {
+      // A quick fade instead of a click.
+      const now = ctx.currentTime;
+      fade.gain.cancelScheduledValues(now);
+      fade.gain.setValueAtTime(fade.gain.value, now);
+      fade.gain.linearRampToValueAtTime(0, now + 0.25);
+      try { src.stop(now + 0.3); } catch { /* already stopped */ }
+    } else {
+      try { src.stop(); } catch { /* already stopped */ }
+    }
+  }
+
+  /**
+   * Cuts every sound effect still ringing (a long goal cheer, an ability's whoosh). The background
+   * track is left alone, and so is anything started in the last instant: the click of the button
+   * that caused the change.
+   */
+  stopEffects(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const before = ctx.currentTime - 0.15;
+    for (const [name, set] of Array.from(this.active)) {
+      for (const src of Array.from(set)) {
+        if ((this.started.get(src) ?? 0) > before) continue;
+        try { src.stop(); } catch { /* already stopped */ }
+        try { src.disconnect(); } catch { /* ignore */ }
+        set.delete(src);
+      }
+      if (set.size === 0) this.active.delete(name);
+    }
+  }
+
+  /** Connects a music source through its own fader and remembers it as the playing track. */
+  private beginMusic(src: AudioBufferSourceNode, offset?: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.musicBus) return;
+    const fade = ctx.createGain();
+    src.connect(fade).connect(this.musicBus);
+    try {
+      if (offset === undefined) src.start();
+      else src.start(0, offset);
+      this.musicSrc = src;
+      this.musicFade = fade;
+    } catch {
+      /* can't start */
+    }
+  }
+
   private startMusic(): void {
     const ctx = this.ctx;
-    if (!ctx || !this.musicBus || this.musicSrc) return;
+    if (!ctx || !this.musicBus || this.musicSrc || !this.musicWanted) return;
     // Prefer an external music track, else loop a configured sheet/clip sound.
     const ext = this.clips.get('__music');
     if (ext) {
       const src = ctx.createBufferSource();
       src.buffer = ext;
       src.loop = true;
-      src.connect(this.musicBus);
-      try { src.start(); this.musicSrc = src; } catch { /* can't start */ }
+      this.beginMusic(src);
       return;
     }
     const loop = this.musicLoop;
@@ -194,8 +272,7 @@ export class AudioManager {
       const src = ctx.createBufferSource();
       src.buffer = clip;
       src.loop = true;
-      src.connect(this.musicBus);
-      try { src.start(); this.musicSrc = src; } catch { /* can't start */ }
+      this.beginMusic(src);
       return;
     }
     const variants = this.index[loop.name];
@@ -207,8 +284,7 @@ export class AudioManager {
     src.loop = true;
     src.loopStart = start;
     src.loopEnd = start + length;
-    src.connect(this.musicBus);
-    try { src.start(0, start); this.musicSrc = src; } catch { /* can't start */ }
+    this.beginMusic(src, start);
   }
 
   /** Plays one recording of a named sound (from the sheet or a standalone clip). Returns false if it could not. */
@@ -246,6 +322,7 @@ export class AudioManager {
   }
 
   private track(name: string, src: AudioBufferSourceNode): void {
+    if (this.ctx) this.started.set(src, this.ctx.currentTime);
     let set = this.active.get(name);
     if (!set) {
       set = new Set();

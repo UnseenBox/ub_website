@@ -205,6 +205,8 @@ export class Game {
   readonly celebration = new GoalCelebration();
   readonly trail = new BallTrail();
   readonly debug = new DebugOverlay();
+  /** Whether the match's sound (the crowd) is on: see syncSoundScene. */
+  private soundInMatch = false;
   readonly hud = new Hud();
   readonly input: InputManager;
   readonly renderer: Renderer;
@@ -647,6 +649,9 @@ export class Game {
   }
 
   private install(level: Level, record: LevelRecord): void {
+    // A new stadium: whatever was still ringing from the last one stops, and its crowd starts over.
+    this.audio.stopEffects();
+    this.audio.restartMusic();
     this.paused = false;
     this.level = level;
     this.net = new GoalNet(this.level.goal);
@@ -910,9 +915,26 @@ export class Game {
     }
   }
 
+  /**
+   * The crowd plays only inside a match. On the title card, the stadium list and the balls
+   * screen it fades out, and every effect still ringing (a goal cheer) is cut; back in a match it
+   * starts again from the top.
+   */
+  private syncSoundScene(): void {
+    const inMatch = this.state !== 'menu' && !this.overlay.inMenus;
+    if (inMatch === this.soundInMatch) return;
+    this.soundInMatch = inMatch;
+    if (!inMatch) this.audio.stopEffects();
+    this.audio.setMusicOn(inMatch);
+  }
+
   /** Back to the title card, on the furthest solo houma reached. */
   returnToMenu(): void {
     portal.gameplayStop();
+    // Silence first, so loading the menu's backdrop stadium does not start its crowd for a moment.
+    this.soundInMatch = false;
+    this.audio.setMusicOn(false);
+    this.audio.stopEffects();
     this.loadLevel(this.furthestUnlocked());
     this.state = 'menu';
     this.overlay.showMenu();
@@ -1138,6 +1160,7 @@ export class Game {
       if (this.state === 'aiming') this.cancelAim();
       else this.setPaused(!this.paused);
     }
+    this.syncSoundScene();
 
     if (!this.paused) {
       if (this.state === 'menu') {
