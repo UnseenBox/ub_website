@@ -578,7 +578,7 @@
 }
 
 .b2-hud .scrap-slip::after {
-  content: 'SCRAP';
+  content: 'COINS';
   position: absolute;
   left: 38px;
   bottom: 5px;

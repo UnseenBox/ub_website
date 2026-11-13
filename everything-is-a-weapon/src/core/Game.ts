@@ -1330,6 +1330,8 @@ export class Game {
     if (!step || this.room.daily || this.endless) return false;
     const next = nextLesson(step);
     this.analytics.track('tutorial_step', { step, seconds: Math.round(this.score.stats.time) });
+    // The coins knocked out of the gnomes in a house rule are real coins.
+    this.save.data.scrap += this.score.stats.scrap;
     this.save.data.tutorial = next ?? 'done';
     this.save.write();
     this.scoreAtRoomStart = this.score.score;

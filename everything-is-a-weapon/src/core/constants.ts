@@ -28,7 +28,7 @@ export const INK = '#221b36';
 
 export const PALETTE = {
   ink: INK,
-  backdrop: '#1b1730',
+  backdrop: '#123630',
   backdropDot: '#262043',
   floorA: '#ead9b5',
   floorB: '#e2ceA4',

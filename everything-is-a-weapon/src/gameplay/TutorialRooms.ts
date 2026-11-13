@@ -24,10 +24,10 @@ export const TUTORIAL_ROOMS: readonly TutorialRoom[] = [
   // 1 — the first thing anyone sees: an empty room, a frying pan, one sleeping box.
   {
     id: 'throw',
-    title: 'PICK UP, THROW',
+    title: 'THROW STUFF AT GNOMES',
     sleeper: { type: 'basic', x: 440, y: 170 },
     def: {
-      id: 'lesson-throw', name: 'LESSON 1', theme: 'bedroom', width: 560, height: 340, seed: 9101, tutorial: true,
+      id: 'lesson-throw', name: 'HOUSE RULE 1', theme: 'bedroom', width: 560, height: 340, seed: 9101, tutorial: true,
       playerStart: { x: 110, y: 180 },
       entrance: { side: 'top', pos: 440 },
       exit: { side: 'left', pos: 170 },
@@ -43,7 +43,7 @@ export const TUTORIAL_ROOMS: readonly TutorialRoom[] = [
     id: 'zap',
     title: 'WATER + ELECTRICITY',
     def: {
-      id: 'lesson-zap', name: 'LESSON 2', theme: 'bathroom', width: 600, height: 340, seed: 9102, tutorial: true,
+      id: 'lesson-zap', name: 'HOUSE RULE 2', theme: 'bathroom', width: 600, height: 340, seed: 9102, tutorial: true,
       playerStart: { x: 150, y: 230 },
       entrance: { side: 'top', pos: 490 },
       exit: { side: 'left', pos: 230 },
@@ -59,9 +59,9 @@ export const TUTORIAL_ROOMS: readonly TutorialRoom[] = [
   // 3 — dashing. One mover who charges at you; a chair for afterwards.
   {
     id: 'dash',
-    title: 'DASH',
+    title: 'DODGE THE CHARGE',
     def: {
-      id: 'lesson-dash', name: 'LESSON 3', theme: 'garage', width: 560, height: 340, seed: 9103, tutorial: true,
+      id: 'lesson-dash', name: 'HOUSE RULE 3', theme: 'garage', width: 560, height: 340, seed: 9103, tutorial: true,
       playerStart: { x: 150, y: 170 },
       entrance: { side: 'right', pos: 170 },
       exit: { side: 'left', pos: 170 },
@@ -79,9 +79,9 @@ export const TUTORIAL_ROOMS: readonly TutorialRoom[] = [
   // 4 — the BIG RED BUTTON. A crowd arrives together: no object is going to answer that.
   {
     id: 'power',
-    title: 'YOUR POWER',
+    title: 'THE BIG RED BUTTON',
     def: {
-      id: 'lesson-power', name: 'LESSON 4', theme: 'living', width: 640, height: 360, seed: 9104, tutorial: true,
+      id: 'lesson-power', name: 'HOUSE RULE 4', theme: 'living', width: 640, height: 360, seed: 9104, tutorial: true,
       playerStart: { x: 140, y: 190 },
       entrance: { side: 'right', pos: 190 },
       exit: { side: 'left', pos: 190 },
@@ -101,9 +101,9 @@ export const TUTORIAL_ROOMS: readonly TutorialRoom[] = [
   // 5 — the pet. Its food is on the floor; whoever picks it up sets it off.
   {
     id: 'pet',
-    title: 'YOUR PET',
+    title: 'FEED THE PET',
     def: {
-      id: 'lesson-pet', name: 'LESSON 5', theme: 'kitchen', width: 600, height: 340, seed: 9105, tutorial: true,
+      id: 'lesson-pet', name: 'HOUSE RULE 5', theme: 'kitchen', width: 600, height: 340, seed: 9105, tutorial: true,
       playerStart: { x: 170, y: 180 },
       entrance: { side: 'right', pos: 180 },
       exit: { side: 'left', pos: 180 },

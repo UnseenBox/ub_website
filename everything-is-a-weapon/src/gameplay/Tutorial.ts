@@ -141,6 +141,9 @@ export class Tutorial {
 
     switch (from) {
       case 'throw': {
+        // One beat of story before anything else: who is in the house and whose house it is.
+        const pb = game.player.body;
+        game.popup('3:07 A.M. THE GNOMES GOT IN.', pb.x + 60, pb.y - 70, '#fff4dc', 20, 2.6);
         const s = spec.sleeper;
         if (s) {
           // Awake only when you are armed: until then it just stands there.

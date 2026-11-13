@@ -4,14 +4,20 @@ Everything needed for the submission is in this folder:
 
 | What | Where |
 | --- | --- |
-| Game file to upload | `dist-crazygames/index.html` (the whole game is this one file; `bonk-crazygames.zip` contains the same file) |
+| Game to upload | `my-house-my-rules-crazygames.zip` (3.3 MB): `index.html` plus the `sfx/` folder of recorded sounds. Upload the zip as it is. |
 | Landscape cover, 1920x1080 | `covers/cover-landscape-1920x1080.png` |
 | Portrait cover, 800x1200 | `covers/cover-portrait-800x1200.png` |
 | Square cover, 800x800 | `covers/cover-square-800x800.png` |
 
-The game is one self-contained file of about 2.6 MB (limit: 50 MB; `npm run build:crazygames` fails above 3.0 MB): the code, styles and UI
-art are inside `index.html`, so there is no assets folder to upload or to go missing. The only
-thing it fetches is CrazyGames' own SDK script.
+The code, styles and UI art are one file, `index.html`, of about 2.5 MB (`npm run build:crazygames` fails above 3.0 MB).
+The only other files are the recorded sounds in `sfx/`, fetched after the first tap; without them the game falls back to
+synthesised sound. To rebuild the zip: `npm run build:crazygames`, then zip `dist-crazygames/index.html` with `public/sfx/*.mp3`
+under `sfx/`. The covers are painted from the game's own art by `src/debug/renderCovers.ts` (instructions at the top of the file).
+
+**Rebrand (2026-11-13).** The game was previously submitted as "BONK!" and rejected. It is now **My House, My Rules**:
+new name and wordmark, a gnome invasion instead of cardboard movers, redesigned heroes, a green house palette,
+a store with permanent upgrades (hearts, throw damage, speed, Power) and coins that are kept even when a room is lost.
+Submit it as a new game, with the new covers.
 
 ## How ads work on CrazyGames (read this first)
 

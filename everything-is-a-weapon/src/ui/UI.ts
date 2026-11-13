@@ -122,7 +122,7 @@ export class UI implements GameUi {
           }),
         home: () => (summary.runEnded ? game.abandonRun() : game.toMenu()),
         // From a lost room the store comes back here, with the purse brought up to date.
-        store: summary.cleared
+        store: summary.daily
           ? undefined
           : () => this.showStore(() => this.showSummary({
             ...summary,

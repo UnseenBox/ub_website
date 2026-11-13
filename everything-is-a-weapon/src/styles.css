@@ -718,6 +718,47 @@ body.holding #game {
   border-style: dashed;
 }
 
+/* The intruders in the line-up are gnomes: a cone hat in the type's colour over a bearded face. */
+.mug.gnome-mug {
+  width: 22px;
+  height: 27px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none !important;
+  filter: drop-shadow(1.5px 0 0 var(--ink)) drop-shadow(-1.5px 0 0 var(--ink)) drop-shadow(0 1.5px 0 var(--ink)) drop-shadow(0 -1.5px 0 var(--ink));
+}
+
+.mug.gnome-mug::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 0;
+  height: 16px;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.25) 0 30%, transparent 30%), var(--hat, #e2403a);
+  clip-path: polygon(52% 0, 100% 100%, 0 100%);
+}
+
+.mug.gnome-mug .mug-face {
+  left: 3px;
+  right: 3px;
+  top: auto;
+  bottom: 0;
+  height: 13px;
+  border-radius: 45% 45% 50% 50%;
+  background:
+    radial-gradient(circle at 50% 38%, #f0786e 2.4px, transparent 2.8px),
+    radial-gradient(circle at 28% 22%, #241a14 1.1px, transparent 1.5px),
+    radial-gradient(circle at 72% 22%, #241a14 1.1px, transparent 1.5px),
+    linear-gradient(180deg, #f6c6a0 0 52%, #f4f1ea 52%);
+}
+
+.mug.gnome-mug.waiting {
+  border-style: none;
+  filter: grayscale(0.7) drop-shadow(1.5px 0 0 var(--ink)) drop-shadow(-1.5px 0 0 var(--ink)) drop-shadow(0 1.5px 0 var(--ink)) drop-shadow(0 -1.5px 0 var(--ink));
+}
+
 .mug.out {
   filter: grayscale(1) brightness(0.75);
   animation: mug-out 0.35s ease-out;

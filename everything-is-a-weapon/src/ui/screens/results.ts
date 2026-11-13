@@ -268,6 +268,16 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     if (summary.dailyFreezeUsed) notes.append(noteLine('STREAK FREEZE', 'USED — YOUR STREAK SURVIVED', 'daily'));
     if (summary.dailyReplay) notes.append(noteLine('PRACTICE', 'NO REWARD', 'daily'));
   }
+  if (!summary.daily && (summary.coins ?? 0) > 0) {
+    const ready = summary.upgradesReady ?? 0;
+    notes.append(noteLine(
+      'COINS',
+      ready > 0
+        ? `+${summary.coins} · ${summary.coinsTotal ?? 0} IN THE PURSE · ${ready} UPGRADE${ready === 1 ? '' : 'S'} READY`
+        : `+${summary.coins} · ${summary.coinsTotal ?? 0} IN THE PURSE`,
+      'contract',
+    ));
+  }
   if (notes.childElementCount > 0) marks.append(notes);
 
   body.append(meta, hero);
@@ -284,6 +294,9 @@ function buildVictory(summary: RoomSummary, actions: ResultsActions): HTMLElemen
     actionsRow.append(home);
   } else {
     if (primary) actionsRow.append(primary);
+    if (actions.store && (summary.upgradesReady ?? 0) > 0) {
+      actionsRow.append(actionButton(`UPGRADE (${summary.upgradesReady})`, 'yellow', actions.store));
+    }
     if (replay) actionsRow.append(replay);
     actionsRow.append(home);
   }

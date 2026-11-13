@@ -1,5 +1,6 @@
 import { moveKeysLabel } from '../../input/KeyLabels';
 import type { Game } from '../../core/Game';
+import { gnomePalette, isGnome } from '../../rendering/GnomeArt';
 import { ANNOUNCEMENTS_VISIBLE } from '../../core/constants';
 import { ENEMY_TYPES, type EnemyTypeId } from '../../entities/EnemyTypes';
 import type { Enemy } from '../../entities/Enemy';
@@ -275,8 +276,10 @@ export class HUD {
       const type = ENEMY_TYPES[spec.type];
       const incident = spec.incident?.kind ?? null;
       const boss = incident === 'headliner' ? ' mug-boss' : incident === 'enforcer' ? ' mug-enforcer' : '';
-      const node = el('span', `mug mug-${spec.type}${boss} waiting`);
+      const gnome = isGnome(spec.type) && !incident;
+      const node = el('span', `mug mug-${spec.type}${boss}${gnome ? ' gnome-mug' : ''} waiting`);
       node.style.setProperty('--mug', type.color);
+      if (gnome) node.style.setProperty('--hat', gnomePalette(spec.type).hat);
       node.title = spec.incident?.name ?? type.name;
       node.setAttribute('role', 'img');
       node.setAttribute('aria-label', spec.incident?.name ?? type.name);
@@ -412,7 +415,7 @@ export class HUD {
       this.last.lesson = cardKey;
       if (card) {
         this.lessonBox.replaceChildren(
-          el('span', 'b2-lesson__kicker', `LESSON ${card.n} OF ${card.of} · ${card.title}`),
+          el('span', 'b2-lesson__kicker', `HOUSE RULE ${card.n} OF ${card.of} · ${card.title}`),
           el('span', 'b2-lesson__text', card.text),
         );
       }

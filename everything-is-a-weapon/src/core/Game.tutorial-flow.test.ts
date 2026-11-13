@@ -478,13 +478,14 @@ it('results screen builds the simple victory DOM and wires PICK A DOOR', async (
   waitFor(game, () => game.state === 'cleared', 10);
   expect(game.state).toBe('cleared');
 
-  // The real results screen: no draft cards, just the three plain actions.
+  // The real results screen: no draft cards, the plain actions, and UPGRADE when coins can buy one.
   expect(document.querySelector('.screen.results.victory'), 'victory card').toBeTruthy();
   expect(document.querySelectorAll('button.b2-edge')).toHaveLength(0);
   expect(document.querySelector('.b2-report__side'), 'no draft side').toBeNull();
   const labels = [...document.querySelectorAll<HTMLElement>('.b2-results__actionlabel')]
     .map((node) => node.textContent);
-  expect(labels).toEqual(['PICK A DOOR', 'REPLAY ROOM', 'HOME']);
+  const ready = (game as unknown as { save: { data: { scrap: number } } }).save.data.scrap >= 100;
+  expect(labels).toEqual(ready ? ['PICK A DOOR', expect.stringMatching(/^UPGRADE \(\d+\)$/), 'REPLAY ROOM', 'HOME'] : ['PICK A DOOR', 'REPLAY ROOM', 'HOME']);
 
   const nextButton = document.querySelector<HTMLButtonElement>('.b2-results__action.primary')!;
   expect(nextButton.disabled).toBe(false);
