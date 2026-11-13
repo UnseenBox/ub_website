@@ -161,14 +161,14 @@ if (process.env.LEVEL_TABLE) {
       expect(new Set(LEVELS.map((l) => l.id)).size).toBe(LEVELS.length);
       expect(new Set(LEVELS.map((l) => l.name)).size).toBe(LEVELS.length);
     });
-    it('puts every match from the fourth on in a world, and no two matches in one world share a ground and a shape', () => {
+    it('puts every match from the fourth on in a world, and no two matches in one world share a stadium and a set of mechanics', () => {
       const campaign = LEVELS.filter((l) => /^m\d\d-/.test(l.id));
       expect(campaign).toHaveLength(37);
       for (const l of campaign) expect(l.world, l.id).toBeTruthy();
       const seen = new Set<string>();
       for (const l of campaign) {
-        const key = `${l.world}|${l.theme ?? 'street'}|${l.surface}|${l.mechanics.map((m) => m.type).sort().join('+')}`;
-        expect(seen.has(key), `${l.id} repeats another match's ground and mechanics`).toBe(false);
+        const key = `${l.world}|${l.theme ?? 'street'}|${l.mechanics.map((m) => m.type).sort().join('+')}`;
+        expect(seen.has(key), `${l.id} repeats another match's stadium and mechanics`).toBe(false);
         seen.add(key);
       }
     });

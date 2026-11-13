@@ -1,8 +1,6 @@
-import type { Theme } from '../levels/LevelDefinition';
-import { hashString, seededRandom, TAU } from '../core/math';
+import { TAU } from '../core/math';
 import type { Block, Level } from '../levels/Level';
-import type { ViewRect } from './Camera';
-import { roundRect, text } from './DrawUtils';
+import { roundRect } from './DrawUtils';
 import { C, rgba } from './Palette';
 
 /** The sun is up and to the left: a thing of height h throws its shadow this far per unit of h. */
@@ -53,491 +51,6 @@ function sweep(ctx: CanvasRenderingContext2D, p: Float32Array, dx: number, dy: n
   }
 }
 
-const ROOFS = ['#f6f0e4', '#ede5d5', '#faf6ec', '#e7dece'] as const;
-const CLOTH = [C.terra, C.blue, C.sun, C.white, C.blueLite] as const;
-
-/** Rooftop palette per theme: the neighbours dress for the occasion. */
-const THEME_ROOFS: Readonly<Record<Theme, readonly string[]>> = {
-  street: ROOFS,
-  pitch: ['#e3f2e4', '#d7ecd9', '#eef7ee', '#cde6cf'],
-  stadium: ['#274a8f', '#1d3a75', '#274a8f', '#1d3a75'],
-  beach: ['#fdf3d8', '#f7e7bd', '#fffaf0', '#f2dfae'],
-  court: ['#e8f1fe', '#dce8fb', '#f4f8ff', '#d2e2f8'],
-  clay: ['#f6ddd0', '#f2cfbd', '#fae9dd', '#ecc4ab'],
-  roof: ['#e0defa', '#d2cff7', '#ebe9fd', '#c6c2f2'],
-  snow: ['#ffffff', '#eef4fb', '#e2eefb', '#dbe8f5'],
-  sunset: ['#f7c9a0', '#f2b183', '#f9d9b8', '#eaa878'],
-  night: ['#2a3a63', '#243357', '#33436e', '#1f2c4e'],
-};
-
-/** The side streets around the alley, per theme. */
-const THEME_STREET: Readonly<Record<Theme, string>> = {
-  street: '#b3a48c',
-  pitch: '#4c8a52',
-  stadium: '#0f1830',
-  beach: '#d9a75f',
-  court: '#2c5cb8',
-  clay: '#a34a2c',
-  roof: '#4a4e8f',
-  snow: '#9fc0e0',
-  sunset: '#c96a35',
-  night: '#141c36',
-};
-
-/**
- * The quarter seen from above: flat whitewashed roofs with the life people keep on them.
- * Laid out from a seed taken from the level id, so each alley has its own neighbours.
- */
-export function paintBackdrop(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level): void {
-  const theme = level.def.theme ?? 'street';
-  if (theme === 'stadium') {
-    paintStands(ctx, view, level);
-    return;
-  }
-  const roofs = THEME_ROOFS[theme];
-  const rng = seededRandom(hashString(level.def.id));
-  const pick = <T>(list: readonly T[]): T => list[Math.floor(rng() * list.length)];
-
-  // Side streets, in shade.
-  ctx.fillStyle = THEME_STREET[theme];
-  ctx.fillRect(view.x, view.y, view.w, view.h);
-
-  const gap = 18;
-  const right = view.x + view.w;
-  const bottom = view.y + view.h;
-  // Start from fixed world coordinates so the layout does not shift when the window resizes.
-  for (let x = -1200; x < right; ) {
-    const w = 210 + rng() * 170;
-    for (let y = -900; y < bottom; ) {
-      const h = 170 + rng() * 190;
-      const seed = rng();
-      if (x + w > view.x && y + h > view.y) paintRoof(ctx, x + gap / 2, y + gap / 2, w - gap, h - gap, pick(roofs), seededRandom(Math.floor(seed * 1e9)), theme);
-      y += h;
-    }
-    x += w;
-  }
-}
-
-/** Seat colours of the bowl, inside out; the crowd sits on them. */
-const TIERS = ['#6b7287', '#2c4f98', '#223f7e', '#2c4f98', '#223f7e', '#1a3166', '#152850', '#0f1c3c'] as const;
-const CROWD = [C.terra, C.sun, C.white, '#7cc4ff', '#ff7aa8', '#ffffff'] as const;
-
-/** How far the running track reaches from the arena, how deep each tier is, and how round the bowl's inner corner is. */
-const BOWL_FIRST = 88;
-const BOWL_STEP = 58;
-const BOWL_R = 70;
-
-/** Points a fixed distance apart all the way round a rounded rectangle: the seats of one row. */
-function walkRounded(x: number, y: number, w: number, h: number, r: number, gap: number): [number, number][] {
-  const k = Math.min(r, w / 2, h / 2);
-  const out: [number, number][] = [];
-  const line = (x0: number, y0: number, x1: number, y1: number): void => {
-    const len = Math.hypot(x1 - x0, y1 - y0);
-    const n = Math.max(1, Math.floor(len / gap));
-    for (let i = 0; i < n; i++) out.push([x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n]);
-  };
-  const arc = (cx: number, cy: number, from: number): void => {
-    const n = Math.max(1, Math.floor((k * (Math.PI / 2)) / gap));
-    for (let i = 0; i < n; i++) {
-      const a = from + (i / n) * (Math.PI / 2);
-      out.push([cx + Math.cos(a) * k, cy + Math.sin(a) * k]);
-    }
-  };
-  line(x + k, y, x + w - k, y);
-  arc(x + w - k, y + k, -Math.PI / 2);
-  line(x + w, y + k, x + w, y + h - k);
-  arc(x + w - k, y + h - k, 0);
-  line(x + w - k, y + h, x + k, y + h);
-  arc(x + k, y + h - k, Math.PI / 2);
-  line(x, y + h - k, x, y + k);
-  arc(x + k, y + k, Math.PI);
-  return out;
-}
-
-/**
- * A stadium seen from above: a running track round the pitch, then tier after tier of stands with the
- * crowd in them, and a floodlight in every corner. Seeded from the level id, so it is the same
- * every time, and cached with the rest of the static layer.
- */
-function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level): void {
-  const { arena } = level.def;
-  const rng = seededRandom(hashString(level.def.id) ^ 0x51ad1);
-  const first = BOWL_FIRST;
-  const step = BOWL_STEP;
-  // A ring round the pitch, `d` units out from the arena, with corners that round off more the further out it is.
-  const ring = (d: number): [number, number, number, number, number] => [arena.x - d, arena.y - d, arena.w + d * 2, arena.h + d * 2, BOWL_R + d * 0.9];
-
-  // Outside in: each tier is a bigger rounded rectangle laid under the smaller ones.
-  ctx.fillStyle = TIERS[TIERS.length - 1];
-  ctx.fillRect(view.x, view.y, view.w, view.h);
-  for (let i = TIERS.length - 1; i >= 0; i--) {
-    const [x, y, w, h, r] = ring(first + (i + 1) * step);
-    ctx.fillStyle = TIERS[i];
-    roundRect(ctx, x, y, w, h, r);
-    ctx.fill();
-    // The step edge: a lit lip.
-    ctx.strokeStyle = rgba('#ffffff', i === 0 ? 0.35 : 0.14);
-    ctx.lineWidth = 3;
-    roundRect(ctx, x + 1.5, y + 1.5, w - 3, h - 3, r);
-    ctx.stroke();
-  }
-
-  // The running track round the pitch: red tartan with white lane lines, and a low rail where the stands begin.
-  {
-    const [x, y, w, h, r] = ring(first);
-    ctx.fillStyle = '#b4513a';
-    roundRect(ctx, x, y, w, h, r);
-    ctx.fill();
-    // Wear: a paler worn lane along the inside.
-    ctx.strokeStyle = rgba('#d9825f', 0.5);
-    ctx.lineWidth = 16;
-    const [ix, iy, iw, ih, ir] = ring(first * 0.42);
-    roundRect(ctx, ix, iy, iw, ih, ir);
-    ctx.stroke();
-    ctx.strokeStyle = rgba('#ffffff', 0.7);
-    ctx.lineWidth = 2.5;
-    for (const k of [0.3, 0.52, 0.74]) {
-      const [lx, ly, lw, lh, lr] = ring(first * k);
-      roundRect(ctx, lx, ly, lw, lh, lr);
-      ctx.stroke();
-    }
-    ctx.strokeStyle = '#1a2a52';
-    ctx.lineWidth = 6;
-    roundRect(ctx, x + 3, y + 3, w - 6, h - 6, r);
-    ctx.stroke();
-  }
-
-  // Aisles: a lighter stripe running outward from the pitch every so often, on the straight stretches.
-  ctx.strokeStyle = rgba('#ffffff', 0.12);
-  ctx.lineWidth = 4;
-  const outer = first + TIERS.length * step;
-  ctx.beginPath();
-  for (let t = 150; t < arena.w - 90; t += 150) {
-    ctx.moveTo(arena.x + t, arena.y - first - step);
-    ctx.lineTo(arena.x + t, arena.y - outer);
-    ctx.moveTo(arena.x + t, arena.y + arena.h + first + step);
-    ctx.lineTo(arena.x + t, arena.y + arena.h + outer);
-  }
-  for (let t = 150; t < arena.h - 90; t += 150) {
-    ctx.moveTo(arena.x - first - step, arena.y + t);
-    ctx.lineTo(arena.x - outer, arena.y + t);
-    ctx.moveTo(arena.x + arena.w + first + step, arena.y + t);
-    ctx.lineTo(arena.x + arena.w + outer, arena.y + t);
-  }
-  ctx.stroke();
-
-  // The crowd: a head every few units along three rows of seats in every tier, following the bowl round its corners.
-  for (let i = 1; i < TIERS.length; i++)
-    for (const row of [-19, 0, 19]) {
-      const [x, y, w, h, r] = ring(first + i * step + step * 0.5 + row);
-      for (const [px, py] of walkRounded(x, y, w, h, r, 15)) {
-        if (px < view.x - 8 || px > view.x + view.w + 8 || py < view.y - 8 || py > view.y + view.h + 8) continue;
-        if (rng() < 0.12) continue; // an empty seat
-        ctx.fillStyle = CROWD[Math.floor(rng() * CROWD.length)];
-        ctx.globalAlpha = 0.72 + rng() * 0.25;
-        ctx.beginPath();
-        ctx.arc(px + (rng() - 0.5) * 3, py + (rng() - 0.5) * 3, 4.6, 0, TAU);
-        ctx.fill();
-      }
-    }
-  ctx.globalAlpha = 1;
-
-  // The players' tunnel at the near end: a dark mouth in the first tier, with a light either side.
-  {
-    const w = 190;
-    const h = 40;
-    const x = arena.x + arena.w / 2 - w / 2;
-    const y = arena.y + arena.h + first + 4;
-    ctx.fillStyle = '#05080f';
-    roundRect(ctx, x, y, w, h, 14);
-    ctx.fill();
-    ctx.fillStyle = rgba('#ffffff', 0.2);
-    ctx.fillRect(x + 12, y + h - 8, w - 24, 3);
-    ctx.fillStyle = '#ffc83a';
-    for (const lx of [x - 10, x + w + 10]) {
-      ctx.beginPath();
-      ctx.arc(lx, y + h / 2, 5, 0, TAU);
-      ctx.fill();
-    }
-  }
-
-  // The big screen over the goal end: the match name in lights.
-  {
-    const w = 560;
-    const h = 84;
-    const x = arena.x + arena.w / 2 - w / 2;
-    // High in the stands, clear of the star targets that sit above the goal on a phone.
-    const y = arena.y - 330 - h / 2;
-    ctx.fillStyle = rgba('#000000', 0.35);
-    ctx.fillRect(x + 8, y + 10, w, h);
-    ctx.fillStyle = '#0a1128';
-    roundRect(ctx, x, y, w, h, 12);
-    ctx.fill();
-    ctx.strokeStyle = '#8fa2d6';
-    ctx.lineWidth = 4;
-    roundRect(ctx, x + 6, y + 6, w - 12, h - 12, 8);
-    ctx.stroke();
-    // Rows of tiny lamps behind the lettering.
-    ctx.fillStyle = rgba('#ffc83a', 0.1);
-    for (let lx = x + 16; lx < x + w - 14; lx += 9) for (let ly = y + 16; ly < y + h - 14; ly += 9) ctx.fillRect(lx, ly, 4, 4);
-    text(ctx, level.def.name, x + w / 2, y + h / 2 + 2, { size: 38, color: '#ffc83a', align: 'center', baseline: 'middle', weight: 900, spacing: 4 });
-  }
-
-  // Floodlights on the bowl's corners: a pool of light and the lamp head.
-  const [lx, ly, lw, lh, lr] = ring(first + 2 * step);
-  const off = lr * (1 - Math.SQRT1_2);
-  for (const [cx, cy] of [
-    [lx + off, ly + off],
-    [lx + lw - off, ly + off],
-    [lx + off, ly + lh - off],
-    [lx + lw - off, ly + lh - off],
-  ]) {
-    const glow = ctx.createRadialGradient(cx, cy, 6, cx, cy, 260);
-    glow.addColorStop(0, 'rgba(255, 243, 190, 0.55)');
-    glow.addColorStop(1, 'rgba(255, 243, 190, 0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(cx - 260, cy - 260, 520, 520);
-    ctx.fillStyle = '#fffbe8';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 15, 0, TAU);
-    ctx.fill();
-    ctx.strokeStyle = rgba('#1b2540', 0.8);
-    ctx.lineWidth = 4;
-    ctx.stroke();
-  }
-}
-
-interface Flash {
-  x: number;
-  y: number;
-  phase: number;
-  rate: number;
-}
-
-const FLASH_SPOTS = new Map<string, Flash[]>();
-
-/**
- * Cameras going off in the stands. A few pulses a second here and there while you aim, a storm of them
- * when the ball is in the net. Drawn live over the cached stands; it never touches the pitch.
- */
-export function drawCrowdFlashes(ctx: CanvasRenderingContext2D, level: Level, time: number, excited: number): void {
-  const { arena } = level.def;
-  let spots = FLASH_SPOTS.get(level.def.id);
-  if (!spots) {
-    const rng = seededRandom(hashString(level.def.id) ^ 0xf1a5);
-    spots = [];
-    const reach = BOWL_FIRST + BOWL_STEP * 6;
-    for (let i = 0; i < 110; i++) {
-      // Anywhere in the stands: outside the walkway, inside the last tiers.
-      let x = 0;
-      let y = 0;
-      do {
-        x = arena.x - reach + rng() * (arena.w + reach * 2);
-        y = arena.y - reach + rng() * (arena.h + reach * 2);
-      } while (x > arena.x - BOWL_FIRST - 40 && x < arena.x + arena.w + BOWL_FIRST + 40 && y > arena.y - BOWL_FIRST - 40 && y < arena.y + arena.h + BOWL_FIRST + 40);
-      spots.push({ x, y, phase: rng() * TAU, rate: 0.35 + rng() * 0.6 });
-    }
-    FLASH_SPOTS.set(level.def.id, spots);
-  }
-  ctx.save();
-  for (const f of spots) {
-    const pulse = Math.sin(time * f.rate * TAU * (1 + excited * 2.4) + f.phase);
-    // A flash is the sharp top of the wave: rare while calm, common when excited.
-    const edge = 0.93 - excited * 0.55;
-    if (pulse < edge) continue;
-    const k = (pulse - edge) / (1 - edge);
-    const r = 5 + 9 * k;
-    ctx.globalAlpha = 0.25 + 0.65 * k;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(f.x, f.y, r * 0.45, 0, TAU);
-    ctx.fill();
-    ctx.strokeStyle = '#fff6c8';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(f.x - r, f.y);
-    ctx.lineTo(f.x + r, f.y);
-    ctx.moveTo(f.x, f.y - r);
-    ctx.lineTo(f.x, f.y + r);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function paintRoof(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, rng: () => number, theme: Theme): void {
-  // Its shadow falls into the street beside it.
-  ctx.fillStyle = rgba(C.shadow, 0.32);
-  ctx.fillRect(x + 12, y + 9, w, h);
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w, h);
-  // Parapet: a lit lip and the shade just inside it.
-  ctx.strokeStyle = rgba(C.shadow, 0.12);
-  ctx.lineWidth = 5;
-  ctx.strokeRect(x + 9.5, y + 9.5, w - 19, h - 19);
-  ctx.strokeStyle = rgba('#ffffff', 0.7);
-  ctx.lineWidth = 3;
-  ctx.strokeRect(x + 3.5, y + 3.5, w - 7, h - 7);
-
-  const count = Math.floor(rng() * 3.4);
-  for (let i = 0; i < count; i++) {
-    const px = x + 40 + rng() * Math.max(1, w - 80);
-    const py = y + 40 + rng() * Math.max(1, h - 80);
-    const kind = Math.floor(rng() * 6);
-    ctx.save();
-    ctx.translate(px, py);
-    if (kind === 0) rug(ctx, rng);
-    else if (kind === 1) tank(ctx);
-    else if (kind === 2) dish(ctx, rng);
-    else if (kind === 3) pots(ctx, rng);
-    else if (kind === 4) hut(ctx);
-    else laundry(ctx, rng);
-    ctx.restore();
-  }
-  if (theme === 'night') {
-    // Lit windows: someone is always still awake.
-    const lit = 1 + Math.floor(rng() * 3);
-    for (let i = 0; i < lit; i++) {
-      const wx = x + 24 + rng() * Math.max(1, w - 60);
-      const wy = y + 24 + rng() * Math.max(1, h - 60);
-      ctx.fillStyle = rgba('#ffd97a', 0.28);
-      ctx.fillRect(wx - 5, wy - 4, 34, 28);
-      ctx.fillStyle = '#ffd97a';
-      ctx.fillRect(wx, wy, 24, 20);
-      ctx.fillStyle = rgba(C.navy, 0.8);
-      ctx.fillRect(wx + 11, wy, 2, 20);
-      ctx.fillRect(wx, wy + 9, 24, 2);
-    }
-  }
-}
-
-function dropShadow(ctx: CanvasRenderingContext2D, draw: () => void, d = 7): void {
-  ctx.save();
-  ctx.translate(d, d * 0.75);
-  ctx.fillStyle = rgba(C.shadow, 0.22);
-  draw();
-  ctx.restore();
-}
-
-function rug(ctx: CanvasRenderingContext2D, rng: () => number): void {
-  ctx.rotate((rng() - 0.5) * 0.5);
-  const base = rng() < 0.5 ? C.terra : C.blue;
-  ctx.fillStyle = base;
-  ctx.fillRect(-38, -24, 76, 48);
-  ctx.fillStyle = C.sun;
-  ctx.fillRect(-38, -15, 76, 4);
-  ctx.fillRect(-38, 11, 76, 4);
-  ctx.fillStyle = C.white;
-  ctx.fillRect(-38, -5, 76, 3);
-  ctx.fillRect(-38, 2, 76, 3);
-  // A diamond in the middle, as woven rugs have.
-  ctx.beginPath();
-  ctx.moveTo(0, -9);
-  ctx.lineTo(12, 0);
-  ctx.lineTo(0, 9);
-  ctx.lineTo(-12, 0);
-  ctx.closePath();
-  ctx.fillStyle = base === C.terra ? C.blue : C.terra;
-  ctx.fill();
-}
-
-function tank(ctx: CanvasRenderingContext2D): void {
-  dropShadow(ctx, () => {
-    ctx.beginPath();
-    ctx.arc(0, 0, 24, 0, TAU);
-    ctx.fill();
-  }, 12);
-  ctx.fillStyle = C.blueLite;
-  ctx.beginPath();
-  ctx.arc(0, 0, 24, 0, TAU);
-  ctx.fill();
-  ctx.strokeStyle = C.blue;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(0, 0, 15, 0, TAU);
-  ctx.stroke();
-  ctx.fillStyle = rgba('#ffffff', 0.55);
-  ctx.beginPath();
-  ctx.ellipse(-8, -9, 8, 4, -0.7, 0, TAU);
-  ctx.fill();
-}
-
-function dish(ctx: CanvasRenderingContext2D, rng: () => number): void {
-  ctx.rotate(rng() * TAU);
-  dropShadow(ctx, () => {
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 17, 13, 0, 0, TAU);
-    ctx.fill();
-  }, 9);
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 17, 13, 0, 0, TAU);
-  ctx.fill();
-  ctx.strokeStyle = rgba(C.navy, 0.25);
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.strokeStyle = rgba(C.navy, 0.55);
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(11, -8);
-  ctx.stroke();
-}
-
-function pots(ctx: CanvasRenderingContext2D, rng: () => number): void {
-  const n = 2 + Math.floor(rng() * 3);
-  for (let i = 0; i < n; i++) {
-    const x = i * 24 - (n - 1) * 12;
-    const y = (rng() - 0.5) * 14;
-    ctx.fillStyle = rgba(C.shadow, 0.22);
-    ctx.beginPath();
-    ctx.arc(x + 5, y + 4, 11, 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = C.terra;
-    ctx.beginPath();
-    ctx.arc(x, y, 11, 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = C.green;
-    ctx.beginPath();
-    ctx.arc(x - 1, y - 1, 8, 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = rgba('#ffffff', 0.25);
-    ctx.beginPath();
-    ctx.arc(x - 3, y - 4, 3, 0, TAU);
-    ctx.fill();
-  }
-}
-
-/** The little stairwell hut every flat roof has, with its blue door. */
-function hut(ctx: CanvasRenderingContext2D): void {
-  ctx.fillStyle = rgba(C.shadow, 0.3);
-  ctx.fillRect(-26 + 18, -20 + 13, 60, 48);
-  ctx.fillStyle = C.whiteShade;
-  ctx.fillRect(-30, -4, 60, 26);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(-30, -26, 60, 44);
-  ctx.fillStyle = C.blue;
-  ctx.fillRect(-9, 4, 18, 18);
-}
-
-function laundry(ctx: CanvasRenderingContext2D, rng: () => number): void {
-  ctx.rotate((rng() - 0.5) * 0.6);
-  ctx.strokeStyle = rgba(C.navy, 0.45);
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(-70, 0);
-  ctx.lineTo(70, 0);
-  ctx.stroke();
-  for (let i = 0; i < 5; i++) {
-    const w = 14 + rng() * 12;
-    const x = -62 + i * 27;
-    ctx.fillStyle = rgba(C.shadow, 0.2);
-    ctx.fillRect(x + 5, 5, w, 9);
-    ctx.fillStyle = CLOTH[Math.floor(rng() * CLOTH.length)];
-    ctx.fillRect(x, -3, w, 9);
-  }
-}
-
-
-/** Opaque shadow shapes for everything that never moves. The renderer composites them at one alpha. */
 export function paintStaticShadows(ctx: CanvasRenderingContext2D, level: Level): void {
   ctx.fillStyle = C.shadow;
   for (const b of level.blocks) if (!b.gone) sweep(ctx, footprint(b, 0, 0), b.lift * SUN_X, b.lift * SUN_Y);
@@ -576,8 +89,8 @@ const LOOKS: Readonly<Record<Block['kind'], BlockLook>> = {
   adboard: { top: '#1b2540', side: '#eef1f8' },
 };
 
-/** A pillar cap for a shared boundary vertex: shadow, blue body, white cap, blue band. */
-export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: number; y: number }, boards = false): void {
+/** A pillar cap for a shared boundary vertex: shadow, dark body, white cap, red band. */
+export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: number; y: number }): void {
   const r = 17;
   const lift = 22;
   ctx.fillStyle = rgba(C.shadow, 0.3);
@@ -585,7 +98,7 @@ export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: num
   ctx.ellipse(joint.x + r * SUN_X * 0.6, joint.y + r * SUN_Y * 0.6, r * 1.15, r * 0.55, 0, 0, TAU);
   ctx.fill();
   // Pillar body, with a darker lower crescent for depth.
-  ctx.fillStyle = boards ? '#10172b' : C.blue;
+  ctx.fillStyle = '#10172b';
   ctx.beginPath();
   ctx.arc(joint.x, joint.y - 2, r, 0, TAU);
   ctx.fill();
@@ -594,19 +107,19 @@ export function drawBoundaryJoint(ctx: CanvasRenderingContext2D, joint: { x: num
   ctx.arc(joint.x, joint.y - 2, r, Math.PI * 0.15, Math.PI * 0.85);
   ctx.fill();
   // White cap on top, rimmed in blue, with the trim dash like the wall faces.
-  ctx.fillStyle = boards ? '#e8ecf5' : C.white;
+  ctx.fillStyle = '#e8ecf5';
   ctx.beginPath();
   ctx.arc(joint.x, joint.y - lift, r, 0, TAU);
   ctx.fill();
-  ctx.strokeStyle = boards ? rgba(C.terra, 0.95) : rgba(C.blue, 0.9);
+  ctx.strokeStyle = rgba(C.terra, 0.95);
   ctx.lineWidth = 2.5;
   ctx.stroke();
-  ctx.fillStyle = boards ? rgba(C.terra, 0.95) : rgba(C.blue, 0.85);
+  ctx.fillStyle = rgba(C.terra, 0.95);
   ctx.fillRect(joint.x - 8, joint.y - lift - 1.5, 16, 3);
 }
 
 /** A solid block in the game's oblique view: footprint on the ground, top face lifted straight up. */
-export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = false, time = 0): void {
+export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, time = 0): void {
   // Recoil away from the ball, easing out with the square of the hit.
   const push = b.hit * b.hit * 5;
   const ox = -b.hitNx * push;
@@ -628,10 +141,10 @@ export function drawBlock(ctx: CanvasRenderingContext2D, b: Block, boards = fals
   }
   const p = footprint(blk, ox, oy);
   const lift = blk.lift;
-  // Round a stadium the boundary walls are advertising boards.
-  const board = (boards && blk.boundary && blk.kind === 'wall') || blk.kind === 'adboard';
-  // The low barrier along the near end of a stadium is a dark rail with a lit edge.
-  const kerbBoard = boards && !!blk.boundary && blk.kind === 'kerb';
+  // The boundary walls round the pitch are advertising boards.
+  const board = (blk.boundary && blk.kind === 'wall') || blk.kind === 'adboard';
+  // The low barrier along the near end is a dark rail with a lit edge.
+  const kerbBoard = !!blk.boundary && blk.kind === 'kerb';
   const look = board ? { top: '#1b2540', side: '#eef1f8' } : kerbBoard ? { top: '#26345f', side: '#c9d1e6' } : LOOKS[blk.kind];
 
   // Side faces. Only those turned towards the viewer end up visible; the top covers the rest.

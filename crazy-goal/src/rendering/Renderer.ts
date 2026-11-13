@@ -4,7 +4,7 @@ import { Tyre, TYRE_RADIUS } from '../mechanics/Tyre';
 import { BOOST_TRAIL, drawBoostOver, drawBoostUnder, drawMagnetField, drawScorch, drawSmoke } from './AbilityArt';
 import { drawAimGround, drawAimOver, drawGuidePath, drawKickBadge, drawTutorialGhost } from './AimArt';
 import { drawAbilityDemo } from './DemoArt';
-import { drawBlock, drawBoundaryJoint, drawCrowdFlashes, paintBackdrop, paintStaticShadows } from './ArenaArt';
+import { drawBlock, drawBoundaryJoint, paintStaticShadows } from './ArenaArt';
 import { drawBall, drawBallAura, drawBallShadow, drawTrail } from './BallArt';
 import { drawCoin } from './CoinArt';
 import { drawTag } from './DuelArt';
@@ -12,7 +12,8 @@ import type { Camera, ViewRect } from './Camera';
 import { drawGoalCue, drawGoalFrame, drawNet, paintGoalFloor } from './GoalArt';
 import { drawMechanicGround, drawMechanicSolid, paintMechanicShadows } from './MechanicArt';
 import { C, rgba, SHADOW_ALPHA } from './Palette';
-import { paintStreet, streetPath } from './StreetArt';
+import { paintPitch, pitchPath } from './PitchArt';
+import { drawCrowdFlashes, paintStands } from './StadiumArt';
 
 /** World units of static scenery kept beyond the screen edge, for shake and zoom to move into. */
 const CACHE_MARGIN = 90;
@@ -21,7 +22,7 @@ const MAX_BACKING_WIDTH = 3200;
 
 /**
  * Draws a frame in layers, back to front:
- *   static layer (rooftops, paving, chalk, goal floor, fixed shadows), cached offscreen
+ *   static layer (stands, pitch, chalk, goal floor, fixed shadows), cached offscreen
  *   ground level (flat mechanics, last shot's chalk line, goal cue, elastic, trail, ball shadow)
  *   solids, split around the ball so nearer things overlap it
  *   particles, aim UI, popups
@@ -82,8 +83,8 @@ export class Renderer {
     const ctx = cache.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(k, 0, 0, k, -r.x * k, -r.y * k);
-    paintBackdrop(ctx, r, g.level);
-    paintStreet(ctx, g.level);
+    paintStands(ctx, r, g.level);
+    paintPitch(ctx, g.level);
     paintGoalFloor(ctx, g.level.goal);
 
     // Shadows are drawn solid on a scratch canvas and laid down in one pass, so where two
@@ -98,8 +99,8 @@ export class Renderer {
       paintMechanicShadows(sctx, g.level.mechanics);
       const goal = g.level.goal;
       ctx.save();
-      // Only the street takes shadow; the rooftops beyond the walls are higher than the things casting it.
-      streetPath(ctx, g.level);
+      // Only the pitch takes shadow; the stands beyond the boards are higher than the things casting it.
+      pitchPath(ctx, g.level);
       ctx.rect(goal.leftPostX, goal.backY, goal.rightPostX - goal.leftPostX, goal.depth);
       ctx.clip();
       ctx.globalAlpha = SHADOW_ALPHA;
@@ -131,7 +132,7 @@ export class Renderer {
       ctx.drawImage(this.cache, r.x, r.y, r.w, r.h);
     }
     // The crowd's cameras: calm while you aim, a storm after a goal.
-    if (level.def.theme === 'stadium') drawCrowdFlashes(ctx, level, time, g.state === 'goal' ? 1 : Math.min(1, g.goalFlash));
+    drawCrowdFlashes(ctx, level, time, g.state === 'goal' ? 1 : Math.min(1, g.goalFlash));
 
     const aiming = g.state === 'aiming';
     const bx = ball.renderX + g.aimDraw.x;
@@ -149,9 +150,9 @@ export class Renderer {
       ? 0.5 + 0.5 * smoothstep(280, 1500, ball.speed)
       : smoothstep(480, 1850, ball.speed) * (0.55 + 0.45 * Math.min(1, juice.combo / 6));
     const trailColour = boost ? BOOST_TRAIL[boost] : juice.combo >= 2 ? juice.comboColor() : C.white;
-    // Ground zones (water, wind, ice, ramps) are painted inside the walls only, never over the rooftops beyond.
+    // Ground zones (water, wind, ice, ramps) are painted inside the boards only, never over the stands beyond.
     ctx.save();
-    streetPath(ctx, level);
+    pitchPath(ctx, level);
     ctx.rect(goal.leftPostX, goal.backY, goal.rightPostX - goal.leftPostX, goal.depth);
     ctx.clip();
     for (const m of level.mechanics) {
@@ -169,14 +170,12 @@ export class Renderer {
     drawBallShadow(ctx, ball, bx, by);
 
     // Solids. Anything whose base is further up the screen than the ball goes behind it.
-    // In a stadium the boundary walls are advertising boards.
-    const boards = level.def.theme === 'stadium';
     const inGoal = ball.renderY < goal.lineY - 2;
-    // A lofted ball above the blocks is drawn over all of them; on the ground it sorts by its place in the street.
+    // A lofted ball above the blocks is drawn over all of them; on the ground it sorts by its place on the pitch.
     const lift = ball.body.z;
     const sortY = lift > 26 ? Number.POSITIVE_INFINITY : Math.max(ball.renderY, goal.lineY + 1);
-    for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b, boards, time);
-    for (const j of level.boundaryJoints) if (!j.kerb && j.y < sortY) drawBoundaryJoint(ctx, j, boards);
+    for (const b of level.blocks) if (b.y < sortY && !b.gone) drawBlock(ctx, b, time);
+    for (const j of level.boundaryJoints) if (!j.kerb && j.y < sortY) drawBoundaryJoint(ctx, j);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY < sortY) drawMechanicSolid(ctx, m, time);
     const patch = look ? look.attacker : g.skin.patch;
     const paintBall = (): void => {
@@ -199,8 +198,8 @@ export class Renderer {
     drawNet(ctx, g.net);
     drawGoalFrame(ctx, goal, g.goalFlash, look ? look.defender : C.blue);
     if (!inGoal) paintBall();
-    for (const b of level.blocks) if (b.y >= sortY && !b.gone) drawBlock(ctx, b, boards, time);
-    for (const j of level.boundaryJoints) if (!j.kerb && j.y >= sortY) drawBoundaryJoint(ctx, j, boards);
+    for (const b of level.blocks) if (b.y >= sortY && !b.gone) drawBlock(ctx, b, time);
+    for (const j of level.boundaryJoints) if (!j.kerb && j.y >= sortY) drawBoundaryJoint(ctx, j);
     for (const m of level.mechanics) if (m.sortY !== null && m.sortY >= sortY) drawMechanicSolid(ctx, m, time);
 
     g.particles.draw(ctx);

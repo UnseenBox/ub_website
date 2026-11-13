@@ -39,86 +39,6 @@ export interface WallDef {
 }
 
 /**
- * What the street is paved with. This only changes how the ground looks: the ball rolls on
- * every one of them the same way, so a surface never lies about the physics.
- */
-export type Surface =
-  /** Worn tarmac, patched and oil-stained. */
-  | 'asphalt'
-  /** Poured concrete slabs with hairline cracks. */
-  | 'concrete'
-  /** The old ochre paving stones of the houma. */
-  | 'paving'
-  /** Market tiles, terracotta and cream. */
-  | 'terracotta'
-  /** Dry beach sand with ripples. */
-  | 'sand'
-  /** Broken cement with weeds pushing through. */
-  | 'cracked'
-  /** Roof screed with felt patches and a gravel edge. */
-  | 'rooftop'
-  /** Asphalt with pale concrete repair patches. */
-  | 'patches'
-  /** Street with a grid of iron manhole covers and drain grates. */
-  | 'drains'
-  /** Courtyard zellige tile, blue and white. */
-  | 'tiles'
-  /** Old cobblestones, worn smooth in the middle. */
-  | 'cobble'
-  /** A frozen street, pale and crazed. */
-  | 'ice'
-  /** Rain-slick asphalt, dark and reflective. */
-  | 'wet'
-  /** Mown turf with chalk lines: a stadium pitch. */
-  | 'turf';
-
-/**
- * A flat piece of street furniture painted on the ground. None of it is solid and none of it
- * stands in the ball's way: landmarks are for the eye, the puzzle is for the walls.
- */
-export type DressingKind =
-  /** Blue garage door set into a wall face. */
-  | 'garage'
-  /** Café frontage with two tables under an awning. */
-  | 'cafe'
-  /** A painted wall mural. */
-  | 'mural'
-  /** A little courtyard fountain. */
-  | 'fountain'
-  /** A stairway up to a doorway. */
-  | 'stairs'
-  /** A market stall: canopy over a trestle. */
-  | 'stall'
-  /** A washing line strung between two poles. */
-  | 'washline'
-  /** An iron manhole cover. */
-  | 'manhole'
-  /** A shallow puddle with a wet rim. */
-  | 'puddle'
-  /** Painted parking bays. */
-  | 'parking'
-  /** A red phone box. */
-  | 'phonebox'
-  /** A concrete planter with a shrub. */
-  | 'planter'
-  /** A street name sign on a post. */
-  | 'signpost'
-  /** A char grill with smoke stains. */
-  | 'grill'
-  /** An oil drum. */
-  | 'barrel';
-
-export interface DressingDef {
-  kind: DressingKind;
-  x: number;
-  y: number;
-  /** Radians, clockwise on screen. */
-  angle?: number;
-  /** Size hint. 1 is normal, 1.5 is large. */
-  scale?: number;
-}
-
-/**
  * A boundary edge is usually a building wall, but the bottom of the street is a low kerb so
  * it never hides the ball.
  */
@@ -214,17 +134,13 @@ export interface LevelDefinition {
   goal: GoalDef;
   walls: readonly WallDef[];
   mechanics: readonly MechanicDef[];
-  /** What the ground is: paving when left out. Only the look changes. */
+  /** The stadium's mood: its colours, the time of day and the weather. Only the look changes. */
   theme?: Theme;
   /**
    * The shape of the playable ground. When it is left out the level gets the old rectangular
    * rails, which is what the duel streets use.
    */
   boundary?: BoundaryDef;
-  /** What the street is paved with. `paving` when left out. Only the look changes. */
-  surface?: Surface;
-  /** Flat landmarks painted on the ground. */
-  dressing?: readonly DressingDef[];
   /** Set on the tutorial levels. */
   guide?: GuideDef;
   /** Where the level's coin hangs. When left out it is strung along the ball-to-goal line (see coinPlacement). */
