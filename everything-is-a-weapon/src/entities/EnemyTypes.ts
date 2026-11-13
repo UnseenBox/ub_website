@@ -238,17 +238,17 @@ export interface EnemyType {
  */
 export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   basic: {
-    id: 'basic', name: 'Box', hp: 44, speed: 102, mass: 45, radius: 16, reaction: 0.45, awareness: 360,
+    id: 'basic', name: 'Gnome', hp: 44, speed: 102, mass: 45, radius: 16, reaction: 0.45, awareness: 360,
     impactFactor: 1, lightObjectFactor: 1, staggerFactor: 1, turnRate: 9, burnFactor: 1.25,
     color: '#c9a070', shade: '#9c7446', scoreBonus: 0, voice: 172,
   },
   fast: {
-    id: 'fast', name: 'Express', hp: 34, speed: 172, mass: 28, radius: 13, reaction: 0.25, awareness: 520,
+    id: 'fast', name: 'Sprinter', hp: 34, speed: 172, mass: 28, radius: 13, reaction: 0.25, awareness: 520,
     impactFactor: 1, lightObjectFactor: 1, staggerFactor: 1.25, turnRate: 12, weave: true, burnFactor: 1.7,
     color: '#f6eed8', shade: '#d8ccac', scoreBonus: 50, voice: 258,
   },
   heavy: {
-    id: 'heavy', name: 'Crate', hp: 170, speed: 58, mass: 120, radius: 23, reaction: 0.8, awareness: 380,
+    id: 'heavy', name: 'Big Gnome', hp: 170, speed: 58, mass: 120, radius: 23, reaction: 0.8, awareness: 380,
     impactFactor: 1, lightObjectFactor: 0.25, staggerFactor: 0.35, turnRate: 5, burnFactor: 1,
     color: '#b07a45', shade: '#7a4f28', scoreBonus: 200, voice: 92,
   },
@@ -263,24 +263,24 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     color: '#b58d60', shade: '#86623c', scoreBonus: 150, voice: 135,
   },
   electric: {
-    id: 'electric', name: 'Tangle', hp: 80, speed: 84, mass: 45, radius: 16, reaction: 0.5, awareness: 360,
+    id: 'electric', name: 'Sparky', hp: 80, speed: 84, mass: 45, radius: 16, reaction: 0.5, awareness: 360,
     impactFactor: 1, lightObjectFactor: 1, staggerFactor: 1, turnRate: 9, shockImmune: true, electric: true, burnFactor: 1.25,
     color: '#c9a070', shade: '#9c7446', scoreBonus: 150, voice: 208,
   },
   // Glassware. Goes down easily, and leaves the floor covered in what was inside.
   fragile: {
-    id: 'fragile', name: 'Fragile', hp: 26, speed: 122, mass: 26, radius: 14, reaction: 0.4, awareness: 420,
+    id: 'fragile', name: 'Porcelain', hp: 26, speed: 122, mass: 26, radius: 14, reaction: 0.4, awareness: 420,
     impactFactor: 1.2, lightObjectFactor: 1, staggerFactor: 1.2, turnRate: 10, burnFactor: 1.25, onDefeat: 'glass',
     color: '#dfeaf2', shade: '#b3c4d2', scoreBonus: 60, voice: 300,
   },
   // A box with a box inside it, with a box inside that.
   nested: {
-    id: 'nested', name: 'Nesting Box', hp: 95, speed: 80, mass: 70, radius: 20, reaction: 0.6, awareness: 360,
+    id: 'nested', name: 'Matryoshka', hp: 95, speed: 80, mass: 70, radius: 20, reaction: 0.6, awareness: 360,
     impactFactor: 1, lightObjectFactor: 0.7, staggerFactor: 0.7, turnRate: 7, burnFactor: 1.25, onDefeat: 'split',
     color: '#c9a070', shade: '#9c7446', scoreBonus: 150, voice: 140,
   },
   mini: {
-    id: 'mini', name: 'Small', hp: 20, speed: 150, mass: 14, radius: 10, reaction: 0.2, awareness: 600,
+    id: 'mini', name: 'Gnomelet', hp: 20, speed: 150, mass: 14, radius: 10, reaction: 0.2, awareness: 600,
     impactFactor: 1, lightObjectFactor: 1, staggerFactor: 1.5, turnRate: 13, burnFactor: 1.6,
     color: '#d9b687', shade: '#b08a5a', scoreBonus: 30, voice: 330,
   },
@@ -576,7 +576,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
     impactFactor: 1, lightObjectFactor: 0.4, staggerFactor: 0.25, turnRate: 2.5, burnFactor: 1.2,
     color: '#a85848', shade: '#74382e', scoreBonus: 900, voice: 50,
     boss: true, bossTitle: 'HOUSE CONDEMNED', bossDiscovery: 'condemned',
-    bossBanner: 'THE HOUSE THAT HATES YOU', bossBlurb: 'rent due. tenants doomed.',
+    bossBanner: 'THE HOUSE THAT HATES YOU', bossBlurb: 'the gnomes woke it up.',
     signature: { name: 'HOUSE SHAKE', sound: 'bossWalk', effect: 'shake_ring', trail: 'house' },
     death: { sound: 'bossWalk', effect: 'shake_ring' },
     slams: { radius: 160, damage: 1, cooldown: 9 },
@@ -638,7 +638,7 @@ export const ENEMY_TYPES: Readonly<Record<EnemyTypeId, EnemyType>> = {
   // KING OF CARDBOARD: flat-pack royalty with three coronations. Tank crawls and
   // crushes, chopper swoops, robot throws the room back. Watch the announcement.
   cardboard: {
-    id: 'cardboard', name: 'King of Cardboard', hp: 760, speed: 80, mass: 510, radius: 54, reaction: 0.5, awareness: 480,
+    id: 'cardboard', name: 'Gnome King', hp: 760, speed: 80, mass: 510, radius: 54, reaction: 0.5, awareness: 480,
     impactFactor: 1, lightObjectFactor: 0.6, staggerFactor: 0.45, turnRate: 6, burnFactor: 1.4,
     lungeRange: 150, lungeSpeed: 480, lungeTime: 0.4, windup: 0.5, recover: 0.7,
     color: '#c9a070', shade: '#9c7446', scoreBonus: 900, voice: 140,

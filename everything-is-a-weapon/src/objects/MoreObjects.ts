@@ -79,7 +79,7 @@ export const MORE_OBJECTS: readonly ObjectDefinition[] = [
   {
     id: 'snooze', name: 'Snooze Button', material: 'plastic', shape: { kind: 'circle', r: 9 }, mass: 0.3, height: 6,
     health: NEVER, breakable: false, flammable: false, conductive: false, throwable: true,
-    groundFriction: 520, consume: 'snooze', perk: 'five more minutes: movers freeze',
+    groundFriction: 520, consume: 'snooze', perk: 'five more minutes: gnomes freeze',
   },
   {
     id: 'bone', name: 'Bone', material: 'plastic', shape: { kind: 'box', hw: 9, hh: 4 }, mass: 0.3, height: 4,

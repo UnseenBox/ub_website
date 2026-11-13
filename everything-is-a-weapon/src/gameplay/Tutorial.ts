@@ -258,7 +258,7 @@ export class Tutorial {
     g.line = 'arc';
     g.tx = enemy.body.x;
     g.ty = enemy.body.y;
-    this.say('HOLD, AIM AT THE BOX, LET GO');
+    this.say('HOLD, AIM AT THE GNOME, LET GO');
     // Two misses: it stands still while you line it up.
     if (this.misses >= 2) enemy.stun = Math.max(enemy.stun, 0.3);
   }

@@ -119,7 +119,7 @@ export const DISCOVERIES: readonly DiscoveryDefinition[] = [
   { id: 'cat_fight', title: 'CAT FIGHT', recipe: ['TIN OF TUNA', 'THE CAT', 'INTRUDER\'S FACE'], group: 'style' },
   { id: 'cat_burglar', title: 'CAT BURGLAR', recipe: ['THE CAT', 'DEFEATED INTRUDER'], group: 'style' },
   { id: 'handle_with_care', title: 'HANDLE WITH CARE', recipe: ['DEFEATED FRAGILE', 'GLASS EVERYWHERE'], group: 'impact' },
-  { id: 'russian_doll', title: 'RUSSIAN DOLL', recipe: ['DEFEATED NESTING BOX', 'TWO SMALLER BOXES'], group: 'impact' },
+  { id: 'russian_doll', title: 'RUSSIAN DOLL', recipe: ['DEFEATED MATRYOSHKA', 'TWO SMALLER GNOMES'], group: 'impact' },
   { id: 'special_delivery', title: 'SPECIAL DELIVERY', recipe: ['DEFEATED KABOOM', 'EXPLOSION', 'ITS COLLEAGUES'], group: 'fire' },
   { id: 'prickly', title: 'PRICKLY', recipe: ['CACTUS', 'INTRUDER', 'OUCH, TWICE'], group: 'impact' },
   { id: 'encore', title: 'ENCORE', recipe: ['GUITAR', 'INTRUDER', 'SEEING STARS'], group: 'impact' },

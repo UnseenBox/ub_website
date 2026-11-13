@@ -4,8 +4,8 @@
   align-items: stretch;
   justify-content: flex-start;
   gap: clamp(8px, 1.6vh, 16px);
-  background-color: #111634;
-  background-image: radial-gradient(ellipse at 50% 18%, rgba(120, 160, 255, 0.24), transparent 55%);
+  background-color: #0f2e29;
+  background-image: radial-gradient(ellipse at 50% 18%, rgba(255, 214, 120, 0.2), transparent 55%);
   background-repeat: no-repeat;
   overflow: hidden;
   /* Pointer parallax, written by lobby.ts (-1..1). */
@@ -22,12 +22,14 @@
   z-index: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(ellipse at 50% 18%, rgba(120, 160, 255, 0.24), transparent 55%),
-    linear-gradient(180deg, rgba(11, 15, 40, 0.5) 0%, rgba(11, 15, 40, 0.68) 55%, rgba(8, 10, 28, 0.9) 100%),
-    url('../../assets/menu-bg.webp');
-  background-size: auto, auto, cover;
-  background-position: center top, center, center;
-  background-repeat: no-repeat;
+    radial-gradient(ellipse at 50% 18%, rgba(255, 214, 120, 0.22), transparent 55%),
+    linear-gradient(180deg, rgba(9, 34, 29, 0) 0%, rgba(9, 34, 29, 0.35) 55%, rgba(6, 26, 22, 0.85) 100%),
+    /* wallpaper: little houses and gnome hats, the whole game in one tile */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.07' stroke-width='3' stroke-linejoin='round'%3E%3Cpath d='M18 52 44 30l26 22v28H18z M36 80V64h16v16'/%3E%3Cpath d='M98 128l14-34 14 34z'/%3E%3C/g%3E%3Cg fill='%23ffffff' fill-opacity='.06'%3E%3Ccircle cx='128' cy='36' r='4'/%3E%3Ccircle cx='52' cy='126' r='3'/%3E%3Ccircle cx='146' cy='148' r='2.5'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(180deg, #1d4a40 0%, #0f2e29 100%);
+  background-size: auto, auto, 160px 160px, cover;
+  background-position: center top, center, center, center;
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
   animation: b2-lobby-drift 38s ease-in-out infinite alternate;
 }
 
@@ -217,6 +219,57 @@
 
 .b2-lobby__logo.is-jiggle {
   animation: b2-logo-jiggle 0.55s ease-out both;
+}
+
+/* MY HOUSE, MY RULES: a roof over two lines of type. Built from text so it is sharp at any size. */
+.b2-lobby .b2-wordmark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: auto;
+  max-width: 94%;
+  max-height: none;
+  font-family: var(--b2-display);
+  font-size: clamp(30px, 7.2vh, 70px);
+  line-height: 0.9;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.b2-wordmark__roof {
+  display: block;
+  width: 3.9em;
+  height: 0.92em;
+  margin-bottom: -0.18em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 48'%3E%3Cpath d='M146 6h16v22h-16z' fill='%23e8483d' stroke='%23241a14' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M8 44 100 6l92 38' fill='none' stroke='%23241a14' stroke-width='16' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M8 44 100 6l92 38' fill='none' stroke='%23e8483d' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.b2-wordmark__top,
+.b2-wordmark__bottom {
+  display: block;
+  -webkit-text-stroke: 0.1em var(--b2-ink);
+  paint-order: stroke fill;
+  text-shadow: 0 0.09em 0 var(--b2-ink);
+}
+
+.b2-wordmark__top {
+  font-size: 0.62em;
+  color: var(--b2-cream);
+  transform: rotate(-1deg);
+}
+
+.b2-wordmark__bottom {
+  font-size: 1em;
+  color: #ffb12e;
+  transform: rotate(1.2deg);
+}
+
+@media (max-height: 520px) {
+  .b2-lobby .b2-wordmark {
+    font-size: clamp(24px, 8vh, 40px);
+  }
 }
 
 .b2-lobby__tagline {

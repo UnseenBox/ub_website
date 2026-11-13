@@ -168,7 +168,7 @@ function riskFor(index: number, def: RoomDefinition): DoorRisk {
   }
   const hazard = def.theme ? HAZARDS[def.theme] : undefined;
   if (hazard) return { label: 'HAZARD', detail: hazard };
-  return { label: 'CREW', detail: 'a full room of movers' };
+  return { label: 'CREW', detail: 'a full room of gnomes' };
 }
 
 function rewardFor(

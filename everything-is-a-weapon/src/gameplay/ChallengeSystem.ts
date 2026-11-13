@@ -34,7 +34,7 @@ export const CHALLENGES: readonly ChallengeDefinition[] = [
     id: 'defeat_heavy', text: 'FLATTEN THE CRATE WITHOUT GETTING HIT', short: 'BIG ONE, CLEAN', bonus: 1000,
     passed: (s) => s.heavyKills > 0 && s.damageTaken === 0, failed: (s) => s.damageTaken > 0,
   },
-  { id: 'one_throw_two', text: 'ONE THROW, TWO MOVERS', short: '1 THROW, 2 OUT', bonus: 1200, passed: (s) => s.bestMultiKill >= 2 },
+  { id: 'one_throw_two', text: 'ONE THROW, TWO GNOMES', short: '1 THROW, 2 OUT', bonus: 1200, passed: (s) => s.bestMultiKill >= 2 },
   { id: 'chain_4', text: 'TRIGGER A 4-STEP CHAIN REACTION', short: '4-STEP CHAIN', bonus: 1500, passed: (s) => s.bestChain >= 4 },
   {
     id: 'no_chair', text: 'CLEAR THE ROOM WITHOUT THROWING A CHAIR', short: 'NO CHAIRS', bonus: 800,

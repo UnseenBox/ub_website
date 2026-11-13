@@ -1,4 +1,4 @@
-# Publishing BONK! on CrazyGames
+# Publishing My House, My Rules on CrazyGames
 
 Everything needed for the submission is in this folder:
 

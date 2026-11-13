@@ -32,7 +32,7 @@ const IMPACT_WORDS: Readonly<Record<SoundKind, readonly string[]>> = {
   plastic: ['CLACK!', 'THUNK!'],
   rubber: ['BOING!', 'BOINK!'],
   paper: ['FWAP!', 'PAF!'],
-  soft: ['BONK!', 'OOF!'],
+  soft: ['WHACK!', 'OOF!'],
 };
 
 export function impactWord(kind: SoundKind): string {

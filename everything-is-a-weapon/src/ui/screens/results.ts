@@ -349,7 +349,7 @@ export function buildResults(summary: RoomSummary, actions: ResultsActions): HTM
   scoreWrap.append(score, el('div', 'b2-label b2-report__scorelabel', 'BILL · CHAOS POINTS'));
   countUp(score, summary.score);
 
-  const stamp = el('div', 'b2-report__stamp', 'EVICTED');
+  const stamp = el('div', 'b2-report__stamp', 'GNOMES OUT');
   stamp.setAttribute('aria-label', 'Evicted');
   hero.append(scoreWrap, stamp);
 

@@ -6,8 +6,8 @@
  * a clipboard and a rubber stamp. No webfonts — the mismatched system faces are the point.
  */
 :root {
-  --ink: #221b36;
-  --backdrop: #1b1730;
+  --ink: #241a14;
+  --backdrop: #0f2e29;
   --paper: #fbf6e9;
   --paper-2: #f1e7cc;
   --news: #dcd8cf;
@@ -15,12 +15,12 @@
   --manila: #d9b77c;
   --sticky: #ffe36e;
   --red: #e5383b;
-  --blue: #2f4fb5;
+  --blue: #1f8f83;
   --green: #2e9e5b;
   --cyan: #4ad6e8;
   --yellow: #ffd23f;
   --tape: rgba(238, 224, 178, 0.88);
-  --shadow: rgba(16, 12, 30, 0.55);
+  --shadow: rgba(8, 22, 18, 0.55);
 
   --font: 'Bahnschrift', 'DIN Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
   --hand: 'Segoe Print', 'Bradley Hand', 'Marker Felt', 'Comic Sans MS', 'Chalkboard SE', cursive;

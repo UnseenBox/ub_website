@@ -90,7 +90,7 @@ export const EDGES: readonly EdgeDefinition[] = [
   {
     id: 'ricochet', category: 'heavy', rarity: 'rare',
     name: 'RICOCHET',
-    effect: 'A thrown hit bounces on to the nearest other mover.',
+    effect: 'A thrown hit bounces on to the nearest other gnome.',
     flavor: '“Always bring a spare target.”',
   },
   {

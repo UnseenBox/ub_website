@@ -30,7 +30,7 @@ function showFatal(error: unknown): void {
   const box = document.createElement('div');
   box.className = 'fatal-box';
   const title = document.createElement('h2');
-  title.textContent = 'BONK! hit a snag';
+  title.textContent = 'My House, My Rules hit a snag';
   const message = document.createElement('p');
   message.textContent = 'The game stopped before it could draw the next frame.';
   const detail = document.createElement('pre');

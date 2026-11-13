@@ -5,7 +5,6 @@ import { el } from '../dom';
 import { buildCharactersPane, heroPair, heroPortrait } from './characters';
 import { buildRoomsPane } from './rooms';
 
-import logoUrl from '../../ui-kit/bonk2/assets/banners/bonk-logo@2x.png?url';
 import coinUrl from '../../ui-kit/bonk2/assets/icons/coin@2x.png?url';
 import keyUrl from '../../ui-kit/bonk2/assets/icons/key@2x.png?url';
 import lampUrl from '../../ui-kit/bonk2/assets/icons/lamp@2x.png?url';
@@ -31,16 +30,16 @@ let lastRoomPick: number | null = null;
 const roomLabel = (index: number): string => `ROOM ${index + 1}`;
 
 const TAGLINES = [
-  'YOUR HOME. YOUR RULES.',
+  'THE GNOMES GOT IN. GET THEM OUT.',
   'EVERYTHING IS A WEAPON.',
   'THROW THE FURNITURE.',
-  'THE HOUSE HATES YOU.',
-  'MOM IS WATCHING.',
-  'BONK THEM ALL.',
+  'NO GNOMES IN THE KITCHEN.',
+  'SHOES OFF. GNOMES OUT.',
+  'MY HOUSE. MY RULES.',
 ] as const;
 
-const BURST_WORDS = ['BONK!', 'POW!', 'WHAM!', 'THWACK!', 'BOING!'] as const;
-const BURST_COLORS = ['#ffcd38', '#2585ff', '#ef4b5e', '#c9ef58', '#b4a0e4'] as const;
+const BURST_WORDS = ['WHACK!', 'POW!', 'WHAM!', 'THWACK!', 'BOING!'] as const;
+const BURST_COLORS = ['#ffd447', '#2bb3a3', '#e4483f', '#ff9f2e', '#f28da0'] as const;
 const PARTICLE_SHAPES = ['star', 'diamond', 'dot', 'ring', 'square'] as const;
 
 const reducedMotion = (): boolean =>
@@ -199,13 +198,15 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
 
   // ── centre: wordmark, tagline, selected hero ────────────────────────────
   const center = el('section', 'b2-lobby__center');
-  center.setAttribute('aria-label', 'BONK! Everything is a weapon');
-  const logo = el('img', 'b2-lobby__logo');
-  logo.src = logoUrl;
-  logo.alt = 'BONK!';
-  logo.decoding = 'async';
-  logo.draggable = false;
-  const tagline = el('p', 'b2-lobby__tagline', 'YOUR HOME. YOUR RULES.');
+  center.setAttribute('aria-label', 'My House, My Rules. Everything is a weapon');
+  // The wordmark is type, not a picture: it stays sharp at any size and needs no asset.
+  const logo = el('div', 'b2-lobby__logo b2-wordmark');
+  logo.setAttribute('role', 'img');
+  logo.setAttribute('aria-label', 'My House, My Rules');
+  const roof = el('span', 'b2-wordmark__roof');
+  roof.setAttribute('aria-hidden', 'true');
+  logo.append(roof, el('span', 'b2-wordmark__top', 'MY HOUSE,'), el('span', 'b2-wordmark__bottom', 'MY RULES'));
+  const tagline = el('p', 'b2-lobby__tagline', 'THE GNOMES GOT IN. GET THEM OUT.');
   const portrait = el('img', 'b2-lobby__hero');
   portrait.src = heroPortrait(game.hero);
   portrait.alt = '';
@@ -235,7 +236,7 @@ export function buildMainMenu(game: Game, actions: MenuActions): HTMLElement {
   logo.addEventListener('pointerdown', (e) => {
     retrigger(logo, 'is-jiggle');
     const r = screen.getBoundingClientRect();
-    popBurst(screen, e.clientX - r.left, e.clientY - r.top, 'BONK!');
+    popBurst(screen, e.clientX - r.left, e.clientY - r.top, 'MY RULES!');
     game.audio.play('stamp', 0.6);
   });
   logo.addEventListener('animationend', (e) => {

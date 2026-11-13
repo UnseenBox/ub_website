@@ -46,7 +46,7 @@
 }
 
 .b2-endless__row.is-new {
-  background: color-mix(in srgb, var(--b2-lime, #b6f23a) 28%, transparent);
+  background: color-mix(in srgb, var(--b2-lime, #ffa62b) 28%, transparent);
 }
 
 .b2-endless__label {
@@ -141,10 +141,10 @@
   padding: 1px 7px;
   font-size: 0.62em;
   letter-spacing: 0.06em;
-  color: var(--b2-ink, #1c1530);
+  color: var(--b2-ink, #241a14);
   text-shadow: none; /* the button's ink outline would swallow dark letters */
-  background: var(--b2-lime, #b6f23a);
-  border: 2px solid var(--b2-ink, #1c1530);
+  background: var(--b2-lime, #ffa62b);
+  border: 2px solid var(--b2-ink, #241a14);
 }
 
 .b2-lobby__daily.is-done .b2-lobby__dailychip {
@@ -161,7 +161,7 @@
   width: 9px;
   height: 9px;
   background: rgba(0, 0, 0, 0.3);
-  border: 2px solid var(--b2-ink, #1c1530);
+  border: 2px solid var(--b2-ink, #241a14);
 }
 
 .b2-lobby__pip.is-big {
@@ -171,7 +171,7 @@
 }
 
 .b2-lobby__pip.is-on {
-  background: var(--b2-lime, #b6f23a);
+  background: var(--b2-lime, #ffa62b);
 }
 
 .b2-lobby__daily.is-ready {

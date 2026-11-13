@@ -119,7 +119,7 @@ export function consumePickup(game: Game, object: PhysicsObject): boolean {
       snoozeChime(game.audio);
       game.fx.flash('#c9b6ff', 0.3);
       game.fx.burst('SNOOZE!', pb.x, pb.y - 62, 1.2, '#c9b6ff', true);
-      game.hud.banner('FIVE MORE MINUTES', frozen > 0 ? 'all movers snooze' : '', 2);
+      game.hud.banner('FIVE MORE MINUTES', frozen > 0 ? 'all gnomes snooze' : '', 2);
       if (frozen > 0) game.discoveries.unlock('snoozed');
       break;
     }

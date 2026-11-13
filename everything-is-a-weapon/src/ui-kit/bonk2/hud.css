@@ -787,7 +787,7 @@
   background-image: repeating-linear-gradient(
     90deg,
     transparent 0 34px,
-    rgba(38, 33, 45, 0.28) 34px 37px
+    rgba(36, 26, 20, 0.28) 34px 37px
   );
   transition: width 0.2s ease;
 }
@@ -809,7 +809,7 @@
   background-image: repeating-linear-gradient(
     90deg,
     transparent 0 18px,
-    rgba(38, 33, 45, 0.25) 18px 20px
+    rgba(36, 26, 20, 0.25) 18px 20px
   );
 }
 

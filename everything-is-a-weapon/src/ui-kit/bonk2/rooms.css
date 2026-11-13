@@ -206,7 +206,7 @@
   gap: 1px;
   font-size: 10px;
   line-height: 1;
-  color: rgba(38, 33, 45, 0.25);
+  color: rgba(36, 26, 20, 0.25);
 }
 
 .b2-roomtile__star.is-on {
@@ -219,7 +219,7 @@
   place-items: center;
   width: 15px;
   height: 15px;
-  color: rgba(38, 33, 45, 0.55);
+  color: rgba(36, 26, 20, 0.55);
 }
 
 .b2-roomtile__lock svg {

@@ -154,7 +154,7 @@ export class AbilitySystem {
     snoozeChime(game.audio);
     game.fx.flash('#bfe9ff', 0.3);
     game.fx.burst('DEEP FREEZE!', pb.x, pb.y - 62, 1.2, '#bfe9ff', true);
-    game.hud.banner('DEEP FREEZE', frozen > 0 ? 'all movers frozen' : '', 1.8);
+    game.hud.banner('DEEP FREEZE', frozen > 0 ? 'all gnomes frozen' : '', 1.8);
     if (frozen > 0) game.discoveries.unlock('deep_freeze');
   }
 }

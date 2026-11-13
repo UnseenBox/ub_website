@@ -270,7 +270,7 @@ export class Game {
   private funnelChain = false;
   private funnelGameplay = false;
   private roomEnded = true;
-  /** The one-off FIRST BONK! treatment has been spent this room. */
+  /** The one-off FIRST WHACK! treatment has been spent this room. */
   private firstBonk = false;
   private bossSeen = false;
   private lastHitCause = '';
@@ -1936,7 +1936,7 @@ export class Game {
                       ? 'OUCH!'
                       : cause.type === 'explosion'
                         ? ''
-                        : 'BONK!';
+                        : 'WHACK!';
           if (word) this.fx.burst(word, b.x - cause.dirX * 8, b.y - 34, 0.85 + Math.min(0.8, e.damage / 55));
         }
       }
@@ -1994,7 +1994,7 @@ export class Game {
       this.audio.voice('defeat', e.enemy.type.voice, e.enemy.type.id);
       if (e.enemy.type.boss) {
         this.audio.bossRoar(e.enemy.type.id, e.enemy.type.voice, true);
-        this.hud.banner(e.enemy.type.bossTitle ?? 'LANDLORD EVICTED', '', 2.2);
+        this.hud.banner(e.enemy.type.bossTitle ?? 'GNOMES OUT!', '', 2.2);
         this.discoveries.unlock(e.enemy.type.bossDiscovery ?? 'mom_says_no');
       }
       // the box bursts: packing peanuts everywhere, plus a starburst in the
@@ -2036,7 +2036,7 @@ export class Game {
       // a bigger freeze, a shockwave, a name on the screen and more confetti than any later one.
       if (this.tutorial.step === 'throw' && !this.firstBonk) {
         this.firstBonk = true;
-        this.fx.burst('FIRST BONK!', b.x, b.y - 52, 2.2, '#ffd23f', true);
+        this.fx.burst('FIRST WHACK!', b.x, b.y - 52, 2.2, '#ffd23f', true);
         this.fx.ring(b.x, b.y, 12, 150, 0.55, 'rgba(255,210,63,0.95)', 6);
         this.fx.flash('#ffffff', 0.3);
         this.camera.addShake(0.3);
