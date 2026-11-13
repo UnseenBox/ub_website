@@ -2,7 +2,7 @@ import type { DuelTemplate } from '../../data/duel/rounds';
 import { asBoost, asTrick, cardOf, CARDS, type CardId, type Trick } from '../abilities/Cards';
 import type { Game, ShotOutcome } from '../core/Game';
 import { tr } from '../core/i18n';
-import { portal } from '../portal/Portal';
+import { isCrazyGames, portal } from '../portal/Portal';
 import { C } from '../rendering/Palette';
 import type { Overlay } from '../ui/Overlay';
 import { DuelApi, DuelApiError, type DuelData, type DuelMode, type ShotRecord } from './DuelApi';
@@ -101,6 +101,8 @@ export class DuelController {
    * `friend` is an id from an invite link, put in the box ready to challenge.
    */
   async open(friend = ''): Promise<void> {
+    // The CrazyGames build has no duels: no button, no invite links, and no lobby even if something asks.
+    if (isCrazyGames) return;
     this.phase = 'lobby';
     this.cues = [];
     this.ui.showLobby(this.api.identity?.id ?? '......', this.api.identity?.name ?? '');
