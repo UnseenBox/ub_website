@@ -228,7 +228,8 @@ export class Hud {
     const parts = g.kickParts();
     return [
       ['R', 'RETRY'],
-      ['ESC', 'PAUSE'],
+      // P, not Escape: on CrazyGames Escape also leaves fullscreen. Escape still pauses as well.
+      ['P', 'PAUSE'],
       ['M', g.audio.muted ? 'SOUND IS OFF' : 'SOUND'],
       ...(parts.air ? ([['F', 'AIR']] as const) : []),
       ...(parts.bend ? ([['Q E', 'BEND']] as const) : []),
