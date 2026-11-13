@@ -123,6 +123,11 @@ function button(className: string, label: string, onClick: () => void): HTMLButt
   return b;
 }
 
+/** The groove of a slider is green up to the knob; the stylesheet reads how far from `--fill`. */
+function paintFill(input: HTMLInputElement): void {
+  input.style.setProperty('--fill', `${input.value}%`);
+}
+
 function slider(label: string, onInput: (volume: number) => void): { row: HTMLElement; input: HTMLInputElement } {
   const row = el('label', 'setting');
   const input = el('input', 'setting-range');
@@ -130,7 +135,10 @@ function slider(label: string, onInput: (volume: number) => void): { row: HTMLEl
   input.min = '0';
   input.max = '100';
   input.step = '5';
-  input.addEventListener('input', () => onInput(Number(input.value) / 100));
+  input.addEventListener('input', () => {
+    paintFill(input);
+    onInput(Number(input.value) / 100);
+  });
   input.addEventListener('keydown', (e) => e.stopPropagation());
   row.append(el('span', 'setting-name', label), input);
   return { row, input };
@@ -447,6 +455,8 @@ export class Overlay {
     const { sound, music } = this.handlers.volumes();
     this.sound.value = String(Math.round(sound * 100));
     this.music.value = String(Math.round(music * 100));
+    paintFill(this.sound);
+    paintFill(this.music);
     this.resetArmed = false;
     this.resetButton.textContent = tr('RESET PROGRESS');
     this.show(this.settings);

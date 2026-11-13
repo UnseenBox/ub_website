@@ -178,7 +178,23 @@ body {
 
 .btn-ghost {
   color: var(--green-night);
-  background: var(--white);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f6ea 100%);
+  border: 3px solid var(--green-night);
+  padding: calc(0.85em - 3px) 1.6em calc(0.8em - 3px);
+}
+
+/* Gloss on the coloured buttons: a soft light band across the top, like a plastic arcade key. */
+.btn-primary::after,
+.btn-sun::after,
+.btn-navy::after,
+.btn-red::after {
+  content: '';
+  position: absolute;
+  inset: 3px 10px auto;
+  height: 42%;
+  border-radius: 12px 12px 50% 50% / 12px 12px 8px 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.04));
+  pointer-events: none;
 }
 
 /* Gold, navy and red three-dimensional buttons, for any menu that wants colour. */
@@ -257,10 +273,13 @@ body {
 
 .panel,
 .sheet {
+  --pad-top: 32px;
+  --pad-x: 32px;
   display: grid;
   gap: 14px;
   justify-items: stretch;
-  padding: 32px 32px 28px;
+  padding: var(--pad-top) var(--pad-x) 28px;
+  animation: panel-in 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both;
   background: var(--white);
   border: 4px solid var(--green-night);
   border-radius: 22px;
@@ -269,6 +288,7 @@ body {
 
 .panel {
   min-width: min(330px, 86vw);
+  overflow: hidden;
 }
 
 .panel .btn-primary {
@@ -280,9 +300,10 @@ body {
   overflow: hidden;
 }
 
-/* The marquee band across the top of the pause cabinet. */
-.pause-panel .panel-title {
-  margin: -32px -32px 4px;
+/* The marquee band across the top of every panel. */
+.panel > .panel-title,
+.sheet > .panel-title {
+  margin: calc(-1 * var(--pad-top)) calc(-1 * var(--pad-x)) 6px;
   padding: 16px 12px 12px;
   font-size: 16px;
   letter-spacing: 0.34em;
@@ -342,12 +363,16 @@ body {
 .tile.is-current {
   outline: 4px solid var(--sun);
   outline-offset: 2px;
+  animation: current-glow 1.6s ease-in-out infinite alternate;
 }
 
 .tile:disabled {
-  color: rgba(27, 37, 64, 0.45);
-  background: #d9d1c2;
-  box-shadow: none;
+  color: rgba(11, 77, 31, 0.5);
+  text-shadow: none;
+  background: linear-gradient(180deg, #f1f5ec 0%, #e1e9da 100%);
+  box-shadow:
+    0 4px 0 #c4d1bb,
+    inset 0 0 0 2px rgba(11, 77, 31, 0.08);
   cursor: default;
 }
 
@@ -359,7 +384,7 @@ body {
 }
 
 .tile:disabled .tile-number {
-  color: rgba(27, 37, 64, 0.35);
+  color: rgba(11, 77, 31, 0.35);
 }
 
 .tile-name {
@@ -1168,7 +1193,6 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   text-align: center;
-  background: #fff;
 }
 
 .menu-frame {
@@ -1218,7 +1242,7 @@ body {
   display: block;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 8px 10px rgba(27, 37, 64, 0.12));
+  filter: drop-shadow(0 10px 14px rgba(3, 26, 10, 0.45));
 }
 
 .menu-actions {
@@ -1234,13 +1258,14 @@ body {
   background: none;
   cursor: pointer;
   line-height: 0;
-  filter: drop-shadow(0 6px 0 rgba(11, 77, 28, 0.14));
+  filter: drop-shadow(0 6px 0 rgba(3, 26, 10, 0.35));
   transition:
     transform 0.1s ease-out,
     filter 0.1s ease-out;
 }
 
 .menu-play-art {
+  animation: play-breathe 2.4s ease-in-out 0.6s infinite;
   display: block;
   width: 100%;
   height: auto;
@@ -1248,22 +1273,23 @@ body {
 
 .menu-play:hover {
   transform: translateY(-2px);
-  filter: drop-shadow(0 8px 0 rgba(11, 77, 28, 0.14));
+  filter: drop-shadow(0 8px 0 rgba(3, 26, 10, 0.35)) brightness(1.05);
 }
 
 .menu-play:active {
   transform: translateY(3px);
-  filter: drop-shadow(0 2px 0 rgba(11, 77, 28, 0.14));
+  filter: drop-shadow(0 2px 0 rgba(3, 26, 10, 0.35));
 }
 
 /* "HOUMA 7 · NEW GROUNDS": where LET'S PLAY goes. */
 .menu-continue {
-  margin: 4px 0 0;
+  margin: 10px 0 0;
   font-size: clamp(9px, 1.5vmin, 11px);
   font-weight: 900;
   letter-spacing: 0.14em;
   line-height: 1.3;
-  color: #0b4d1f;
+  color: #f4ffe2;
+  text-shadow: 0 2px 0 rgba(3, 26, 10, 0.5);
 }
 
 .menu-gear {
@@ -1275,8 +1301,9 @@ body {
   border: 0;
   border-radius: 50%;
   color: #f7ffe9;
-  background: #0b4d1f;
-  box-shadow: 0 4px 0 rgba(11, 77, 28, 0.18);
+  background: linear-gradient(180deg, #13652a 0%, #083a17 100%);
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 4px 0 rgba(3, 26, 10, 0.45);
   cursor: pointer;
   transition:
     transform 0.1s ease-out,
@@ -1303,7 +1330,7 @@ body {
 .menu-shortcuts {
   display: flex;
   justify-content: center;
-  gap: clamp(22px, 8vw, 56px);
+  gap: clamp(14px, 5vw, 32px);
   width: min(400px, 100%);
 }
 
@@ -1311,13 +1338,29 @@ body {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 2px;
-  padding: 0;
-  border: 0;
-  background: none;
+  gap: 4px;
+  min-width: clamp(110px, 30vw, 150px);
+  padding: clamp(8px, 1.4vmin, 12px) clamp(12px, 2vmin, 18px) clamp(8px, 1.4vmin, 11px);
+  border: 3px solid var(--green-night);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef5e6 100%);
+  box-shadow: 0 6px 0 #083a17;
   font: inherit;
   color: #0b4d1f;
   cursor: pointer;
+  transition:
+    transform 0.1s ease-out,
+    box-shadow 0.1s ease-out;
+}
+
+.menu-shortcut:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #083a17;
+}
+
+.menu-shortcut:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #083a17;
 }
 
 .menu-shortcut-art {
@@ -1360,14 +1403,19 @@ body {
   height: clamp(38px, 6.4vmin, 54px);
   padding: 0 12px;
   border: 0;
-  background: url('./assets/ui/button-blank.png') center / 100% 100% no-repeat;
-  color: #e9ffd4;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #2c3a63 0%, var(--navy) 55%, #141c33 100%);
+  box-shadow:
+    0 5px 0 #0d1226,
+    inset 0 2px 0 rgba(255, 255, 255, 0.22);
+  color: #eef1ff;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
   font: inherit;
   font-size: clamp(10px, 1.7vmin, 13px);
   font-weight: 900;
   letter-spacing: 0.16em;
   cursor: pointer;
-  filter: drop-shadow(0 4px 0 rgba(11, 77, 28, 0.14));
+  filter: drop-shadow(0 4px 0 rgba(3, 26, 10, 0.4));
   transition:
     transform 0.1s ease-out,
     filter 0.1s ease-out;
@@ -1418,9 +1466,10 @@ body {
   letter-spacing: 0.12em;
   white-space: nowrap;
   color: #f7ffe9;
-  background: #0b4d1f;
+  background: linear-gradient(180deg, #13652a 0%, #083a17 100%);
+  border: 2px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
-  box-shadow: 0 4px 0 rgba(11, 77, 28, 0.16);
+  box-shadow: 0 4px 0 rgba(3, 26, 10, 0.45);
 }
 
 .star-count-icon {
@@ -1538,8 +1587,51 @@ body {
 .setting-range {
   width: 100%;
   height: 28px;
-  accent-color: var(--green);
+  margin: 0;
+  background: none;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.setting-range::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green) 0 var(--fill, 50%), #e3eadc var(--fill, 50%));
+  box-shadow: inset 0 2px 0 rgba(11, 77, 31, 0.2);
+}
+
+.setting-range::-moz-range-track {
+  height: 12px;
+  border-radius: 999px;
+  background: #e3eadc;
+  box-shadow: inset 0 2px 0 rgba(11, 77, 31, 0.2);
+}
+
+.setting-range::-moz-range-progress {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--green);
+}
+
+.setting-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -8px;
+  border: 3px solid var(--green-night);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--green-hi), var(--green) 60%, #12a53e);
+  box-shadow: 0 3px 0 var(--green-night);
+}
+
+.setting-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--green-night);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, var(--green-hi), var(--green) 60%, #12a53e);
+  box-shadow: 0 3px 0 var(--green-night);
 }
 
 .lang-pick {
@@ -1607,6 +1699,28 @@ body {
   }
 }
 
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+}
+
+@keyframes play-breathe {
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+@keyframes current-glow {
+  to {
+    box-shadow:
+      0 5px 0 var(--green-deep),
+      inset 0 2px 0 rgba(255, 255, 255, 0.4),
+      0 0 18px 4px rgba(255, 200, 58, 0.55);
+  }
+}
+
 @keyframes result-in {
   from {
     opacity: 0;
@@ -1617,6 +1731,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .screen,
   .menu-logo,
+  .menu-play-art,
+  .panel,
+  .sheet,
+  .tile.is-current,
   .result {
     animation: none;
   }
@@ -1798,10 +1916,20 @@ body {
   margin-inline-end: -2px;
 }
 
-/* The white page behind the new art. Kept as a separate class so the menu can be
-   re-skinned without touching the other overlay screens. */
+/* The main menu stands on the pitch: floodlights from the top corners, mown stripes, the halfway
+   line and centre circle along the bottom, and shade at the edges. Kept as a separate class so the
+   menu can be re-skinned without touching the other overlay screens. */
 .menu-bg {
-  background-color: #fff;
+  --circle: min(30vw, 150px);
+  background:
+    radial-gradient(ellipse 60% 38% at 12% -4%, rgba(255, 246, 200, 0.4), transparent 70%),
+    radial-gradient(ellipse 60% 38% at 88% -4%, rgba(255, 246, 200, 0.4), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(3, 26, 10, 0.55) 100%),
+    radial-gradient(circle at 50% 100%, transparent 0 var(--circle), rgba(255, 255, 255, 0.22) var(--circle) calc(var(--circle) + 4px), transparent calc(var(--circle) + 4px)),
+    linear-gradient(transparent calc(100% - 4px), rgba(255, 255, 255, 0.22) calc(100% - 4px)),
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0 9vh, transparent 9vh 18vh),
+    linear-gradient(180deg, #1f8f3c 0%, #2aa549 45%, #1b8336 100%);
+  background-color: #1f8f3c;
 }
 
 .skin-progress {
@@ -1816,6 +1944,7 @@ body {
 .reset-button {
   font-size: clamp(10px, 1.8vmin, 12px);
   color: var(--red);
+  border-color: var(--red);
   box-shadow: 0 5px 0 var(--red-deep);
 }
 
@@ -1843,7 +1972,9 @@ body {
 
 @media (max-width: 560px) {
   .sheet-wide {
-    padding: 22px 16px 20px;
+    --pad-top: 22px;
+    --pad-x: 16px;
+    padding-bottom: 20px;
   }
 
   .grid {
