@@ -1357,9 +1357,11 @@ export class Game {
   /** Whoever is left walks off: the room is won before the last mover falls. */
   private endRoomEarly(word: string): void {
     const room = this.room;
+    // Whoever walks off drops half their coins (the ones still outside never came in).
     room.pending.length = 0;
     for (const enemy of this.enemies) {
       if (enemy.defeated) continue;
+      this.score.payFlee(enemy);
       enemy.defeated = true;
       enemy.alive = false;
       this.particles.burst('dust', enemy.body.x, enemy.body.y, 8, 120);

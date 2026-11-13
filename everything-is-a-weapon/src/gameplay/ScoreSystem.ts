@@ -34,6 +34,8 @@ function emptyStats(): RoomStats {
 
 export const COMBO_WINDOW = 5;
 const MAX_COMBO = 8;
+/** Coins a boss pays across its whole health bar, as it is hurt (the kill pays 150 more on top). */
+export const BOSS_HIT_COINS = 120;
 
 const FUNNY_KILLS: Readonly<Record<string, { discovery: string; line: string }>> = {
   shoe: { discovery: 'shoe_kill', line: 'You killed him with a SHOE.' },
@@ -63,6 +65,8 @@ export class ScoreSystem {
   stats: RoomStats = emptyStats();
 
   private reactionCooldown = 0;
+  /** Fractional coins from hurting a boss, paid out as they reach a whole coin. */
+  private bossCoins = 0;
 
   constructor(private readonly game: Game) {
     const bus = game.bus;
@@ -85,7 +89,27 @@ export class ScoreSystem {
     });
   }
 
+  /**
+   * A gnome that walks off when the room is won early (an objective, a survived clock) still drops
+   * half its coins: winning the clever way must never pay less than slogging through.
+   */
+  payFlee(enemy: Enemy): void {
+    if (enemy.type.boss) return;
+    const base = 12 + Math.round(enemy.type.scoreBonus / 10);
+    this.stats.scrap += Math.round(base * 0.5 * this.coinMultiplier());
+  }
+
+  /** Every coin source shares the same bonuses: Edges, the Star Ledger, COIN MAGNET, difficulty. */
+  private coinMultiplier(): number {
+    const game = this.game;
+    return game.edges.scrapMultiplier()
+      * ledgerScrapMultiplier(game.save.data)
+      * upgradeScrapMultiplier(game.save.data)
+      * game.difficultyMods.scrap;
+  }
+
   resetRoom(scoreAtStart: number): void {
+    this.bossCoins = 0;
     this.score = scoreAtStart;
     this.combo = 1;
     this.comboTimer = 0;
@@ -135,6 +159,18 @@ export class ScoreSystem {
     const x = enemy.body.x;
     const y = enemy.body.y - 30;
 
+    // A boss pays as it is hurt, not only when it falls: a fight that is lost still earns
+    // something for the store, so the boss that stops you is also what pays for the upgrade.
+    if (enemy.type.boss && damage > 0 && enemy.maxHp > 0) {
+      const share = Math.min(damage, Math.max(0, enemy.hp + damage)) / enemy.maxHp;
+      this.bossCoins += share * BOSS_HIT_COINS * this.coinMultiplier();
+      const whole = Math.floor(this.bossCoins);
+      if (whole > 0) {
+        this.bossCoins -= whole;
+        this.stats.scrap += whole;
+      }
+    }
+
     if (cause.type === 'impact' && source && source.kind === 'object' && source.thrownByPlayer && length <= 1) {
       this.stats.directHits++;
       if (damage >= 45 && !enemy.defeated) game.popup('PERFECT IMPACT!', x, y - 20, '#ffffff', 18);
@@ -169,13 +205,7 @@ export class ScoreSystem {
     if (enemy.type.id === 'heavy') stats.heavyKills++;
     // Every kill salvages scrap for the ability shop; bosses pay out big.
     const baseScrap = enemy.type.boss ? 150 : 12 + Math.round(enemy.type.scoreBonus / 10);
-    stats.scrap += Math.round(
-      baseScrap
-        * game.edges.scrapMultiplier()
-        * ledgerScrapMultiplier(game.save.data)
-        * upgradeScrapMultiplier(game.save.data)
-        * game.difficultyMods.scrap,
-    );
+    stats.scrap += Math.round(baseScrap * this.coinMultiplier());
 
     let points = 100 + enemy.type.scoreBonus;
     let color = '#fff3d6';

@@ -57,11 +57,25 @@ function fakeCanvas(): HTMLCanvasElement {
  */
 const env = (globalThis as unknown as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 const RUN = Boolean(env.BALANCE);
+/** happy-dom swallows console.log: write the report straight to the real stdout. */
+const report = (line: string): void => {
+  const out = (globalThis as unknown as { process?: { stdout?: { write(s: string): void } } }).process?.stdout;
+  if (out) out.write(`${line}
+`);
+  else console.log(line);
+};
 const MODE = env.BALANCE_MODE ?? 'campaign';
 const FROM = Number(env.BALANCE_FROM ?? 0);
 const TO = Number(env.BALANCE_TO ?? 49);
 const SKILL = env.BALANCE_SKILL ?? 'casual';
 const CAP = Number(env.BALANCE_CAP ?? 140);
+/** Store upgrades owned for the sweep, e.g. BALANCE_UPGRADES=door=2,damage=4,speed=2. */
+const UPGRADE_LEVELS: Record<string, number> = Object.fromEntries(
+  (env.BALANCE_UPGRADES ?? '').split(',').filter(Boolean).map((pair) => {
+    const [id, level] = pair.split('=');
+    return [id!, Number(level ?? 0)];
+  }),
+);
 
 interface Profile { dodge: boolean; kite: boolean; charge: number; }
 const PROFILES: Record<string, Profile> = {
@@ -151,7 +165,7 @@ function botStep(game: Game, st: BotState, profile: Profile, dt: number): void {
   if (d < 90 + target.body.boundR) raw.primaryPresses++;
 }
 
-interface Result { crew: string; label: string; cleared: boolean; died: boolean; seconds: number; heartsLost: number; enemies: number; hp: number; }
+interface Result { crew: string; label: string; cleared: boolean; died: boolean; seconds: number; heartsLost: number; enemies: number; hp: number; coins: number; }
 
 function playRoom(game: Game, label: string, profile: Profile): Result {
   const st: BotState = { charging: false, chargeT: 0, dodgeCd: 0 };
@@ -176,7 +190,7 @@ function playRoom(game: Game, label: string, profile: Profile): Result {
   const died = !game.player.alive || game.state === 'failed';
   return {
     crew: crewSummary + ' | hits: ' + [...hits].map(([k, v]) => `${k}x${v}`).join(','), label, cleared: cleared && !died, died, seconds: Math.round(game.room.elapsed),
-    heartsLost: Math.round((startHp - lowest) * 10) / 10, enemies, hp: game.player.hp,
+    heartsLost: Math.round((startHp - lowest) * 10) / 10, enemies, hp: game.player.hp, coins: game.score.stats.scrap,
   };
 }
 
@@ -193,6 +207,7 @@ function bootGame(): Game {
   vi.spyOn(game.loop, 'start').mockImplementation(() => {});
   game.start();
   game.save.data.tutorial = 'done';
+  game.save.data.upgrades = { ...UPGRADE_LEVELS };
   game.tutorial.skip();
   return game;
 }
@@ -214,10 +229,11 @@ it.skipIf(!RUN)('balance sweep', { timeout: 3_600_000 }, () => {
     const label = MODE === 'campaign' ? `room ${n + 1}` : `floor ${n}`;
     const r = playRoom(game, label, profile);
     rows.push(r);
-    console.log(
-      `BAL ${MODE} ${SKILL} ${label.padEnd(9)} crew ${String(r.enemies).padStart(2)}  ${r.cleared ? 'CLEAR' : r.died ? 'DIED ' : 'TIMEOUT'}  ${String(r.seconds).padStart(3)}s  hearts lost ${r.heartsLost}  [${r.crew}]`,
+    report(
+      `BAL ${MODE} ${SKILL} ${label.padEnd(9)} crew ${String(r.enemies).padStart(2)}  ${r.cleared ? 'CLEAR' : r.died ? 'DIED ' : 'TIMEOUT'}  ${String(r.seconds).padStart(3)}s  hearts lost ${r.heartsLost}  coins ${String(r.coins).padStart(3)}  [${r.crew}]`,
     );
   }
   const cleared = rows.filter((r) => r.cleared).length;
-  console.log(`BAL SUMMARY ${MODE} ${SKILL}: ${cleared}/${rows.length} cleared`);
+  const coins = rows.reduce((sum, r) => sum + r.coins, 0);
+  report(`BAL SUMMARY ${MODE} ${SKILL} upgrades[${env.BALANCE_UPGRADES ?? ''}]: ${cleared}/${rows.length} cleared, ${coins} coins`);
 });

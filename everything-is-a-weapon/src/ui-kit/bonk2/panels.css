@@ -927,3 +927,47 @@
     min-height: 42px;
   }
 }
+
+/* Landscape phones: the store must show more than one card at a time. The goal strip, the run
+   note and the second line of each card go; the cards sit two to a row; the header stays one line. */
+@media (max-height: 520px) {
+  .b2-store__head {
+    flex-wrap: nowrap;
+    min-height: 0;
+    padding: 4px 10px;
+  }
+  .b2-store__head .b2-panel__title {
+    font-size: 18px;
+  }
+  .b2-store__promise,
+  .b2-store__goal,
+  .b2-store__note {
+    display: none;
+  }
+  .b2-store__wallet {
+    min-height: 0;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .b2-store__tabs .b2-tab {
+    min-height: 32px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .b2-store__pane {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .b2-store__pane .b2-shop-card {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+  .b2-store .b2-upgrade__blurb,
+  .b2-store .b2-upgrade__next {
+    display: none;
+  }
+  .b2-store .b2-shop-card__icon-wrap {
+    width: 34px;
+    height: 34px;
+  }
+}

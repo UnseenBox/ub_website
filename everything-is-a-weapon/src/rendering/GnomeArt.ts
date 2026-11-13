@@ -356,6 +356,17 @@ export function drawGnome(ctx: Ctx, e: Enemy, f: GnomeFrame): GnomeLayout {
   let topY = brimY - hatH;
   const helmeted = e.helmetHp > 0 && !dead;
 
+  // Knocked out: the hat pops off, spins up and drops (the body below is already squashing flat).
+  ctx.save();
+  if (dead) {
+    const t = Math.max(0, Math.min(1.1, 1.35 - e.removeIn));
+    const rise = 95 * t - 80 * t * t;
+    const spin = t * 5 * (hash(e.seed + 11) < 0.5 ? -1 : 1);
+    ctx.translate(x + t * 14 * Math.sign(spin), brimY - rise);
+    ctx.rotate(spin);
+    ctx.translate(-x, -brimY);
+  }
+
   if (flying) {
     // a beanie with a propeller instead of a cone
     ctx.fillStyle = tone(pal.hat);
@@ -527,6 +538,8 @@ export function drawGnome(ctx: Ctx, e: Enemy, f: GnomeFrame): GnomeLayout {
       ctx.stroke();
     }
   }
+
+  ctx.restore();
 
   // ── the Sprinter's scarf, streaming behind ──
   if (id === 'fast' && !dead) {

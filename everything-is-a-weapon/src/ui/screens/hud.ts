@@ -756,11 +756,19 @@ export class HUD {
       }
       this.powerCool.set(a.id, t);
     }
-    const scrap = game.save.data.scrap;
+    // The purse plus what this room has knocked loose so far: coins land the moment a gnome falls
+    // (the room's coins are only banked into the purse when it ends, and the room total resets then).
+    const scrap = game.save.data.scrap + (game.state === 'playing' ? game.score.stats.scrap : 0);
     if (scrap !== last.scrap) {
+      const gained = last.scrap >= 0 && scrap > last.scrap && game.state === 'playing';
       last.scrap = scrap;
       this.scrapSlip.textContent = scrap > 0 ? String(scrap) : '';
       this.scrapSlip.classList.toggle('is-empty', scrap <= 0);
+      if (gained) {
+        this.scrapSlip.classList.remove('is-bump');
+        void this.scrapSlip.offsetWidth;
+        this.scrapSlip.classList.add('is-bump');
+      }
     }
     this.updateHeat();
     this.updateBoss();
