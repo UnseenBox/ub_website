@@ -28,6 +28,10 @@ export interface ToolItem {
   owned?: boolean;
   /** A stand-in slot waiting for real art and stats. */
   placeholder?: boolean;
+  /** Prospector level needed before it can be bought. */
+  minLevel: number;
+  /** 'dig' tools replace each other; 'scanner' gadgets are passive. */
+  kind: 'dig' | 'scanner';
 }
 
 export interface ToolSection {
@@ -57,6 +61,12 @@ export interface UpgradeSection {
   items: UpgradeItem[];
 }
 
+/** Prospector level that unlocks each tool (the long-term progression). */
+const MIN_LEVEL: Record<string, number> = {
+  'tool-iron-shovel': 2, 'tool-steel-shovel': 3, 'tool-hand-axe': 4, 'tool-scanner': 4, 'tool-gold-shovel': 5,
+  'tool-pickaxe': 6, 'tool-jackhammer': 8, 'tool-diamond-shovel': 9, 'tool-deep-scanner': 9, 'tool-drill': 11,
+};
+
 export function upgradePrice(item: UpgradeItem, level: number): number {
   return Math.round((item.basePrice * Math.pow(item.priceGrowth, level)) / 5) * 5;
 }
@@ -64,7 +74,12 @@ export function upgradePrice(item: UpgradeItem, level: number): number {
 const shovel = (blade: number, shine: number, handle?: number): IconStyle => ({ kind: 'shovel', blade, shine, handle });
 const PLACEHOLDER: IconStyle = { kind: 'placeholder' };
 
-export const TOOL_SECTIONS: ToolSection[] = [
+type RawTool = Omit<ToolItem, 'minLevel' | 'kind'>;
+interface RawSection extends Omit<ToolSection, 'items'> {
+  items: RawTool[];
+}
+
+const RAW_TOOL_SECTIONS: RawSection[] = [
   {
     title: 'Shovels',
     subtitle: 'Better metal, deeper holes',
@@ -97,7 +112,7 @@ export const TOOL_SECTIONS: ToolSection[] = [
   {
     title: 'Placeholder Shovels',
     subtitle: 'Empty slots - replace with your own designs',
-    items: Array.from({ length: 6 }, (_, i): ToolItem => ({
+    items: Array.from({ length: 6 }, (_, i): RawTool => ({
       id: `tool-placeholder-${i + 1}`,
       name: `Placeholder Shovel ${i + 1}`,
       blurb: 'Replace this art, name and price.',
@@ -127,3 +142,15 @@ export const UPGRADE_SECTIONS: UpgradeSection[] = [
     ],
   },
 ];
+
+export const TOOL_SECTIONS: ToolSection[] = RAW_TOOL_SECTIONS.map((section) => ({
+  ...section,
+  items: section.items.map((item): ToolItem => ({
+    ...item,
+    minLevel: MIN_LEVEL[item.id] ?? 1,
+    kind: item.id.includes('scanner') ? 'scanner' : 'dig',
+  })),
+}));
+
+export const ALL_TOOLS: ToolItem[] = TOOL_SECTIONS.flatMap((s) => s.items);
+export const ALL_UPGRADES = UPGRADE_SECTIONS.flatMap((s) => s.items);

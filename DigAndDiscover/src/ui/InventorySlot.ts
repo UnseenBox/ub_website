@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { PALETTE, outlinedStyle } from '../config/Theme';
 import { iconScale, rockKeys } from '../art/RockArt';
 import type { Rock } from '../core/types';
+import { state } from '../core/GameState';
 
 export interface SlotDisplay {
   rock: Rock | null;
@@ -120,7 +121,9 @@ export class InventorySlot extends Phaser.GameObjects.Container {
       });
     }
 
-    this.badge.setVisible(!rock.cut && !incoming && !onBench).setPosition(s * 0.3, -s * 0.3);
+    // A Deep Scanner colours the "?" with the rock's rarity.
+    const hint = state.showsRarity ? `#${rock.rarity.color.toString(16).padStart(6, '0')}` : PALETTE.goldText;
+    this.badge.setColor(hint).setVisible(!rock.cut && !incoming && !onBench).setPosition(s * 0.3, -s * 0.3);
     if (onBench) {
       this.tag.setText('ON BENCH').setColor(PALETTE.goldText).setPosition(0, s * 0.34).setVisible(true);
     } else if (rock.cut) {

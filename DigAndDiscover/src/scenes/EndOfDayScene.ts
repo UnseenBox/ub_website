@@ -5,6 +5,7 @@ import { pickDayMessage } from '../data/dayMessages';
 import { paintFamilyPhoto } from '../art/FamilyPhoto';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
+import { portal } from '../ads/Portal';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
 
@@ -35,6 +36,7 @@ export class EndOfDayScene extends Phaser.Scene {
   private card!: Phaser.GameObjects.Container;
   private cardH = 0;
   private startBtn!: Button;
+  private doubleBtn: Button | null = null;
   private activated = false;
 
   constructor() {
@@ -158,6 +160,20 @@ export class EndOfDayScene extends Phaser.Scene {
     content.add(this.startBtn);
     y += 84;
 
+    // Rewarded ad: a second paycheque for today.
+    this.doubleBtn = null;
+    if (s.moneyEarned > 0 && portal.rewardedReady) {
+      const bonus = Math.round(s.moneyEarned);
+      const btn = new Button(this, {
+        width: 330, height: 52, label: `DOUBLE TODAY  +${formatMoney(bonus)}  (AD)`, fontSize: 19, colors: BUTTON_COLORS.blue,
+        onClick: () => this.doubleEarnings(bonus),
+      });
+      btn.setPosition(CARD_W / 2, y - 10);
+      content.add(btn);
+      this.doubleBtn = btn;
+      y += 52;
+    }
+
     // Paper panel sized to the content.
     this.cardH = y + 6;
     const panelH = this.cardH - 22;
@@ -219,10 +235,25 @@ export class EndOfDayScene extends Phaser.Scene {
 
   // ---------- actions ----------
 
+  private doubleEarnings(bonus: number): void {
+    const btn = this.doubleBtn;
+    if (!btn || !btn.isEnabled) return;
+    portal.rewarded(() => {
+      state.economy.grant(bonus);
+      sfx.coin();
+      btn.setLabel('DOUBLED!').setEnabled(false);
+    });
+  }
+
   private startNextDay(): void {
     if (this.activated) return;
     this.activated = true;
     sfx.click();
+    // A natural pause: CrazyGames midgame ad (rate-limited, never in the first minutes).
+    if (!portal.midgame(() => this.beginDay())) this.beginDay();
+  }
+
+  private beginDay(): void {
     state.startNextDay();
     this.tweens.add({ targets: this.card, alpha: 0, scale: this.card.scale * 0.85, duration: 240, ease: 'Quad.easeIn' });
     this.tweens.add({ targets: this.dim, fillAlpha: 0, duration: 300, onComplete: () => this.scene.stop() });

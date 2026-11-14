@@ -7,6 +7,7 @@ import { ART_RES, iconScale, releaseRockTextures, rockKeys } from '../art/RockAr
 import { MACHINE, SAW_RADIUS } from '../art/TextureFactory';
 import { sfx, type SawHandle } from '../audio/Sfx';
 import { sizeLabel } from '../systems/RockGenerator';
+import { portal } from '../ads/Portal';
 import { Button } from '../ui/Button';
 import { computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { formatMoney } from '../ui/MoneyCounter';
@@ -27,6 +28,8 @@ interface StageLayout {
 const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 340, bedY: 430, cardX: 770, cardY: 300, cardW: 340, cardH: 390 };
 const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, bedY: 440, cardX: 320, cardY: 708, cardW: 590, cardH: 270 };
 
+/** Rocks worth at least this much offer a "sell for double" ad. */
+const AD_SELL_MIN_VALUE = 30;
 const BLADE_REST = -290;
 const BLADE_END = -60;
 const RAY_COUNT = 12;
@@ -59,6 +62,7 @@ export class WorkshopScene extends Phaser.Scene {
   private big!: Phaser.GameObjects.Text;
   private cutBtn!: Button;
   private sellBtn!: Button;
+  private adBtn!: Button;
   private sparkFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dustFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private burstFx!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -109,6 +113,7 @@ export class WorkshopScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
+    this.updateAdButton();
     this.bladeSpeed += (this.bladeTarget - this.bladeSpeed) * Math.min(1, dt / 220);
     if (this.bladeSpeed > 0.001) this.blade.rotation += this.bladeSpeed * dt * 0.03;
     this.rod.height = Math.max(0, this.blade.y - (this.S.bedY + BLADE_REST));
@@ -161,11 +166,16 @@ export class WorkshopScene extends Phaser.Scene {
     });
     this.sellBtn = new Button(this, {
       width: 280, height: 74, label: 'SELL', fontSize: 30, colors: BUTTON_COLORS.green,
-      onClick: () => this.sell(),
+      onClick: () => this.sell(1),
     });
     this.cutBtn.setVisible(false);
     this.sellBtn.setVisible(false);
-    this.stage.add([this.card, this.chip, this.title, this.sub, this.big, this.cutBtn, this.sellBtn]);
+    this.adBtn = new Button(this, {
+      width: 280, height: 50, label: '', fontSize: 19, colors: BUTTON_COLORS.blue,
+      onClick: () => this.sellDoubled(),
+    });
+    this.adBtn.setVisible(false);
+    this.stage.add([this.card, this.chip, this.title, this.sub, this.big, this.cutBtn, this.sellBtn, this.adBtn]);
   }
 
   private buildEffects(): void {
@@ -277,6 +287,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.big.setPosition(x, y + h * 0.1);
     this.cutBtn.setPosition(x, y + h * 0.33);
     this.sellBtn.setPosition(x, y + h * 0.33);
+    this.adBtn.setPosition(x, y + h * 0.33 + 64);
   }
 
   private rockScale(): number {
@@ -519,11 +530,25 @@ export class WorkshopScene extends Phaser.Scene {
     });
   }
 
-  private sell(): void {
+  /** "Sell for double (watch an ad)" under the SELL button, for rocks worth the wait. */
+  private updateAdButton(): void {
+    const rock = this.current;
+    const show = this.bench === 'revealed' && !!rock && rock.value >= AD_SELL_MIN_VALUE && portal.rewardedReady && this.sellBtn.visible;
+    if (this.adBtn.visible !== show) this.adBtn.setVisible(show);
+    if (show && rock) this.adBtn.setLabel(`2x  ${formatMoney(rock.value * 2)}   (WATCH AD)`);
+  }
+
+  private sellDoubled(): void {
+    if (this.bench !== 'revealed') return;
+    portal.rewarded(() => this.sell(2));
+  }
+
+  private sell(multiplier = 1): void {
     const rock = this.current;
     if (this.bench !== 'revealed' || !rock) return;
     this.bench = 'selling';
-    const amount = state.economy.sell(rock);
+    this.adBtn.setVisible(false);
+    const amount = state.economy.sell(rock, multiplier);
     const p = this.stageToScreen(this.big.x, this.big.y);
     state.bus.emit(EVT.sale, amount, p.x, p.y, rock.rarity.tier);
     state.inventory.remove(rock.id);

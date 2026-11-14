@@ -193,6 +193,7 @@ export class DigScene extends Phaser.Scene {
       this.events.off(Phaser.Scenes.Events.WAKE, this.onWake, this);
     });
     subscribe(this, EVT.inventoryChanged, () => this.tryReleaseStuckRocks());
+    subscribe(this, EVT.toolChanged, () => this.applyToolLook());
     subscribe(this, EVT.layerEntered, () => this.cameras.main.shake(260, 0.004));
     this.cameras.main.fadeIn(250, 30, 20, 12);
   }
@@ -324,8 +325,16 @@ export class DigScene extends Phaser.Scene {
     this.shovel = this.add.image(0, 0, tool.textureKey).setOrigin(0.5, SHOVEL.tipY / SHOVEL.height).setScale(SHOVEL_SCALE);
     this.rig = this.add.container(W / 2 + 60, SURFACE - 70, [this.shovel]).setAngle(14);
     this.popLayer.add([this.rig, this.tiredText]);
+    this.applyToolLook();
     // Gentle idle sway on the inner image so swings (on the rig) never fight it.
     this.tweens.add({ targets: this.shovel, angle: { from: -2.5, to: 2.5 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  /** Better tools wash the shovel sprite with their colour (until they get their own art). */
+  private applyToolLook(): void {
+    const tint = state.tool.tint;
+    if (tint) this.shovel.setTint(tint);
+    else this.shovel.clearTint();
   }
 
   /** Small depth labels where each new layer begins, written into the dirt. */
