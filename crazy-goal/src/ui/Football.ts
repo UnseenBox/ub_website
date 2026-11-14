@@ -34,17 +34,33 @@ const BODY = (() => {
   return { centre, rim, seams };
 })();
 
-/** The ball as SVG markup, centred on (cx, cy) with radius r. Gradient and clip ids are shared by every copy. */
-export function football(cx: number, cy: number, r: number): string {
+/** Leather and panel colours: the classic ball is white with dark panels; the skins bring their own. */
+export interface BallColours {
+  base: string;
+  patch: string;
+}
+
+const CLASSIC: BallColours = { base: '#ffffff', patch: INK };
+
+/** Every ball gets ids of its own: a copy on a hidden screen must not take the shading away from one on show. */
+let made = 0;
+
+/** The ball as SVG markup, centred on (cx, cy) with radius r. */
+export function football(cx: number, cy: number, r: number, colours: BallColours = CLASSIC): string {
   const s = r / 50;
+  const id = `kb${(made++).toString(36)}`;
+  const leather = `${id}-l`;
+  const clip = `${id}-c`;
   return (
     `<g transform="translate(${(cx - r).toFixed(2)} ${(cy - r).toFixed(2)}) scale(${s.toFixed(4)})">` +
-    `<defs><radialGradient id="kb-leather" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#eef1f6"/><stop offset="1" stop-color="#aeb9cc"/></radialGradient>` +
-    `<clipPath id="kb-clip"><circle cx="50" cy="50" r="46"/></clipPath></defs>` +
-    `<circle cx="50" cy="50" r="46" fill="url(#kb-leather)"/>` +
-    `<g clip-path="url(#kb-clip)"><path d="${BODY.seams}" fill="none" stroke="${INK}" stroke-opacity=".55" stroke-width="2.4" stroke-linecap="round"/>` +
-    `<path d="${BODY.rim}" fill="${INK}"/></g>` +
-    `<path d="${BODY.centre}" fill="${INK}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+    `<defs><radialGradient id="${leather}" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ffffff"/><stop offset="0.4" stop-color="${colours.base}"/><stop offset="1" stop-color="${colours.base}"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient>` +
+    `<radialGradient id="${leather}-shade" cx="0.38" cy="0.32" r="0.8"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0b1022" stop-opacity=".35"/></radialGradient>` +
+    `<clipPath id="${clip}"><circle cx="50" cy="50" r="46"/></clipPath></defs>` +
+    `<circle cx="50" cy="50" r="46" fill="url(#${leather})"/>` +
+    `<g clip-path="url(#${clip})"><path d="${BODY.seams}" fill="none" stroke="${INK}" stroke-opacity=".45" stroke-width="2.4" stroke-linecap="round"/>` +
+    `<path d="${BODY.rim}" fill="${colours.patch}" stroke="${INK}" stroke-width="2"/></g>` +
+    `<path d="${BODY.centre}" fill="${colours.patch}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+    `<circle cx="50" cy="50" r="46" fill="url(#${leather}-shade)"/>` +
     `<circle cx="50" cy="50" r="46" fill="none" stroke="${INK}" stroke-width="6"/>` +
     `<ellipse cx="33" cy="29" rx="12" ry="6.5" transform="rotate(-35 33 29)" fill="#fff" opacity=".8"/>` +
     `</g>`
@@ -52,8 +68,8 @@ export function football(cx: number, cy: number, r: number): string {
 }
 
 /** A whole SVG of just the ball. */
-export const footballSvg = (className = ''): string =>
-  `<svg viewBox="0 0 100 100" class="${className}" aria-hidden="true" focusable="false">${football(50, 50, 50)}</svg>`;
+export const footballSvg = (className = '', colours?: BallColours): string =>
+  `<svg viewBox="0 0 100 100" class="${className}" aria-hidden="true" focusable="false">${football(50, 50, 50, colours)}</svg>`;
 
 /** The ball as a data URL, for CSS backgrounds such as a slider's knob. */
 export const footballUrl = (): string =>

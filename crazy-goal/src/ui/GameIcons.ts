@@ -31,7 +31,7 @@ function gearPath(cx: number, cy: number, outer: number, inner: number, teeth: n
   return `M${pts.join('L')}Z`;
 }
 
-export const ICONS = {
+const RAW = {
   /** Settings: a silver gear with a gold hub. */
   gear: svg(
     `<path d="${gearPath(24, 24, 20, 15.5, 8)}" fill="url(#gi-gear)" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
@@ -157,4 +157,22 @@ export const ICONS = {
   ),
 } as const;
 
-export type IconName = keyof typeof ICONS;
+export type IconName = keyof typeof RAW;
+
+/**
+ * Gives one copy of an icon ids of its own. Two copies sharing an id break when the first sits on a hidden
+ * screen: the browser cannot reach its gradient, and the copy on show loses its colours.
+ */
+let made = 0;
+export function uniqueIds(markup: string): string {
+  const tag = (made++).toString(36);
+  return markup.replace(/id="([a-z][\w-]*)"/g, `id="$1-${tag}"`).replace(/url\(#([a-z][\w-]*)\)/g, `url(#$1-${tag})`);
+}
+
+/** The icons: every read hands out a fresh copy with its own ids. */
+export const ICONS = Object.fromEntries(
+  (Object.keys(RAW) as IconName[]).map((name) => [name, '']),
+) as Record<IconName, string>;
+for (const name of Object.keys(RAW) as IconName[]) {
+  Object.defineProperty(ICONS, name, { get: () => uniqueIds(RAW[name]), enumerable: true });
+}

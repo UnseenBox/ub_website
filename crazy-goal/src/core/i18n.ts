@@ -14,6 +14,7 @@ const AR: Readonly<Record<string, string>> = {
   HOUMA: 'الحومة',
   BALLS: 'الكرات',
   STORE: 'المتجر',
+  "LET'S PLAY": 'هيا نلعب',
   'SKIP THE TUTORIAL': 'تخطَّ الدروس',
   'SHOT UPGRADES': 'تطوير التسديد',
   ABILITIES: 'القدرات',

@@ -1,16 +1,14 @@
 import { ICONS, type IconName } from './GameIcons';
-import logoUrl from '../assets/ui/logo.png';
-import playUrl from '../assets/ui/play.png';
 import starUrl from '../assets/ui/arcade-star.png';
 import coinUrl from '../assets/ui/arcade-coin.png';
-import ballsUrl from '../assets/ui/balls.png';
-import levelsUrl from '../assets/ui/levels.png';
 import { lang, tr, type Lang } from '../core/i18n';
 import { chapterOf } from '../progression/Progression';
 import type { Boost } from '../abilities/Cards';
 import { cardOf } from '../abilities/Cards';
 import { UPGRADE_MAX, type UpgradeId } from '../progression/Upgrades';
 import { ABILITY_ICON } from './abilityIcons';
+import { football, footballSvg } from './Football';
+import { logoSvg } from './Logo';
 
 export interface SkinTile {
   id: string;
@@ -113,9 +111,7 @@ const starSprite = (): HTMLImageElement => {
   return img;
 };
 
-const GEAR_SVG = ICONS.gear;
 
-const LOCK_SVG = ICONS.lock;
 
 /** The Free Kicks tile's picture: a goal, a wall of three and a ball curling round it. Pure decoration. */
 let uiClick: (() => void) | null = null;
@@ -181,11 +177,6 @@ function slider(label: string, icon: IconName, onInput: (volume: number) => void
 }
 
 /** The pause cabinet's icons, from the sticker set: play, replay, goal, home and a gear. */
-const RESUME_SVG = ICONS.play;
-const REPLAY_SVG = ICONS.replay;
-const GOAL_SVG = ICONS.goal;
-const HOME_SVG = ICONS.home;
-const AD_SVG = ICONS.ad;
 
 const pauseButton = (className: string, label: string, icon: string, onClick: () => void): HTMLButtonElement => {
   const b = button(className, '', onClick);
@@ -239,7 +230,7 @@ export class Overlay {
     const top = el('div', 'menu-top');
     const gear = button('menu-gear', '', () => this.showSettings());
     gear.setAttribute('aria-label', tr('SETTINGS'));
-    gear.innerHTML = GEAR_SVG;
+    gear.innerHTML = ICONS.gear;
     const coinPill = el('p', 'star-count coin-count');
     const coinIcon = el('span', 'star-count-icon');
     const coinImg = document.createElement('img');
@@ -261,22 +252,18 @@ export class Overlay {
     const mark = el('h1', 'menu-logo');
     mark.setAttribute('aria-label', 'Crazy Kora');
     mark.dir = 'ltr';
-    const logo = el('img', 'menu-logo-art');
-    logo.src = logoUrl;
-    logo.alt = '';
-    logo.draggable = false;
-    mark.append(logo);
+    // The wordmark is drawn as a vector, so it is sharp on every screen.
+    mark.innerHTML = logoSvg('menu-logo-art');
 
     // The hero action: continue the campaign where the player left off.
     const hero = el('div', 'menu-actions');
     const play = button('menu-play', '', handlers.play);
     play.setAttribute('aria-label', tr('PLAY'));
     this.playButton = play;
-    const playArt = el('img', 'menu-play-art');
-    playArt.src = playUrl;
-    playArt.alt = '';
-    playArt.draggable = false;
-    play.append(playArt);
+    // A real button rather than a picture of one: the play sticker, the words, an arrow.
+    const playIcon = el('span', 'menu-play-icon');
+    playIcon.innerHTML = ICONS.play;
+    play.append(playIcon, el('span', 'menu-play-label', "LET'S PLAY"), el('span', 'menu-play-arrow', '➜'));
     this.continueLine = el('p', 'menu-continue');
     hero.append(play, this.continueLine);
 
@@ -284,17 +271,19 @@ export class Overlay {
     const shortcuts = el('div', 'menu-shortcuts');
     const stadiums = button('menu-shortcut menu-shortcut-stadiums', '', handlers.levels);
     stadiums.setAttribute('aria-label', tr('STADIUMS'));
-    const stadiumsArt = el('img', 'menu-shortcut-art');
-    stadiumsArt.src = levelsUrl;
-    stadiumsArt.alt = '';
-    stadiumsArt.draggable = false;
+    const stadiumsArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
+    stadiumsArt.innerHTML = ICONS.goal;
     stadiums.append(stadiumsArt, el('span', 'menu-shortcut-label', 'STADIUMS'));
     const ballsButton = button('menu-shortcut menu-shortcut-balls', '', () => this.showSkins());
     ballsButton.setAttribute('aria-label', tr('BALLS'));
-    const ballsArt = el('img', 'menu-shortcut-art');
-    ballsArt.src = ballsUrl;
-    ballsArt.alt = '';
-    ballsArt.draggable = false;
+    // Three of the balls to collect, piled up.
+    const ballsArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
+    ballsArt.innerHTML =
+      `<svg class="game-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">` +
+      football(14, 30, 11, { base: '#fff4e0', patch: '#f08a24' }) +
+      football(35, 30, 11, { base: '#fbf7ee', patch: '#1f5fa8' }) +
+      football(24, 20, 13) +
+      `</svg>`;
     this.ballsDot = el('span', 'menu-new-dot');
     this.ballsDot.hidden = true;
     ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'), this.ballsDot);
@@ -320,18 +309,18 @@ export class Overlay {
     const panel = el('div', 'panel pause-panel');
     this.rewardButton = button('btn btn-sun reward-button', '', handlers.reward);
     const rewardArt = el('span', 'btn-icon');
-    rewardArt.innerHTML = AD_SVG;
+    rewardArt.innerHTML = ICONS.ad;
     this.rewardLabel = el('span', 'btn-label', '+30 COINS');
     this.rewardButton.append(rewardArt, this.rewardLabel);
     this.rewardButton.hidden = true;
     panel.append(
       el('h2', 'panel-title', 'PAUSED'),
-      pauseButton('btn btn-primary', 'RESUME', RESUME_SVG, handlers.resume),
-      pauseButton('btn btn-sun', 'RESTART SHOT', REPLAY_SVG, handlers.restart),
-      pauseButton('btn btn-navy', 'STADIUMS', GOAL_SVG, handlers.levels),
-      pauseButton('btn btn-red', 'HOME', HOME_SVG, handlers.home),
+      pauseButton('btn btn-primary', 'RESUME', ICONS.play, handlers.resume),
+      pauseButton('btn btn-sun', 'RESTART SHOT', ICONS.replay, handlers.restart),
+      pauseButton('btn btn-navy', 'STADIUMS', ICONS.goal, handlers.levels),
+      pauseButton('btn btn-red', 'HOME', ICONS.home, handlers.home),
       this.rewardButton,
-      pauseButton('btn btn-ghost', 'SETTINGS', GEAR_SVG, () => this.showSettings()),
+      pauseButton('btn btn-ghost', 'SETTINGS', ICONS.gear, () => this.showSettings()),
     );
     this.pause.append(panel);
 
@@ -387,7 +376,7 @@ export class Overlay {
     this.nextButton = button('btn btn-primary', 'NEXT MATCH', handlers.next);
     this.doubleButton = button('btn btn-sun result-double', '', handlers.double);
     const doubleArt = el('span', 'btn-icon');
-    doubleArt.innerHTML = AD_SVG;
+    doubleArt.innerHTML = ICONS.ad;
     this.doubleButton.append(doubleArt, el('span', 'btn-label', 'x2 COINS'));
     this.doubleButton.hidden = true;
     this.result.append(button('btn btn-navy', 'AGAIN', handlers.retry), this.nextButton, this.doubleButton);
@@ -624,9 +613,9 @@ export class Overlay {
         });
         b.disabled = !skin.open;
         b.setAttribute('aria-label', `${tr(skin.name)}, ${skin.open ? tr(skin.selected ? 'SELECTED' : 'UNLOCKED') : tr('{n} STARS', { n: skin.need })}`);
+        // The real ball in this skin's colours.
         const ball = el('span', 'skin-ball');
-        ball.style.setProperty('--base', skin.base);
-        ball.style.setProperty('--patch', skin.patch);
+        ball.innerHTML = footballSvg('skin-ball-art', { base: skin.base, patch: skin.patch });
         b.append(ball, el('span', 'tile-name', skin.name), el('span', 'skin-need', skin.open ? (skin.selected ? '●' : '') : tr('{n} STARS', { n: skin.need })));
         return b;
       }),
@@ -716,7 +705,7 @@ export class Overlay {
       else {
         // A padlock drawn as a shape, not an emoji that would ignore the theme and the language.
         bestLine.classList.add('tile-lock');
-        bestLine.innerHTML = LOCK_SVG;
+        bestLine.innerHTML = ICONS.lock;
       }
       // A locked match still shows its name (greyed, with the padlock below), so the player can see what is coming.
       const nameLine = tile.gate ? el('span', 'tile-name tile-gate') : el('span', 'tile-name', tile.name);

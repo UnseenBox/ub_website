@@ -4,6 +4,8 @@ import type { Game } from '../core/Game';
 /** The store portal this build targets: '' (unseenbox and other portals), 'crazygames'. */
 export const PORTAL: string = import.meta.env.VITE_PORTAL ?? '';
 export const isCrazyGames = PORTAL === 'crazygames';
+/** Ad breaks and rewarded ads are offered only when the build switches them on. */
+const ADS_ON: boolean = import.meta.env.VITE_ADS === 'on';
 
 const SDK_URL = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
 /** How long boot waits for the SDK before playing on without it. */
@@ -109,9 +111,12 @@ export class Portal {
     return this.sdk !== null;
   }
 
-  /** Video ads can be requested right now. */
+  /**
+   * Video ads can be requested right now. Off unless the build says so: in a CrazyGames Basic Launch every
+   * ad is blocked, and an ad button that does nothing reads as a broken game. Set VITE_ADS=on for Full Launch.
+   */
   get ads(): boolean {
-    return this.sdk !== null && !this.adOpen;
+    return ADS_ON && this.sdk !== null && !this.adOpen;
   }
 
   loadingStart(): void {
