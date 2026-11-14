@@ -14,11 +14,15 @@ export interface GuideInfo {
   need: GuideNeed;
   /** An ability lesson: the boost it shows. */
   boost?: Boost;
+  /** A tutorial lesson, which the player may skip straight past to the first match. */
+  skippable: boolean;
 }
 
 export interface GuideCardHandlers {
   /** The lesson to show, or null when there is none (or something is over the screen). */
   info(): GuideInfo | null;
+  /** Leave the tutorial for the first real match. */
+  skip(): void;
 }
 
 /** The lesson names: one or two words, big, over the picture of the move. */
@@ -44,6 +48,7 @@ export class GuideCard {
   private readonly art: HTMLElement;
   private readonly title: HTMLElement;
   private readonly chips: HTMLElement;
+  private readonly skip: HTMLButtonElement;
   private last = '';
 
   constructor(private readonly handlers: GuideCardHandlers) {
@@ -65,18 +70,29 @@ export class GuideCard {
     const body = document.createElement('div');
     body.className = 'guide-body';
     body.append(this.art, side);
-    this.el.append(this.pips, body);
+    // The way out of the tutorial, for players who already know how to kick a ball.
+    this.skip = document.createElement('button');
+    this.skip.type = 'button';
+    this.skip.className = 'guide-skip';
+    this.skip.textContent = tr('SKIP');
+    this.skip.setAttribute('aria-label', tr('SKIP THE TUTORIAL'));
+    this.skip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.handlers.skip();
+    });
+    this.el.append(this.pips, body, this.skip);
   }
 
   refresh(): void {
     const info = this.handlers.info();
-    const key = info ? `${info.move}|${info.step}|${info.total}|${info.need}` : '';
+    const key = info ? `${info.move}|${info.step}|${info.total}|${info.need}|${info.skippable}` : '';
     if (key === this.last) return;
     const was = this.last;
     this.last = key;
     this.el.hidden = !info;
     if (!info) return;
     this.el.dataset.move = info.move;
+    this.skip.hidden = !info.skippable;
     this.pips.innerHTML = '';
     // One lesson on its own (a single level) needs no progress bar.
     this.pips.hidden = info.total <= 1;

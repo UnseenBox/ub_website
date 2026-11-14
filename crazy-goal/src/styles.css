@@ -3738,3 +3738,49 @@ body {
     animation: none;
   }
 }
+
+/* ---- The tutorial's way out ---- */
+.guide-skip {
+  /* Hung just under the coach card, clear of its title. */
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-end: 4px;
+  padding: 5px 12px 4px;
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: linear-gradient(180deg, #2a3a6a 0%, #111a33 100%);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-text-stroke: 0.12em #0a0f22;
+  paint-order: stroke fill;
+}
+
+.guide-skip::after {
+  content: ' ▸▸';
+  font-size: 0.8em;
+}
+
+.guide-skip:hover {
+  filter: brightness(1.15);
+}
+
+.guide-skip:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.guide-skip[hidden] {
+  display: none;
+}
+
+/* A phone on its side: the coach card at two-thirds size, so it stays in the stands beside the pitch. */
+@media (max-height: 520px) {
+  .guide-card {
+    zoom: 0.68;
+  }
+}

@@ -2,7 +2,7 @@ import type { Command, InputSink } from './InputSink';
 
 const KEYS: Readonly<Record<string, Command>> = {
   KeyR: 'restart',
-  Escape: 'pause',
+  // No Escape: in a browser it also leaves fullscreen (CrazyGames asks games not to use it). P pauses.
   KeyP: 'pause',
   KeyM: 'mute',
   KeyF: 'air',

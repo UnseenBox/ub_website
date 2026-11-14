@@ -419,7 +419,7 @@ export class Game {
       },
       tick: () => this.sounds.ui(),
     });
-    this.guideCard = new GuideCard({ info: () => this.guideInfo() });
+    this.guideCard = new GuideCard({ info: () => this.guideInfo(), skip: () => this.skipTutorial() });
     this.overlay.addFloating(this.abilities.walletEl, this.abilities.el, this.kickControls.el, this.guideCard.el);
     this.duel = new DuelController(this, this.overlay, canvas.parentElement ?? document.body);
 
@@ -599,7 +599,9 @@ export class Game {
     // controls below it, so nothing on a phone is drawn over the pitch. A duel keeps its own framing.
     const solo = this.shotRule === 'free';
     this.camera.setFrames(
-      { cx, cy: arena.y - 170 + (arena.h + 244) / 2, w: arena.w + 660, h: arena.h + 244 },
+      // Wide screens: solo play frames just the pitch, the goal net above it and the near boards below, so the
+      // pitch fills the height of a desktop window; the controls and the score live in the room either side.
+      solo ? { cx, cy: arena.y - 100 + (arena.h + 150) / 2, w: arena.w + 560, h: arena.h + 150 } : { cx, cy: arena.y - 170 + (arena.h + 244) / 2, w: arena.w + 660, h: arena.h + 244 },
       // The frame is the pitch with the goal net above it and the near boards below, nothing more.
       solo ? { cx, cy: arena.y - 95 + (arena.h + 120) / 2, w: arena.w + 110, h: arena.h + 120 } : { cx, cy: arena.y - 390 + tall / 2, w: arena.w + 110, h: tall },
       solo ? (height) => ({ top: Math.max(100, height * 0.15), bottom: Math.max(158, height * 0.24) }) : undefined,
@@ -749,7 +751,34 @@ export class Game {
     if (this.state === 'menu' || this.state === 'goal' || this.state === 'replay') return null;
     const series = def.series ?? 'tutorial';
     const lessons = this.levels.filter((l) => l.guide && (l.guide.series ?? 'tutorial') === series);
-    return { move: def.move, step: lessons.indexOf(this.level.def) + 1, total: lessons.length, need: this.guideNeedNow(), boost: def.boost };
+    return {
+      move: def.move,
+      step: lessons.indexOf(this.level.def) + 1,
+      total: lessons.length,
+      need: this.guideNeedNow(),
+      boost: def.boost,
+      skippable: matchInfo(this.levels, this.level.index).lesson !== null,
+    };
+  }
+
+  /**
+   * Skips the tutorial: every lesson counts as played (a goal, no stars, so the stars are still there to
+   * win) and the first real match starts. The lessons stay in the stadium list for anyone who wants them.
+   */
+  private skipTutorial(): void {
+    let first = -1;
+    this.levels.forEach((def, i) => {
+      if (matchInfo(this.levels, i).lesson === null) {
+        if (first < 0) first = i;
+        return;
+      }
+      const rec = this.save.level(def.id);
+      if (rec.goals === 0) rec.goals = 1;
+    });
+    if (first < 0) return;
+    this.save.save();
+    this.sounds.ui();
+    this.loadLevel(first);
   }
 
   /** The shot the ghost hand and the dotted path show right now, or null (nothing to show yet, or the player is on their own). */
@@ -1208,7 +1237,7 @@ export class Game {
     if (import.meta.env.DEV && input.consume('debug')) this.debug.toggle();
     if (input.consume('mute')) this.toggleSound();
     if (input.consume('pause')) {
-      // Escape backs out of a pull before it pauses the game.
+      // P backs out of a pull before it pauses the game.
       if (this.state === 'aiming') this.cancelAim();
       else this.setPaused(!this.paused);
     }
