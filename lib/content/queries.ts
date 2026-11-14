@@ -100,7 +100,9 @@ export async function getPlayables(): Promise<Playable[]> {
       }
     }
   }
-  return list.filter((game) => game.enabled).sort((a, b) => a.order - b.order);
+  return list
+    .filter((game) => game.enabled)
+    .sort((a, b) => a.order - b.order || b.added.localeCompare(a.added));
 }
 
 export async function getPlayableBySlug(slug: string): Promise<Playable | undefined> {
