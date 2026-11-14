@@ -262,11 +262,80 @@ function walkRounded(x: number, y: number, w: number, h: number, r: number, gap:
   return out;
 }
 
+/** How far out from the arena the stands are painted; beyond it is the outermost tier's plain colour. */
+const BOWL_REACH = BOWL_FIRST + 8 * BOWL_STEP + 80;
+/** The most device pixels per world unit the stands picture is made at: they are background, a little softness is fine. */
+const STANDS_MAX_RES = 1.25;
+
+interface StandsPicture {
+  id: string;
+  res: number;
+  canvas: HTMLCanvasElement;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+let standsPicture: StandsPicture | null = null;
+
+/** Drops the stands picture so it is painted again: the big screen's lettering changes when the web font arrives. */
+export function forgetStands(): void {
+  standsPicture = null;
+}
+
 /**
- * The stadium round the pitch: run-off grass, the track, the stands with the crowd and their flags,
- * the tunnel, the big screen and the floodlights. Cached with the rest of the static layer.
+ * The stadium round the pitch. Painting it is the dearest thing the game draws (thousands of fans), so
+ * it is painted once per match into its own picture, at a resolution rounded to quarter steps, and only
+ * copied after that: a resize, the phone's address bar sliding, or a burnt crate never repaints it.
+ * `k` is device pixels per world unit.
  */
-export function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level): void {
+export function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level, k: number): void {
+  const { arena } = level.def;
+  const res = Math.min(STANDS_MAX_RES, Math.max(0.5, Math.ceil(k * 4) / 4));
+  let pic = standsPicture;
+  if (!pic || pic.id !== level.def.id || pic.res !== res) {
+    const x = arena.x - BOWL_REACH;
+    const y = arena.y - BOWL_REACH;
+    const w = arena.w + BOWL_REACH * 2;
+    const h = arena.h + BOWL_REACH * 2;
+    const canvas = pic?.canvas ?? document.createElement('canvas');
+    canvas.width = Math.ceil(w * res);
+    canvas.height = Math.ceil(h * res);
+    const pctx = canvas.getContext('2d');
+    if (pctx) {
+      pctx.setTransform(res, 0, 0, res, -x * res, -y * res);
+      drawStands(pctx, { x, y, w, h }, level);
+    }
+    pic = { id: level.def.id, res, canvas, x, y, w, h };
+    standsPicture = pic;
+  }
+  const tiers = moodOf(level).tiers;
+  ctx.fillStyle = tiers[tiers.length - 1];
+  ctx.fillRect(view.x, view.y, view.w, view.h);
+  ctx.drawImage(pic.canvas, pic.x, pic.y, pic.w, pic.h);
+}
+
+/** A small soft glow, made once and stamped for every phone torch instead of building a gradient each time. */
+let glowStamp: HTMLCanvasElement | null = null;
+function glow(): HTMLCanvasElement {
+  if (glowStamp) return glowStamp;
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const g = c.getContext('2d');
+  if (g) {
+    const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(230, 245, 255, 0.5)');
+    grad.addColorStop(1, 'rgba(230, 245, 255, 0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 32, 32);
+  }
+  glowStamp = c;
+  return c;
+}
+
+/** The run-off, the track, the stands with the crowd and their flags, the tunnel, the big screen and the floodlights. */
+function drawStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level): void {
   const { arena } = level.def;
   const mood = moodOf(level);
   const tiers = mood.tiers;
@@ -371,19 +440,27 @@ export function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level
 
   // Snow lies on the seats in drifts.
   if (mood.snow) {
+    const drifts = [new Path2D(), new Path2D(), new Path2D()];
     for (let i = 0; i < 900; i++) {
       const x = view.x + rng() * view.w;
       const y = view.y + rng() * view.h;
+      const pick = Math.floor(rng() * 3);
+      const rx = 6 + rng() * 14;
+      const ry = 3 + rng() * 5;
       if (x > arena.x - first && x < arena.x + arena.w + first && y > arena.y - first && y < arena.y + arena.h + first) continue;
-      ctx.fillStyle = rgba('#ffffff', 0.35 + rng() * 0.45);
-      ctx.beginPath();
-      ctx.ellipse(x, y, 6 + rng() * 14, 3 + rng() * 5, 0, 0, TAU);
-      ctx.fill();
+      drifts[pick].moveTo(x + rx, y);
+      drifts[pick].ellipse(x, y, rx, ry, 0, 0, TAU);
     }
+    drifts.forEach((d, i) => {
+      ctx.fillStyle = rgba('#ffffff', 0.4 + i * 0.18);
+      ctx.fill(d);
+    });
   }
 
   // The crowd: a head every few units along three rows of seats in every tier, following the bowl round its corners.
   const crowd = mood.crowd;
+  const shirts = crowd.map(() => new Path2D());
+  const hair = [new Path2D(), new Path2D()];
   for (let i = 1; i < tiers.length; i++)
     for (const row of [-19, 0, 19]) {
       const [x, y, w, h, r] = ring(first + i * step + step * 0.5 + row);
@@ -393,18 +470,24 @@ export function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level
         const hx = px + (rng() - 0.5) * 3;
         const hy = py + (rng() - 0.5) * 3;
         // Shoulders in the shirt colour, then the head.
-        ctx.fillStyle = crowd[Math.floor(rng() * crowd.length)];
-        ctx.globalAlpha = 0.72 + rng() * 0.25;
-        ctx.beginPath();
-        ctx.ellipse(hx, hy + 2, 6, 4, 0, 0, TAU);
-        ctx.fill();
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = rng() < 0.5 ? '#3a2a22' : '#6b4a35';
-        ctx.beginPath();
-        ctx.arc(hx, hy - 1, 2.8, 0, TAU);
-        ctx.fill();
+        const shirt = shirts[Math.floor(rng() * crowd.length)];
+        shirt.moveTo(hx + 6, hy + 2);
+        shirt.ellipse(hx, hy + 2, 6, 4, 0, 0, TAU);
+        const head = hair[rng() < 0.5 ? 0 : 1];
+        head.moveTo(hx + 2.8, hy - 1);
+        head.arc(hx, hy - 1, 2.8, 0, TAU);
       }
     }
+  ctx.globalAlpha = 0.86;
+  shirts.forEach((path, i) => {
+    ctx.fillStyle = crowd[i];
+    ctx.fill(path);
+  });
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#3a2a22';
+  ctx.fill(hair[0]);
+  ctx.fillStyle = '#6b4a35';
+  ctx.fill(hair[1]);
   ctx.globalAlpha = 1;
 
   // The home end's flags: a big banner laid over the crowd on each side stand, in the home colours.
@@ -424,21 +507,19 @@ export function paintStands(ctx: CanvasRenderingContext2D, view: ViewRect, level
 
   // Phone torches held up all over the stands.
   if (mood.phones) {
+    const stamp = glow();
+    const dots = new Path2D();
     for (let i = 0; i < 520; i++) {
       const x = view.x + rng() * view.w;
       const y = view.y + rng() * view.h;
-      if (x > arena.x - first - step && x < arena.x + arena.w + first + step && y > arena.y - first - step && y < arena.y + arena.h + first + step) continue;
       const r = 1.6 + rng() * 1.6;
-      const halo = ctx.createRadialGradient(x, y, 0, x, y, r * 5);
-      halo.addColorStop(0, 'rgba(230, 245, 255, 0.5)');
-      halo.addColorStop(1, 'rgba(230, 245, 255, 0)');
-      ctx.fillStyle = halo;
-      ctx.fillRect(x - r * 5, y - r * 5, r * 10, r * 10);
-      ctx.fillStyle = '#f4fbff';
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, TAU);
-      ctx.fill();
+      if (x > arena.x - first - step && x < arena.x + arena.w + first + step && y > arena.y - first - step && y < arena.y + arena.h + first + step) continue;
+      ctx.drawImage(stamp, x - r * 5, y - r * 5, r * 10, r * 10);
+      dots.moveTo(x + r, y);
+      dots.arc(x, y, r, 0, TAU);
     }
+    ctx.fillStyle = '#f4fbff';
+    ctx.fill(dots);
   }
 
   // The players' tunnel at the near end: a dark mouth in the first tier, with a light either side.

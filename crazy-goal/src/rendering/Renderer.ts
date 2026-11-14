@@ -17,6 +17,8 @@ import { drawCrowdFlashes, paintStands } from './StadiumArt';
 
 /** World units of static scenery kept beyond the screen edge, for shake and zoom to move into. */
 const CACHE_MARGIN = 90;
+/** How long the window must keep one size before the static layer is repainted for it. */
+const RESIZE_SETTLE_MS = 180;
 /** Backing stores wider than this cost more fill rate than they are worth. */
 const MAX_BACKING_WIDTH = 3200;
 
@@ -34,6 +36,12 @@ export class Renderer {
   private scratch: HTMLCanvasElement | null = null;
   private readonly cacheRect: ViewRect = { x: 0, y: 0, w: 1, h: 1 };
   private dirty = true;
+  /**
+   * When a resize asked for the static layer to be repainted. While the window is still changing size
+   * (a phone's address bar sliding away mid-drag fires a resize every frame) the old layer is stretched
+   * to fit, and it is repainted once the size has held still for a moment.
+   */
+  private resizedAt = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -56,7 +64,8 @@ export class Renderer {
       this.canvas.height = ph;
     }
     this.camera.resize(w, h, dpr);
-    this.dirty = true;
+    if (this.cache) this.resizedAt = performance.now();
+    else this.dirty = true;
   }
 
   /** Call when anything in the static layer changed (fonts arrived, level swapped). */
@@ -83,7 +92,7 @@ export class Renderer {
     const ctx = cache.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(k, 0, 0, k, -r.x * k, -r.y * k);
-    paintStands(ctx, r, g.level);
+    paintStands(ctx, r, g.level, k);
     paintPitch(ctx, g.level);
     paintGoalFloor(ctx, g.level.goal);
 
@@ -114,6 +123,10 @@ export class Renderer {
   }
 
   render(g: Game): void {
+    if (this.resizedAt && performance.now() - this.resizedAt > RESIZE_SETTLE_MS) {
+      this.resizedAt = 0;
+      this.dirty = true;
+    }
     if (this.dirty || !this.cache) this.rebuild(g);
     const ctx = this.ctx;
     const cam = this.camera;

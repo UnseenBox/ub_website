@@ -62,6 +62,7 @@ import type { GuideDef } from '../levels/LevelDefinition';
 import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
 import { traceShot, type Trace } from '../levels/sweep';
 import { portal, isCrazyGames } from '../portal/Portal';
+import { forgetStands } from '../rendering/StadiumArt';
 import { Overlay, setUiClick, type MenuInfo } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
 import { GameLoop } from './GameLoop';
@@ -1139,6 +1140,7 @@ export class Game {
 
   /** Called when a web font finishes loading. */
   fontsChanged(): void {
+    forgetStands();
     this.renderer.invalidate();
   }
 
