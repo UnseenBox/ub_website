@@ -1,12 +1,12 @@
 # Sound effects
 
-Ten cues play MP3 samples from this folder. Five cues are still synthesized
-in `Sfx.ts`: `timesUp`, `newDay`, `dayEnd`, `place`, and the tier fanfares in
-`reveal`.
+Thirteen cues play MP3 samples from this folder, and one MP3 loops as the
+background music. Four cues are still synthesized in `Sfx.ts`: `timesUp`,
+`newDay`, `dayEnd`, `place`, plus the dud sting in `reveal()`.
 
 | Source file | Project file | Cue | Plays when |
 | --- | --- | --- | --- |
-| `Dig.mp3` | `dig.mp3` | `dig()` | Every shovel impact |
+| `Dig.mp3` | `dig.mp3` | `dig()` | Every shovel impact on dirt |
 | `click.mp3` | `click.mp3` | `click()` | UI buttons and keyboard shortcuts |
 | `coin.mp3` | `coin.mp3` | `coin()` | Coins flying into the money counter |
 | `denied.mp3` | `denied.mp3` | `denied()` | Disabled button, or digging at nothing |
@@ -16,13 +16,31 @@ in `Sfx.ts`: `timesUp`, `newDay`, `dayEnd`, `place`, and the tier fanfares in
 | `Rock found.mp3` | `rock-found.mp3` | `discover()` | Buried rock popping free |
 | `Saw.mp3` | `saw.mp3` | `startSaw()` | Workshop cutting loop |
 | `Sell.mp3` | `sell.mp3` | `sell()` | Sale celebration |
+| `tool hits the Rock.mp3` | `tool-hit.mp3` | `dig(true)` | Shovel striking an embedded rock directly |
+| `reaveal inside the rock.mp3` | `reveal.mp3` | `reveal()` | Every non-dud rock opening at the cutting bench |
+| `bg music.mp3` | `music.mp3` | (background) | Loops across the whole game, starts on the first gesture, quiet under the SFX |
+
+Notes:
+
+- A direct rock strike no longer also plays the synthesized metallic tick;
+  `tool-hit.mp3` carries that moment on its own. Dirt swings keep `dig.mp3`.
+- `reveal()` plays the reveal piece for every non-dud cut. The tier still
+  drives the visual celebration (flash, shake, rays, burst, confetti), and
+  duds keep the short synthesized sting.
+- The music loops everywhere (dig, workshop, end-of-day), fades in over
+  about a second, pauses when the tab is hidden, and honours the mute button
+  like everything else. `MUSIC_GAIN` in `Sfx.ts` sets how far under the SFX
+  it sits.
 
 ## Processing
 
 The copies here were trimmed and levelled once, from the originals:
 
-- Leading and trailing silence below `-45 dB` removed (except `saw.mp3`,
-  which must loop).
+- Leading/trailing silence below `-45 dB` removed, except `saw.mp3` which
+  must loop unchanged.
+- `reveal.mp3` and `music.mp3` were cut at hand-measured points so their
+  internal musical pauses survive; `music.mp3` ends at about 38.95 s so the
+  loop has no dead air.
 - Peak normalised to `-1.5 dB`.
 - 44.1 kHz stereo, 160 kbps MP3.
 

@@ -1,12 +1,17 @@
 /**
- * Game sound effects. Ten cues play MP3 samples from `./samples`; the rest
- * (clock stings, the workshop bench thud, crystal reveals) are still
- * synthesized with Web Audio. Everything is a silent no-op when audio is
- * muted, unsupported, or still locked by the browser's autoplay policy.
+ * Game sound effects. Thirteen cues play MP3 samples from `./samples`; the
+ * rest (clock stings, the workshop bench thud) are still synthesized with
+ * Web Audio. Background music loops from `./samples/music.mp3`. Everything is
+ * a silent no-op when audio is muted, unsupported, or still locked by the
+ * browser's autoplay policy.
  */
 
 const MASTER_VOLUME = 0.5;
 const MUTE_KEY = 'dig-discover-muted';
+/** Background music sits well under the sound effects. */
+const MUSIC_GAIN = 0.32;
+/** Seconds the music fades in over once it starts. */
+const MUSIC_FADE_IN = 1.2;
 
 /** Resolved by Vite at build time. Keys match the cue methods below. */
 const SAMPLE_URLS = {
@@ -20,6 +25,9 @@ const SAMPLE_URLS = {
   rockFound: new URL('./samples/rock-found.mp3', import.meta.url).href,
   saw: new URL('./samples/saw.mp3', import.meta.url).href,
   sell: new URL('./samples/sell.mp3', import.meta.url).href,
+  toolHit: new URL('./samples/tool-hit.mp3', import.meta.url).href,
+  reveal: new URL('./samples/reveal.mp3', import.meta.url).href,
+  music: new URL('./samples/music.mp3', import.meta.url).href,
 } as const;
 
 type SampleKey = keyof typeof SAMPLE_URLS;
@@ -36,6 +44,10 @@ const SAMPLE_GAIN: Record<SampleKey, number> = {
   rockFound: 0.7,
   saw: 0.5,
   sell: 0.6,
+  toolHit: 0.8,
+  reveal: 0.6,
+  // Unused through play(); the background loop mixes itself via MUSIC_GAIN.
+  music: 1,
 };
 
 /** The blade under load: louder and a touch slower. */
@@ -95,9 +107,12 @@ class SoundFx {
   private lastDig = 0;
   private lastTired = 0;
   private digVoice: AudioBufferSourceNode | null = null;
+  private rockVoice: AudioBufferSourceNode | null = null;
+  private revealVoice: AudioBufferSourceNode | null = null;
   private tiredVoice: AudioBufferSourceNode | null = null;
   private deniedVoice: AudioBufferSourceNode | null = null;
   private coinVoices: AudioBufferSourceNode[] = [];
+  private musicSource: AudioBufferSourceNode | null = null;
   private readonly unlockHandler = () => this.unlock();
 
   constructor() {
@@ -179,16 +194,50 @@ class SoundFx {
         }
       }),
     );
+    // A first tap may have happened before the music buffer finished decoding;
+    // this retries the loop once everything is ready.
+    this.ensureMusic();
   }
 
   private unlock(): void {
     const ctx = this.ensureContext();
     if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => undefined);
-    if (ctx.state === 'running') {
+    const onRunning = () => {
+      if (ctx.state !== 'running') return;
+      this.ensureMusic();
       window.removeEventListener('pointerdown', this.unlockHandler);
       window.removeEventListener('keydown', this.unlockHandler);
+    };
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(onRunning).catch(() => undefined);
+      // Scheduling the loop now is fine; it starts as the context wakes.
+      this.ensureMusic();
+      return;
     }
+    onRunning();
+  }
+
+  /**
+   * Starts the looping background music. It plays across every scene, fades
+   * in gently and honours the master mute (which silences the whole game,
+   * music included). Safe to call repeatedly; no-ops until the buffer and the
+   * live context are both ready.
+   */
+  private ensureMusic(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || this.musicSource) return;
+    const buffer = this.buffers.get('music');
+    if (!buffer) return; // preload() retries once the buffer arrives
+    const t0 = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(MUSIC_GAIN, t0 + MUSIC_FADE_IN);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(gain).connect(this.master);
+    src.start(t0);
+    this.musicSource = src;
   }
 
   private ready(): AudioContext | null {
@@ -267,16 +316,21 @@ class SoundFx {
     if (now - this.lastDig < 60) return;
     this.lastDig = now;
     const hard = clamp01(clang);
+    // A swing that lands on an embedded rock strikes it directly: the rock
+    // gets its own sample instead of the softer dirt sound.
+    if (hitRock) {
+      this.stopVoice(this.rockVoice);
+      this.rockVoice = this.play('toolHit', {
+        rate: 0.94 + Math.random() * 0.12 + hard * 0.06,
+        gain: SAMPLE_GAIN.toolHit * (0.9 + 0.25 * hard),
+      });
+      return;
+    }
     this.stopVoice(this.digVoice);
     this.digVoice = this.play('dig', {
       rate: 0.96 + Math.random() * 0.08 + hard * 0.05,
       gain: SAMPLE_GAIN.dig * (0.9 + 0.2 * hard),
     });
-    // Harder ground is handled by the pitch and gain above; a direct rock
-    // hit keeps the little metallic tick from the original synth kit.
-    if (hitRock) {
-      this.tone({ f: 520 * (0.85 + Math.random() * 0.3), f2: 380, type: 'triangle', dur: 0.08, vol: 0.14, at: 0.01 });
-    }
   }
 
   timesUp(): void {
@@ -363,23 +417,16 @@ class SoundFx {
     };
   }
 
-  reveal(tier: number, dud: boolean): void {
+  reveal(_tier: number, dud: boolean): void {
     if (dud) {
       this.tone({ f: 392, f2: 370, type: 'triangle', dur: 0.22, vol: 0.18 });
       this.tone({ f: 311, f2: 260, type: 'triangle', dur: 0.4, vol: 0.18, at: 0.2 });
       return;
     }
-    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568];
-    const count = Math.min(notes.length, 2 + tier);
-    for (let i = 0; i < count; i++) {
-      this.tone({ f: notes[i], type: 'triangle', dur: 0.35 + (i === count - 1 ? 0.3 : 0), vol: 0.17, at: i * 0.07 });
-    }
-    if (tier >= 2) this.noise({ dur: 0.7, vol: 0.07, filter: 'highpass', f: 6000, at: 0.05 });
-    if (tier >= 3) this.tone({ f: 95, f2: 45, dur: 0.45, vol: 0.4 });
-    if (tier >= 4) {
-      const t = count * 0.07 + 0.05;
-      for (const f of [1046.5, 1318.5, 1568, 2093]) this.tone({ f, type: 'triangle', dur: 1.1, vol: 0.09, at: t, attack: 0.03 });
-    }
+    // The reveal piece carries the moment for every non-dud cut; tier still
+    // drives the flash, shake, rays, burst and confetti on the workshop side.
+    this.stopVoice(this.revealVoice);
+    this.revealVoice = this.play('reveal', { gain: SAMPLE_GAIN.reveal });
   }
 
   sell(): void {
