@@ -3,6 +3,8 @@ import { GAME_CONFIG } from '../config/GameConfig';
 import { LAYERS } from '../data/layers';
 import { SCANNERS, TOOL_DEFS, UPGRADE_EFFECTS, type ToolDef } from '../data/tools';
 import { ALL_TOOLS, ALL_UPGRADES, upgradePrice, type ToolItem, type UpgradeItem } from '../data/store';
+import { CurioSystem } from '../systems/CurioSystem';
+import { CURIO_VALUE, CURIO_XP, type CurioDef } from '../data/curios';
 import { ProgressSystem, ROCK_XP, readSave, writeSave, type Goal } from '../systems/ProgressSystem';
 import type { ClockConfig } from '../systems/ClockSystem';
 import { DayCycleSystem, type DayPhase, type DaySummary } from '../systems/DayCycleSystem';
@@ -47,6 +49,8 @@ export const EVT = {
   goalDone: 'goal-done',
   /** The tool in the player's hands changed. */
   toolChanged: 'tool-changed',
+  /** (curio, isFirstTime, cashPaid) something strange was dug up. */
+  curioFound: 'curio-found',
 } as const;
 
 export type BuyResult = 'ok' | 'poor' | 'locked' | 'owned' | 'maxed' | 'weaker' | 'unavailable';
@@ -83,6 +87,7 @@ export class GameState {
     if (index > 0) this.progress.addXp(25 * index); // a new layer is a milestone
   });
   readonly discovery = new DiscoverySystem();
+  readonly curios = new CurioSystem();
   readonly day = new DayCycleSystem(clockConfig(), GAME_CONFIG.day, {
     onPhase: (phase) => this.bus.emit(EVT.dayPhaseChanged, phase),
   });
@@ -213,6 +218,11 @@ export class GameState {
     return this.inventory.count;
   }
 
+  /** At least one uncut rock: the workshop can be visited (it just is not urgent yet). */
+  get workshopAvailable(): boolean {
+    return this.inventory.uncutCount > 0;
+  }
+
   /** Enough uncut rocks to make a trip to the workshop worthwhile. */
   get workshopReady(): boolean {
     const uncut = this.inventory.uncutCount;
@@ -250,6 +260,19 @@ export class GameState {
     this.day.today.found++;
     this.progress.note('find');
     this.bus.emit(EVT.statsChanged);
+  }
+
+  /** A curio was dug up: pays cash (double the first time), XP, and joins the collection. */
+  recordCurio(curio: CurioDef): { first: boolean; value: number } {
+    const [lo, hi] = CURIO_VALUE[curio.tier];
+    const { first, milestone } = this.progress.foundCurio(curio.id);
+    const value = Math.round((lo + Math.random() * (hi - lo)) * (first ? 2 : 1));
+    this.economy.earn(value);
+    this.progress.note('curio');
+    this.progress.addXp(CURIO_XP[curio.tier] * (first ? 2 : 1));
+    this.bus.emit(EVT.curioFound, curio, first, value);
+    if (milestone) this.bus.emit(EVT.toast, `Collection milestone: ${milestone} curios!  +$${milestone * 50}`);
+    return { first, value };
   }
 
   recordCut(rock: Rock): void {

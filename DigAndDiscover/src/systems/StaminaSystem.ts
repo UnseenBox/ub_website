@@ -27,6 +27,11 @@ export class StaminaSystem {
     this.current = Math.min(this.max, this.current + Math.max(0, grew));
   }
 
+  /** A little energy back (dig-streak bonus). */
+  restore(amount: number): void {
+    this.current = Math.min(this.max, this.current + amount);
+  }
+
   /** Instantly full (rewarded ad, new day). */
   refill(): void {
     this.current = this.max;

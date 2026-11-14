@@ -18,6 +18,8 @@ export interface SaveData {
   goals: Goal[];
   goalSeq: number;
   bestDepth: number;
+  /** Curio id -> times found. */
+  curios?: Record<string, number>;
 }
 
 export interface ProgressHooks {
@@ -50,6 +52,7 @@ export class ProgressSystem {
   private goalSeq = 0;
   private readonly owned = new Set<string>(['tool-old-shovel']);
   private readonly upgrades: Record<string, number> = {};
+  private readonly curios: Record<string, number> = {};
   private totalDepth = 30;
 
   constructor(private readonly hooks: ProgressHooks) {}
@@ -127,6 +130,28 @@ export class ProgressSystem {
     return ALL_TOOLS.filter((t) => t.kind === 'scanner' && this.owned.has(t.id)).map((t) => t.id);
   }
 
+  // ---------- collection ----------
+
+  curioCount(id: string): number {
+    return this.curios[id] ?? 0;
+  }
+
+  /** How many different curios have been found. */
+  get curiosFound(): number {
+    return Object.keys(this.curios).length;
+  }
+
+  /** Records a find. Returns whether it is new and the collection size if that crossed a milestone. */
+  foundCurio(id: string): { first: boolean; milestone: number } {
+    const first = !this.curios[id];
+    this.curios[id] = (this.curios[id] ?? 0) + 1;
+    const n = this.curiosFound;
+    const milestone = first && n % 5 === 0 ? n : 0;
+    if (milestone) this.hooks.grant(milestone * 50);
+    this.hooks.changed();
+    return { first, milestone };
+  }
+
   // ---------- goals ----------
 
   /** Fills any empty goal slot (a save may already have restored them). */
@@ -183,6 +208,7 @@ export class ProgressSystem {
       goals: this.goals.map((g) => ({ ...g })),
       goalSeq: this.goalSeq,
       bestDepth: this.bestDepth,
+      curios: { ...this.curios },
     };
   }
 
@@ -193,6 +219,7 @@ export class ProgressSystem {
     this.owned.add('tool-old-shovel');
     for (const id of data.owned ?? []) if (typeof id === 'string') this.owned.add(id);
     for (const [id, lv] of Object.entries(data.upgrades ?? {})) this.upgrades[id] = Math.max(0, lv | 0);
+    for (const [id, n] of Object.entries(data.curios ?? {})) this.curios[id] = Math.max(1, n | 0);
     this.goalSeq = Math.max(0, data.goalSeq | 0);
     this.goals = (data.goals ?? []).slice(0, GOAL_SLOTS).map((g) => ({ ...g }));
   }

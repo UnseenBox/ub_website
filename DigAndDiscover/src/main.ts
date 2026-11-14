@@ -9,6 +9,7 @@ import { HudScene } from './scenes/HudScene';
 import { EndOfDayScene } from './scenes/EndOfDayScene';
 import { StoreScene } from './scenes/StoreScene';
 import { GoalsScene } from './scenes/GoalsScene';
+import { CollectionScene } from './scenes/CollectionScene';
 import { portal } from './ads/Portal';
 
 async function waitForFonts(): Promise<void> {
@@ -44,7 +45,7 @@ async function start(): Promise<void> {
     disableContextMenu: true,
     banner: false,
     // Scene order = draw order: the HUD always renders on top.
-    scene: [BootScene, DigScene, WorkshopScene, HudScene, EndOfDayScene, StoreScene, GoalsScene],
+    scene: [BootScene, DigScene, WorkshopScene, HudScene, EndOfDayScene, StoreScene, GoalsScene, CollectionScene],
   });
   // Dev server only: handy for poking at the running game from the console / tests.
   if (import.meta.env.DEV) (window as unknown as { __dd: unknown }).__dd = { game, state };

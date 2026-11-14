@@ -30,6 +30,14 @@ export class EconomySystem {
     return price;
   }
 
+  /** Money made by digging something up (counts toward "earned" like a sale). */
+  earn(amount: number): void {
+    if (amount <= 0) return;
+    this.balance += amount;
+    this.earned += amount;
+    this.onChange(this.balance, amount, true);
+  }
+
   /** Cash that is not a sale: goal rewards, level bonuses, ad rewards. */
   grant(amount: number): void {
     if (amount <= 0) return;

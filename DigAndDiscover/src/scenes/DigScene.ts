@@ -11,6 +11,8 @@ import { HOLE_RADIUS, HOLE_VARIANTS, SHOVEL } from '../art/TextureFactory';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
+import { curioKey } from '../art/CurioArt';
+import { CURIO_CATEGORIES, type CurioDef } from '../data/curios';
 import { computeLayout, type Layout } from '../ui/layout';
 
 const WORLD = GAME_CONFIG.world;
@@ -36,6 +38,10 @@ const SHOVEL_FOLLOW_MS = 35;
 const SHOVEL_HOVER_MIN = 14;
 const SHOVEL_HOVER_MAX = 130;
 const SHOVEL_REST_ANGLE = 18;
+/** A curio sprite is a 160px sticker; this makes it about 112 field units wide. */
+const CURIO_SCALE = 0.7;
+/** Swings in a row (each within this much of the last cooldown) build a streak. */
+const STREAK_GRACE_MS = 520;
 const MISS_MESSAGES = ['Aim at the floor of your hole!', 'Tip: the mouse wheel scrolls the view'];
 const MISS_MESSAGES_TOUCH = ['Aim at the floor of your hole!', 'Tip: drag to scroll the view'];
 
@@ -68,8 +74,12 @@ function skyTint(p: number): number {
   return SKY_STOPS[SKY_STOPS.length - 1][1];
 }
 
+/** A pocket in the shaft wall holding a rock - or, now and then, a strange curio. */
 interface EmbeddedRock {
-  rock: Rock;
+  rock: Rock | null;
+  curio: CurioDef | null;
+  /** The bobbing "?" over a curio that is still a mystery. */
+  mark: Phaser.GameObjects.Text | null;
   sprite: Phaser.GameObjects.Image;
   x: number;
   y: number;
@@ -117,6 +127,9 @@ export class DigScene extends Phaser.Scene {
   private crystalFx!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private embedded: EmbeddedRock[] = [];
+  private streak = 0;
+  private lastSwingAt = 0;
+  private aimMark!: Phaser.GameObjects.Image;
   private fieldScale = 1;
   private visL = 0;
   private visR: number = W;
@@ -155,6 +168,7 @@ export class DigScene extends Phaser.Scene {
 
   create(): void {
     this.embedded = [];
+    this.streak = 0;
     this.clouds = [];
     this.rings = [];
     this.glints = [];
@@ -324,7 +338,9 @@ export class DigScene extends Phaser.Scene {
     const tool = state.tool;
     this.shovel = this.add.image(0, 0, tool.textureKey).setOrigin(0.5, SHOVEL.tipY / SHOVEL.height).setScale(SHOVEL_SCALE);
     this.rig = this.add.container(W / 2 + 60, SURFACE - 70, [this.shovel]).setAngle(14);
-    this.popLayer.add([this.rig, this.tiredText]);
+    // A soft shadow on the ground where the next swing will land.
+    this.aimMark = this.add.image(0, 0, 'soft').setTint(0x1a0f08).setScale(0.95, 0.24).setAlpha(0);
+    this.popLayer.add([this.aimMark, this.rig, this.tiredText]);
     this.applyToolLook();
     // Gentle idle sway on the inner image so swings (on the rig) never fight it.
     this.tweens.add({ targets: this.shovel, angle: { from: -2.5, to: 2.5 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -546,7 +562,10 @@ export class DigScene extends Phaser.Scene {
    * view or hold the button; only a swing in progress takes it over.
    */
   private followCursor(dt: number): void {
-    if (this.lastTouch || !state.canWork || this.time.now < this.swingEndsAt) return;
+    if (this.lastTouch || !state.canWork || this.time.now < this.swingEndsAt) {
+      this.aimMark.setAlpha(0);
+      return;
+    }
     const pointer = this.input.activePointer;
     if (!this.inPlayArea(pointer.y)) return;
     const x = this.aim(this.toFieldX(pointer.x));
@@ -560,6 +579,7 @@ export class DigScene extends Phaser.Scene {
     this.rig.x += dx;
     this.rig.y += (targetY - this.rig.y) * k;
     this.lastX = x;
+    this.aimMark.setPosition(x, floorY + 3).setAlpha(0.3);
     const lean = clamp(dx * 2.2, -14, 14);
     this.rig.angle += (SHOVEL_REST_ANGLE + lean - this.rig.angle) * k;
   }
@@ -627,6 +647,14 @@ export class DigScene extends Phaser.Scene {
       this.showTired(x);
       return;
     }
+    // Keep swinging and the streak grows: every tenth swing gives a little energy back.
+    const nowT = this.time.now;
+    this.streak = nowT - this.lastSwingAt < state.tool.swingCooldownMs + STREAK_GRACE_MS ? this.streak + 1 : 1;
+    this.lastSwingAt = nowT;
+    if (this.streak % 10 === 0) {
+      state.stamina.restore(state.stamina.max * 0.06);
+      this.floatText(`STREAK x${this.streak}!`, clamp(x, this.visL + 140, this.visR - 140), state.dig.floorAt(x) - 150);
+    }
     // Hard ground makes the swing heavier and slower, not just less effective.
     this.nextDigAt = now + state.tool.swingCooldownMs * (1 + 0.5 * layer.feel.clang);
     this.swing(x, layer.feel.clang);
@@ -681,7 +709,9 @@ export class DigScene extends Phaser.Scene {
     } else if (this.embedded.length >= GAME_CONFIG.dig.maxEmbeddedRocks) {
       state.discovery.skip();
     } else if (res.dug && state.discovery.roll(res.layer, Math.random)) {
-      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits);
+      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, res.layer.discovery.valueMult ?? 1);
+    } else if (res.dug && state.curios.roll(res.layerIndex, Math.random)) {
+      this.embedCurio(res.cx, res.layerIndex);
     }
   }
 
@@ -718,8 +748,9 @@ export class DigScene extends Phaser.Scene {
     nearX: number,
     rarityWeights: readonly number[],
     freeHits: { min: number; max: number },
+    valueMult = 1,
   ): void {
-    const rock = generateRock(Math.random, rarityWeights);
+    const rock = generateRock(Math.random, rarityWeights, valueMult);
     ensureRockTextures(this.textures, rock);
     const r = GAME_CONFIG.rock.baseRadius * rock.size;
     const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
@@ -727,7 +758,7 @@ export class DigScene extends Phaser.Scene {
     const sprite = this.add.image(x, y + 24, rockKeys(rock).outside).setScale(0).setAngle(range(Math.random, -20, 20));
     this.rockLayer.add(sprite);
     const maxHp = intRange(Math.random, freeHits.min, freeHits.max);
-    const b: EmbeddedRock = { rock, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    const b: EmbeddedRock = { rock, curio: null, mark: null, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
     this.embedded.push(b);
     this.tweens.add({ targets: sprite, y, scale: 1 / ART_RES, duration: 280, ease: 'Back.easeOut' });
     // Open a pocket around its top so the find is clearly visible, never just a sliver.
@@ -754,7 +785,7 @@ export class DigScene extends Phaser.Scene {
     this.tweens.add({ targets: b.sprite, angle: b.sprite.angle + Phaser.Math.Between(-9, 9), duration: 90, yoyo: true, ease: 'Sine.easeOut' });
     this.showPips(b);
     if (b.hp > 0.001) return;
-    if (state.inventory.isFull) {
+    if (b.rock && state.inventory.isFull) {
       b.hp = 0.01;
       if (this.time.now - this.lastFullWarning > 2500) {
         this.lastFullWarning = this.time.now;
@@ -798,7 +829,12 @@ export class DigScene extends Phaser.Scene {
   }
 
   private unearth(b: EmbeddedRock): void {
+    if (b.curio) {
+      this.unearthCurio(b);
+      return;
+    }
     const { rock, sprite } = b;
+    if (!rock) return;
     // Take it off the list first: adding to the bag fires inventoryChanged, which looks for stuck rocks.
     this.embedded = this.embedded.filter((o) => o !== b);
     if (state.inventory.add(rock) < 0) {
@@ -841,6 +877,94 @@ export class DigScene extends Phaser.Scene {
       sprite.destroy();
       state.endActivity();
     });
+  }
+
+  /** The strange stuff: shows up as a dark silhouette with a "?" until it is dug free. */
+  private embedCurio(nearX: number, layerIndex: number): void {
+    const curio = state.curios.pick(layerIndex, (id) => state.progress.curioCount(id) > 0);
+    const r = 50;
+    const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
+    const y = state.dig.floorAt(x) + r * GAME_CONFIG.dig.rockSinkFactor;
+    const sprite = this.add.image(x, y + 24, curioKey(curio.id)).setScale(0).setTintFill(0x120a06).setAngle(range(Math.random, -12, 12));
+    this.rockLayer.add(sprite);
+    const maxHp = intRange(Math.random, 2, 3);
+    const mark = this.add.text(x, y - r - 34, '?', outlinedStyle(44, '#ffd34d')).setOrigin(0.5).setScale(0);
+    this.popLayer.add(mark);
+    const b: EmbeddedRock = { rock: null, curio, mark, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    this.embedded.push(b);
+    this.tweens.add({ targets: sprite, y, scale: CURIO_SCALE, duration: 280, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: mark, scale: 1, duration: 300, delay: 120, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: mark, y: mark.y - 10, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 420 });
+    this.paintCrater(x, y - r * 0.3, r * 0.8, r * 0.62);
+    sfx.collect();
+    sfx.haptic(12);
+    this.sparkleFx.explode(8, x, y - r * 0.5);
+    this.showPips(b);
+  }
+
+  /** The big surprise: it bursts out, hangs in the air, and the HUD announces what it is. */
+  private unearthCurio(b: EmbeddedRock): void {
+    const { curio, sprite } = b;
+    if (!curio) return;
+    this.embedded = this.embedded.filter((o) => o !== b);
+    if (b.mark) {
+      this.tweens.killTweensOf(b.mark);
+      b.mark.destroy();
+    }
+    state.beginActivity();
+    const tier = curio.tier;
+    const layerIndex = state.dig.layerIndexAtY(b.y);
+    this.paintCrater(b.x, b.y - b.r * 0.1, b.r * 1.5, b.r * 1.3);
+    this.dirtFx[layerIndex].explode(30, b.x, b.y);
+    this.dustFx[layerIndex].explode(9, b.x, b.y - b.r * 0.5);
+    this.sparkleFx.explode(12 + tier * 6, b.x, b.y - b.r * 0.4);
+    this.cameras.main.shake(180 + tier * 70, 0.005 + tier * 0.002);
+    if (tier >= 3) this.cameras.main.flash(280, 255, 244, 190);
+    sprite.clearTint();
+    this.rockLayer.remove(sprite);
+    this.popLayer.addAt(sprite, 0);
+
+    // The player's own reaction, shouted over the hole.
+    const shout = this.add.text(b.x, b.y - 110, CURIO_CATEGORIES[curio.category].shout, outlinedStyle(42, '#ffd34d')).setOrigin(0.5).setScale(0);
+    this.popLayer.add(shout);
+    this.tweens.add({ targets: shout, scale: 1.1, angle: { from: -8, to: 4 }, duration: 220, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: shout, y: shout.y - 50, alpha: 0, delay: 800, duration: 380, onComplete: () => shout.destroy() });
+
+    const landY = b.y - b.r * 0.2;
+    this.tweens.killTweensOf(sprite);
+    this.tweens.chain({
+      targets: sprite,
+      tweens: [
+        { scaleX: CURIO_SCALE * 1.3, scaleY: CURIO_SCALE * 0.7, duration: 70, ease: 'Quad.easeOut' },
+        { y: landY - 190, scaleX: CURIO_SCALE * 1.15, scaleY: CURIO_SCALE * 1.2, angle: 360, duration: 360, ease: 'Quad.easeOut' },
+        { y: landY - 170, scale: CURIO_SCALE * 1.35, angle: 372, duration: 420, yoyo: true, ease: 'Sine.easeInOut' },
+      ],
+    });
+
+    // Pay out right away (the card shows at once); coins fly in as the item settles.
+    const { value } = state.recordCurio(curio);
+    sfx.surprise(tier);
+    sfx.haptic(tier >= 3 ? [30, 40, 70] : 25);
+    this.time.delayedCall(900, () => {
+      const m = sprite.getWorldTransformMatrix();
+      state.bus.emit(EVT.sale, value, m.tx, m.ty, tier);
+      this.tweens.killTweensOf(sprite);
+      this.tweens.add({
+        targets: sprite, scale: 0, alpha: 0, y: sprite.y - 40, duration: 260, ease: 'Back.easeIn',
+        onComplete: () => {
+          sprite.destroy();
+          state.endActivity();
+        },
+      });
+    });
+  }
+
+  /** A short pop-up line over the dig ("STREAK x10!"). */
+  private floatText(text: string, x: number, y: number, color = '#ffd34d'): void {
+    const t = this.add.text(x, y, text, outlinedStyle(30, color)).setOrigin(0.5).setScale(0.6);
+    this.popLayer.add(t);
+    this.tweens.add({ targets: t, scale: 1, duration: 180, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, y: y - 60, alpha: 0, delay: 500, duration: 450, onComplete: () => t.destroy() });
   }
 
   /** After selling frees a slot, rocks that were dug out but blocked by a full bag pop right away. */

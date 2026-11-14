@@ -3,7 +3,7 @@
  * its place, scaled to the player's level - an endless "one more goal" loop.
  * The first few are a gentle tutorial that walks the player into the store.
  */
-export type GoalMetric = 'find' | 'cut' | 'earn' | 'depth' | 'rare' | 'buy';
+export type GoalMetric = 'find' | 'cut' | 'earn' | 'depth' | 'rare' | 'buy' | 'curio';
 
 export interface GoalDef {
   metric: GoalMetric;
@@ -25,6 +25,7 @@ export const ONBOARDING: readonly GoalDef[] = [
   { metric: 'earn', target: 60, cash: 40, xp: 30 },
   { metric: 'depth', target: 4, cash: 45, xp: 35 },
   { metric: 'buy', target: 1, cash: 60, xp: 50 },
+  { metric: 'curio', target: 1, cash: 70, xp: 60 },
 ];
 
 interface Template {
@@ -40,6 +41,7 @@ const TEMPLATES: readonly Template[] = [
   { metric: 'find', weight: 3, make: (c) => ({ metric: 'find', target: 4 + c.level * 2, ...reward(c) }) },
   { metric: 'cut', weight: 3, make: (c) => ({ metric: 'cut', target: 3 + c.level * 2, ...reward(c) }) },
   { metric: 'earn', weight: 3, make: (c) => ({ metric: 'earn', target: round5(60 * Math.pow(c.level, 1.5)), ...reward(c, 1.2) }) },
+  { metric: 'curio', weight: 3, make: (c) => ({ metric: 'curio', target: 1 + Math.floor(c.level / 3), ...reward(c, 1.4) }) },
   { metric: 'rare', weight: 2, make: (c) => ({ metric: 'rare', target: 1 + Math.floor(c.level / 4), ...reward(c, 1.6) }) },
   {
     metric: 'depth',
@@ -57,6 +59,7 @@ export function goalText(g: { metric: GoalMetric; target: number }): string {
     case 'depth': return `Dig down to ${n} m`;
     case 'rare': return n === 1 ? 'Cut open a Rare (or better) rock' : `Cut open ${n} Rare+ rocks`;
     case 'buy': return 'Buy something in the store';
+    case 'curio': return n === 1 ? 'Dig up a strange curio' : `Dig up ${n} strange curios`;
   }
 }
 

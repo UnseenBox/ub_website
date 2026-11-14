@@ -3,7 +3,7 @@ import { intRange, mulberry32, pick, range, type Rng } from '../core/Random';
 import { TAU, blobPath, blobPoints, ellipse, polygon, star, type Pt } from './paint';
 
 /**
- * The vertical cross-section of the dig site: five geological layers from the
+ * The vertical cross-section of the dig site: ten geological layers from the
  * grass line down to bedrock, painted once into a single offscreen canvas.
  *
  * Everything is deterministic - fixed seeds, never Math.random - so the pit
@@ -348,6 +348,134 @@ function paintCracks(ctx: CanvasRenderingContext2D, rng: Rng, band: LayerBand, w
   }
 }
 
+/** Fossil bed: ribs, vertebrae and ammonite spirals pressed into the sandstone. */
+function paintBones(ctx: CanvasRenderingContext2D, rng: Rng, band: LayerBand, width: number): void {
+  const detail = band.layer.look.detailColor;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 20; i++) {
+    const x = range(rng, 30, width - 30);
+    const y = range(rng, band.top + 20, band.bottom - 20);
+    const kind = rng();
+    ctx.globalAlpha = range(rng, 0.45, 0.75);
+    ctx.strokeStyle = detail;
+    if (kind < 0.4) {
+      // Ribs: a spine with curved ribs hanging off it.
+      const n = intRange(rng, 4, 7);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + n * 14, y);
+      ctx.stroke();
+      for (let k = 0; k < n; k++) {
+        ctx.beginPath();
+        ctx.arc(x + k * 14 + 7, y, 15 - Math.abs(k - n / 2) * 1.5, 0.15, Math.PI - 0.15);
+        ctx.stroke();
+      }
+    } else if (kind < 0.75) {
+      // Ammonite spiral.
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      for (let a = 0; a < TAU * 2.4; a += 0.2) {
+        const r = 2 + a * 2.4;
+        const px = x + Math.cos(a) * r;
+        const py = y + Math.sin(a) * r;
+        if (a === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    } else {
+      // A long bone with knobbly ends.
+      const len = range(rng, 34, 64);
+      const ang = range(rng, -0.5, 0.5);
+      const dx = Math.cos(ang) * len;
+      const dy = Math.sin(ang) * len;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + dx, y + dy);
+      ctx.stroke();
+      ctx.fillStyle = detail;
+      for (const [ex, ey] of [[x, y], [x + dx, y + dy]] as const) {
+        ellipse(ctx, ex - 3, ey - 4, 5, 5);
+        ellipse(ctx, ex + 3, ey + 4, 5, 5);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Buried ruins: chunks of old brickwork and the odd broken column. */
+function paintBricks(ctx: CanvasRenderingContext2D, rng: Rng, band: LayerBand, width: number): void {
+  const detail = band.layer.look.detailColor;
+  for (let i = 0; i < 9; i++) {
+    const w = range(rng, 90, 190);
+    const h = range(rng, 40, 80);
+    const x = range(rng, 0, width - w);
+    const y = range(rng, band.top + 10, band.bottom - h - 10);
+    ctx.globalAlpha = range(rng, 0.3, 0.5);
+    ctx.fillStyle = 'rgba(20,28,34,0.5)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = detail;
+    ctx.lineWidth = 1.6;
+    const rows = Math.max(2, Math.round(h / 16));
+    for (let r = 0; r <= rows; r++) {
+      const ry = y + (r * h) / rows;
+      ctx.beginPath();
+      ctx.moveTo(x, ry);
+      ctx.lineTo(x + w, ry);
+      ctx.stroke();
+      if (r < rows) {
+        const off = r % 2 === 0 ? 0 : 18;
+        for (let bx = x + off; bx < x + w; bx += 36) {
+          ctx.beginPath();
+          ctx.moveTo(bx, ry);
+          ctx.lineTo(bx, y + ((r + 1) * h) / rows);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+  // Broken column drums lying about.
+  for (let i = 0; i < 5; i++) {
+    const x = range(rng, 40, width - 80);
+    const y = range(rng, band.top + 20, band.bottom - 20);
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = mixHex('#8fa3ad', band.layer.look.top, 0.4);
+    ctx.fillRect(x, y, 56, 22);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(x, y, 56, 6);
+    ctx.strokeStyle = 'rgba(10,16,20,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, 56, 22);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Magma veins: dark cracks with a hot orange glow. */
+function paintMagma(ctx: CanvasRenderingContext2D, rng: Rng, band: LayerBand, width: number): void {
+  const detail = band.layer.look.detailColor;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < 22; i++) {
+    const pts = jaggedPoints(rng, range(rng, 0, width), range(rng, band.top, band.bottom), intRange(rng, 5, 10), range(rng, 16, 36));
+    ctx.save();
+    ctx.shadowColor = detail;
+    ctx.shadowBlur = 14;
+    ctx.globalAlpha = range(rng, 0.55, 0.9);
+    ctx.strokeStyle = detail;
+    ctx.lineWidth = range(rng, 2, 4.2);
+    polygon(ctx, pts);
+    ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = '#ffe6a0';
+    ctx.lineWidth = 1.1;
+    polygon(ctx, pts);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function paintBoulders(ctx: CanvasRenderingContext2D, rng: Rng, band: LayerBand, width: number): void {
   // A handful of large half-buried boulders.
   for (let i = 0; i < 8; i++) {
@@ -553,6 +681,15 @@ export function paintStrata(ctx: CanvasRenderingContext2D, spec: StrataSpec): vo
         break;
       case 'crystals':
         paintCrystals(ctx, bandRng, band, width);
+        break;
+      case 'bones':
+        paintBones(ctx, bandRng, band, width);
+        break;
+      case 'bricks':
+        paintBricks(ctx, bandRng, band, width);
+        break;
+      case 'magma':
+        paintMagma(ctx, bandRng, band, width);
         break;
     }
 
