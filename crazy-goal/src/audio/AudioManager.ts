@@ -36,6 +36,22 @@ const MUSIC_LEVEL = 0.3;
 const SFX_LEVEL = 0.45;
 
 /**
+ * Loudness trims for the standalone recordings, measured (EBU R128) so the set plays at one level: the goal
+ * cheer, the kick and the rock were 15 dB hotter than the button click and the drop. Linear multipliers.
+ */
+const CLIP_TRIM: Readonly<Record<string, number>> = {
+  goal: 0.5, // -8.9 LUFS, and thirty seconds long
+  kick_ball: 0.6, // -9.0 LUFS, on every shot
+  stone: 0.55, // -8.4 LUFS
+  whistle: 0.8, // -9.3 LUFS
+  click: 1.5, // -24 LUFS: a tap you could hardly hear
+  drop: 1.6, // -25 LUFS
+  meow: 1.2, // -21 LUFS
+  glass_break: 1.15, // -19 LUFS
+  tin: 1.2, // -19.5 LUFS
+};
+
+/**
  * Owns the AudioContext. Nearly every sound is a recording, cut out of one sound sheet that
  * is downloaded once. A few things that really are electronic (a car alarm, a scooter horn)
  * are still made from an oscillator, and the pull-back is a steered rush of air. If audio is unavailable every call is a no-op.
@@ -297,7 +313,7 @@ export class AudioManager {
       src.buffer = clip;
       src.playbackRate.value = o.rate ?? 1;
       const amp = ctx.createGain();
-      amp.gain.value = (o.gain ?? 1) * (o.music ? 1 : SFX_LEVEL);
+      amp.gain.value = (o.gain ?? 1) * (o.music ? 1 : SFX_LEVEL) * (CLIP_TRIM[name] ?? 1);
       src.connect(amp).connect(o.music && this.musicBus ? this.musicBus : this.master);
       this.track(name, src);
       const when = ctx.currentTime + (o.at ?? 0);

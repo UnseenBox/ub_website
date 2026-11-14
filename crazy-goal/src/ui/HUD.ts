@@ -459,8 +459,6 @@ export class Hud {
   /** The result card: every style bonus, the combo, the Crazy Score counting up, and the stars. */
   private drawCard(ctx: CanvasRenderingContext2D, g: Game, hudU: number): void {
     const cel = g.celebration;
-    // The card is enlarged with the HUD on a small screen, but never wider than the screen.
-    const u = Math.min(hudU, (g.camera.visible.w * 0.94) / CARD_W);
     const card = cel.card;
     if (!card) return;
     const appear = clamp01((cel.t - CELEBRATION_TIMING.cardAt) / 0.22);
@@ -476,6 +474,13 @@ export class Hud {
     const coins = solo ? g.goalCoins : 0;
     const ballGap = solo ? g.ballGap : null;
     const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + (coins > 0 ? COINS_H : 0) + (ballGap !== null ? BALL_H : 0);
+    // The card is enlarged with the HUD on a small screen, but never wider than the screen, and never so tall
+    // that the AGAIN / NEXT buttons under it cover its last lines: a long list of tricks shrinks it to fit.
+    const cam = g.camera;
+    const buttonsPx = (window.innerWidth <= 560 ? 0.09 : 0.05) * window.innerHeight + 70;
+    const floor = cam.visible.y + cam.visible.h - buttonsPx / cam.scale;
+    const room = floor - (arena.y + 232) - 8;
+    const u = Math.max(0.5, Math.min(hudU, (cam.visible.w * 0.94) / CARD_W, room / h));
     // The card is laid out at its natural size around (cx, cy) and enlarged as one piece.
     const cy = arena.y + 232 + (h * u) / 2;
     const x = cx - CARD_W / 2;
