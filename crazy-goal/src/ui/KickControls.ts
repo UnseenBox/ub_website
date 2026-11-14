@@ -1,6 +1,7 @@
 import { tr } from '../core/i18n';
 import { snapBend } from '../core/Guide';
 import type { ShotType } from '../physics/Flight';
+import { footballUrl } from './Football';
 import { bendGlyph, ICON } from './KickIcons';
 
 export interface KickControlsHandlers {
@@ -63,6 +64,8 @@ export class KickControls {
     this.range.value = '0';
     // The dial is a left to right picture even in Arabic, like the pitch.
     this.range.dir = 'ltr';
+    // The knob is the ball itself.
+    this.range.style.setProperty('--ball', footballUrl());
     this.range.addEventListener('input', () => {
       const before = this.handlers.bend();
       const bend = snapBend(Number(this.range.value) / 100);

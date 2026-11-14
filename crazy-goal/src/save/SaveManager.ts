@@ -1,5 +1,6 @@
 import type { Boost } from '../abilities/Cards';
 import { SKINS } from '../ball/Skins';
+import { noUpgrades, UPGRADE_MAX, type UpgradeLevels } from '../progression/Upgrades';
 
 const KEY = 'crazy-goal-save';
 /**
@@ -39,6 +40,8 @@ export interface SaveData {
   freeBoosts: Partial<Record<Boost, number>>;
   /** Skins the player has already been told about (toast / NEW dot). */
   seenSkins: string[];
+  /** Shot upgrades bought in the store, 0 to 3 each. */
+  upgrades: UpgradeLevels;
 }
 
 const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0 });
@@ -55,6 +58,7 @@ const fresh = (): SaveData => ({
   boostIntro: false,
   freeBoosts: {},
   seenSkins: [],
+  upgrades: noUpgrades(),
 });
 
 const volume = (v: unknown, fallback: number): number => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
@@ -104,6 +108,9 @@ export function parseSave(raw: string | null): SaveData {
       const n = Math.floor(num(data.freeBoosts[id]));
       if (n > 0) out.freeBoosts[id] = n;
     }
+  }
+  if (isRecord(data.upgrades)) {
+    for (const id of ['power', 'curl', 'aim'] as const) out.upgrades[id] = Math.min(UPGRADE_MAX, Math.floor(num(data.upgrades[id])));
   }
   if (legacy) {
     // A v1 player who has already played houma 6 had the boost column all along: no introduction.

@@ -120,6 +120,41 @@ export const ICONS = {
      ${shine(16, 19, 3.6, 1.6, -40)}`,
     linear('gi-back', '#ffffff', '#cfe0f5'),
   ),
+  /** The store: a stall with a striped awning and a coin on the counter. */
+  store: svg(
+    `<path d="M7 22v19a2 2 0 0 0 2 2h30a2 2 0 0 0 2-2V22" fill="url(#gi-stall)" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+     <path d="M5 13 9 5h30l4 8v4a5 5 0 0 1-9.5 2.2A5 5 0 0 1 24 19.5a5 5 0 0 1-9.5-.3A5 5 0 0 1 5 17Z" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+     <path d="M14.5 5.5 13 19M24 5.5v14M33.5 5.5 35 19" stroke="#e2402c" stroke-width="5.5"/>
+     <path d="M5 13 9 5h30l4 8v4a5 5 0 0 1-9.5 2.2A5 5 0 0 1 24 19.5a5 5 0 0 1-9.5-.3A5 5 0 0 1 5 17Z" fill="none" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+     <circle cx="24" cy="33" r="7.5" fill="url(#gi-coin)" stroke="${INK}" stroke-width="2.8"/>
+     <path d="M24 29v8" stroke="#a86b00" stroke-width="2.6" stroke-linecap="round"/>
+     ${shine(20.5, 30, 2.2, 1.2)}`,
+    linear('gi-stall', '#8fd0ff', '#2f74d0') + linear('gi-coin', '#ffe680', '#f0a21c'),
+  ),
+  /** Power: a lightning bolt. */
+  power: svg(
+    `<path d="M27 3 9 27h12l-4 18 22-26H26Z" fill="url(#gi-bolt)" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+     ${shine(22, 14, 3.4, 1.6, -55)}`,
+    linear('gi-bolt', '#fff3a0', '#f5a01c'),
+  ),
+  /** Curl: a ball bending round a defender. */
+  curl: svg(
+    `<rect x="19" y="18" width="10" height="15" rx="4" fill="${INK}"/><circle cx="24" cy="14" r="4.5" fill="${INK}"/>
+     <path d="M12 43C2 30 8 9 34 6" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round"/>
+     <path d="M12 43C2 30 8 9 34 6" fill="none" stroke="url(#gi-curl)" stroke-width="4" stroke-linecap="round"/>
+     <path d="M30 1l10 5-8 8" fill="none" stroke="${INK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+     <path d="M30 1l10 5-8 8" fill="none" stroke="url(#gi-curl)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+    linear('gi-curl', '#ff9be0', '#c03ad0'),
+  ),
+  /** Aim guide: a target with a dotted line into it. */
+  aim: svg(
+    `<circle cx="27" cy="21" r="17" fill="#fff" stroke="${INK}" stroke-width="3"/>
+     <circle cx="27" cy="21" r="11" fill="url(#gi-aim)" stroke="${INK}" stroke-width="2.6"/>
+     <circle cx="27" cy="21" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2.4"/>
+     <path d="M5 44l17-18" stroke="${INK}" stroke-width="5.5" stroke-linecap="round" stroke-dasharray="0.1 7"/>
+     <path d="M5 44l17-18" stroke="#ffd94d" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="0.1 7"/>`,
+    linear('gi-aim', '#ff7a5c', '#d0321e'),
+  ),
 } as const;
 
 export type IconName = keyof typeof ICONS;

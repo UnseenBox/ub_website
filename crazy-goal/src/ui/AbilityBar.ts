@@ -67,11 +67,18 @@ export class AbilityBar {
       img.alt = '';
       img.draggable = false;
       iconWrap.append(img);
-      const name = document.createElement('span');
-      name.className = 'ability-name';
-      const cost = document.createElement('span');
-      cost.className = 'ability-cost';
-      b.append(iconWrap, name, cost);
+      // Under the badge, where the name used to be: the price in coins (or the charges owned, or a tick when on).
+      const price = document.createElement('span');
+      price.className = 'ability-price';
+      const coin = document.createElement('img');
+      coin.className = 'ability-price-coin';
+      coin.src = coinUrl;
+      coin.alt = '';
+      coin.draggable = false;
+      const amount = document.createElement('span');
+      amount.className = 'ability-price-n';
+      price.append(coin, amount);
+      b.append(iconWrap, price);
       b.addEventListener('click', () => this.handlers.buy(id));
       this.buttons.set(id, b);
       this.el.append(b);
@@ -115,8 +122,12 @@ export class AbilityBar {
       b.disabled = !isArmed && !afford;
       b.classList.toggle('is-armed', isArmed);
       b.setAttribute('aria-label', isArmed ? `${tr(card.name)} — ${tr('ARMED')}` : afford ? tr(card.name) : tr('NOT ENOUGH COINS'));
-      (b.querySelector('.ability-name') as HTMLElement).textContent = tr(card.name);
-      (b.querySelector('.ability-cost') as HTMLElement).textContent = isArmed ? '✓' : gift ? tr('FREE') : String(cost);
+      const owned = free[id] ?? 0;
+      const price = b.querySelector('.ability-price') as HTMLElement;
+      price.classList.toggle('is-owned', !isArmed && gift);
+      price.classList.toggle('is-on', isArmed);
+      (b.querySelector('.ability-price-n') as HTMLElement).textContent = isArmed ? '✓' : gift ? `×${owned}` : String(cost);
+      b.title = tr(card.name);
     }
   }
 }

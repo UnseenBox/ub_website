@@ -11,24 +11,29 @@
       }
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#0b1022" />
     <meta name="description" content="Crazy Kora: street football trick shots in the alleys of the houma. Drag back, let go, and score the craziest goal you can." />
     <title>Crazy Kora</title>
     <style>
-      /* The splash is fully self-contained so it paints before any bundle arrives. */
+      /* The splash is fully self-contained so it paints before any bundle arrives: a night stadium at kick-off. */
+      @font-face {
+        font-family: 'Lilita One';
+        src: url('./src/assets/fonts/lilita-one-latin.woff2') format('woff2');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+
       #app-loading {
+        --ink: #1b2540;
+        --gold: #ffd23f;
         position: fixed;
         inset: 0;
         z-index: 100;
-        display: grid;
-        place-items: center;
         overflow: hidden;
-        background:
-          radial-gradient(circle at 18% 12%, rgba(31, 194, 76, 0.1), transparent 32%),
-          radial-gradient(circle at 85% 82%, rgba(255, 200, 58, 0.14), transparent 36%),
-          #ffffff;
-        background-color: #ffffff;
-        transition: opacity 0.4s ease-out, visibility 0.4s;
+        background: radial-gradient(ellipse 120% 70% at 50% -10%, #23366e 0%, #121c3d 45%, #070b1a 100%);
+        background-color: #0b1022;
+        font-family: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
+        transition: opacity 0.45s ease-out, visibility 0.45s;
       }
 
       #app-loading.is-done {
@@ -37,166 +42,304 @@
         pointer-events: none;
       }
 
-      /* Sun rays turning slowly behind the logo, like a poster in the arcade. */
-      .loading-rays {
+      /* The stands: rows of fans, a dot each, in the home colours, fading into the dark at the top. */
+      .ld-crowd {
         position: absolute;
-        top: -8%;
-        left: 50%;
-        width: min(640px, 130vw);
-        aspect-ratio: 1;
-        transform: translateX(-50%);
-        background: repeating-conic-gradient(from 0deg, rgba(255, 200, 58, 0.32) 0 11deg, transparent 11deg 24deg);
-        -webkit-mask-image: radial-gradient(circle, #000 22%, transparent 66%);
-        mask-image: radial-gradient(circle, #000 22%, transparent 66%);
-        animation: rays-spin 28s linear infinite;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 62%;
+        background:
+          radial-gradient(circle at 3px 3px, rgba(255, 255, 255, 0.55) 1.5px, transparent 2.2px) 0 0 / 10px 9px,
+          radial-gradient(circle at 6px 5px, rgba(255, 110, 80, 0.6) 1.5px, transparent 2.2px) 3px 2px / 13px 11px,
+          radial-gradient(circle at 4px 4px, rgba(255, 210, 63, 0.55) 1.5px, transparent 2.2px) 7px 5px / 15px 12px,
+          radial-gradient(circle at 5px 5px, rgba(124, 196, 255, 0.55) 1.5px, transparent 2.2px) 1px 8px / 12px 14px;
+        -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 82%, transparent 100%);
+        mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 82%, transparent 100%);
+        opacity: 0.75;
+      }
+
+      /* Cameras going off in the crowd. */
+      .ld-flash {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        width: 22px;
+        height: 22px;
+        margin: -11px 0 0 -11px;
+        background:
+          radial-gradient(circle, #fff 0 2.5px, rgba(255, 255, 255, 0.5) 3.5px, transparent 7px),
+          linear-gradient(90deg, transparent 45%, rgba(255, 255, 240, 0.9) 50%, transparent 55%),
+          linear-gradient(0deg, transparent 45%, rgba(255, 255, 240, 0.9) 50%, transparent 55%);
+        opacity: 0;
+        animation: ld-flash 2.6s ease-out var(--d) infinite;
+      }
+
+      @keyframes ld-flash {
+        0%, 70%, 100% { opacity: 0; transform: scale(0.4); }
+        76% { opacity: 1; transform: scale(1.2); }
+        86% { opacity: 0; transform: scale(0.8); }
+      }
+
+      /* Two floodlight beams sweeping down from the corners. */
+      .ld-beam {
+        position: absolute;
+        top: -6%;
+        width: 120vmax;
+        height: 120vmax;
+        background: conic-gradient(from 168deg at 50% 0%, transparent 0deg, rgba(255, 246, 205, 0.2) 9deg, rgba(255, 246, 205, 0.08) 20deg, transparent 26deg);
+        transform-origin: 50% 0;
         pointer-events: none;
       }
 
-      @keyframes rays-spin {
-        to { transform: translateX(-50%) rotate(360deg); }
+      .ld-beam-l {
+        left: calc(-60vmax + 6%);
+        animation: ld-sweep-l 5.5s ease-in-out infinite alternate;
       }
 
-      .loading-stack {
-        position: relative;
+      .ld-beam-r {
+        right: calc(-60vmax + 6%);
+        animation: ld-sweep-r 6.2s ease-in-out infinite alternate;
+      }
+
+      @keyframes ld-sweep-l {
+        from { transform: rotate(-26deg); }
+        to { transform: rotate(-8deg); }
+      }
+
+      @keyframes ld-sweep-r {
+        from { transform: rotate(26deg); }
+        to { transform: rotate(8deg); }
+      }
+
+      /* The lamps themselves, high in the corners. */
+      .ld-lamp {
+        position: absolute;
+        top: 3%;
+        width: 54px;
+        height: 22px;
+        border-radius: 6px;
+        background:
+          radial-gradient(circle, #fffbe8 0 3px, transparent 3.5px) 3px 2px / 10px 9px,
+          #1b2540;
+        box-shadow: 0 0 40px 14px rgba(255, 246, 205, 0.35);
+      }
+
+      .ld-lamp-l { left: 6%; transform: rotate(18deg); }
+      .ld-lamp-r { right: 6%; transform: rotate(-18deg); }
+
+      /* The pitch, lit, running away from us in perspective, with the halfway line and centre circle. */
+      .ld-pitch {
+        position: absolute;
+        left: -50%;
+        right: -50%;
+        bottom: -2%;
+        height: 46%;
+        transform: perspective(700px) rotateX(46deg);
+        transform-origin: 50% 100%;
+        background:
+          radial-gradient(ellipse 45% 70% at 50% 30%, rgba(255, 250, 210, 0.22), transparent 70%),
+          repeating-linear-gradient(90deg, #32a64c 0 6%, #29933f 6% 12%);
+        border-top: 5px solid rgba(255, 255, 255, 0.7);
+        box-shadow: inset 0 30px 50px rgba(4, 20, 8, 0.45), 0 -20px 60px rgba(60, 200, 90, 0.18);
+      }
+
+      .ld-pitch::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 46%;
+        width: 26%;
+        aspect-ratio: 1;
+        transform: translate(-50%, -50%);
+        border: 5px solid rgba(255, 255, 255, 0.75);
+        border-radius: 50%;
+      }
+
+      .ld-pitch::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 46%;
+        height: 5px;
+        margin-top: -2.5px;
+        background: rgba(255, 255, 255, 0.75);
+      }
+
+      .ld-stack {
+        position: absolute;
+        inset: 0 0 46px;
         display: grid;
+        align-content: center;
         justify-items: center;
-        gap: clamp(10px, 2.4vmin, 20px);
-        width: min(520px, 92vw);
+        gap: clamp(8px, 2vmin, 16px);
         text-align: center;
-        padding-bottom: 44px; /* clear of the ticker */
       }
 
-      .loading-logo {
-        width: min(54vw, 240px);
+      .ld-logo {
+        width: min(56vw, 30vh, 260px);
         aspect-ratio: 364 / 307;
-        filter: drop-shadow(0 8px 10px rgba(11, 77, 28, 0.2));
-        animation: logo-in 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) 0.06s both;
+        filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55));
+        animation:
+          ld-logo-in 0.65s cubic-bezier(0.2, 1.6, 0.4, 1) 0.05s both,
+          ld-float 3.2s ease-in-out 0.7s infinite;
       }
 
-      @keyframes logo-in {
-        from {
-          opacity: 0;
-          transform: rotate(-8deg) scale(1.5);
-        }
+      @keyframes ld-logo-in {
+        from { opacity: 0; transform: rotate(-8deg) scale(1.6); }
       }
 
-      .loading-stars {
-        display: flex;
-        gap: clamp(12px, 3.4vmin, 28px);
-        margin-top: -6px;
+      @keyframes ld-float {
+        50% { transform: translateY(-6px) rotate(-1.5deg); }
       }
 
-      .loading-star {
-        width: clamp(26px, 5vmin, 38px);
-        animation: star-twinkle 1.3s ease-in-out infinite;
-      }
-
-      .loading-star:nth-child(2) { width: clamp(34px, 6.6vmin, 50px); }
-      .loading-star:nth-child(1) { animation-delay: 0s; }
-      .loading-star:nth-child(2) { animation-delay: 0.22s; }
-      .loading-star:nth-child(3) { animation-delay: 0.44s; }
-
-      @keyframes star-twinkle {
-        0%, 100% { opacity: 0.35; transform: scale(0.78) rotate(-14deg); }
-        35% { opacity: 1; transform: scale(1.18) rotate(10deg); }
-        60% { opacity: 0.85; transform: scale(1) rotate(0deg); }
-      }
-
-      /* Loading is a match: the ball rides the lane towards the little goal at the end. */
-      .loading-goalbar {
+      /* The ball, bouncing on the spot with its shadow breathing under it, spinning as it goes. */
+      .ld-hero {
         position: relative;
-        width: min(330px, 68vw);
+        width: clamp(64px, 14vmin, 104px);
+        height: clamp(92px, 21vmin, 150px);
       }
 
-      .loading-goalbar-track {
+      .ld-bounce {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        animation: ld-bounce 0.62s cubic-bezier(0.33, 0, 0.66, 0) infinite alternate;
+      }
+
+      .ld-ball {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1;
+        filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
+        animation: ld-spin 1.25s linear infinite;
+      }
+
+      .ld-shadow {
+        position: absolute;
+        left: 12%;
+        right: 12%;
+        bottom: 0;
+        height: 12%;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
+        animation: ld-shadow 0.62s cubic-bezier(0.33, 0, 0.66, 0) infinite alternate;
+      }
+
+      @keyframes ld-bounce {
+        from { transform: translateY(0); }
+        to { transform: translateY(calc(clamp(92px, 21vmin, 150px) - clamp(64px, 14vmin, 104px) - 6px)); }
+      }
+
+      @keyframes ld-shadow {
+        from { transform: scale(0.45); opacity: 0.45; }
+        to { transform: scale(1.05); opacity: 1; }
+      }
+
+      @keyframes ld-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Loading is a run at goal: the ball rolls along the lane and the lane lights up behind it. */
+      .ld-lane {
         position: relative;
-        height: 15px;
+        width: min(340px, 74vw);
+        margin-top: 6px;
+        padding-right: 40px;
+      }
+
+      .ld-track {
+        position: relative;
+        height: 14px;
         border-radius: 999px;
-        background: #e7ece0;
-        box-shadow: inset 2px 2px 0 rgba(11, 77, 28, 0.18);
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.18);
       }
 
-      .loading-goalbar-fill {
+      .ld-fill {
         height: 100%;
         width: 6%;
         border-radius: 999px;
-        background: linear-gradient(90deg, #ffd94d, #f2b52a);
-        box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.6);
-        animation: fill-run 2.2s ease-out forwards;
+        background: linear-gradient(90deg, #ffe680, #f5a01c);
+        box-shadow: 0 0 14px rgba(255, 200, 58, 0.8), inset 0 2px 0 rgba(255, 255, 255, 0.6);
+        animation: ld-fill 2.2s ease-out forwards;
       }
 
-      @keyframes fill-run {
+      @keyframes ld-fill {
         from { width: 6%; }
         to { width: 100%; }
       }
 
-      .loading-runner {
+      .ld-roller {
         position: absolute;
-        bottom: 100%;
-        left: 2%;
-        width: clamp(30px, 5.6vmin, 40px);
-        margin-bottom: 3px;
-        animation:
-          runner-run 2.2s ease-out forwards,
-          runner-bob 0.46s ease-in-out infinite;
-        will-change: left, transform;
+        top: -9px;
+        left: 0;
+        width: 32px;
+        height: 32px;
+        animation: ld-roll 2.2s ease-out forwards;
       }
 
-      @keyframes runner-run {
-        from { left: 2%; }
-        to { left: calc(100% - clamp(30px, 5.6vmin, 40px) - 2px); }
+      .ld-roller svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        animation: ld-spin 0.5s linear infinite;
+        filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45));
       }
 
-      @keyframes runner-bob {
-        0%, 100% { transform: translateY(1px) scale(1.12, 0.84) rotate(-6deg); }
-        50% { transform: translateY(-9px) scale(0.94, 1.08) rotate(7deg); }
+      @keyframes ld-roll {
+        from { left: 0; }
+        to { left: calc(100% - 64px); }
       }
 
-      .loading-goalbar-goal {
+      .ld-goal {
         position: absolute;
-        right: -3px;
-        bottom: 100%;
-        width: clamp(34px, 6.4vmin, 46px);
-        margin-bottom: -3px;
+        right: 0;
+        top: -26px;
+        width: 46px;
       }
 
-      .loading-caption {
-        font-family: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
-        font-size: clamp(11px, 2.1vmin, 14px);
-        font-weight: 900;
-        letter-spacing: 0.078em;
-        color: #0b4d1f;
-        margin: 0;
+      .ld-title {
+        margin: 2px 0 0;
+        font-size: clamp(20px, 4.4vmin, 30px);
+        letter-spacing: 0.04em;
+        color: #fff;
+        -webkit-text-stroke: 0.16em #0b3a17;
+        paint-order: stroke fill;
+        text-shadow: 0 3px 0 #0b3a17, 0 0 24px rgba(255, 210, 63, 0.35);
       }
 
-      .loading-caption::after {
+      .ld-title span {
+        color: var(--gold);
+      }
+
+      .ld-title::after {
         content: '';
-        animation: dots 1.15s steps(4, end) infinite;
+        animation: ld-dots 1.15s steps(4, end) infinite;
       }
 
-      @keyframes dots {
+      @keyframes ld-dots {
         0% { content: ''; }
         25% { content: '.'; }
         50% { content: '..'; }
         75% { content: '...'; }
       }
 
-      .loading-tip {
-        font-family: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
-        font-size: clamp(8px, 1.5vmin, 10px);
-        font-weight: 700;
-        letter-spacing: 0.042em;
-        color: rgba(11, 77, 28, 0.62);
-        margin: -6px 0 0;
+      .ld-tip {
+        margin: -4px 0 0;
+        font-size: clamp(12px, 2.2vmin, 15px);
+        letter-spacing: 0.04em;
+        color: rgba(255, 255, 255, 0.7);
       }
 
-      /* One line per language, chosen by the inline script above. */
-      .loading-tip-ar { display: none; }
-      :lang(ar) .loading-tip-en { display: none; }
-      :lang(ar) .loading-tip-ar { display: block; }
+      .ld-tip-ar { display: none; }
+      :lang(ar) .ld-tip-en { display: none; }
+      :lang(ar) .ld-tip-ar { display: block; }
 
-      /* The arcade ticker along the bottom cabinet edge. */
-      .loading-ticker {
+      /* The LED board along the bottom: amber letters on a dot matrix. */
+      .ld-ticker {
         position: absolute;
         left: 0;
         right: 0;
@@ -204,82 +347,97 @@
         overflow: hidden;
         white-space: nowrap;
         padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
-        background: #0b4d1f;
-        border-top: 4px solid #083a17;
+        background:
+          radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1.4px) 0 0 / 4px 4px,
+          linear-gradient(180deg, #05070f, #0b1022);
+        border-top: 3px solid #2a3a6a;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
       }
 
-      .loading-ticker-track {
+      .ld-ticker-track {
         display: inline-flex;
         width: max-content;
-        animation: ticker-run 18s linear infinite;
+        animation: ld-ticker 18s linear infinite;
         will-change: transform;
       }
 
-      .loading-ticker-track > span {
-        font-family: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
-        font-size: clamp(9px, 1.7vmin, 12px);
-        font-weight: 900;
-        letter-spacing: 0.066em;
-        color: #ffd94d;
+      .ld-ticker-track > span {
+        font-size: clamp(13px, 2.2vmin, 16px);
+        letter-spacing: 0.08em;
+        color: #ffc83a;
+        text-shadow: 0 0 8px rgba(255, 200, 58, 0.8);
         padding-right: 0.4em;
       }
 
-      @keyframes ticker-run {
+      @keyframes ld-ticker {
         from { transform: translateX(0); }
         to { transform: translateX(-50%); }
       }
 
-      .loading-ticker-ar { display: none; }
-      :lang(ar) .loading-ticker-en { display: none; }
-      :lang(ar) .loading-ticker-ar { display: inline; }
+      .ld-ticker-ar { display: none; }
+      :lang(ar) .ld-ticker-en { display: none; }
+      :lang(ar) .ld-ticker-ar { display: inline; }
+      :lang(ar) .ld-tip, :lang(ar) .ld-ticker-track > span { font-family: 'Segoe UI', Tahoma, system-ui, sans-serif; letter-spacing: 0; }
+
+      /* A phone on its side: smaller ball, the logo shrinks with the height. */
+      @media (max-height: 460px) {
+        .ld-hero { width: 54px; height: 74px; }
+        @keyframes ld-bounce { to { transform: translateY(14px); } }
+        .ld-stack { gap: 6px; }
+      }
 
       @media (prefers-reduced-motion: reduce) {
-        .loading-rays, .loading-logo, .loading-star, .loading-runner, .loading-fill {
+        .ld-beam, .ld-flash, .ld-logo, .ld-bounce, .ld-ball, .ld-shadow, .ld-roller, .ld-roller svg, .ld-ticker-track {
           animation: none;
         }
-        .loading-goalbar-fill { transform: none; width: 70%; }
-        .loading-runner { left: 45%; }
-        .loading-ticker-track { animation: none; }
+        .ld-fill { animation: none; width: 70%; }
+        .ld-roller { left: calc(70% - 32px); }
       }
     </style>
   </head>
   <body>
     <div id="app-loading" aria-hidden="true">
-      <div class="loading-rays"></div>
-      <div class="loading-stack">
-        <img class="loading-logo" src="./src/assets/ui/logo.png" alt="" draggable="false" />
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false"><defs><symbol id="kora-ball" viewBox="0 0 100 100"><radialGradient id="kora-ball-leather" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#eef1f6"/><stop offset="1" stop-color="#aeb9cc"/></radialGradient><clipPath id="kora-ball-clip"><circle cx="50" cy="50" r="46"/></clipPath><circle cx="50" cy="50" r="46" fill="url(#kora-ball-leather)"/><g clip-path="url(#kora-ball-clip)"><path d="M50.00,33.00L50.00,20.00M50.00,20.00L34.91,16.22M50.00,20.00L65.09,16.22M66.17,44.75L78.53,40.73M78.53,40.73L77.47,25.21M78.53,40.73L86.79,53.91M59.99,63.75L67.63,74.27M67.63,74.27L82.06,68.46M67.63,74.27L57.65,86.20M40.01,63.75L32.37,74.27M32.37,74.27L42.35,86.20M32.37,74.27L17.94,68.46M33.83,44.75L21.47,40.73M21.47,40.73L13.21,53.91M21.47,40.73L22.53,25.21" fill="none" stroke="#1b2540" stroke-opacity=".55" stroke-width="2.4" stroke-linecap="round"/><path d="M71.16,20.88L65.71,4.10L79.98,-6.26L94.24,4.10L88.79,20.88ZM84.24,61.12L98.50,50.76L112.77,61.12L107.32,77.90L89.69,77.90ZM50.00,86.00L64.27,96.36L58.82,113.14L41.18,113.14L35.73,96.36ZM15.76,61.12L10.31,77.90L-7.32,77.90L-12.77,61.12L1.50,50.76ZM28.84,20.88L11.21,20.88L5.76,4.10L20.02,-6.26L34.29,4.10Z" fill="#1b2540"/></g><path d="M50.00,33.00L66.17,44.75L59.99,63.75L40.01,63.75L33.83,44.75Z" fill="#1b2540" stroke="#1b2540" stroke-width="3" stroke-linejoin="round"/><circle cx="50" cy="50" r="46" fill="none" stroke="#1b2540" stroke-width="6"/><ellipse cx="33" cy="29" rx="12" ry="6.5" transform="rotate(-35 33 29)" fill="#fff" opacity=".8"/></symbol></defs></svg>
+      <div class="ld-crowd"></div>
+      <span class="ld-flash" style="--x:8%;--y:18%;--d:0s"></span>
+      <span class="ld-flash" style="--x:22%;--y:30%;--d:0.9s"></span>
+      <span class="ld-flash" style="--x:37%;--y:14%;--d:1.7s"></span>
+      <span class="ld-flash" style="--x:58%;--y:26%;--d:0.4s"></span>
+      <span class="ld-flash" style="--x:71%;--y:12%;--d:1.2s"></span>
+      <span class="ld-flash" style="--x:86%;--y:28%;--d:2.1s"></span>
+      <span class="ld-flash" style="--x:14%;--y:44%;--d:1.5s"></span>
+      <span class="ld-flash" style="--x:47%;--y:40%;--d:2.4s"></span>
+      <span class="ld-flash" style="--x:79%;--y:46%;--d:0.7s"></span>
+      <span class="ld-flash" style="--x:93%;--y:16%;--d:1.9s"></span>
+      <div class="ld-beam ld-beam-l"></div>
+      <div class="ld-beam ld-beam-r"></div>
+      <span class="ld-lamp ld-lamp-l"></span>
+      <span class="ld-lamp ld-lamp-r"></span>
+      <div class="ld-pitch"></div>
 
-        <div class="loading-goalbar">
-          <div class="loading-goalbar-track">
-            <div class="loading-goalbar-fill"></div>
-          </div>
-          <svg class="loading-goalbar-goal" viewBox="0 0 44 34" aria-hidden="true" focusable="false">
-            <path d="M6 33V9a4 4 0 0 1 4-4h24a4 4 0 0 1 4 4v24z" fill="#ffffff" stroke="#1b2540" stroke-width="3.5" stroke-linejoin="round" />
-            <path d="M13 11v22M20.5 9v24M28 9v24M35 11v22M9 16.5h26M9 24h26" stroke="#1b2540" stroke-width="1.7" />
+      <div class="ld-stack">
+        <img class="ld-logo" src="./src/assets/ui/logo.png" alt="" draggable="false" />
+        <div class="ld-hero">
+          <div class="ld-bounce"><svg class="ld-ball" viewBox="0 0 100 100" focusable="false"><use href="#kora-ball" /></svg></div>
+          <span class="ld-shadow"></span>
+        </div>
+        <div class="ld-lane">
+          <div class="ld-track"><div class="ld-fill"></div></div>
+          <div class="ld-roller"><svg viewBox="0 0 100 100" focusable="false"><use href="#kora-ball" /></svg></div>
+          <svg class="ld-goal" viewBox="0 0 44 34" aria-hidden="true" focusable="false">
+            <path d="M6 33V9a4 4 0 0 1 4-4h24a4 4 0 0 1 4 4v24z" fill="rgba(255,255,255,0.15)" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" />
+            <path d="M13 11v22M20.5 9v24M28 9v24M35 11v22M9 16.5h26M9 24h26" stroke="#ffffff" stroke-opacity=".55" stroke-width="1.5" />
           </svg>
-          <div class="loading-runner" aria-hidden="true">
-            <svg viewBox="0 0 100 100" focusable="false">
-              <circle cx="50" cy="50" r="44" fill="#ffffff" stroke="#1b2540" stroke-width="8" />
-              <path d="M50 26 L70.4 40.9 L62.6 64.6 L37.4 64.6 L29.6 40.9 Z" fill="#1b2540" />
-            </svg>
-          </div>
         </div>
-
-        <div class="loading-stars" aria-hidden="true">
-          <img class="loading-star" src="./src/assets/ui/arcade-star.png" alt="" draggable="false" />
-          <img class="loading-star" src="./src/assets/ui/arcade-star.png" alt="" draggable="false" />
-          <img class="loading-star" src="./src/assets/ui/arcade-star.png" alt="" draggable="false" />
-        </div>
-
-        <p class="loading-caption" dir="ltr">CRAZY KORA</p>
-        <p class="loading-tip loading-tip-en">WARMING UP THE STREET</p>
-        <p class="loading-tip loading-tip-ar">جارٍ تسخين الشارع</p>
+        <p class="ld-title" dir="ltr">KICK-OFF <span>SOON</span></p>
+        <p class="ld-tip ld-tip-en">THE FLOODLIGHTS ARE WARMING UP</p>
+        <p class="ld-tip ld-tip-ar">الأضواء الكاشفة تستعد</p>
       </div>
 
-      <div class="loading-ticker" aria-hidden="true">
-        <div class="loading-ticker-track">
-          <span class="loading-ticker-en">DRAG BACK · LET GO · ANY GOAL COUNTS · STYLE WINS · THE HOUMA AWAITS · DRAG BACK · LET GO · ANY GOAL COUNTS · STYLE WINS · THE HOUMA AWAITS · DRAG BACK · LET GO · ANY GOAL COUNTS · STYLE WINS · THE HOUMA AWAITS · DRAG BACK · LET GO · ANY GOAL COUNTS · STYLE WINS · THE HOUMA AWAITS · </span>
-          <span class="loading-ticker-ar">اسحب للخلف · أفلت · أي هدف يُحتسب · الأناقة تصنع الأبطال · الحومة بانتظارك · اسحب للخلف · أفلت · أي هدف يُحتسب · الأناقة تصنع الأبطال · الحومة بانتظارك · اسحب للخلف · أفلت · أي هدف يُحتسب · الأناقة تصنع الأبطال · الحومة بانتظارك · اسحب للخلف · أفلت · أي هدف يُحتسب · الأناقة تصنع الأبطال · الحومة بانتظارك · </span>
+      <div class="ld-ticker" aria-hidden="true">
+        <div class="ld-ticker-track">
+          <span class="ld-ticker-en">★ DRAG BACK · LET GO ★ CURL IT · LOB IT · BANK IT ★ ANY GOAL COUNTS · STYLE WINS ★ 40 STADIUMS · 27 BALLS ★ DRAG BACK · LET GO ★ CURL IT · LOB IT · BANK IT ★ ANY GOAL COUNTS · STYLE WINS ★ 40 STADIUMS · 27 BALLS ★ DRAG BACK · LET GO ★ CURL IT · LOB IT · BANK IT ★ ANY GOAL COUNTS · STYLE WINS ★ 40 STADIUMS · 27 BALLS ★ DRAG BACK · LET GO ★ CURL IT · LOB IT · BANK IT ★ ANY GOAL COUNTS · STYLE WINS ★ 40 STADIUMS · 27 BALLS </span>
+          <span class="ld-ticker-ar">★ اسحب للخلف · أفلت ★ لُفّها · ارفعها · ارتدّ بها ★ أي هدف يُحتسب · الأناقة تصنع الأبطال ★ 40 ملعباً · 27 كرة ★ اسحب للخلف · أفلت ★ لُفّها · ارفعها · ارتدّ بها ★ أي هدف يُحتسب · الأناقة تصنع الأبطال ★ 40 ملعباً · 27 كرة ★ اسحب للخلف · أفلت ★ لُفّها · ارفعها · ارتدّ بها ★ أي هدف يُحتسب · الأناقة تصنع الأبطال ★ 40 ملعباً · 27 كرة ★ اسحب للخلف · أفلت ★ لُفّها · ارفعها · ارتدّ بها ★ أي هدف يُحتسب · الأناقة تصنع الأبطال ★ 40 ملعباً · 27 كرة </span>
         </div>
       </div>
     </div>

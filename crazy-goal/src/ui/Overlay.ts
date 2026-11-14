@@ -7,6 +7,10 @@ import ballsUrl from '../assets/ui/balls.png';
 import levelsUrl from '../assets/ui/levels.png';
 import { lang, tr, type Lang } from '../core/i18n';
 import { chapterOf } from '../progression/Progression';
+import type { Boost } from '../abilities/Cards';
+import { cardOf } from '../abilities/Cards';
+import { UPGRADE_MAX, type UpgradeId } from '../progression/Upgrades';
+import { ABILITY_ICON } from './abilityIcons';
 
 export interface SkinTile {
   id: string;
@@ -47,7 +51,20 @@ export interface OverlayHandlers {
   stars(): { n: number; max: number };
   /** Everything the main menu shows besides its fixed buttons. */
   menuInfo(): MenuInfo;
+  /** What the store sells and what the player has. */
+  store(): StoreInfo;
+  /** Buys the next level of an upgrade; false when it cannot. */
+  buyUpgrade(id: UpgradeId): boolean;
+  /** Buys `count` charges of an ability; false when the coins are short. */
+  buyAbilities(id: Boost, count: number): boolean;
   resetProgress(): void;
+}
+
+/** The store screen: shot upgrades with their level and next price, and abilities to stock up on. */
+export interface StoreInfo {
+  coins: number;
+  upgrades: { id: UpgradeId; name: string; hint: string; level: number; price: number | null }[];
+  abilities: { id: Boost; owned: number; single: number; pack: number }[];
 }
 
 /** What the main menu draws. The Game fills it in; the Overlay never reads the save. */
@@ -184,6 +201,9 @@ export class Overlay {
   private readonly levels: HTMLElement;
   private readonly settings: HTMLElement;
   private readonly skins: HTMLElement;
+  private readonly storeScreen: HTMLElement;
+  private readonly storeBody: HTMLElement;
+  private readonly storeCoins: HTMLElement;
   private readonly levelBody: HTMLElement;
   private readonly levelProgress: HTMLElement;
   private readonly skinGrid: HTMLElement;
@@ -278,7 +298,12 @@ export class Overlay {
     this.ballsDot = el('span', 'menu-new-dot');
     this.ballsDot.hidden = true;
     ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'), this.ballsDot);
-    shortcuts.append(stadiums, ballsButton);
+    const storeButton = button('menu-shortcut menu-shortcut-store', '', () => this.showStore());
+    storeButton.setAttribute('aria-label', tr('STORE'));
+    const storeArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
+    storeArt.innerHTML = ICONS.store;
+    storeButton.append(storeArt, el('span', 'menu-shortcut-label', 'STORE'));
+    shortcuts.append(stadiums, ballsButton, storeButton);
 
     // A duel against a friend, where the server is reachable.
     const secondary = el('div', 'menu-secondary');
@@ -343,8 +368,15 @@ export class Overlay {
     balls.append(el('h2', 'panel-title', 'BALLS'), this.skinProgress, this.skinGrid, backButton('btn btn-ghost', () => this.showMenu()));
     this.skins.append(balls);
 
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins];
+    this.storeScreen = el('div', 'screen levels store');
+    const storeSheet = el('div', 'sheet sheet-wide store-sheet');
+    this.storeCoins = el('p', 'store-wallet');
+    this.storeBody = el('div', 'store-body');
+    storeSheet.append(el('h2', 'panel-title', 'STORE'), this.storeCoins, this.storeBody, backButton('btn btn-ghost', () => this.showMenu()));
+    this.storeScreen.append(storeSheet);
+
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -391,7 +423,7 @@ export class Overlay {
 
   /** True while the stadium list or the balls screen is up: menus, where the match's sound stops. */
   get inMenus(): boolean {
-    return this.root.classList.contains('is-open') && (!this.levels.hidden || !this.skins.hidden);
+    return this.root.classList.contains('is-open') && (!this.levels.hidden || !this.skins.hidden || !this.storeScreen.hidden);
   }
 
   showMenu(): void {
@@ -437,7 +469,7 @@ export class Overlay {
   }
 
   /** A short message with one action (the new-ball toast); it fades on its own or when tapped away. */
-  showToast(text: string, actionLabel: string, onAction: () => void): void {
+  showToast(text: string, actionLabel: string, onAction: () => void, ms = 7000): void {
     this.toast.replaceChildren();
     const msg = el('span', 'toast-text');
     msg.textContent = text;
@@ -446,10 +478,12 @@ export class Overlay {
       this.hideToast();
     });
     use.textContent = actionLabel;
+    // A note with nothing to do about it has no button.
+    use.hidden = !actionLabel;
     this.toast.append(msg, use);
     this.toast.hidden = false;
     window.clearTimeout(this.toastTimer);
-    this.toastTimer = window.setTimeout(() => this.hideToast(), 7000);
+    this.toastTimer = window.setTimeout(() => this.hideToast(), ms);
   }
 
   private hideToast(): void {
@@ -491,6 +525,89 @@ export class Overlay {
     this.resetArmed = false;
     this.resetButton.textContent = tr('PROGRESS ERASED');
     window.setTimeout(() => this.showMenu(), 600);
+  }
+
+  /** The store: shot upgrades (three levels each) and abilities to stock up on, paid in coins. */
+  private showStore(): void {
+    const info = this.handlers.store();
+    const coinImg = (): HTMLImageElement => {
+      const img = document.createElement('img');
+      img.src = coinUrl;
+      img.alt = '';
+      img.draggable = false;
+      img.className = 'store-coin';
+      return img;
+    };
+    this.storeCoins.replaceChildren(coinImg(), el('span', 'store-wallet-n', String(info.coins)));
+    this.storeCoins.setAttribute('aria-label', tr('{n} COINS', { n: info.coins }));
+
+    // A price button: the coin and the number, or MAX. Short of coins it shakes and says how many more.
+    const priceButton = (cls: string, price: number | null, label: string, buy: () => boolean): HTMLButtonElement => {
+      const b = button(`btn ${cls} store-buy`, '', () => {
+        if (price === null) return;
+        if (buy()) {
+          this.showStore();
+          return;
+        }
+        b.classList.remove('is-short');
+        void b.offsetWidth;
+        b.classList.add('is-short');
+        this.showToast(tr('NEED {n} MORE COINS', { n: price - this.handlers.store().coins }), '', () => {}, 2200);
+      });
+      if (price === null) {
+        b.append(el('span', 'btn-label', 'MAX'));
+        b.disabled = true;
+      } else {
+        if (label) b.append(el('span', 'store-buy-count', label));
+        b.append(coinImg(), el('span', 'btn-label', String(price)));
+        b.classList.toggle('is-dear', price > info.coins);
+      }
+      return b;
+    };
+
+    const row = (art: HTMLElement, title: string, sub: HTMLElement, buys: HTMLElement[]): HTMLElement => {
+      const r = el('div', 'store-row');
+      const words = el('div', 'store-words');
+      words.append(el('span', 'store-name', title), sub);
+      const actions = el('div', 'store-actions');
+      actions.append(...buys);
+      r.append(art, words, actions);
+      return r;
+    };
+
+    const upgrades = info.upgrades.map((u) => {
+      const art = el('span', 'store-art');
+      art.innerHTML = ICONS[u.id];
+      const sub = el('span', 'store-sub');
+      const pips = el('span', 'store-pips');
+      for (let i = 0; i < UPGRADE_MAX; i++) pips.append(el('span', i < u.level ? 'store-pip is-on' : 'store-pip'));
+      sub.append(pips, el('span', 'store-hint', u.hint));
+      return row(art, u.name, sub, [priceButton('btn-primary', u.price, '', () => this.handlers.buyUpgrade(u.id))]);
+    });
+
+    const abilities = info.abilities.map((a) => {
+      const art = el('span', 'store-art store-art-ability');
+      const img = document.createElement('img');
+      img.src = ABILITY_ICON[a.id];
+      img.alt = '';
+      img.draggable = false;
+      art.append(img);
+      const sub = el('span', 'store-sub');
+      sub.append(el('span', a.owned > 0 ? 'store-owned is-some' : 'store-owned', tr('OWNED {n}', { n: a.owned })));
+      return row(art, cardOf(a.id).name, sub, [
+        priceButton('btn-sun', a.single, '×1', () => this.handlers.buyAbilities(a.id, 1)),
+        priceButton('btn-sun', a.pack, '×5', () => this.handlers.buyAbilities(a.id, 5)),
+      ]);
+    });
+
+    this.storeBody.replaceChildren(
+      el('h3', 'chapter-title', 'SHOT UPGRADES'),
+      ...upgrades,
+      el('h3', 'chapter-title', 'ABILITIES'),
+      el('p', 'store-note', 'ONE FOR EACH SHOT. USED BEFORE COINS.'),
+      ...abilities,
+    );
+    this.show(this.storeScreen);
   }
 
   private showSkins(): void {

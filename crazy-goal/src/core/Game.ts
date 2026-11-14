@@ -1,5 +1,6 @@
 import type { Boost } from '../abilities/Cards';
 import { BOOST_COSTS } from '../abilities/Cards';
+import { abilityPrice, aimScale, curlScale, nextPrice, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
@@ -63,7 +64,7 @@ import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
 import { traceShot, type Trace } from '../levels/sweep';
 import { portal, isCrazyGames } from '../portal/Portal';
 import { forgetStands } from '../rendering/StadiumArt';
-import { Overlay, setUiClick, type MenuInfo } from '../ui/Overlay';
+import { Overlay, setUiClick, type MenuInfo, type StoreInfo } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
 import { GameLoop } from './GameLoop';
 import type { GameState } from './GameState';
@@ -381,6 +382,9 @@ export class Game {
       skinsSeen: () => this.markBallsSeen(),
       stars: () => ({ n: this.totalStars(), max: this.maxStars() }),
       menuInfo: () => this.menuInfo(),
+      store: () => this.storeInfo(),
+      buyUpgrade: (id) => this.buyUpgrade(id),
+      buyAbilities: (id, count) => this.buyAbilities(id, count),
       resetProgress: () => this.resetProgress(),
       levels: () => this.openLevels(),
       select: (index) => this.selectLevel(index),
@@ -824,14 +828,60 @@ export class Game {
     return air || bend !== 0 ? { air, bend } : null;
   }
 
-  /** The speed of a shot: a lofted one uses its own, gentler range. */
+  /** The speed of a shot: a lofted one uses its own, gentler range. The store's POWER makes either quicker. */
   private kickSpeed(groundSpeed: number, power: number): number {
-    return this.currentKick().air ? airSpeed(power) : groundSpeed;
+    const base = this.currentKick().air ? airSpeed(power) : groundSpeed;
+    return base * (this.upgraded() ? powerScale(this.save.data.upgrades.power) : 1);
   }
 
-  /** How a solo shot is struck; duels play with a plain ground ball. */
+  /** How a solo shot is struck; duels play with a plain ground ball. The store's CURL bends it further. */
   private currentKick(): { air: boolean; bend: number } {
-    return this.shotRule === 'free' ? { air: this.kick.type === 'air', bend: this.kick.bend } : { air: false, bend: 0 };
+    if (this.shotRule !== 'free') return { air: false, bend: 0 };
+    const curl = this.upgraded() ? curlScale(this.save.data.upgrades.curl) : 1;
+    return { air: this.kick.type === 'air', bend: this.kick.bend * curl };
+  }
+
+  /**
+   * Store upgrades count in the campaign only: a tutorial lesson shows its shot with a ghost, and that
+   * shot has to land for the player exactly as it does for the ghost.
+   */
+  private upgraded(): boolean {
+    return this.shotRule === 'free' && !this.level.def.guide && !this.duel.active;
+  }
+
+  /** Everything the store screen shows. */
+  private storeInfo(): StoreInfo {
+    const ups = this.save.data.upgrades;
+    return {
+      coins: this.save.data.coins,
+      upgrades: UPGRADES.map((u) => ({ id: u.id, name: u.name, hint: u.hint, level: ups[u.id], price: nextPrice(u.id, ups[u.id]) })),
+      abilities: (['fire', 'magnet', 'rubber'] as const).map((id) => ({ id, owned: this.save.data.freeBoosts[id] ?? 0, single: abilityPrice(id, 1), pack: abilityPrice(id, 5) })),
+    };
+  }
+
+  /** Buys the next level of a shot upgrade. False when it is maxed or the coins are short. */
+  private buyUpgrade(id: UpgradeId): boolean {
+    const price = nextPrice(id, this.save.data.upgrades[id]);
+    if (price === null || this.save.data.coins < price) return false;
+    this.save.data.coins -= price;
+    this.save.data.upgrades[id] += 1;
+    this.save.save();
+    this.audio.play('power_up', { gain: 0.8 });
+    this.overlay.refreshMenu();
+    return true;
+  }
+
+  /** Buys ability charges for later: they sit in the column as owned and are used before any coins. */
+  private buyAbilities(id: Boost, count: number): boolean {
+    const price = abilityPrice(id, count);
+    if (this.save.data.coins < price) return false;
+    this.save.data.coins -= price;
+    this.save.data.freeBoosts[id] = (this.save.data.freeBoosts[id] ?? 0) + count;
+    this.save.save();
+    this.audio.play(`boost_${id}`, { gain: 0.9 });
+    this.overlay.refreshMenu();
+    this.abilities.refresh(BOOST_COSTS);
+    return true;
   }
 
   /** The solo ability shop is for free play only, while the ball waits to be struck. */
@@ -1203,7 +1253,7 @@ export class Game {
     if (stepped) this.events.emit('AIM_STEP', { step: this.shot.step });
     this.sounds.pull(this.shot.power, realDt);
     if (this.shot.armed) {
-      this.preview.compute(this.level, this.ball.body, this.shot.dirX, this.shot.dirY, this.kickSpeed(this.shot.speed, this.shot.power), this.shot.power, this.armedBoost === 'magnet' ? this.magnetField : null, this.currentKick());
+      this.preview.compute(this.level, this.ball.body, this.shot.dirX, this.shot.dirY, this.kickSpeed(this.shot.speed, this.shot.power), this.shot.power, this.armedBoost === 'magnet' ? this.magnetField : null, this.currentKick(), false, this.upgraded() ? aimScale(this.save.data.upgrades.aim) : 1);
     } else {
       this.preview.clear();
     }

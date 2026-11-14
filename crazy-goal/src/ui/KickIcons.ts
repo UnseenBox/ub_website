@@ -3,6 +3,8 @@
  * the lessons are shown, not written. Colours are the game's own (ink, sun, pitch green).
  */
 
+import { football } from './Football';
+
 const INK = '#1b2540';
 const SUN = '#ffc83a';
 const PITCH = '#2f9a46';
@@ -11,10 +13,8 @@ const WHITE = '#ffffff';
 
 const reduced = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A little football, centred on x, y. */
-const ball = (x: number, y: number, r: number): string =>
-  `<circle cx="${x}" cy="${y}" r="${r}" fill="${WHITE}" stroke="${INK}" stroke-width="${(r * 0.26).toFixed(1)}"/>` +
-  `<path d="M${x} ${y - r * 0.5}l${r * 0.48} ${r * 0.36}-${r * 0.18} ${r * 0.56}h-${r * 0.6}l-${r * 0.18}-${r * 0.56}z" fill="${INK}"/>`;
+/** A little football, centred on x, y: the real ball, panels and all. */
+const ball = (x: number, y: number, r: number): string => football(x, y, r * 1.12);
 
 const svg = (box: string, body: string, cls = ''): string => `<svg viewBox="${box}" class="${cls}" aria-hidden="true" focusable="false">${body}</svg>`;
 
@@ -89,7 +89,7 @@ export function bendGlyph(bend: number, air = false): string {
   const arrow = `<path d="${head}" fill="none" stroke="${SUN}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
   const runner = reduced()
     ? ball(sx, sy, 5)
-    : `<g><circle r="5" fill="${WHITE}" stroke="${INK}" stroke-width="1.6">${air ? '<animate attributeName="r" values="4;8;4" dur="1.5s" repeatCount="indefinite"/>' : ''}</circle><circle r="1.8" fill="${INK}"/>` +
+    : `<g><g>${football(0, 0, 6)}${air ? '<animateTransform attributeName="transform" type="scale" values="0.75;1.45;0.75" dur="1.5s" repeatCount="indefinite"/>' : ''}</g>` +
       `<animateMotion dur="1.5s" repeatCount="indefinite" path="${d}"/></g>`;
   return line + arrow + runner;
 }

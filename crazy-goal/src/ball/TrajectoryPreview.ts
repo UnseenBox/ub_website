@@ -45,7 +45,7 @@ export class TrajectoryPreview {
   }
 
   /** `field`, when given, is applied to the ghost before every step (the magnet's pull). */
-  compute(level: Level, ball: RigidBody, dirX: number, dirY: number, speed: number, power: number, field: ((b: RigidBody) => void) | null = null, kick: { air: boolean; bend: number } = { air: false, bend: 0 }, full = false): void {
+  compute(level: Level, ball: RigidBody, dirX: number, dirY: number, speed: number, power: number, field: ((b: RigidBody) => void) | null = null, kick: { air: boolean; bend: number } = { air: false, bend: 0 }, full = false, reach = 1): void {
     const g = this.ghost;
     const world = level.world;
     copyMotion(ball, g);
@@ -62,7 +62,8 @@ export class TrajectoryPreview {
 
     // A lofted shot is shown all the way to where it comes down; a ground shot only to its first touch.
     // `full` (the lesson's dotted path) follows the whole shot, bounces included, until it is in the goal or has stopped.
-    const seconds = full ? 2.1 : kick.air ? 1.25 : 0.3 + 0.24 * power;
+    // `reach` is the store's AIM GUIDE upgrade: the line runs on further.
+    const seconds = full ? 2.1 : (kick.air ? 1.25 : 0.3 + 0.24 * power) * reach;
     const steps = Math.round(seconds / FIXED_DT);
     // After the first touch, show only a stub of the rebound.
     let afterHit = Math.round(0.11 / FIXED_DT);
