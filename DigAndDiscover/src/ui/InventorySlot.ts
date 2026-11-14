@@ -124,14 +124,6 @@ export class InventorySlot extends Phaser.GameObjects.Container {
     // A Deep Scanner colours the "?" with the rock's rarity.
     const hint = state.showsRarity ? `#${rock.rarity.color.toString(16).padStart(6, '0')}` : PALETTE.goldText;
     this.badge.setColor(hint).setVisible(!rock.cut && !incoming && !onBench).setPosition(s * 0.3, -s * 0.3);
-    if (onBench) {
-      this.tag.setText('ON BENCH').setColor(PALETTE.goldText).setPosition(0, s * 0.34).setVisible(true);
-    } else if (rock.cut) {
-      this.tag.setText(rock.rarity.label.toUpperCase()).setColor('#ffffff').setPosition(0, s * 0.34).setVisible(true);
-      this.tag.setStroke(rock.rarity.css, Math.max(3, Math.round(s * 0.05)));
-    } else {
-      this.tag.setVisible(false);
-    }
-    if (!onBench && !rock.cut) this.tag.setStroke(PALETTE.ink, 3);
+    this.tag.setVisible(false); // no words on the slots: the frame colour says the rarity
   }
 }

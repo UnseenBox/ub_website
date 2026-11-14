@@ -14,7 +14,6 @@ import { ToolChip } from '../ui/ToolChip';
 import { GoalPill } from '../ui/GoalPill';
 import { CurioCard } from '../ui/CurioCard';
 import type { CurioDef } from '../data/curios';
-import { depositName } from '../data/deposits';
 import { portal } from '../ads/Portal';
 import { computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { MoneyCounter, formatMoney } from '../ui/MoneyCounter';
@@ -23,9 +22,7 @@ import { Toast } from '../ui/Toast';
 
 const COIN_POOL = 14;
 const FLOAT_POOL = 4;
-const LAYER_BANNER_POOL = 2;
 const CLOSING_BANNER_DURATION = 1100;
-const LAYER_BANNER_DURATION = 1800;
 
 /**
  * Always-on overlay: money, stats, mute, stamina, bag and the main action
@@ -35,17 +32,13 @@ export class HudScene extends Phaser.Scene {
   private L!: Layout;
   private tray!: Phaser.GameObjects.Graphics;
   private stamina!: StaminaBar;
-  private bagText!: Phaser.GameObjects.Text;
   private slots: InventorySlot[] = [];
   private action!: Button;
   private money!: MoneyCounter;
-  private infoBg!: Phaser.GameObjects.Graphics;
-  private infoText!: Phaser.GameObjects.Text;
   private mute!: Phaser.GameObjects.Container;
   private storeBtn!: Phaser.GameObjects.Container;
   private storeIcon!: Phaser.GameObjects.Graphics;
   private storeDeal = false;
-  private lastDealToast = -1e9;
   private iconR = 20;
   private goalPill!: GoalPill;
   private curioCard!: CurioCard;
@@ -68,11 +61,8 @@ export class HudScene extends Phaser.Scene {
   private readonly incoming = new Set<string>();
   private benchRockId: string | null = null;
   private switching = false;
-  private wasReady = false;
   private closingBanner: Phaser.GameObjects.Container | null = null;
   private closingBannerTween: Phaser.Tweens.Tween | null = null;
-  private layerBanners: Phaser.GameObjects.Container[] = [];
-  private layerBannerIndex = 0;
 
   constructor() {
     super('Hud');
@@ -83,11 +73,9 @@ export class HudScene extends Phaser.Scene {
     this.coins = [];
     this.floats = [];
     this.incoming.clear();
-    this.layerBanners = [];
 
     this.tray = this.add.graphics();
     this.stamina = new StaminaBar(this);
-    this.bagText = this.add.text(0, 0, '', outlinedStyle(16)).setOrigin(1, 0.5);
     for (let i = 0; i < GAME_CONFIG.inventory.slots; i++) {
       this.slots.push(new InventorySlot(this, () => this.onSlotPressed(i)));
     }
@@ -96,8 +84,6 @@ export class HudScene extends Phaser.Scene {
       onClick: () => this.onAction(),
     });
     this.money = new MoneyCounter(this, state.economy.money);
-    this.infoBg = this.add.graphics();
-    this.infoText = this.add.text(0, 0, '', textStyle(16, '#fff6e6')).setOrigin(1, 0.5);
     this.buildMuteButton();
     this.buildStoreButton();
     this.buildCollectionButton();
@@ -110,7 +96,7 @@ export class HudScene extends Phaser.Scene {
     this.toolChip = new ToolChip(this);
     this.goalPill = new GoalPill(this, () => this.openGoals());
     this.refillBtn = new Button(this, {
-      width: 250, height: 44, label: 'REFILL STAMINA  (WATCH AD)', fontSize: 16, colors: BUTTON_COLORS.blue,
+      width: 120, height: 48, label: '\u26A1  \u25B6', fontSize: 22, colors: BUTTON_COLORS.blue,
       onClick: () => this.watchRefill(),
     });
     this.refillBtn.setVisible(false).setDepth(30);
@@ -123,7 +109,6 @@ export class HudScene extends Phaser.Scene {
     subscribe(this, EVT.inventoryChanged, () => this.refresh());
     subscribe(this, EVT.modeChanged, () => this.refresh());
     subscribe(this, EVT.busyChanged, () => this.refresh());
-    subscribe(this, EVT.statsChanged, () => this.refreshInfo());
     subscribe(this, EVT.rockCollected, (rock: Rock, x: number, y: number, scale: number) => this.flyRockToBag(rock, x, y, scale));
     subscribe(this, EVT.placedChanged, (id: string | null) => {
       this.benchRockId = id;
@@ -154,19 +139,16 @@ export class HudScene extends Phaser.Scene {
       this.goalPill.refresh();
       this.time.delayedCall(1000, () => {
         sfx.newDay();
-        this.showCenterBanner(`DEPOSIT ${deposit}`, depositName(deposit));
+        this.showCenterBanner(`\u{1F680} ${deposit}`);
       });
     });
     subscribe(this, EVT.levelUp, (level: number, bonus: number) => this.onLevelUp(level, bonus));
     subscribe(this, EVT.goalDone, (goal: { cash: number; xp: number }) => {
-      this.toast.show(`Goal complete!  +${formatMoney(goal.cash)}  +${goal.xp} XP`, 2400);
+      this.toast.show(`\u{1F3AF}  +${formatMoney(goal.cash)}`, 1800);
       this.goalPill.bump();
       sfx.coin();
     });
-    subscribe(this, EVT.toolChanged, () => {
-      this.toolChip.refresh();
-      this.toast.show(`${state.tool.name} equipped!`, 2200);
-    });
+    subscribe(this, EVT.toolChanged, () => this.toolChip.refresh());
     this.input.once('pointerdown', () => (this.userActed = true));
     this.input.keyboard?.once('keydown', () => (this.userActed = true));
 
@@ -190,7 +172,6 @@ export class HudScene extends Phaser.Scene {
 
     this.onResize();
     this.refresh();
-    this.refreshInfo();
     this.storeDeal = state.storeHasDeal;
     this.drawStoreIcon(this.iconR);
   }
@@ -252,11 +233,10 @@ export class HudScene extends Phaser.Scene {
 
     this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h);
     this.toolChip.layout(L.tool.x, L.tool.y, L.tool.w, L.tool.h);
-    const pillW = L.compact ? Math.min(L.w * 0.58, 250) : 300;
+    const pillW = L.compact ? Math.min(L.w * 0.5, 220) : 300;
     const goalH = L.compact ? 44 : 50;
     this.goalPill.layout(14 + pillW / 2, L.topH + 8 + goalH / 2, pillW, goalH);
     this.refillBtn.setPosition(L.w / 2, L.tray.y - 30);
-    this.bagText.setPosition(L.bag.x, L.bag.y).setFontSize(Math.round(L.stamina.h * 0.78));
     this.slots.forEach((slot, i) => {
       const c = slotCenter(L, i);
       slot.setPosition(c.x, c.y);
@@ -287,10 +267,8 @@ export class HudScene extends Phaser.Scene {
     (this.mute.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawMuteIcon(muteR);
 
-    this.infoText.setFontSize(Math.round(pillH * 0.4));
     this.toast.place(L.w / 2, L.topH + 108, L.compact ? 16 : 20);
     this.depthGauge.layout(L.depth.x, L.depth.y, L.depth.w, L.depth.h);
-    this.refreshInfo();
   }
 
   // ---------- state -> UI ----------
@@ -298,38 +276,32 @@ export class HudScene extends Phaser.Scene {
   private refresh(): void {
     this.refreshSlots();
     const inv = state.inventory;
-    this.bagText.setText(`Bag ${inv.count}/${inv.capacity}`);
-    this.bagText.setColor(inv.isFull ? PALETTE.goldText : '#ffffff');
     this.toolChip.refresh();
 
     if (state.mode === 'dig') {
       const ready = state.workshopReady && state.canWork;
       if (!state.canWork) {
-        this.action.setLabel('Day over').setColors(BUTTON_COLORS.blue).setEnabled(false).setPulse(false);
+        this.action.setLabel('\u{1F319}').setColors(BUTTON_COLORS.blue).setEnabled(false).setPulse(false);
       } else if (ready) {
-        this.action.setLabel('Workshop  >').setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
-        if (!this.wasReady) this.toast.show(inv.isFull ? 'Bag full! Time to cut some rocks!' : 'Ready! Take your rocks to the workshop!');
+        this.action.setLabel(`\u2699\uFE0F ${inv.uncutCount}  >`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
       } else if (state.workshopAvailable) {
         // Any rock can be cut right away; the button only starts pulsing once a trip is worth it.
-        this.action.setLabel(`Workshop  (${inv.uncutCount})`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
+        this.action.setLabel(`\u2699\uFE0F ${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
       } else {
         const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
-        this.action.setLabel(`Find rocks ${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
+        this.action.setLabel(`\u26CF\uFE0F ${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
       }
-      this.wasReady = ready;
     } else if (!state.canWork) {
       // Closing time: no way back to the dig site. The bag has to be emptied first.
       const n = state.rocksLeft;
       this.action
-        .setLabel(n > 0 ? `${n} rock${n === 1 ? '' : 's'} left` : 'Day over')
+        .setLabel(n > 0 ? `\u2702\uFE0F ${n}` : '\u{1F319}')
         .setColors(BUTTON_COLORS.blue)
         .setEnabled(false)
         .setPulse(false);
-      this.wasReady = false;
     } else {
       const nothingLeft = inv.uncutCount === 0 && !state.busy;
-      this.action.setLabel('<  Back to Dig').setColors(BUTTON_COLORS.blue).setEnabled(!state.busy).setPulse(nothingLeft);
-      this.wasReady = false;
+      this.action.setLabel('<  \u26CF\uFE0F').setColors(BUTTON_COLORS.blue).setEnabled(!state.busy).setPulse(nothingLeft);
     }
   }
 
@@ -343,27 +315,6 @@ export class HudScene extends Phaser.Scene {
         onBench: !!rock && rock.id === this.benchRockId && state.mode === 'workshop',
       });
     });
-  }
-
-  private refreshInfo(): void {
-    if (!this.L) return;
-    const { found, best } = state.stats;
-    const full = `Found ${found}   Best: ${best ? best.mineral.name : '-'}`;
-    const short = best ? `Best: ${best.mineral.name}` : `Found ${found}`;
-    const clockPillRight = this.clockPill.x + this.clockPill.pillWidth / 2;
-    const edge = this.L.compact ? this.mute : this.collectBtn;
-    const maxW = edge.x - edge.width / 2 - 24 - (clockPillRight + 28);
-    this.infoText.setText(full);
-    if (this.infoText.width > maxW) this.infoText.setText(short);
-    this.infoText.setVisible(this.infoText.width <= maxW);
-    const h = Math.round(this.L.topH * 0.5);
-    const right = edge.x - edge.width / 2 - 10;
-    this.infoText.setPosition(right - 14, this.L.topH / 2);
-    this.infoBg.clear();
-    if (this.infoText.visible) {
-      const w = this.infoText.width + 28;
-      this.infoBg.fillStyle(PALETTE.tray, 0.7).fillRoundedRect(right - w, this.L.topH / 2 - h / 2, w, h, h / 2);
-    }
   }
 
   // ---------- actions ----------
@@ -413,15 +364,13 @@ export class HudScene extends Phaser.Scene {
     if (this.closingBanner) return;
     const banner = this.add.container(this.scale.width / 2, this.scale.height / 2 - 60);
     const bg = this.add.graphics();
-    const title = this.add.text(0, -18, 'Time\'s up!', outlinedStyle(36, '#fff6e6')).setOrigin(0.5);
-    const subText = state.rocksLeft > 0 ? 'Cut your last rocks first' : 'The working day is over';
-    const sub = this.add.text(0, 18, subText, outlinedStyle(18, '#ffd34d')).setOrigin(0.5);
-    const w = Math.max(title.width, sub.width) + 48;
-    const h = 72;
+    const title = this.add.text(0, 0, '\u23F0', outlinedStyle(54, '#fff6e6')).setOrigin(0.5);
+    const w = title.width + 64;
+    const h = 88;
     bg.fillStyle(0x000000, 0.5).fillRoundedRect(-w / 2, -h / 2, w, h, 16);
     bg.fillStyle(PALETTE.tray, 0.95).fillRoundedRect(-w / 2, -h / 2, w, h, 16);
     bg.lineStyle(2, PALETTE.gold, 0.8).strokeRoundedRect(-w / 2, -h / 2, w, h, 16);
-    banner.add([bg, title, sub]);
+    banner.add([bg, title]);
     banner.setAlpha(0).setScale(0.8).setDepth(50);
     this.closingBanner = banner;
 
@@ -461,63 +410,17 @@ export class HudScene extends Phaser.Scene {
     this.scene.launch('EndOfDay', summary);
   }
 
-  private onDayStarted(day: number): void {
+  private onDayStarted(_day: number): void {
     this.hideClosingBanner();
     if (state.mode === 'workshop') {
       this.switchMode('dig');
     }
     this.refresh();
-    this.toast.show(`Day ${day} begins - 7:00 AM`);
     sfx.newDay();
   }
 
-  private onLayerEntered(layerIndex: number): void {
-    const layer = state.layers[layerIndex];
-    if (!layer) return;
-    this.showLayerBanner(layer);
+  private onLayerEntered(_layerIndex: number): void {
     sfx.layerEnter();
-  }
-
-  private showLayerBanner(layer: { name: string; look: { gauge: number } }): void {
-    const banner = this.layerBanners[this.layerBannerIndex++ % LAYER_BANNER_POOL];
-    if (banner) {
-      this.tweens.killTweensOf(banner);
-      banner.destroy();
-    }
-    const newBanner = this.add.container(this.scale.width / 2, this.L.topH + 72);
-    const bg = this.add.graphics();
-    const dot = this.add.graphics();
-    const text = this.add.text(14, 0, `Entering: ${layer.name}`, outlinedStyle(16, '#fff6e6')).setOrigin(0, 0.5);
-    const w = text.width + 40;
-    const h = 28;
-    text.setX(-w / 2 + 24); // the dot and the text both sit inside the pill, whatever the name's length
-    bg.fillStyle(0x000000, 0.3).fillRoundedRect(-w / 2, -h / 2 + 3, w, h, h / 2);
-    bg.fillStyle(PALETTE.tray, 0.9).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-    bg.lineStyle(2, layer.look.gauge, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-    dot.fillStyle(layer.look.gauge, 1).fillCircle(-w / 2 + 10, 0, 6);
-    newBanner.add([bg, dot, text]);
-    newBanner.setAlpha(0).setY(newBanner.y - 16).setDepth(40);
-    this.layerBanners[this.layerBannerIndex - 1] = newBanner;
-
-    this.tweens.add({
-      targets: newBanner,
-      alpha: 1,
-      y: newBanner.y + 16,
-      duration: 240,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        this.time.delayedCall(LAYER_BANNER_DURATION, () => {
-          this.tweens.add({
-            targets: newBanner,
-            alpha: 0,
-            y: newBanner.y - 16,
-            duration: 220,
-            ease: 'Quad.easeIn',
-            onComplete: () => newBanner.destroy(),
-          });
-        });
-      },
-    });
   }
 
   // ---------- effects ----------
@@ -694,7 +597,7 @@ export class HudScene extends Phaser.Scene {
     if (this.scene.isActive('EndOfDay')) return;
     // Declined a moment ago? Do not nag on every swing at bedrock.
     if (this.time.now - this.lastRelocateCard < 20000) {
-      this.toast.show('Solid bedrock! Tap again in a moment to move on.', 2000);
+      sfx.denied();
       return;
     }
     this.lastRelocateCard = this.time.now;
@@ -713,7 +616,7 @@ export class HudScene extends Phaser.Scene {
     this.scene.launch('Goals');
   }
 
-  /** Shows or hides the red badge on the store icon; nudges the player the first time. */
+  /** Shows or hides the red badge on the store icon. */
   private updateStoreDeal(): void {
     const deal = state.storeHasDeal;
     if (deal === this.storeDeal) return;
@@ -721,10 +624,6 @@ export class HudScene extends Phaser.Scene {
     this.drawStoreIcon(this.iconR);
     if (!deal) return;
     this.tweens.add({ targets: this.storeBtn, scale: { from: 1.25, to: 1 }, duration: 420, ease: 'Back.easeOut' });
-    if (this.time.now - this.lastDealToast > 90000 && !this.storeOpen && !this.banner?.active) {
-      this.lastDealToast = this.time.now;
-      this.toast.show('New gear is affordable - check the store!', 2400);
-    }
   }
 
   /** "Out of stamina? Watch an ad" - appears only when the tank is nearly empty. */
@@ -737,7 +636,6 @@ export class HudScene extends Phaser.Scene {
   private watchRefill(): void {
     portal.rewarded(() => {
       state.stamina.refill();
-      this.toast.show('Stamina refilled!', 1600);
       sfx.coin();
     });
   }
@@ -746,22 +644,21 @@ export class HudScene extends Phaser.Scene {
     sfx.newDay();
     this.goalPill.refresh();
     this.goalPill.bump();
-    const extra = state.storeHasDeal ? '  -  new gear in the store!' : '';
-    this.showCenterBanner(`LEVEL ${level}!`, `Bonus ${formatMoney(bonus)}${extra}`);
+    this.showCenterBanner(`\u2B50 ${level}`, `+${formatMoney(bonus)}`);
   }
 
-  private showCenterBanner(titleText: string, subText: string): void {
+  private showCenterBanner(titleText: string, subText = ''): void {
     this.banner?.destroy();
     const banner = this.add.container(this.scale.width / 2, this.scale.height / 2 - 70);
     const bg = this.add.graphics();
-    const title = this.add.text(0, -18, titleText, outlinedStyle(40, '#ffd34d')).setOrigin(0.5);
-    const sub = this.add.text(0, 24, subText, outlinedStyle(18, '#fff6e6')).setOrigin(0.5);
-    const w = Math.max(title.width, sub.width) + 56;
-    const h = 92;
+    const title = this.add.text(0, subText ? -18 : 0, titleText, outlinedStyle(44, '#ffd34d')).setOrigin(0.5);
+    const sub = subText ? this.add.text(0, 26, subText, outlinedStyle(22, '#8dff9a')).setOrigin(0.5) : null;
+    const w = Math.max(title.width, sub?.width ?? 0) + 64;
+    const h = subText ? 96 : 76;
     bg.fillStyle(0x000000, 0.5).fillRoundedRect(-w / 2, -h / 2 + 4, w, h, 18);
     bg.fillStyle(PALETTE.tray, 0.95).fillRoundedRect(-w / 2, -h / 2, w, h, 18);
     bg.lineStyle(3, PALETTE.gold, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, 18);
-    banner.add([bg, title, sub]).setAlpha(0).setScale(0.7).setDepth(60);
+    banner.add(sub ? [bg, title, sub] : [bg, title]).setAlpha(0).setScale(0.7).setDepth(60);
     this.banner = banner;
     this.tweens.add({
       targets: banner, alpha: 1, scale: 1, duration: 300, ease: 'Back.easeOut',

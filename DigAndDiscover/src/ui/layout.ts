@@ -54,13 +54,13 @@ export function computeLayout(w: number, h: number): Layout {
     const trayY = staminaY - 12;
     const toolX = x0;
     const toolY = staminaY + staminaH / 2;
-    const toolW = 96;
+    const toolW = 52;
     const depthW = compact ? 14 : 20;
     return {
       w, h, compact, topH,
       play: { x: 0, y: topH, w, h: trayY - topH },
       tray: { x: 6, y: trayY, w: w - 12, h: h - trayY + 30 },
-      stamina: { x: x0 + toolW + 22, y: staminaY, w: rowW - toolW - 100, h: staminaH },
+      stamina: { x: x0 + toolW + 14, y: staminaY, w: rowW - toolW - 14, h: staminaH },
       bag: { x: x0 + rowW, y: staminaY + staminaH / 2 },
       tool: { x: toolX, y: toolY, w: toolW, h: toolH },
       depth: { x: w - depthW, y: topH, w: depthW, h: trayY - topH },
@@ -81,13 +81,13 @@ export function computeLayout(w: number, h: number): Layout {
   const trayY = staminaY - 12;
   const toolX = x0;
   const toolY = staminaY + staminaH / 2;
-  const toolW = 112;
+  const toolW = 58;
   const depthW = compact ? 14 : 20;
   return {
     w, h, compact, topH,
     play: { x: 0, y: topH, w, h: trayY - topH },
     tray: { x: x0 - 16, y: trayY, w: total + 32, h: h - trayY + 30 },
-    stamina: { x: x0 + toolW + 22, y: staminaY, w: rowW - toolW - 106, h: staminaH },
+    stamina: { x: x0 + toolW + 14, y: staminaY, w: rowW - toolW - 14, h: staminaH },
     bag: { x: x0 + rowW, y: staminaY + staminaH / 2 },
     tool: { x: toolX, y: toolY, w: toolW, h: toolH },
     depth: { x: w - depthW, y: topH, w: depthW, h: trayY - topH },

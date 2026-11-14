@@ -50,6 +50,19 @@ const TEMPLATES: readonly Template[] = [
   },
 ];
 
+/** One emoji per goal kind: goals are read at a glance, not read. */
+export function goalIcon(metric: GoalMetric): string {
+  switch (metric) {
+    case 'find': return '\u26CF\uFE0F';
+    case 'cut': return '\u2702\uFE0F';
+    case 'earn': return '\u{1F4B0}';
+    case 'depth': return '\u{1F4CF}';
+    case 'rare': return '\u{1F48E}';
+    case 'buy': return '\u{1F6D2}';
+    case 'curio': return '\u2753';
+  }
+}
+
 export function goalText(g: { metric: GoalMetric; target: number }): string {
   const n = g.target;
   switch (g.metric) {

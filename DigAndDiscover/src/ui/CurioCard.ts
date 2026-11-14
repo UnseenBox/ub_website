@@ -1,13 +1,12 @@
 import Phaser from 'phaser';
 import { PALETTE, outlinedStyle, textStyle } from '../config/Theme';
-import { CURIO_CATEGORIES, CURIO_TIER_LABELS, type CurioDef } from '../data/curios';
+import { CURIO_CATEGORIES, type CurioDef } from '../data/curios';
 import { RARITIES } from '../data/rarities';
 import { curioKey } from '../art/CurioArt';
 import { formatMoney } from './MoneyCounter';
 
-const CARD_H = 138;
+const CARD_H = 112;
 const INK = '#3b2616';
-const SOFT = '#7a5a3a';
 
 /**
  * The "what did I just dig up?!" card. It slides in over the top of the play area,
@@ -37,7 +36,6 @@ export class CurioCard extends Phaser.GameObjects.Container {
 
     const w = Math.min(390, maxWidth);
     const cat = CURIO_CATEGORIES[curio.category];
-    const tierColor = RARITIES[Math.min(curio.tier, 4)].color;
     const inner = this.scene.add.container(0, 0);
     this.inner = inner;
     this.add(inner);
@@ -49,22 +47,10 @@ export class CurioCard extends Phaser.GameObjects.Container {
     g.lineStyle(2, 0x3b2616, 0.5).strokeRoundedRect(-w / 2 - 2, -2, w + 4, CARD_H + 4, 22);
     inner.add(g);
 
-    // Category + tier tags sit on the top edge.
-    const tag = this.scene.add.text(0, 0, cat.label, outlinedStyle(14, '#ffffff')).setOrigin(0, 0.5);
-    tag.setStroke(cat.css, 4);
-    const tagBg = this.scene.add.graphics();
-    const tw = tag.width + 22;
-    tagBg.fillStyle(parseInt(cat.css.slice(1), 16)).fillRoundedRect(-w / 2 + 16, -13, tw, 26, 13);
-    tagBg.lineStyle(2, 0x3b2616, 0.7).strokeRoundedRect(-w / 2 + 16, -13, tw, 26, 13);
-    tag.setPosition(-w / 2 + 27, 0);
-    const tierTxt = this.scene.add.text(0, 0, CURIO_TIER_LABELS[curio.tier].toUpperCase(), outlinedStyle(13, '#ffffff')).setOrigin(1, 0.5);
-    tierTxt.setStroke(RARITIES[Math.min(curio.tier, 4)].css, 4);
-    const tierBg = this.scene.add.graphics();
-    const tbw = tierTxt.width + 22;
-    tierBg.fillStyle(tierColor).fillRoundedRect(w / 2 - 16 - tbw, -13, tbw, 26, 13);
-    tierBg.lineStyle(2, 0x3b2616, 0.7).strokeRoundedRect(w / 2 - 16 - tbw, -13, tbw, 26, 13);
-    tierTxt.setPosition(w / 2 - 27, 0);
-    inner.add([tagBg, tag, tierBg, tierTxt]);
+    // Rarity as stars on the frame - no words.
+    const stars = this.scene.add.text(w / 2 - 18, 22, '\u2605'.repeat(curio.tier + 1), outlinedStyle(18, '#ffffff'));
+    stars.setOrigin(1, 0.5).setStroke(RARITIES[Math.min(curio.tier, 4)].css, 4);
+    inner.add(stars);
 
     // Sticker.
     const icon = this.scene.add.image(-w / 2 + 62, CARD_H / 2 + 4, curioKey(curio.id));
@@ -73,12 +59,11 @@ export class CurioCard extends Phaser.GameObjects.Container {
 
     const textX = -w / 2 + 122;
     const textW = w - 122 - 18;
-    const name = this.scene.add.text(textX, 28, curio.name, { ...textStyle(22, INK), wordWrap: { width: textW } }).setOrigin(0, 0);
-    const line = this.scene.add.text(textX, 28 + name.height + 2, curio.line, { ...textStyle(14, SOFT), wordWrap: { width: textW }, lineSpacing: 1 }).setOrigin(0, 0);
+    const name = this.scene.add.text(textX, 30, curio.name, { ...textStyle(22, INK), wordWrap: { width: textW } }).setOrigin(0, 0);
     const pay = this.scene.add.text(textX, CARD_H - 30, `+${formatMoney(value)}`, outlinedStyle(22, PALETTE.money)).setOrigin(0, 0.5);
-    inner.add([name, line, pay]);
+    inner.add([name, pay]);
     if (first) {
-      const nb = this.scene.add.text(w / 2 - 20, CARD_H - 30, 'NEW!  x2', outlinedStyle(18, '#8dff9a')).setOrigin(1, 0.5);
+      const nb = this.scene.add.text(w / 2 - 20, CARD_H - 30, '\u2728 x2', outlinedStyle(18, '#8dff9a')).setOrigin(1, 0.5);
       inner.add(nb);
       this.scene.tweens.add({ targets: nb, scale: { from: 1, to: 1.18 }, duration: 380, yoyo: true, repeat: -1 });
     }

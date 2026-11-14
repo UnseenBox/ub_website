@@ -68,7 +68,7 @@ export class ClockPill extends Phaser.GameObjects.Container {
     if (label !== this.lastLabel || day !== this.lastDay) {
       this.lastLabel = label;
       this.lastDay = day;
-      this.dayText.setText(`DAY ${day}`);
+      this.dayText.setText(`#${day}`);
       this.timeText.setText(label);
       this.relayout();
     }

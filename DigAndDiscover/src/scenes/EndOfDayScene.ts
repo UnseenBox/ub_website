@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
-import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
+import { BUTTON_COLORS, PALETTE, outlinedStyle } from '../config/Theme';
 import { state, type DaySummary } from '../core/GameState';
-import { pickDayMessage } from '../data/dayMessages';
 import { paintFamilyPhoto } from '../art/FamilyPhoto';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
@@ -14,12 +13,11 @@ const CARD_W = 460;
 const PAD = 26;
 const PHOTO_KEY = 'family-photo';
 const INK = '#3b2616';
-const SOFT_INK = '#7a5a3a';
 
 type FadeItem = Phaser.GameObjects.Text | Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
 
 interface StatRow {
-  label: string;
+  icon: string;
   value: number;
   format: (v: number) => string;
   color: string;
@@ -78,62 +76,48 @@ export class EndOfDayScene extends Phaser.Scene {
     this.card.add([panel, content]);
     let y = 0;
 
-    // Ribbon title.
-    const title = this.add.text(CARD_W / 2, 0, `DAY ${s.day} COMPLETE`, outlinedStyle(34)).setOrigin(0.5);
-    const ribbonW = title.width + 70;
+    // Ribbon: a sun and the day number. No words.
+    const title = this.add.text(CARD_W / 2, 0, `\u2600\uFE0F ${s.day}`, outlinedStyle(40)).setOrigin(0.5);
+    const ribbonW = title.width + 80;
     const ribbon = this.add.graphics();
-    ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - ribbonW / 2, 8, ribbonW, 52, 14);
-    ribbon.fillStyle(0xff8a3d).fillRoundedRect(CARD_W / 2 - ribbonW / 2, 2, ribbonW, 52, 14);
+    ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - ribbonW / 2, 8, ribbonW, 56, 14);
+    ribbon.fillStyle(0xff8a3d).fillRoundedRect(CARD_W / 2 - ribbonW / 2, 2, ribbonW, 56, 14);
     ribbon.fillStyle(0xffffff, 0.25).fillRoundedRect(CARD_W / 2 - ribbonW / 2 + 8, 6, ribbonW - 16, 16, 8);
-    ribbon.lineStyle(3, 0x3b2616, 0.9).strokeRoundedRect(CARD_W / 2 - ribbonW / 2, 2, ribbonW, 52, 14);
-    title.setY(28);
+    ribbon.lineStyle(3, 0x3b2616, 0.9).strokeRoundedRect(CARD_W / 2 - ribbonW / 2, 2, ribbonW, 56, 14);
+    title.setY(30);
     content.add([ribbon, title]);
-    y = 78;
+    y = 84;
 
-    const hours = Number.isInteger(s.hoursWorked) ? `${s.hoursWorked}` : s.hoursWorked.toFixed(1);
-    content.add(this.add.text(CARD_W / 2, y, `${s.startLabel} - ${s.endLabel}   |   ${hours} hours worked`, textStyle(16, SOFT_INK)).setOrigin(0.5, 0));
-    y += 38;
-
-    // Family photo and a warm line.
+    // The family photo: the one warm touch, with nothing written on it.
     if (!this.textures.exists(PHOTO_KEY)) makeCanvasTexture(this.textures, PHOTO_KEY, 400, 300, (ctx, tw, th) => paintFamilyPhoto(ctx, tw, th));
-    const photo = this.add.image(PAD, y, PHOTO_KEY).setOrigin(0, 0).setDisplaySize(150, 112).setAngle(-3);
-    photo.setPosition(PAD + 6, y + 6);
+    const photo = this.add.image(CARD_W / 2, y + 84, PHOTO_KEY).setDisplaySize(216, 162).setAngle(-2);
     content.add(photo);
-    const message = this.add
-      .text(PAD + 176, y + 56, pickDayMessage(s.moneyEarned, s.day), {
-        ...textStyle(17, INK),
-        wordWrap: { width: CARD_W - PAD * 2 - 182 },
-        lineSpacing: 3,
-      })
-      .setOrigin(0, 0.5);
-    content.add(message);
-    y += 132;
+    y += 176;
 
-    // Stat rows.
+    // Three numbers, each with its own picture.
     const rows: StatRow[] = [
-      { label: 'Rocks discovered', value: s.rocksDiscovered, format: (v) => `${Math.round(v)}`, color: INK },
-      { label: 'Rocks processed', value: s.rocksProcessed, format: (v) => `${Math.round(v)}`, color: INK },
-      { label: 'Money earned', value: s.moneyEarned, format: (v) => `+${formatMoney(Math.round(v))}`, color: '#1f9a3b' },
-      { label: 'Total discoveries', value: s.totalDiscoveries, format: (v) => `${Math.round(v)}`, color: INK },
+      { icon: '\u26CF\uFE0F', value: s.rocksDiscovered, format: (v) => `${Math.round(v)}`, color: INK },
+      { icon: '\u2702\uFE0F', value: s.rocksProcessed, format: (v) => `${Math.round(v)}`, color: INK },
+      { icon: '\u{1F4B0}', value: s.moneyEarned, format: (v) => `+${formatMoney(Math.round(v))}`, color: '#1f9a3b' },
     ];
     const rowTexts: Array<{ items: FadeItem[]; value: Phaser.GameObjects.Text; row: StatRow }> = [];
-    rows.forEach((row, i) => {
+    rows.forEach((row) => {
       const line = this.add.graphics();
-      line.lineStyle(2, 0x7a5a3a, 0.14).lineBetween(PAD, y + 34, CARD_W - PAD, y + 34);
-      const label = this.add.text(PAD, y + 16, row.label, textStyle(19, SOFT_INK)).setOrigin(0, 0.5);
-      const value = this.add.text(CARD_W - PAD, y + 16, row.format(0), outlinedStyle(22, row.color === INK ? '#ffffff' : '#8dff9a')).setOrigin(1, 0.5);
+      line.lineStyle(2, 0x7a5a3a, 0.14).lineBetween(PAD, y + 40, CARD_W - PAD, y + 40);
+      const icon = this.add.text(PAD + 4, y + 19, row.icon, outlinedStyle(26, '#ffffff', { strokeThickness: 0 })).setOrigin(0, 0.5);
+      const value = this.add.text(CARD_W - PAD, y + 19, row.format(0), outlinedStyle(26, row.color === INK ? '#ffffff' : '#8dff9a')).setOrigin(1, 0.5);
       value.setStroke('#3b2616', 4);
-      content.add([line, label, value]);
-      rowTexts.push({ items: [line, label, value], value, row });
-      y += 38;
-      if (i === rows.length - 1) y += 4;
+      content.add([line, icon, value]);
+      rowTexts.push({ items: [line, icon, value], value, row });
+      y += 44;
     });
+    y += 6;
 
-    // Underground progress.
-    content.add(this.add.text(PAD, y + 14, 'Underground', textStyle(19, SOFT_INK)).setOrigin(0, 0.5));
-    const depthValue = this.add.text(CARD_W - PAD, y + 14, `${s.maxDepthMeters.toFixed(1)} m`, outlinedStyle(22)).setOrigin(1, 0.5);
+    // How deep: a ruler, the metres and the layer bar.
+    content.add(this.add.text(PAD + 4, y + 16, '\u{1F4CF}', outlinedStyle(26, '#ffffff', { strokeThickness: 0 })).setOrigin(0, 0.5));
+    const depthValue = this.add.text(CARD_W - PAD, y + 16, `${Math.round(s.maxDepthMeters)} m`, outlinedStyle(26)).setOrigin(1, 0.5);
     content.add(depthValue);
-    y += 36;
+    y += 44;
     const barW = CARD_W - PAD * 2;
     const bar = this.add.graphics();
     let bx = PAD;
@@ -147,28 +131,26 @@ export class EndOfDayScene extends Phaser.Scene {
     bar.fillStyle(0xffffff).fillTriangle(markX - 7, y - 10, markX + 7, y - 10, markX, y);
     bar.lineStyle(2, 0x3b2616).strokeTriangle(markX - 7, y - 10, markX + 7, y - 10, markX, y);
     content.add(bar);
-    content.add(this.add.text(PAD, y + 24, `${s.layerName}  -  layer ${s.layerIndex} of ${s.layerCount}`, textStyle(15, SOFT_INK)).setOrigin(0, 0.5));
-    content.add(this.add.text(CARD_W - PAD, y + 24, `Savings: ${formatMoney(s.totalMoney)}`, textStyle(15, SOFT_INK)).setOrigin(1, 0.5));
-    y += 56;
+    y += 40;
 
-    // Button.
+    // One big button: play.
     this.startBtn = new Button(this, {
-      width: 330, height: 64, label: 'START NEXT DAY', fontSize: 26, colors: BUTTON_COLORS.orange,
+      width: 250, height: 70, label: '\u25B6', fontSize: 38, colors: BUTTON_COLORS.orange,
       onClick: () => this.startNextDay(),
     });
-    this.startBtn.setPosition(CARD_W / 2, y + 36).setPulse(true);
+    this.startBtn.setPosition(CARD_W / 2, y + 38).setPulse(true);
     content.add(this.startBtn);
-    y += 84;
+    y += 90;
 
     // Rewarded ad: a second paycheque for today.
     this.doubleBtn = null;
     if (s.moneyEarned > 0 && portal.rewardedReady) {
       const bonus = Math.round(s.moneyEarned);
       const btn = new Button(this, {
-        width: 330, height: 52, label: `DOUBLE TODAY  +${formatMoney(bonus)}  (AD)`, fontSize: 19, colors: BUTTON_COLORS.blue,
+        width: 200, height: 52, label: '2x  \u25B6', fontSize: 24, colors: BUTTON_COLORS.blue,
         onClick: () => this.doubleEarnings(bonus),
       });
-      btn.setPosition(CARD_W / 2, y - 10);
+      btn.setPosition(CARD_W / 2, y - 12);
       content.add(btn);
       this.doubleBtn = btn;
       y += 52;
@@ -183,7 +165,7 @@ export class EndOfDayScene extends Phaser.Scene {
     panel.lineStyle(2, PALETTE.gold, 0.5).strokeRoundedRect(-CARD_W / 2 + 8, 48, CARD_W - 16, panelH - 16, 18);
     this.card.sendToBack(panel);
 
-    this.animateIn(content, rowTexts, [photo, message], [depthValue, bar]);
+    this.animateIn(content, rowTexts, [photo], [depthValue, bar]);
   }
 
   /** Rows slide in one after another while their numbers count up. */
@@ -241,7 +223,7 @@ export class EndOfDayScene extends Phaser.Scene {
     portal.rewarded(() => {
       state.economy.grant(bonus);
       sfx.coin();
-      btn.setLabel('DOUBLED!').setEnabled(false);
+      btn.setLabel('\u2714\uFE0F').setEnabled(false);
     });
   }
 

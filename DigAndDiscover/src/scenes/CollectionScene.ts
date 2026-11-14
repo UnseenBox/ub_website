@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { state } from '../core/GameState';
-import { CURIOS, CURIO_CATEGORIES, CURIO_TIER_LABELS, type CurioDef } from '../data/curios';
+import { CURIOS, type CurioDef } from '../data/curios';
 import { curioKey } from '../art/CurioArt';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
@@ -11,7 +11,6 @@ const PAD = 22;
 const COLS = 8;
 const CELL = (CARD_W - PAD * 2) / COLS;
 const INK = '#3b2616';
-const SOFT_INK = '#7a5a3a';
 
 /**
  * The collection: every curio as a sticker (a dark silhouette until found), with the
@@ -26,8 +25,6 @@ export class CollectionScene extends Phaser.Scene {
   private selectRing!: Phaser.GameObjects.Graphics;
   private cells: Array<{ curio: CurioDef; x: number; y: number }> = [];
   private nameText!: Phaser.GameObjects.Text;
-  private metaText!: Phaser.GameObjects.Text;
-  private lineText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('Collection');
@@ -72,7 +69,7 @@ export class CollectionScene extends Phaser.Scene {
     this.card.add([panel, content]);
 
     const found = state.progress.curiosFound;
-    const title = this.add.text(CARD_W / 2, 36, 'COLLECTION', outlinedStyle(32)).setOrigin(0.5);
+    const title = this.add.text(CARD_W / 2, 36, '\u{1F3FA}', outlinedStyle(44)).setOrigin(0.5);
     const rw = title.width + 70;
     const ribbon = this.add.graphics();
     ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - rw / 2, 16, rw, 52, 14);
@@ -82,9 +79,7 @@ export class CollectionScene extends Phaser.Scene {
     content.add([ribbon, title]);
 
     let y = 84;
-    content.add(this.add.text(PAD, y + 8, `Found ${found} of ${CURIOS.length}`, textStyle(19, INK)).setOrigin(0, 0.5));
-    const next = 5 * (Math.floor(found / 5) + 1);
-    content.add(this.add.text(CARD_W - PAD, y + 8, found >= CURIOS.length ? 'All found!' : `Bonus at ${next}`, textStyle(15, SOFT_INK)).setOrigin(1, 0.5));
+    content.add(this.add.text(PAD, y + 8, `${found} / ${CURIOS.length}`, textStyle(24, INK)).setOrigin(0, 0.5));
     const bar = this.add.graphics();
     bar.fillStyle(0x3b2616, 0.18).fillRoundedRect(PAD, y + 24, CARD_W - PAD * 2, 12, 6);
     bar.fillStyle(0xb98cff).fillRoundedRect(PAD, y + 24, Math.max(12, ((CARD_W - PAD * 2) * found) / CURIOS.length), 12, 6);
@@ -120,16 +115,14 @@ export class CollectionScene extends Phaser.Scene {
 
     // Detail panel.
     const detail = this.add.graphics();
-    detail.fillStyle(0xf1dcb8).fillRoundedRect(PAD, y, CARD_W - PAD * 2, 92, 14);
-    detail.lineStyle(2, 0x3b2616, 0.25).strokeRoundedRect(PAD, y, CARD_W - PAD * 2, 92, 14);
+    detail.fillStyle(0xf1dcb8).fillRoundedRect(PAD, y, CARD_W - PAD * 2, 56, 14);
+    detail.lineStyle(2, 0x3b2616, 0.25).strokeRoundedRect(PAD, y, CARD_W - PAD * 2, 56, 14);
     content.add(detail);
-    this.nameText = this.add.text(PAD + 14, y + 10, '', textStyle(20, INK)).setOrigin(0, 0);
-    this.metaText = this.add.text(CARD_W - PAD - 14, y + 14, '', textStyle(13, SOFT_INK)).setOrigin(1, 0);
-    this.lineText = this.add.text(PAD + 14, y + 40, '', { ...textStyle(15, SOFT_INK), wordWrap: { width: CARD_W - PAD * 2 - 28 }, lineSpacing: 2 }).setOrigin(0, 0);
-    content.add([this.nameText, this.metaText, this.lineText]);
-    y += 104;
+    this.nameText = this.add.text(CARD_W / 2, y + 28, '', textStyle(26, INK)).setOrigin(0.5);
+    content.add(this.nameText);
+    y += 68;
 
-    const ok = new Button(this, { width: 220, height: 54, label: 'KEEP DIGGING', fontSize: 22, colors: BUTTON_COLORS.orange, onClick: () => this.close() });
+    const ok = new Button(this, { width: 220, height: 54, label: '\u25B6', fontSize: 30, colors: BUTTON_COLORS.orange, onClick: () => this.close() });
     ok.setPosition(CARD_W / 2, y + 30);
     content.add(ok);
     y += 70;
@@ -152,17 +145,8 @@ export class CollectionScene extends Phaser.Scene {
     this.selectRing.clear();
     if (cell) this.selectRing.lineStyle(4, PALETTE.gold).strokeRoundedRect(cell.x - CELL / 2 + 2, cell.y - CELL / 2 + 2, CELL - 4, CELL - 4, 10);
     const count = state.progress.curioCount(curio.id);
-    const cat = CURIO_CATEGORIES[curio.category];
-    if (count > 0) {
-      this.nameText.setText(curio.name);
-      this.metaText.setText(`${cat.label}  -  ${CURIO_TIER_LABELS[curio.tier]}  -  found x${count}`);
-      this.lineText.setText(curio.line);
-    } else {
-      const layer = state.layers[curio.minLayer];
-      this.nameText.setText('???');
-      this.metaText.setText(`${cat.label}  -  ${CURIO_TIER_LABELS[curio.tier]}`);
-      this.lineText.setText(`Not found yet. Try digging in ${layer ? layer.name : 'deeper ground'} or below...`);
-    }
+    // Just the name once found; a question mark until then.
+    this.nameText.setText(count > 0 ? curio.name : '???');
   }
 
   private fit(): void {
