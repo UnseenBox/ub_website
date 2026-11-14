@@ -9,6 +9,9 @@ import { nextStarTarget, starHint } from '../progression/Progression';
 import arcadeStarUrl from '../assets/ui/arcade-star.png';
 import arcadeCoinUrl from '../assets/ui/arcade-coin.png';
 
+/** A finger, not a mouse: no keyboard card, even before the first touch. */
+const COARSE = window.matchMedia('(pointer: coarse)');
+
 const arcadeStar = new Image();
 arcadeStar.src = arcadeStarUrl;
 const arcadeCoin = new Image();
@@ -93,7 +96,7 @@ export class Hud {
       ctx.restore();
     }
 
-    if (!cam.portrait && !g.input.pointer.touch && !g.duelScore) {
+    if (!cam.portrait && !g.input.pointer.touch && !COARSE.matches && !g.duelScore) {
       ctx.save();
       ctx.translate(left, top + 18 * u);
       ctx.scale(u, u);
@@ -106,7 +109,7 @@ export class Hud {
     // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
     if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active && !g.guideDef()) {
       // (A lesson has its coach card up there instead: the stars are for later.)
-      const keys = !cam.portrait && !g.input.pointer.touch;
+      const keys = !cam.portrait && !g.input.pointer.touch && !COARSE.matches;
       this.drawTargets(ctx, g, u, left, top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0));
     }
     if (g.state === 'missed') this.drawMiss(ctx, g, u);

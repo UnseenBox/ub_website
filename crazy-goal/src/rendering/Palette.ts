@@ -50,7 +50,7 @@ export const C = {
 /** Opacity of a cast shadow. */
 export const SHADOW_ALPHA = 0.27;
 
-export const FONT = "'Unbounded', 'Arial Black', 'Segoe UI Black', Impact, system-ui, sans-serif";
+export const FONT = "'Lilita One', 'Baloo Bhaijaan 2', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif";
 
 export const rgba = (hex: string, alpha: number): string => {
   const n = parseInt(hex.slice(1), 16);

@@ -1,3 +1,4 @@
+import { ICONS, type IconName } from './GameIcons';
 import logoUrl from '../assets/ui/logo.png';
 import playUrl from '../assets/ui/play.png';
 import starUrl from '../assets/ui/arcade-star.png';
@@ -95,9 +96,9 @@ const starSprite = (): HTMLImageElement => {
   return img;
 };
 
-const GEAR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94a7.4 7.4 0 0 0 .05-.94 7.4 7.4 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/></svg>`;
+const GEAR_SVG = ICONS.gear;
 
-const LOCK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9" rx="2.4"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
+const LOCK_SVG = ICONS.lock;
 
 /** The Free Kicks tile's picture: a goal, a wall of three and a ball curling round it. Pure decoration. */
 let uiClick: (() => void) | null = null;
@@ -128,7 +129,25 @@ function paintFill(input: HTMLInputElement): void {
   input.style.setProperty('--fill', `${input.value}%`);
 }
 
-function slider(label: string, onInput: (volume: number) => void): { row: HTMLElement; input: HTMLInputElement } {
+/** A setting's name with its sticker in front. */
+function settingName(label: string, icon: IconName): HTMLElement {
+  const name = el('span', 'setting-name');
+  const art = el('span', 'setting-icon');
+  art.innerHTML = ICONS[icon];
+  name.append(art, el('span', '', label));
+  return name;
+}
+
+/** A white BACK button with the arrow sticker. */
+function backButton(className: string, onClick: () => void): HTMLButtonElement {
+  const b = button(className, '', onClick);
+  const art = el('span', 'btn-icon');
+  art.innerHTML = ICONS.back;
+  b.append(art, el('span', 'btn-label', 'BACK'));
+  return b;
+}
+
+function slider(label: string, icon: IconName, onInput: (volume: number) => void): { row: HTMLElement; input: HTMLInputElement } {
   const row = el('label', 'setting');
   const input = el('input', 'setting-range');
   input.type = 'range';
@@ -140,16 +159,16 @@ function slider(label: string, onInput: (volume: number) => void): { row: HTMLEl
     onInput(Number(input.value) / 100);
   });
   input.addEventListener('keydown', (e) => e.stopPropagation());
-  row.append(el('span', 'setting-name', label), input);
+  row.append(settingName(label, icon), input);
   return { row, input };
 }
 
-/** Chunky icons for the pause cabinet: play, replay, goal, home and a gear. */
-const RESUME_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15c0 1.6 1.75 2.6 3.1 1.75l11.4-7.5c1.25-.88 1.25-2.9 0-3.78L10.1 2.75C8.75 1.9 7 2.9 7 4.5Z"/></svg>`;
-const REPLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.65 6.35A8 8 0 1 0 19.73 12h-2.08a6 6 0 1 1-1.41-4.24L13 11h7V4l-2.35 2.35z"/></svg>`;
-const GOAL_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3.5 19V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v14"/><path d="M3.5 19h17" stroke-linecap="round"/><path d="M8.5 3v16M13.5 3v16M8.5 8h7M8.5 13h7" stroke-width="1.5"/></svg>`;
-const HOME_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>`;
-const AD_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="3.5"/><path d="M10.5 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg>`;
+/** The pause cabinet's icons, from the sticker set: play, replay, goal, home and a gear. */
+const RESUME_SVG = ICONS.play;
+const REPLAY_SVG = ICONS.replay;
+const GOAL_SVG = ICONS.goal;
+const HOME_SVG = ICONS.home;
+const AD_SVG = ICONS.ad;
 
 const pauseButton = (className: string, label: string, icon: string, onClick: () => void): HTMLButtonElement => {
   const b = button(className, '', onClick);
@@ -295,14 +314,14 @@ export class Overlay {
     const sheet = el('div', 'sheet sheet-wide');
     this.levelProgress = el('div', 'level-progress');
     this.levelBody = el('div', 'level-body');
-    const back = button('btn btn-ghost', 'BACK', handlers.closeLevels);
+    const back = backButton('btn btn-ghost', handlers.closeLevels);
     sheet.append(el('h2', 'panel-title', 'STADIUMS'), this.levelProgress, this.levelBody, back);
     this.levels.append(sheet);
 
     this.settings = el('div', 'screen pause');
-    const prefs = el('div', 'panel');
-    const sound = slider('SOUND', handlers.setSound);
-    const music = slider('MUSIC', handlers.setMusic);
+    const prefs = el('div', 'panel settings-panel');
+    const sound = slider('SOUND', 'sound', handlers.setSound);
+    const music = slider('MUSIC', 'music', handlers.setMusic);
     this.sound = sound.input;
     this.music = music.input;
     const langs = el('div', 'setting');
@@ -312,16 +331,16 @@ export class Overlay {
       b.setAttribute('aria-pressed', String(code === lang));
       pick.append(b);
     }
-    langs.append(el('span', 'setting-name', 'LANGUAGE'), pick);
+    langs.append(settingName('LANGUAGE', 'globe'), pick);
     this.resetButton = button('btn btn-ghost reset-button', 'RESET PROGRESS', () => this.confirmReset());
-    prefs.append(el('h2', 'panel-title', 'SETTINGS'), sound.row, music.row, langs, this.resetButton, button('btn btn-primary', 'BACK', () => this.closeSettings()));
+    prefs.append(el('h2', 'panel-title', 'SETTINGS'), sound.row, music.row, langs, this.resetButton, backButton('btn btn-primary', () => this.closeSettings()));
     this.settings.append(prefs);
 
     this.skins = el('div', 'screen levels');
     const balls = el('div', 'sheet sheet-wide');
     this.skinProgress = el('p', 'skin-progress');
     this.skinGrid = el('div', 'grid');
-    balls.append(el('h2', 'panel-title', 'BALLS'), this.skinProgress, this.skinGrid, button('btn btn-ghost', 'BACK', () => this.showMenu()));
+    balls.append(el('h2', 'panel-title', 'BALLS'), this.skinProgress, this.skinGrid, backButton('btn btn-ghost', () => this.showMenu()));
     this.skins.append(balls);
 
     root.append(this.menu, this.pause, this.levels, this.settings, this.skins);

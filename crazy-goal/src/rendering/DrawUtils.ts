@@ -28,7 +28,8 @@ export function text(ctx: CanvasRenderingContext2D, str: string, x: number, y: n
   ctx.textAlign = s.align ?? 'left';
   ctx.textBaseline = s.baseline ?? 'alphabetic';
   // Spacing letters apart breaks Arabic, whose letters join.
-  ctx.letterSpacing = `${rtl ? 0 : (s.spacing ?? 0)}px`;
+  // Lilita One is set close: the spacing callers ask for is scaled down to suit it.
+  ctx.letterSpacing = `${rtl ? 0 : (s.spacing ?? 0) * 0.35}px`;
   ctx.fillStyle = s.color;
   if (s.alpha !== undefined) ctx.globalAlpha = s.alpha;
   ctx.fillText(tr(str), x, y);
