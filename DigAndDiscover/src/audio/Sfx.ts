@@ -1,11 +1,45 @@
 /**
- * Tiny synthesized sound effects (Web Audio). No audio files to download,
- * nothing copyrighted. Every call is a silent no-op when audio is muted,
- * unsupported, or still locked by the browser's autoplay policy.
+ * Game sound effects. Ten cues play MP3 samples from `./samples`; the rest
+ * (clock stings, the workshop bench thud, crystal reveals) are still
+ * synthesized with Web Audio. Everything is a silent no-op when audio is
+ * muted, unsupported, or still locked by the browser's autoplay policy.
  */
 
 const MASTER_VOLUME = 0.5;
 const MUTE_KEY = 'dig-discover-muted';
+
+/** Resolved by Vite at build time. Keys match the cue methods below. */
+const SAMPLE_URLS = {
+  dig: new URL('./samples/dig.mp3', import.meta.url).href,
+  click: new URL('./samples/click.mp3', import.meta.url).href,
+  coin: new URL('./samples/coin.mp3', import.meta.url).href,
+  denied: new URL('./samples/denied.mp3', import.meta.url).href,
+  exhausted: new URL('./samples/exhausted.mp3', import.meta.url).href,
+  layerEnter: new URL('./samples/layer-enter.mp3', import.meta.url).href,
+  collect: new URL('./samples/money-collect.mp3', import.meta.url).href,
+  rockFound: new URL('./samples/rock-found.mp3', import.meta.url).href,
+  saw: new URL('./samples/saw.mp3', import.meta.url).href,
+  sell: new URL('./samples/sell.mp3', import.meta.url).href,
+} as const;
+
+type SampleKey = keyof typeof SAMPLE_URLS;
+
+/** Samples are peak-normalised; this is the mix, not a volume correction. */
+const SAMPLE_GAIN: Record<SampleKey, number> = {
+  dig: 0.9,
+  click: 0.45,
+  coin: 0.35,
+  denied: 0.4,
+  exhausted: 0.65,
+  layerEnter: 0.55,
+  collect: 0.6,
+  rockFound: 0.7,
+  saw: 0.5,
+  sell: 0.6,
+};
+
+/** The blade under load: louder and a touch slower. */
+const SAW_GRIND_GAIN = 0.9;
 
 interface ToneOptions {
   f: number;
@@ -27,12 +61,22 @@ interface NoiseOptions {
   at?: number;
 }
 
+interface PlayOptions {
+  rate?: number;
+  gain?: number;
+  when?: number;
+  offset?: number;
+  loop?: boolean;
+}
+
 export interface SawHandle {
   grind(on: boolean): void;
   stop(): void;
 }
 
 const SILENT_SAW: SawHandle = { grind: () => undefined, stop: () => undefined };
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
 function readMuted(): boolean {
   try {
@@ -46,11 +90,21 @@ class SoundFx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private noiseBuffer: AudioBuffer | null = null;
+  private buffers = new Map<SampleKey, AudioBuffer>();
   private mutedFlag = readMuted();
   private lastDig = 0;
+  private lastTired = 0;
+  private digVoice: AudioBufferSourceNode | null = null;
+  private tiredVoice: AudioBufferSourceNode | null = null;
+  private deniedVoice: AudioBufferSourceNode | null = null;
+  private coinVoices: AudioBufferSourceNode[] = [];
   private readonly unlockHandler = () => this.unlock();
 
   constructor() {
+    // Decode through an OfflineAudioContext: it is not blocked by autoplay
+    // policy, so every sample is ready before the first user gesture.
+    const decoder = this.ensureDecoder();
+    if (decoder) void this.preload(decoder);
     window.addEventListener('pointerdown', this.unlockHandler);
     window.addEventListener('keydown', this.unlockHandler);
     document.addEventListener('visibilitychange', () => {
@@ -76,33 +130,72 @@ class SoundFx {
     }
   }
 
-  /** Must run inside a user gesture for browsers to allow audio. */
-  private unlock(): void {
-    if (!this.ctx) {
-      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctor) return;
+  /** The offline decoder keeps the live context absent until a gesture. */
+  private ensureDecoder(): BaseAudioContext | null {
+    if (this.ctx) return this.ctx;
+    const Offline =
+      window.OfflineAudioContext ??
+      (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+    if (Offline) {
       try {
-        this.ctx = new Ctor();
+        return new Offline(1, 1, 44100);
       } catch {
-        return;
+        /* fall back to a live context */
       }
-      this.master = this.ctx.createGain();
-      this.master.gain.value = this.mutedFlag ? 0 : MASTER_VOLUME;
-      this.master.connect(this.ctx.destination);
-      const len = Math.floor(this.ctx.sampleRate * 1);
-      this.noiseBuffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-      const data = this.noiseBuffer.getChannelData(0);
-      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => undefined);
-    if (this.ctx.state === 'running') {
+    return this.ensureContext();
+  }
+
+  /** Must run inside a user gesture for browsers to allow audio. */
+  private ensureContext(): AudioContext | null {
+    if (this.ctx) return this.ctx;
+    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    try {
+      this.ctx = new Ctor();
+    } catch {
+      return null;
+    }
+    this.master = this.ctx.createGain();
+    this.master.gain.value = this.mutedFlag ? 0 : MASTER_VOLUME;
+    this.master.connect(this.ctx.destination);
+    const len = Math.floor(this.ctx.sampleRate * 1);
+    this.noiseBuffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = this.noiseBuffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return this.ctx;
+  }
+
+  private async preload(decoder: BaseAudioContext): Promise<void> {
+    await Promise.all(
+      (Object.keys(SAMPLE_URLS) as SampleKey[]).map(async (key) => {
+        try {
+          const response = await fetch(SAMPLE_URLS[key]);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.arrayBuffer();
+          this.buffers.set(key, await decoder.decodeAudioData(data));
+        } catch (error) {
+          console.warn(`[sfx] Could not load "${key}":`, error);
+        }
+      }),
+    );
+  }
+
+  private unlock(): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => undefined);
+    if (ctx.state === 'running') {
       window.removeEventListener('pointerdown', this.unlockHandler);
       window.removeEventListener('keydown', this.unlockHandler);
     }
   }
 
   private ready(): AudioContext | null {
-    if (!this.ctx || !this.master || this.mutedFlag || this.ctx.state !== 'running') return null;
+    if (!this.ctx || !this.master || this.mutedFlag || this.ctx.state === 'closed') return null;
+    // A cue fired on the very first gesture may arrive before resume() has
+    // resolved; scheduling it now is fine, it starts as the context wakes.
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => undefined);
     return this.ctx;
   }
 
@@ -145,17 +238,45 @@ class SoundFx {
     src.stop(t0 + o.dur + 0.02);
   }
 
+  private play(key: SampleKey, options: PlayOptions = {}): AudioBufferSourceNode | null {
+    const ctx = this.ready();
+    const buffer = this.buffers.get(key);
+    if (!ctx || !buffer || !this.master) return null;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = options.loop ?? false;
+    src.playbackRate.setValueAtTime(options.rate ?? 1, ctx.currentTime);
+    const gain = ctx.createGain();
+    gain.gain.value = options.gain ?? SAMPLE_GAIN[key];
+    src.connect(gain).connect(this.master);
+    src.start(ctx.currentTime + (options.when ?? 0), options.offset ?? 0);
+    return src;
+  }
+
+  private stopVoice(voice: AudioBufferSourceNode | null): void {
+    if (!voice) return;
+    try {
+      voice.stop();
+    } catch {
+      /* already ended */
+    }
+  }
+
   dig(hitRock: boolean, clang = 0): void {
     const now = performance.now();
     if (now - this.lastDig < 60) return;
     this.lastDig = now;
-    const v = 0.85 + Math.random() * 0.3;
-    // Harder ground: duller, shorter thud plus a metallic tick. Soft soil stays a soft crunch.
-    const hard = Math.max(0, Math.min(1, clang));
-    this.noise({ dur: 0.16 - 0.05 * hard, vol: 0.55, filter: 'lowpass', f: (1500 + 1400 * hard) * v, f2: 350 });
-    this.tone({ f: (150 + 60 * hard) * v, f2: 55, dur: 0.13, vol: 0.45 });
-    if (hard > 0.15) this.tone({ f: (900 + 1700 * hard) * v, dur: 0.05, vol: 0.14 * hard, at: 0.005, type: 'square' });
-    if (hitRock) this.tone({ f: 520 * v, f2: 380, type: 'triangle', dur: 0.08, vol: 0.14, at: 0.01 });
+    const hard = clamp01(clang);
+    this.stopVoice(this.digVoice);
+    this.digVoice = this.play('dig', {
+      rate: 0.96 + Math.random() * 0.08 + hard * 0.05,
+      gain: SAMPLE_GAIN.dig * (0.9 + 0.2 * hard),
+    });
+    // Harder ground is handled by the pitch and gain above; a direct rock
+    // hit keeps the little metallic tick from the original synth kit.
+    if (hitRock) {
+      this.tone({ f: 520 * (0.85 + Math.random() * 0.3), f2: 380, type: 'triangle', dur: 0.08, vol: 0.14, at: 0.01 });
+    }
   }
 
   timesUp(): void {
@@ -177,24 +298,23 @@ class SoundFx {
   }
 
   layerEnter(): void {
-    this.noise({ dur: 0.3, vol: 0.25, filter: 'lowpass', f: 200, f2: 60 });
-    this.tone({ f: 180, f2: 320, type: 'sine', dur: 0.2, vol: 0.18, at: 0.1 });
+    this.play('layerEnter');
   }
 
   tired(): void {
-    this.tone({ f: 230, f2: 150, type: 'triangle', dur: 0.16, vol: 0.18 });
-    this.tone({ f: 190, f2: 115, type: 'triangle', dur: 0.2, vol: 0.16, at: 0.1 });
+    const now = performance.now();
+    if (now - this.lastTired < 2500) return;
+    this.lastTired = now;
+    this.stopVoice(this.tiredVoice);
+    this.tiredVoice = this.play('exhausted');
   }
 
   discover(): void {
-    this.noise({ dur: 0.25, vol: 0.45, filter: 'lowpass', f: 1200, f2: 300 });
-    this.tone({ f: 523, type: 'triangle', dur: 0.22, vol: 0.2, at: 0.05 });
-    this.tone({ f: 784, type: 'triangle', dur: 0.3, vol: 0.2, at: 0.13 });
+    this.play('rockFound');
   }
 
   collect(): void {
-    this.tone({ f: 600, f2: 1250, dur: 0.1, vol: 0.2 });
-    this.tone({ f: 1250, dur: 0.14, vol: 0.09, at: 0.06 });
+    this.play('collect');
   }
 
   place(): void {
@@ -203,61 +323,42 @@ class SoundFx {
   }
 
   click(): void {
-    this.tone({ f: 880, f2: 660, type: 'triangle', dur: 0.06, vol: 0.12 });
+    this.play('click');
   }
 
   denied(): void {
-    this.tone({ f: 200, f2: 160, type: 'triangle', dur: 0.12, vol: 0.12 });
+    this.stopVoice(this.deniedVoice);
+    this.deniedVoice = this.play('denied');
   }
 
   startSaw(): SawHandle {
     const ctx = this.ready();
-    if (!ctx || !this.noiseBuffer) return SILENT_SAW;
+    const buffer = this.buffers.get('saw');
+    if (!ctx || !buffer || !this.master) return SILENT_SAW;
     const t0 = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.playbackRate.setValueAtTime(1, t0);
     const out = ctx.createGain();
     out.gain.setValueAtTime(0.0001, t0);
-    out.gain.exponentialRampToValueAtTime(1, t0 + 0.15);
-    out.connect(this.master!);
-
-    const motor = ctx.createOscillator();
-    motor.type = 'sawtooth';
-    motor.frequency.setValueAtTime(55, t0);
-    motor.frequency.exponentialRampToValueAtTime(115, t0 + 0.4);
-    const motorFilter = ctx.createBiquadFilter();
-    motorFilter.type = 'lowpass';
-    motorFilter.frequency.value = 800;
-    const motorGain = ctx.createGain();
-    motorGain.gain.value = 0.1;
-    motor.connect(motorFilter).connect(motorGain).connect(out);
-
-    const grindSrc = ctx.createBufferSource();
-    grindSrc.buffer = this.noiseBuffer;
-    grindSrc.loop = true;
-    const grindFilter = ctx.createBiquadFilter();
-    grindFilter.type = 'bandpass';
-    grindFilter.frequency.value = 3200;
-    grindFilter.Q.value = 1.4;
-    const grindGain = ctx.createGain();
-    grindGain.gain.value = 0;
-    grindSrc.connect(grindFilter).connect(grindGain).connect(out);
-
-    motor.start(t0);
-    grindSrc.start(t0);
+    out.gain.exponentialRampToValueAtTime(SAMPLE_GAIN.saw, t0 + 0.15);
+    src.connect(out).connect(this.master);
+    src.start(t0);
     let stopped = false;
     return {
       grind: (on: boolean) => {
         if (stopped) return;
         const t = ctx.currentTime;
-        grindGain.gain.setTargetAtTime(on ? 0.3 : 0, t, 0.04);
-        motor.frequency.setTargetAtTime(on ? 92 : 115, t, 0.08);
+        out.gain.setTargetAtTime(on ? SAW_GRIND_GAIN : SAMPLE_GAIN.saw, t, 0.06);
+        src.playbackRate.setTargetAtTime(on ? 0.92 : 1, t, 0.08);
       },
       stop: () => {
         if (stopped) return;
         stopped = true;
         const t = ctx.currentTime;
-        out.gain.setTargetAtTime(0.0001, t, 0.07);
-        motor.stop(t + 0.4);
-        grindSrc.stop(t + 0.4);
+        out.gain.setTargetAtTime(0.0001, t, 0.08);
+        src.stop(t + 0.45);
       },
     };
   }
@@ -282,13 +383,19 @@ class SoundFx {
   }
 
   sell(): void {
-    this.tone({ f: 1568, type: 'square', dur: 0.07, vol: 0.06 });
-    this.tone({ f: 2093, type: 'square', dur: 0.22, vol: 0.06, at: 0.07 });
-    this.noise({ dur: 0.12, vol: 0.06, filter: 'highpass', f: 5000, at: 0.06 });
+    this.play('sell');
   }
 
   coin(): void {
-    this.tone({ f: 1700 + Math.random() * 500, dur: 0.06, vol: 0.06 });
+    // A sale can spawn a dozen coins a few frames apart; keep the tail from
+    // stacking into a wash.
+    if (this.coinVoices.length >= 4) this.stopVoice(this.coinVoices.shift() ?? null);
+    const voice = this.play('coin', { rate: 0.94 + Math.random() * 0.12 });
+    if (!voice) return;
+    this.coinVoices.push(voice);
+    voice.onended = () => {
+      this.coinVoices = this.coinVoices.filter((entry) => entry !== voice);
+    };
   }
 }
 
