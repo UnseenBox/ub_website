@@ -1,6 +1,9 @@
 import type { LayerDef } from '../data/layers';
 import type { ToolDef } from '../data/tools';
 
+/** Exponent on power / hardness: above 1 punishes under-powered tools. */
+const EFFICIENCY_CURVE = 1.4;
+
 export interface WorldConfig {
   readonly width: number;
   readonly surfaceY: number;
@@ -151,7 +154,8 @@ export class ExcavationSystem {
     const floorBefore = this.floorAt(cx);
     const layerIndex = this.layerIndexAtY(floorBefore + 1);
     const layer = this.layers[layerIndex];
-    const efficiency = Math.max(tool.minEfficiency, Math.min(1, tool.power / layer.hardness));
+    // A tool that is too weak for the ground falls off steeply (a soft wall), so each layer wants a better tool.
+    const efficiency = Math.max(tool.minEfficiency, Math.pow(Math.min(1, tool.power / layer.hardness), EFFICIENCY_CURVE));
     const step = Math.min(tool.digDepth * efficiency, this.floorLimit - floorBefore);
     const rx = tool.craterRadius * (0.78 + 0.22 * efficiency);
     const ry = Math.max(step * 1.45, rx * 0.5);

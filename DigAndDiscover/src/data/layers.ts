@@ -83,7 +83,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'surface-soil',
     name: 'Surface Soil',
     thickness: 300,
-    hardness: 1.4,
+    hardness: 2.5,
     staminaMult: 1,
     look: {
       top: '#c99660',
@@ -107,7 +107,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'compact-soil',
     name: 'Compact Soil',
     thickness: 340,
-    hardness: 3.2,
+    hardness: 5.8,
     staminaMult: 1.15,
     look: {
       top: '#b5703f',
@@ -131,7 +131,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'hard-earth',
     name: 'Hard Earth',
     thickness: 360,
-    hardness: 5.5,
+    hardness: 9.9,
     staminaMult: 1.35,
     look: {
       top: '#9a8a70',
@@ -155,7 +155,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'rocky-soil',
     name: 'Rocky Soil',
     thickness: 360,
-    hardness: 8,
+    hardness: 14.4,
     staminaMult: 1.6,
     look: {
       top: '#5f4a3e',
@@ -179,7 +179,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'deep-deposit',
     name: 'Deep Mineral Deposit',
     thickness: 360,
-    hardness: 12,
+    hardness: 21.6,
     staminaMult: 2,
     look: {
       top: '#3d3858',
@@ -203,7 +203,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'fossil-bed',
     name: 'Fossil Bed',
     thickness: 360,
-    hardness: 15,
+    hardness: 27,
     staminaMult: 2.3,
     look: {
       top: '#c9b48a',
@@ -228,7 +228,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'buried-ruins',
     name: 'Buried Ruins',
     thickness: 360,
-    hardness: 19,
+    hardness: 34,
     staminaMult: 2.6,
     look: {
       top: '#52606a',
@@ -253,7 +253,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'frozen-cavern',
     name: 'Frozen Cavern',
     thickness: 360,
-    hardness: 24,
+    hardness: 43,
     staminaMult: 3,
     look: {
       top: '#7fa8c8',
@@ -278,7 +278,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'magma-veins',
     name: 'Magma Veins',
     thickness: 360,
-    hardness: 30,
+    hardness: 54,
     staminaMult: 3.4,
     look: {
       top: '#4a2420',
@@ -303,7 +303,7 @@ export const LAYERS: readonly LayerDef[] = [
     id: 'heart-of-the-earth',
     name: 'Heart of the Earth',
     thickness: 380,
-    hardness: 38,
+    hardness: 68,
     staminaMult: 3.8,
     look: {
       top: '#3a1f5c',

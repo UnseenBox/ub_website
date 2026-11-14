@@ -35,9 +35,9 @@ const SAVE_KEY = 'dig-and-discover-save-v1';
 const GOAL_SLOTS = 3;
 
 /** XP needed to climb from `level` to `level + 1`. */
-export const xpToNext = (level: number): number => Math.round(40 * Math.pow(level, 1.35));
+export const xpToNext = (level: number): number => Math.round(60 * Math.pow(level, 1.5));
 /** Cash for reaching a level. */
-export const levelBonus = (level: number): number => 40 * level;
+export const levelBonus = (level: number): number => 15 * level;
 /** XP for cutting a rock, by rarity tier. */
 export const ROCK_XP = [3, 8, 20, 50, 150] as const;
 

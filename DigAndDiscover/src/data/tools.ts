@@ -34,7 +34,7 @@ export const OLD_SHOVEL: ToolDef = {
   blurb: 'Rusty, but it still works.',
   textureKey: 'shovel',
   power: 1,
-  minEfficiency: 0.1,
+  minEfficiency: 0.05,
   digDepth: 40,
   craterRadius: 36,
   swingCooldownMs: 520,
@@ -81,8 +81,8 @@ export const SCANNERS: Record<string, { findBonus: number; showsRarity: boolean 
 /** What each upgrade level does. Applied in GameState (see applyUpgrades). */
 export const UPGRADE_EFFECTS = {
   staminaPerLevel: 20,
-  regenPerLevel: 2,
+  regenPerLevel: 1.5,
   costReductionPerLevel: 0.06,
   digDepthPerLevel: 0.1,
-  cooldownReductionPerLevel: 0.08,
+  cooldownReductionPerLevel: 0.06,
 } as const;
