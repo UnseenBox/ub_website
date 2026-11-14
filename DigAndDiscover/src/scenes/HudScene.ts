@@ -37,6 +37,8 @@ export class HudScene extends Phaser.Scene {
   private infoBg!: Phaser.GameObjects.Graphics;
   private infoText!: Phaser.GameObjects.Text;
   private mute!: Phaser.GameObjects.Container;
+  private storeBtn!: Phaser.GameObjects.Container;
+  private storeIcon!: Phaser.GameObjects.Graphics;
   private muteIcon!: Phaser.GameObjects.Graphics;
   private toast!: Toast;
   private clockPill!: ClockPill;
@@ -79,6 +81,7 @@ export class HudScene extends Phaser.Scene {
     this.infoBg = this.add.graphics();
     this.infoText = this.add.text(0, 0, '', textStyle(16, '#fff6e6')).setOrigin(1, 0.5);
     this.buildMuteButton();
+    this.buildStoreButton();
     this.toast = new Toast(this);
 
     ClockPill.createSunTexture(this.textures);
@@ -116,7 +119,9 @@ export class HudScene extends Phaser.Scene {
       kb.on('keydown-ENTER', () => this.handleEnterKey());
       kb.on('keydown-ESC', () => this.handleEscKey());
       kb.on('keydown-M', () => this.toggleMute());
+      kb.on('keydown-S', () => this.openStore());
       kb.on('keydown', (e: KeyboardEvent) => {
+        if (this.storeOpen) return;
         const n = Number(e.key);
         if (n >= 1 && n <= this.slots.length) this.onSlotPressed(n - 1);
       });
@@ -127,13 +132,19 @@ export class HudScene extends Phaser.Scene {
     this.refreshInfo();
   }
 
+  private get storeOpen(): boolean {
+    return this.scene.isActive('Store');
+  }
+
   private handleEnterKey(): void {
+    if (this.storeOpen) return;
     if (state.mode === 'dig' && state.canWork) {
       this.action.trigger();
     }
   }
 
   private handleEscKey(): void {
+    if (this.storeOpen) return;
     if (state.mode === 'workshop' && !state.busy) {
       this.action.trigger();
     }
@@ -142,7 +153,7 @@ export class HudScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     // Clamp so a long frame (e.g. returning to the tab) never jumps stamina.
     const dt = Math.min(delta, 100);
-    state.tick(dt);
+    if (!this.storeOpen) state.tick(dt); // shopping is free time
     const s = state.stamina;
     this.stamina.setValue(s.value, s.max, s.isRegenerating, dt);
 
@@ -188,6 +199,10 @@ export class HudScene extends Phaser.Scene {
     this.clockPill.layout(L.w / 2, L.topH / 2, pillH, 14 + pillH * 3.4 + 8);
     const muteR = pillH / 2;
     this.mute.setPosition(L.w - 14 - muteR, L.topH / 2);
+    this.storeBtn.setPosition(L.w - 14 - muteR * 2 - 10 - muteR, L.topH / 2);
+    this.storeBtn.setSize(pillH, pillH);
+    (this.storeBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
+    this.drawStoreIcon(muteR);
     this.mute.setSize(pillH, pillH);
     (this.mute.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawMuteIcon(muteR);
@@ -253,12 +268,12 @@ export class HudScene extends Phaser.Scene {
     const full = `Found ${found}   Best: ${best ? best.mineral.name : '-'}`;
     const short = best ? `Best: ${best.mineral.name}` : `Found ${found}`;
     const clockPillRight = this.clockPill.x + this.clockPill.pillWidth / 2;
-    const maxW = this.mute.x - this.mute.width / 2 - 24 - (clockPillRight + 28);
+    const maxW = this.storeBtn.x - this.storeBtn.width / 2 - 24 - (clockPillRight + 28);
     this.infoText.setText(full);
     if (this.infoText.width > maxW) this.infoText.setText(short);
     this.infoText.setVisible(this.infoText.width <= maxW);
     const h = Math.round(this.L.topH * 0.5);
-    const right = this.mute.x - this.mute.width / 2 - 10;
+    const right = this.storeBtn.x - this.storeBtn.width / 2 - 10;
     this.infoText.setPosition(right - 14, this.L.topH / 2);
     this.infoBg.clear();
     if (this.infoText.visible) {
@@ -505,6 +520,57 @@ export class HudScene extends Phaser.Scene {
     this.mute.setSize(40, 40);
     this.mute.setInteractive({ useHandCursor: true });
     this.mute.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => this.toggleMute());
+  }
+
+  private buildStoreButton(): void {
+    this.storeIcon = this.add.graphics();
+    this.storeBtn = this.add.container(0, 0, [this.storeIcon]);
+    this.storeBtn.setSize(40, 40);
+    this.storeBtn.setInteractive({ useHandCursor: true });
+    this.storeBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openStore());
+  }
+
+  /** Opens the store overlay. It pauses the world while open (see StoreScene). */
+  private openStore(): void {
+    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
+    sfx.click();
+    this.tweens.add({ targets: this.storeBtn, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
+    this.scene.launch('Store');
+  }
+
+  /** A little shop front: striped awning over a window and door. */
+  private drawStoreIcon(r: number): void {
+    const g = this.storeIcon;
+    g.clear();
+    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
+    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
+    g.lineStyle(Math.max(2, r * 0.07), PALETTE.gold, 0.9).strokeCircle(0, 0, r - 1);
+    const s = r * 0.5;
+    // Shop body.
+    g.fillStyle(0xfff3dc).fillRect(-s * 0.85, -s * 0.15, s * 1.7, s * 1.05);
+    g.fillStyle(0x4fb0ff).fillRect(-s * 0.62, s * 0.1, s * 0.6, s * 0.5);
+    g.fillStyle(0x8a5a2c).fillRect(s * 0.15, s * 0.1, s * 0.45, s * 0.8);
+    // Awning stripes.
+    const stripes = 4;
+    const top = -s * 0.95;
+    const bottom = -s * 0.15;
+    const topW = s * 1.5;
+    const botW = s * 1.15;
+    for (let i = 0; i < stripes; i++) {
+      const t0 = i / stripes;
+      const t1 = (i + 1) / stripes;
+      g.fillStyle(i % 2 === 0 ? 0xff6b4a : 0xffffff);
+      g.fillPoints(
+        [
+          new Phaser.Geom.Point(-topW + 2 * topW * t0, top),
+          new Phaser.Geom.Point(-topW + 2 * topW * t1, top),
+          new Phaser.Geom.Point(-botW + 2 * botW * t1, bottom),
+          new Phaser.Geom.Point(-botW + 2 * botW * t0, bottom),
+        ],
+        true,
+      );
+    }
+    g.lineStyle(Math.max(1.5, r * 0.06), PALETTE.inkHex, 0.7).strokeRect(-s * 0.85, -s * 0.15, s * 1.7, s * 1.05);
   }
 
   private toggleMute(): void {
