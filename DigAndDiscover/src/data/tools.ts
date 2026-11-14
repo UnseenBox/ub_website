@@ -85,4 +85,6 @@ export const UPGRADE_EFFECTS = {
   costReductionPerLevel: 0.06,
   digDepthPerLevel: 0.1,
   cooldownReductionPerLevel: 0.06,
+  /** The endless "Master Digger" upgrade: more tool power per level. */
+  masteryPerLevel: 0.05,
 } as const;

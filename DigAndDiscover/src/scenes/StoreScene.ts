@@ -312,13 +312,15 @@ export class StoreScene extends Phaser.Scene {
     row.add(this.add.text(textX, 50, item.blurb, textStyle(13, SOFT_INK)).setOrigin(0, 0));
     // Level pips.
     const pips = this.add.graphics();
-    for (let i = 0; i < item.maxLevel; i++) {
+    // Endless upgrades (hundreds of levels) show just the number.
+    const endless = item.maxLevel > 12;
+    for (let i = 0; i < (endless ? 0 : item.maxLevel); i++) {
       const filled = i < level;
       pips.fillStyle(filled ? PALETTE.gold : 0x3b2616, filled ? 1 : 0.18).fillCircle(textX + 6 + i * 17, 74, 6);
       if (filled) pips.lineStyle(2, 0x3b2616, 0.8).strokeCircle(textX + 6 + i * 17, 74, 6);
     }
     row.add(pips);
-    row.add(this.add.text(textX + item.maxLevel * 17 + 4, 74, `Lv ${level}/${item.maxLevel}`, textStyle(13, SOFT_INK)).setOrigin(0, 0.5));
+    row.add(this.add.text(endless ? textX : textX + item.maxLevel * 17 + 4, 74, endless ? `Level ${level}` : `Lv ${level}/${item.maxLevel}`, textStyle(13, SOFT_INK)).setOrigin(0, 0.5));
     if (level >= item.maxLevel) this.buyButton(row, 'MAX', false, BUTTON_COLORS.green, () => undefined);
     else {
       const price = upgradePrice(item, level);

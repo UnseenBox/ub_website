@@ -14,6 +14,7 @@ import { ToolChip } from '../ui/ToolChip';
 import { GoalPill } from '../ui/GoalPill';
 import { CurioCard } from '../ui/CurioCard';
 import type { CurioDef } from '../data/curios';
+import { depositName } from '../data/deposits';
 import { portal } from '../ads/Portal';
 import { computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { MoneyCounter, formatMoney } from '../ui/MoneyCounter';
@@ -54,6 +55,7 @@ export class HudScene extends Phaser.Scene {
   private collectCount!: Phaser.GameObjects.Text;
   private refillBtn!: Button;
   private userActed = false;
+  private lastRelocateCard = -1e9;
   private banner: Phaser.GameObjects.Container | null = null;
   private muteIcon!: Phaser.GameObjects.Graphics;
   private toast!: Toast;
@@ -147,6 +149,14 @@ export class HudScene extends Phaser.Scene {
       this.curioCard.show(curio, first, value, this.L.w - 24);
       this.drawCollectionButton(this.iconR);
     });
+    subscribe(this, EVT.bedrock, () => this.offerRelocation());
+    subscribe(this, EVT.relocated, (deposit: number) => {
+      this.goalPill.refresh();
+      this.time.delayedCall(1000, () => {
+        sfx.newDay();
+        this.showCenterBanner(`DEPOSIT ${deposit}`, depositName(deposit));
+      });
+    });
     subscribe(this, EVT.levelUp, (level: number, bonus: number) => this.onLevelUp(level, bonus));
     subscribe(this, EVT.goalDone, (goal: { cash: number; xp: number }) => {
       this.toast.show(`Goal complete!  +${formatMoney(goal.cash)}  +${goal.xp} XP`, 2400);
@@ -187,7 +197,7 @@ export class HudScene extends Phaser.Scene {
 
   /** The store or goals card is up: the world and the day clock hold still. */
   private get storeOpen(): boolean {
-    return this.scene.isActive('Store') || this.scene.isActive('Goals') || this.scene.isActive('Collection');
+    return this.scene.isActive('Store') || this.scene.isActive('Goals') || this.scene.isActive('Collection') || this.scene.isActive('Relocate');
   }
 
   private handleEnterKey(): void {
@@ -676,6 +686,19 @@ export class HudScene extends Phaser.Scene {
     this.collectIcon.setFontSize(Math.round(r * 1.05)).setPosition(0, -r * 0.05);
     this.collectCount.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.progress.curiosFound}`);
     this.collectCount.setVisible(state.progress.curiosFound > 0);
+  }
+
+  /** Bedrock reached: offer a fresh deposit (never over another card or mid-trip). */
+  private offerRelocation(): void {
+    if (this.storeOpen || this.switching || state.mode !== 'dig' || !state.canRelocate) return;
+    if (this.scene.isActive('EndOfDay')) return;
+    // Declined a moment ago? Do not nag on every swing at bedrock.
+    if (this.time.now - this.lastRelocateCard < 20000) {
+      this.toast.show('Solid bedrock! Tap again in a moment to move on.', 2000);
+      return;
+    }
+    this.lastRelocateCard = this.time.now;
+    this.scene.launch('Relocate');
   }
 
   private openCollection(): void {

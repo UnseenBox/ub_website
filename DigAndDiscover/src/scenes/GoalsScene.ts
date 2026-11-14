@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { state } from '../core/GameState';
 import { goalText } from '../data/goals';
+import { depositName } from '../data/deposits';
 import { ALL_TOOLS } from '../data/store';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
@@ -84,7 +85,13 @@ export class GoalsScene extends Phaser.Scene {
     xp.fillStyle(PALETTE.gold).fillRoundedRect(PAD, y + 30, Math.max(14, (CARD_W - PAD * 2) * lp.fraction), 14, 7);
     xp.lineStyle(2, 0x3b2616, 0.5).strokeRoundedRect(PAD, y + 30, CARD_W - PAD * 2, 14, 7);
     content.add(xp);
-    y += 64;
+    y += 54;
+    content.add(
+      this.add
+        .text(PAD, y + 4, `Deposit ${state.progress.deposit}: ${depositName(state.progress.deposit)}`, textStyle(16, '#2a8a3a'))
+        .setOrigin(0, 0.5),
+    );
+    y += 28;
 
     // Goals.
     for (const goal of state.progress.goals) {

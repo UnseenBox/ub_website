@@ -12,6 +12,7 @@ import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
 import { curioKey } from '../art/CurioArt';
+import { depositTint } from '../data/deposits';
 import { CURIO_CATEGORIES, type CurioDef } from '../data/curios';
 import { computeLayout, type Layout } from '../ui/layout';
 
@@ -128,6 +129,7 @@ export class DigScene extends Phaser.Scene {
 
   private embedded: EmbeddedRock[] = [];
   private streak = 0;
+  private bedrockAnnounced = false;
   private lastSwingAt = 0;
   private aimMark!: Phaser.GameObjects.Image;
   private fieldScale = 1;
@@ -169,6 +171,7 @@ export class DigScene extends Phaser.Scene {
   create(): void {
     this.embedded = [];
     this.streak = 0;
+    this.bedrockAnnounced = false;
     this.clouds = [];
     this.rings = [];
     this.glints = [];
@@ -208,6 +211,7 @@ export class DigScene extends Phaser.Scene {
     });
     subscribe(this, EVT.inventoryChanged, () => this.tryReleaseStuckRocks());
     subscribe(this, EVT.toolChanged, () => this.applyToolLook());
+    subscribe(this, EVT.relocated, () => this.onRelocated());
     subscribe(this, EVT.layerEntered, () => this.cameras.main.shake(260, 0.004));
     this.cameras.main.fadeIn(250, 30, 20, 12);
   }
@@ -258,6 +262,8 @@ export class DigScene extends Phaser.Scene {
     this.rockLayer = this.add.container(0, 0);
     this.soil = this.add.renderTexture(0, 0, W, TOTAL_H).setOrigin(0, 0);
     this.soil.draw('strata', 0, 0);
+    // Each deposit has its own colour wash.
+    this.soil.setTint(depositTint(state.progress.deposit));
     this.popLayer = this.add.container(0, 0);
 
     this.wrap = this.add.container(0, 0);
@@ -344,6 +350,13 @@ export class DigScene extends Phaser.Scene {
     this.applyToolLook();
     // Gentle idle sway on the inner image so swings (on the rig) never fight it.
     this.tweens.add({ targets: this.shovel, angle: { from: -2.5, to: 2.5 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  /** A fresh deposit: fade out, rebuild the ground from scratch, fade back in. */
+  private onRelocated(): void {
+    const cam = this.cameras.main;
+    cam.fadeOut(380, 20, 12, 8);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart());
   }
 
   /** Better tools wash the shovel sprite with their colour (until they get their own art). */
@@ -637,7 +650,7 @@ export class DigScene extends Phaser.Scene {
       this.nextDigAt = now + 500;
       if (now - this.lastBottomWarning > 2500) {
         this.lastBottomWarning = now;
-        state.bus.emit(EVT.toast, 'Solid bedrock! This deposit goes no deeper (for now).');
+        state.bus.emit(EVT.bedrock);
       }
       return;
     }
@@ -701,6 +714,11 @@ export class DigScene extends Phaser.Scene {
       if (feel.sparks > 0 && Math.random() < 0.7) this.crystalFx.explode(feel.sparks, x, y - 4);
     }
     this.ring(x, y);
+    // The swing that reaches bedrock: offer a new deposit once the dust settles.
+    if (!this.bedrockAnnounced && state.dig.atBottom) {
+      this.bedrockAnnounced = true;
+      this.time.delayedCall(900, () => state.bus.emit(EVT.bedrock));
+    }
     this.cameras.main.shake(100, feel.shake);
     this.dismissHint();
 
@@ -709,7 +727,7 @@ export class DigScene extends Phaser.Scene {
     } else if (this.embedded.length >= GAME_CONFIG.dig.maxEmbeddedRocks) {
       state.discovery.skip();
     } else if (res.dug && state.discovery.roll(res.layer, Math.random)) {
-      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, res.layer.discovery.valueMult ?? 1);
+      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, (res.layer.discovery.valueMult ?? 1) * state.depositValueMult);
     } else if (res.dug && state.curios.roll(res.layerIndex, Math.random)) {
       this.embedCurio(res.cx, res.layerIndex);
     }

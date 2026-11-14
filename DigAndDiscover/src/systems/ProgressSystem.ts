@@ -20,6 +20,10 @@ export interface SaveData {
   bestDepth: number;
   /** Curio id -> times found. */
   curios?: Record<string, number>;
+  /** Which deposit the digger is working (1 = the first). */
+  deposit?: number;
+  /** Deepest layer already paid out with XP in this deposit. */
+  bestLayer?: number;
 }
 
 export interface ProgressHooks {
@@ -48,6 +52,10 @@ export const ROCK_XP = [3, 8, 20, 50, 150] as const;
 export class ProgressSystem {
   xp = 0;
   bestDepth = 0;
+  /** 1 for the first deposit; +1 every time the digger relocates. */
+  deposit = 1;
+  /** Deepest layer index already paid out with XP (stops reload farming). */
+  bestLayer = 0;
   goals: Goal[] = [];
   private goalSeq = 0;
   private readonly owned = new Set<string>(['tool-old-shovel']);
@@ -130,6 +138,26 @@ export class ProgressSystem {
     return ALL_TOOLS.filter((t) => t.kind === 'scanner' && this.owned.has(t.id)).map((t) => t.id);
   }
 
+  // ---------- deposits ----------
+
+  /** Moves on to the next deposit: depth records start over, everything owned stays. */
+  advanceDeposit(): void {
+    this.deposit++;
+    this.bestDepth = 0;
+    this.bestLayer = 0;
+    // Depth goals from the old hole make no sense any more.
+    this.goals = this.goals.filter((g) => g.metric !== 'depth');
+    this.ensureGoals();
+    this.hooks.changed();
+  }
+
+  /** True the first time a layer is entered in this deposit (so XP is paid once). */
+  claimLayer(index: number): boolean {
+    if (index <= this.bestLayer) return false;
+    this.bestLayer = index;
+    return true;
+  }
+
   // ---------- collection ----------
 
   curioCount(id: string): number {
@@ -209,6 +237,8 @@ export class ProgressSystem {
       goalSeq: this.goalSeq,
       bestDepth: this.bestDepth,
       curios: { ...this.curios },
+      deposit: this.deposit,
+      bestLayer: this.bestLayer,
     };
   }
 
@@ -220,6 +250,8 @@ export class ProgressSystem {
     for (const id of data.owned ?? []) if (typeof id === 'string') this.owned.add(id);
     for (const [id, lv] of Object.entries(data.upgrades ?? {})) this.upgrades[id] = Math.max(0, lv | 0);
     for (const [id, n] of Object.entries(data.curios ?? {})) this.curios[id] = Math.max(1, n | 0);
+    this.deposit = Math.max(1, (data.deposit ?? 1) | 0);
+    this.bestLayer = Math.max(0, (data.bestLayer ?? 0) | 0);
     this.goalSeq = Math.max(0, data.goalSeq | 0);
     this.goals = (data.goals ?? []).slice(0, GOAL_SLOTS).map((g) => ({ ...g }));
   }

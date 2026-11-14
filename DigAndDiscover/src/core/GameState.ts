@@ -4,6 +4,7 @@ import { LAYERS } from '../data/layers';
 import { SCANNERS, TOOL_DEFS, UPGRADE_EFFECTS, type ToolDef } from '../data/tools';
 import { ALL_TOOLS, ALL_UPGRADES, upgradePrice, type ToolItem, type UpgradeItem } from '../data/store';
 import { CurioSystem } from '../systems/CurioSystem';
+import { hardnessMult, powerMult, relocationBonus, valueMult } from '../data/deposits';
 import { CURIO_VALUE, CURIO_XP, type CurioDef } from '../data/curios';
 import { ProgressSystem, ROCK_XP, readSave, writeSave, type Goal } from '../systems/ProgressSystem';
 import type { ClockConfig } from '../systems/ClockSystem';
@@ -51,6 +52,10 @@ export const EVT = {
   toolChanged: 'tool-changed',
   /** (curio, isFirstTime, cashPaid) something strange was dug up. */
   curioFound: 'curio-found',
+  /** The digger struck bedrock: time to offer a new deposit. */
+  bedrock: 'bedrock',
+  /** (newDepositNumber, bonusCash) the digger moved to a fresh deposit. */
+  relocated: 'relocated',
 } as const;
 
 export type BuyResult = 'ok' | 'poor' | 'locked' | 'owned' | 'maxed' | 'weaker' | 'unavailable';
@@ -84,7 +89,8 @@ export class GameState {
   readonly layers = LAYERS;
   readonly dig = new ExcavationSystem(GAME_CONFIG.world, LAYERS, (index) => {
     this.bus.emit(EVT.layerEntered, index);
-    if (index > 0) this.progress.addXp(25 * index); // a new layer is a milestone
+    // A new layer is a milestone (paid once per deposit, so reloading cannot farm it).
+    if (index > 0 && this.progress.claimLayer(index)) this.progress.addXp(25 * index);
   });
   readonly discovery = new DiscoverySystem();
   readonly curios = new CurioSystem();
@@ -114,10 +120,12 @@ export class GameState {
   get tool(): ToolDef {
     if (!this.toolCache) {
       const base = TOOL_DEFS[this.progress.equippedToolId];
+      const experience = powerMult(this.progress.deposit) * (1 + UPGRADE_EFFECTS.masteryPerLevel * this.progress.upgradeLevel('up-mastery'));
       const dmg = this.progress.upgradeLevel('up-dig-damage');
       const spd = this.progress.upgradeLevel('up-dig-speed');
       this.toolCache = {
         ...base,
+        power: base.power * experience,
         digDepth: base.digDepth * (1 + UPGRADE_EFFECTS.digDepthPerLevel * dmg),
         swingCooldownMs: base.swingCooldownMs * (1 - UPGRADE_EFFECTS.cooldownReductionPerLevel * spd),
       };
@@ -138,6 +146,7 @@ export class GameState {
       lv('up-stamina-regen') * UPGRADE_EFFECTS.regenPerLevel,
       1 - lv('up-stamina-efficiency') * UPGRADE_EFFECTS.costReductionPerLevel,
     );
+    this.dig.hardnessMult = hardnessMult(this.progress.deposit);
     this.discovery.findBonus = this.progress.scanners.reduce((sum, id) => sum + (SCANNERS[id]?.findBonus ?? 0), 0);
     this.toolCache = null;
     const equipped = this.progress.equippedToolId;
@@ -145,6 +154,34 @@ export class GameState {
       this.lastToolId = equipped;
       this.bus.emit(EVT.toolChanged);
     }
+  }
+
+  // ---------- deposits ----------
+
+  /** Rocks and curios are worth more in later deposits. */
+  get depositValueMult(): number {
+    return valueMult(this.progress.deposit);
+  }
+
+  /** Cash the current deposit pays when the digger relocates away from it. */
+  get relocationBonus(): number {
+    return relocationBonus(this.progress.deposit);
+  }
+
+  /** Bedrock reached: a new deposit can be started. */
+  get canRelocate(): boolean {
+    return this.dig.atBottom;
+  }
+
+  /** Moves to a fresh deposit. The scenes restart the ground when they hear `relocated`. */
+  relocate(): boolean {
+    if (!this.canRelocate) return false;
+    const bonus = this.relocationBonus;
+    this.economy.grant(bonus);
+    this.progress.advanceDeposit();
+    this.dig.reset();
+    this.bus.emit(EVT.relocated, this.progress.deposit, bonus);
+    return true;
   }
 
   // ---------- store ----------
@@ -266,7 +303,7 @@ export class GameState {
   recordCurio(curio: CurioDef): { first: boolean; value: number } {
     const [lo, hi] = CURIO_VALUE[curio.tier];
     const { first, milestone } = this.progress.foundCurio(curio.id);
-    const value = Math.round((lo + Math.random() * (hi - lo)) * (first ? 2 : 1));
+    const value = Math.round((lo + Math.random() * (hi - lo)) * (first ? 2 : 1) * this.depositValueMult);
     this.economy.earn(value);
     this.progress.note('curio');
     this.progress.addXp(CURIO_XP[curio.tier] * (first ? 2 : 1));

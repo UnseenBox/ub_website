@@ -141,6 +141,13 @@ export const UPGRADE_SECTIONS: UpgradeSection[] = [
       { id: 'up-dig-speed', name: 'Swing Speed', perLevel: '-6% time between swings', blurb: 'Less waiting, more digging.', icon: { kind: 'glyph', glyph: 'speed', color: 0xb98cff }, maxLevel: 8, basePrice: 380, priceGrowth: 1.6, level: 0 },
     ],
   },
+  {
+    title: 'Mastery',
+    subtitle: 'Endless - for deep pockets',
+    items: [
+      { id: 'up-mastery', name: 'Master Digger', perLevel: '+5% tool power', blurb: 'There is always more to learn.', icon: { kind: 'glyph', glyph: 'damage', color: 0xffd84d }, maxLevel: 99, basePrice: 12000, priceGrowth: 1.2, level: 0 },
+    ],
+  },
 ];
 
 export const TOOL_SECTIONS: ToolSection[] = RAW_TOOL_SECTIONS.map((section) => ({
