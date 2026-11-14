@@ -30,6 +30,12 @@ const KEY_SCROLL_SPEED = 760;
 const TOUCH_PAN_THRESHOLD = 22;
 /** Ground must be this far (field units) below the top of the view to count as diggable: leaves room for the shovel. */
 const FLOOR_TOP_PAD = 70;
+/** Mouse shovel: how quickly it catches up with the cursor (ms time constant; lower = tighter). */
+const SHOVEL_FOLLOW_MS = 35;
+/** Mouse shovel: tip rests at least this far above the ground and at most this far above it (field units). */
+const SHOVEL_HOVER_MIN = 14;
+const SHOVEL_HOVER_MAX = 130;
+const SHOVEL_REST_ANGLE = 18;
 const MISS_MESSAGES = ['Aim at the floor of your hole!', 'Tip: the mouse wheel scrolls the view'];
 const MISS_MESSAGES_TOUCH = ['Aim at the floor of your hole!', 'Tip: drag to scroll the view'];
 
@@ -204,6 +210,7 @@ export class DigScene extends Phaser.Scene {
     if (this.panning && !this.gesturePointer?.isDown) this.panning = false;
     const keyDir = (this.keyDown?.isDown ? 1 : 0) - (this.keyUp?.isDown ? 1 : 0);
     if (keyDir !== 0) this.scrollBy((keyDir * KEY_SCROLL_SPEED * dt) / 1000);
+    this.followCursor(dt);
     this.followCamera(dt);
     this.updateReturnChip();
     const p = state.day.clock.progress;
@@ -518,16 +525,34 @@ export class DigScene extends Phaser.Scene {
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
-    if (pointer.wasTouch) {
-      this.touchPan(pointer);
-      return;
-    }
-    if (this.time.now < this.swingEndsAt || this.holdPointer || !this.inPlayArea(pointer.y)) return;
-    // The shovel hovers over ground that can actually be dug, never over the empty wall.
+    this.lastTouch = pointer.wasTouch;
+    if (pointer.wasTouch) this.touchPan(pointer);
+    // Mouse: the shovel follows the cursor every frame (see followCursor).
+  }
+
+  /**
+   * With a mouse, the shovel's tip is glued to the cursor: it tracks the pointer
+   * (smoothly, ~35 ms behind), leans into the direction of travel, and never goes
+   * below the ground or too far above it. It keeps following while you scroll the
+   * view or hold the button; only a swing in progress takes it over.
+   */
+  private followCursor(dt: number): void {
+    if (this.lastTouch || !state.canWork || this.time.now < this.swingEndsAt) return;
+    const pointer = this.input.activePointer;
+    if (!this.inPlayArea(pointer.y)) return;
     const x = this.aim(this.toFieldX(pointer.x));
-    if (x === null) return;
-    this.tweens.killTweensOf(this.rig);
-    this.tweens.add({ targets: this.rig, x: x + 16, y: state.dig.floorAt(x) - 56, angle: 24, duration: 120, ease: 'Quad.easeOut' });
+    if (x === null) return; // over the bare wall: stay where we are
+    const floorY = state.dig.floorAt(x);
+    const cursorY = pointer.y / this.fieldScale + this.scrollY;
+    // Tip at the cursor, but resting just above the ground and not floating too high.
+    const targetY = clamp(cursorY, floorY - SHOVEL_HOVER_MAX, floorY - SHOVEL_HOVER_MIN);
+    const k = 1 - Math.exp(-dt / SHOVEL_FOLLOW_MS);
+    const dx = (x - this.rig.x) * k;
+    this.rig.x += dx;
+    this.rig.y += (targetY - this.rig.y) * k;
+    this.lastX = x;
+    const lean = clamp(dx * 2.2, -14, 14);
+    this.rig.angle += (SHOVEL_REST_ANGLE + lean - this.rig.angle) * k;
   }
 
   /** Dragging a finger scrolls the view: 1:1 with the finger, and it cancels the dig that touch started. */
@@ -551,7 +576,9 @@ export class DigScene extends Phaser.Scene {
       this.returnToHole();
       return;
     }
-    this.tryDig(clamp(this.lastX + range(Math.random, -22, 22), this.visL, this.visR));
+    // With a mouse the shovel is already where the cursor is: dig exactly there.
+    const jitter = this.lastTouch ? range(Math.random, -22, 22) : 0;
+    this.tryDig(clamp(this.lastX + jitter, this.visL, this.visR));
   }
 
   // ---------- digging ----------
