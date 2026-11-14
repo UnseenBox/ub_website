@@ -11,6 +11,11 @@ import { InventorySlot } from '../ui/InventorySlot';
 import { ClockPill } from '../ui/ClockPill';
 import { DepthGauge } from '../ui/DepthGauge';
 import { ToolChip } from '../ui/ToolChip';
+import { GoalPill } from '../ui/GoalPill';
+import { CurioCard } from '../ui/CurioCard';
+import type { CurioDef } from '../data/curios';
+import { depositName } from '../data/deposits';
+import { portal } from '../ads/Portal';
 import { computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { MoneyCounter, formatMoney } from '../ui/MoneyCounter';
 import { StaminaBar } from '../ui/StaminaBar';
@@ -39,6 +44,19 @@ export class HudScene extends Phaser.Scene {
   private mute!: Phaser.GameObjects.Container;
   private storeBtn!: Phaser.GameObjects.Container;
   private storeIcon!: Phaser.GameObjects.Graphics;
+  private storeDeal = false;
+  private lastDealToast = -1e9;
+  private iconR = 20;
+  private goalPill!: GoalPill;
+  private curioCard!: CurioCard;
+  private collectBtn!: Phaser.GameObjects.Container;
+  private collectBg!: Phaser.GameObjects.Graphics;
+  private collectIcon!: Phaser.GameObjects.Text;
+  private collectCount!: Phaser.GameObjects.Text;
+  private refillBtn!: Button;
+  private userActed = false;
+  private lastRelocateCard = -1e9;
+  private banner: Phaser.GameObjects.Container | null = null;
   private muteIcon!: Phaser.GameObjects.Graphics;
   private toast!: Toast;
   private clockPill!: ClockPill;
@@ -82,12 +100,20 @@ export class HudScene extends Phaser.Scene {
     this.infoText = this.add.text(0, 0, '', textStyle(16, '#fff6e6')).setOrigin(1, 0.5);
     this.buildMuteButton();
     this.buildStoreButton();
+    this.buildCollectionButton();
+    this.curioCard = new CurioCard(this);
     this.toast = new Toast(this);
 
     ClockPill.createSunTexture(this.textures);
     this.clockPill = new ClockPill(this);
     this.depthGauge = new DepthGauge(this);
     this.toolChip = new ToolChip(this);
+    this.goalPill = new GoalPill(this, () => this.openGoals());
+    this.refillBtn = new Button(this, {
+      width: 250, height: 44, label: 'REFILL STAMINA  (WATCH AD)', fontSize: 16, colors: BUTTON_COLORS.blue,
+      onClick: () => this.watchRefill(),
+    });
+    this.refillBtn.setVisible(false).setDepth(30);
 
     for (let i = 0; i < COIN_POOL; i++) this.coins.push(this.add.image(0, 0, 'coin').setVisible(false).setDepth(20));
     for (let i = 0; i < FLOAT_POOL; i++) {
@@ -110,6 +136,39 @@ export class HudScene extends Phaser.Scene {
     subscribe(this, EVT.daySummary, (summary: DaySummary) => this.onDaySummary(summary));
     subscribe(this, EVT.dayStarted, (day: number) => this.onDayStarted(day));
     subscribe(this, EVT.layerEntered, (layerIndex: number) => this.onLayerEntered(layerIndex));
+    subscribe(this, EVT.progressChanged, () => {
+      this.goalPill.refresh();
+      this.updateStoreDeal();
+    });
+    subscribe(this, EVT.moneyChanged, (money: number, _delta: number, earned: boolean) => {
+      // Sales count up with the flying coins; rewards and purchases tick right away.
+      if (!earned) this.money.countTo(money, 0, 450);
+      this.updateStoreDeal();
+    });
+    subscribe(this, EVT.curioFound, (curio: CurioDef, first: boolean, value: number) => {
+      this.curioCard.show(curio, first, value, this.L.w - 24);
+      this.drawCollectionButton(this.iconR);
+    });
+    subscribe(this, EVT.bedrock, () => this.offerRelocation());
+    subscribe(this, EVT.relocated, (deposit: number) => {
+      this.goalPill.refresh();
+      this.time.delayedCall(1000, () => {
+        sfx.newDay();
+        this.showCenterBanner(`DEPOSIT ${deposit}`, depositName(deposit));
+      });
+    });
+    subscribe(this, EVT.levelUp, (level: number, bonus: number) => this.onLevelUp(level, bonus));
+    subscribe(this, EVT.goalDone, (goal: { cash: number; xp: number }) => {
+      this.toast.show(`Goal complete!  +${formatMoney(goal.cash)}  +${goal.xp} XP`, 2400);
+      this.goalPill.bump();
+      sfx.coin();
+    });
+    subscribe(this, EVT.toolChanged, () => {
+      this.toolChip.refresh();
+      this.toast.show(`${state.tool.name} equipped!`, 2200);
+    });
+    this.input.once('pointerdown', () => (this.userActed = true));
+    this.input.keyboard?.once('keydown', () => (this.userActed = true));
 
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this));
@@ -120,6 +179,8 @@ export class HudScene extends Phaser.Scene {
       kb.on('keydown-ESC', () => this.handleEscKey());
       kb.on('keydown-M', () => this.toggleMute());
       kb.on('keydown-S', () => this.openStore());
+      kb.on('keydown-G', () => this.openGoals());
+      kb.on('keydown-C', () => this.openCollection());
       kb.on('keydown', (e: KeyboardEvent) => {
         if (this.storeOpen) return;
         const n = Number(e.key);
@@ -130,10 +191,13 @@ export class HudScene extends Phaser.Scene {
     this.onResize();
     this.refresh();
     this.refreshInfo();
+    this.storeDeal = state.storeHasDeal;
+    this.drawStoreIcon(this.iconR);
   }
 
+  /** The store or goals card is up: the world and the day clock hold still. */
   private get storeOpen(): boolean {
-    return this.scene.isActive('Store');
+    return this.scene.isActive('Store') || this.scene.isActive('Goals') || this.scene.isActive('Collection') || this.scene.isActive('Relocate');
   }
 
   private handleEnterKey(): void {
@@ -153,7 +217,10 @@ export class HudScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     // Clamp so a long frame (e.g. returning to the tab) never jumps stamina.
     const dt = Math.min(delta, 100);
-    if (!this.storeOpen) state.tick(dt); // shopping is free time
+    const frozen = this.storeOpen || portal.adOpen; // shopping and ads are free time
+    if (!frozen) state.tick(dt);
+    portal.setPlaying(this.userActed && state.canWork && !frozen && !this.scene.isActive('EndOfDay'));
+    this.updateRefillOffer();
     const s = state.stamina;
     this.stamina.setValue(s.value, s.max, s.isRegenerating, dt);
 
@@ -185,6 +252,10 @@ export class HudScene extends Phaser.Scene {
 
     this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h);
     this.toolChip.layout(L.tool.x, L.tool.y, L.tool.w, L.tool.h);
+    const pillW = L.compact ? Math.min(L.w * 0.58, 250) : 300;
+    const goalH = L.compact ? 44 : 50;
+    this.goalPill.layout(14 + pillW / 2, L.topH + 8 + goalH / 2, pillW, goalH);
+    this.refillBtn.setPosition(L.w / 2, L.tray.y - 30);
     this.bagText.setPosition(L.bag.x, L.bag.y).setFontSize(Math.round(L.stamina.h * 0.78));
     this.slots.forEach((slot, i) => {
       const c = slotCenter(L, i);
@@ -199,16 +270,25 @@ export class HudScene extends Phaser.Scene {
     this.clockPill.layout(L.w / 2, L.topH / 2, pillH, 14 + pillH * 3.4 + 8);
     const muteR = pillH / 2;
     this.mute.setPosition(L.w - 14 - muteR, L.topH / 2);
-    this.storeBtn.setPosition(L.w - 14 - muteR * 2 - 10 - muteR, L.topH / 2);
+    // Phones: the clock pill leaves no room in the top bar, so the store sits beside the goal pill.
+    if (L.compact) this.storeBtn.setPosition(14 + pillW + 12 + muteR, L.topH + 8 + goalH / 2);
+    else this.storeBtn.setPosition(L.w - 14 - muteR * 2 - 10 - muteR, L.topH / 2);
     this.storeBtn.setSize(pillH, pillH);
     (this.storeBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
+    this.iconR = muteR;
     this.drawStoreIcon(muteR);
+    if (L.compact) this.collectBtn.setPosition(this.storeBtn.x + muteR * 2 + 8, this.storeBtn.y);
+    else this.collectBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
+    this.collectBtn.setSize(pillH, pillH);
+    (this.collectBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
+    this.drawCollectionButton(muteR);
+    this.curioCard.place(L.w / 2, L.topH + 120);
     this.mute.setSize(pillH, pillH);
     (this.mute.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawMuteIcon(muteR);
 
     this.infoText.setFontSize(Math.round(pillH * 0.4));
-    this.toast.place(L.w / 2, L.topH + 34, L.compact ? 16 : 20);
+    this.toast.place(L.w / 2, L.topH + 108, L.compact ? 16 : 20);
     this.depthGauge.layout(L.depth.x, L.depth.y, L.depth.w, L.depth.h);
     this.refreshInfo();
   }
@@ -229,9 +309,12 @@ export class HudScene extends Phaser.Scene {
       } else if (ready) {
         this.action.setLabel('Workshop  >').setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
         if (!this.wasReady) this.toast.show(inv.isFull ? 'Bag full! Time to cut some rocks!' : 'Ready! Take your rocks to the workshop!');
+      } else if (state.workshopAvailable) {
+        // Any rock can be cut right away; the button only starts pulsing once a trip is worth it.
+        this.action.setLabel(`Workshop  (${inv.uncutCount})`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
       } else {
         const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
-        this.action.setLabel(`Find rocks ${inv.uncutCount}/${need}`).setEnabled(false).setPulse(false);
+        this.action.setLabel(`Find rocks ${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
       }
       this.wasReady = ready;
     } else if (!state.canWork) {
@@ -268,12 +351,13 @@ export class HudScene extends Phaser.Scene {
     const full = `Found ${found}   Best: ${best ? best.mineral.name : '-'}`;
     const short = best ? `Best: ${best.mineral.name}` : `Found ${found}`;
     const clockPillRight = this.clockPill.x + this.clockPill.pillWidth / 2;
-    const maxW = this.storeBtn.x - this.storeBtn.width / 2 - 24 - (clockPillRight + 28);
+    const edge = this.L.compact ? this.mute : this.collectBtn;
+    const maxW = edge.x - edge.width / 2 - 24 - (clockPillRight + 28);
     this.infoText.setText(full);
     if (this.infoText.width > maxW) this.infoText.setText(short);
     this.infoText.setVisible(this.infoText.width <= maxW);
     const h = Math.round(this.L.topH * 0.5);
-    const right = this.storeBtn.x - this.storeBtn.width / 2 - 10;
+    const right = edge.x - edge.width / 2 - 10;
     this.infoText.setPosition(right - 14, this.L.topH / 2);
     this.infoBg.clear();
     if (this.infoText.visible) {
@@ -287,7 +371,7 @@ export class HudScene extends Phaser.Scene {
   private onAction(): void {
     if (this.switching) return;
     if (state.mode === 'dig') {
-      if (state.workshopReady && state.canWork) this.switchMode('workshop');
+      if (state.workshopAvailable && state.canWork) this.switchMode('workshop');
     } else if (!state.busy && state.canWork) {
       this.switchMode('dig');
     }
@@ -400,12 +484,13 @@ export class HudScene extends Phaser.Scene {
       this.tweens.killTweensOf(banner);
       banner.destroy();
     }
-    const newBanner = this.add.container(this.scale.width / 2, this.L.topH + 30);
+    const newBanner = this.add.container(this.scale.width / 2, this.L.topH + 72);
     const bg = this.add.graphics();
     const dot = this.add.graphics();
     const text = this.add.text(14, 0, `Entering: ${layer.name}`, outlinedStyle(16, '#fff6e6')).setOrigin(0, 0.5);
-    const w = text.width + 36;
+    const w = text.width + 40;
     const h = 28;
+    text.setX(-w / 2 + 24); // the dot and the text both sit inside the pill, whatever the name's length
     bg.fillStyle(0x000000, 0.3).fillRoundedRect(-w / 2, -h / 2 + 3, w, h, h / 2);
     bg.fillStyle(PALETTE.tray, 0.9).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
     bg.lineStyle(2, layer.look.gauge, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
@@ -571,6 +656,119 @@ export class HudScene extends Phaser.Scene {
       );
     }
     g.lineStyle(Math.max(1.5, r * 0.06), PALETTE.inkHex, 0.7).strokeRect(-s * 0.85, -s * 0.15, s * 1.7, s * 1.05);
+    if (this.storeDeal) {
+      // Red "!" badge: something worth buying is affordable right now.
+      const bx = r * 0.72;
+      const by = -r * 0.72;
+      g.fillStyle(0xe5533d).fillCircle(bx, by, r * 0.34);
+      g.lineStyle(2, 0xffffff).strokeCircle(bx, by, r * 0.34);
+      g.fillStyle(0xffffff).fillRect(bx - r * 0.04, by - r * 0.2, r * 0.08, r * 0.24).fillCircle(bx, by + r * 0.16, r * 0.06);
+    }
+  }
+
+  private buildCollectionButton(): void {
+    this.collectBg = this.add.graphics();
+    this.collectIcon = this.add.text(0, 0, '\u{1F3FA}', textStyle(20, '#ffffff')).setOrigin(0.5);
+    this.collectCount = this.add.text(0, 0, '', outlinedStyle(11)).setOrigin(0.5);
+    this.collectBtn = this.add.container(0, 0, [this.collectBg, this.collectIcon, this.collectCount]);
+    this.collectBtn.setSize(40, 40);
+    this.collectBtn.setInteractive({ useHandCursor: true });
+    this.collectBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openCollection());
+  }
+
+  /** The album button: a vase with the number of different curios found so far. */
+  private drawCollectionButton(r: number): void {
+    const g = this.collectBg;
+    g.clear();
+    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
+    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
+    g.lineStyle(Math.max(2, r * 0.07), 0xb98cff, 0.9).strokeCircle(0, 0, r - 1);
+    this.collectIcon.setFontSize(Math.round(r * 1.05)).setPosition(0, -r * 0.05);
+    this.collectCount.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.progress.curiosFound}`);
+    this.collectCount.setVisible(state.progress.curiosFound > 0);
+  }
+
+  /** Bedrock reached: offer a fresh deposit (never over another card or mid-trip). */
+  private offerRelocation(): void {
+    if (this.storeOpen || this.switching || state.mode !== 'dig' || !state.canRelocate) return;
+    if (this.scene.isActive('EndOfDay')) return;
+    // Declined a moment ago? Do not nag on every swing at bedrock.
+    if (this.time.now - this.lastRelocateCard < 20000) {
+      this.toast.show('Solid bedrock! Tap again in a moment to move on.', 2000);
+      return;
+    }
+    this.lastRelocateCard = this.time.now;
+    this.scene.launch('Relocate');
+  }
+
+  private openCollection(): void {
+    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
+    sfx.click();
+    this.scene.launch('Collection');
+  }
+
+  private openGoals(): void {
+    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
+    sfx.click();
+    this.scene.launch('Goals');
+  }
+
+  /** Shows or hides the red badge on the store icon; nudges the player the first time. */
+  private updateStoreDeal(): void {
+    const deal = state.storeHasDeal;
+    if (deal === this.storeDeal) return;
+    this.storeDeal = deal;
+    this.drawStoreIcon(this.iconR);
+    if (!deal) return;
+    this.tweens.add({ targets: this.storeBtn, scale: { from: 1.25, to: 1 }, duration: 420, ease: 'Back.easeOut' });
+    if (this.time.now - this.lastDealToast > 90000 && !this.storeOpen && !this.banner?.active) {
+      this.lastDealToast = this.time.now;
+      this.toast.show('New gear is affordable - check the store!', 2400);
+    }
+  }
+
+  /** "Out of stamina? Watch an ad" - appears only when the tank is nearly empty. */
+  private updateRefillOffer(): void {
+    const show = state.mode === 'dig' && state.canWork && !this.storeOpen && portal.rewardedReady && state.stamina.fraction < 0.2;
+    if (this.refillBtn.visible === show) return;
+    this.refillBtn.setVisible(show).setPulse(show);
+  }
+
+  private watchRefill(): void {
+    portal.rewarded(() => {
+      state.stamina.refill();
+      this.toast.show('Stamina refilled!', 1600);
+      sfx.coin();
+    });
+  }
+
+  private onLevelUp(level: number, bonus: number): void {
+    sfx.newDay();
+    this.goalPill.refresh();
+    this.goalPill.bump();
+    const extra = state.storeHasDeal ? '  -  new gear in the store!' : '';
+    this.showCenterBanner(`LEVEL ${level}!`, `Bonus ${formatMoney(bonus)}${extra}`);
+  }
+
+  private showCenterBanner(titleText: string, subText: string): void {
+    this.banner?.destroy();
+    const banner = this.add.container(this.scale.width / 2, this.scale.height / 2 - 70);
+    const bg = this.add.graphics();
+    const title = this.add.text(0, -18, titleText, outlinedStyle(40, '#ffd34d')).setOrigin(0.5);
+    const sub = this.add.text(0, 24, subText, outlinedStyle(18, '#fff6e6')).setOrigin(0.5);
+    const w = Math.max(title.width, sub.width) + 56;
+    const h = 92;
+    bg.fillStyle(0x000000, 0.5).fillRoundedRect(-w / 2, -h / 2 + 4, w, h, 18);
+    bg.fillStyle(PALETTE.tray, 0.95).fillRoundedRect(-w / 2, -h / 2, w, h, 18);
+    bg.lineStyle(3, PALETTE.gold, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, 18);
+    banner.add([bg, title, sub]).setAlpha(0).setScale(0.7).setDepth(60);
+    this.banner = banner;
+    this.tweens.add({
+      targets: banner, alpha: 1, scale: 1, duration: 300, ease: 'Back.easeOut',
+      onComplete: () => this.time.delayedCall(1900, () => {
+        this.tweens.add({ targets: banner, alpha: 0, y: banner.y - 24, duration: 260, onComplete: () => banner.destroy() });
+      }),
+    });
   }
 
   private toggleMute(): void {

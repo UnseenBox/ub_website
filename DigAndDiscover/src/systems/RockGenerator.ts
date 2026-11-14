@@ -19,7 +19,7 @@ let nextId = 1;
  * rarity. The exterior is picked independently, so the outside never reliably
  * reveals the inside. Sparkly exteriors are only a weak, rarity-skewed hint.
  */
-export function generateRock(rng: Rng = Math.random, rarityWeights?: readonly number[]): Rock {
+export function generateRock(rng: Rng = Math.random, rarityWeights?: readonly number[], valueMult = 1): Rock {
   // Layers can bend the odds; without overrides the global rarity weights apply.
   const rarity = weightedPick(rng, RARITIES, (r) => rarityWeights?.[r.tier] ?? r.weight);
   const pool = mineralsByRarity.get(rarity.id);
@@ -30,7 +30,7 @@ export function generateRock(rng: Rng = Math.random, rarityWeights?: readonly nu
   const { minSize, maxSize } = GAME_CONFIG.rock;
   const size = range(rng, minSize, maxSize);
   const sizeBonus = 0.85 + 0.3 * ((size - minSize) / (maxSize - minSize));
-  const value = Math.max(1, Math.round(range(rng, mineral.value[0], mineral.value[1]) * sizeBonus));
+  const value = Math.max(1, Math.round(range(rng, mineral.value[0], mineral.value[1]) * sizeBonus * valueMult));
 
   return {
     id: `rock${nextId++}`,

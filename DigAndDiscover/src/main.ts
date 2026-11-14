@@ -8,6 +8,10 @@ import { WorkshopScene } from './scenes/WorkshopScene';
 import { HudScene } from './scenes/HudScene';
 import { EndOfDayScene } from './scenes/EndOfDayScene';
 import { StoreScene } from './scenes/StoreScene';
+import { GoalsScene } from './scenes/GoalsScene';
+import { CollectionScene } from './scenes/CollectionScene';
+import { RelocateScene } from './scenes/RelocateScene';
+import { portal } from './ads/Portal';
 
 async function waitForFonts(): Promise<void> {
   if (!document.fonts) return;
@@ -24,6 +28,7 @@ async function waitForViewport(): Promise<void> {
 }
 
 async function start(): Promise<void> {
+  void portal.init(); // the ad SDK loads in the background and never blocks the game
   await Promise.all([waitForFonts(), waitForViewport()]);
   document.getElementById('loading')?.remove();
   const game = new Phaser.Game({
@@ -41,7 +46,7 @@ async function start(): Promise<void> {
     disableContextMenu: true,
     banner: false,
     // Scene order = draw order: the HUD always renders on top.
-    scene: [BootScene, DigScene, WorkshopScene, HudScene, EndOfDayScene, StoreScene],
+    scene: [BootScene, DigScene, WorkshopScene, HudScene, EndOfDayScene, StoreScene, GoalsScene, CollectionScene, RelocateScene],
   });
   // Dev server only: handy for poking at the running game from the console / tests.
   if (import.meta.env.DEV) (window as unknown as { __dd: unknown }).__dd = { game, state };

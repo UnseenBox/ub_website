@@ -7,7 +7,7 @@
  * the terrain painter, the HUD gauge and the discovery rolls all read this list.
  */
 
-export type LayerDetail = 'roots' | 'clay' | 'cracks' | 'boulders' | 'crystals';
+export type LayerDetail = 'roots' | 'clay' | 'cracks' | 'boulders' | 'crystals' | 'bones' | 'bricks' | 'magma';
 
 export interface LayerLook {
   /** Base gradient from the top to the bottom of the layer (CSS colours). */
@@ -60,6 +60,8 @@ export interface LayerDiscovery {
   rarityWeights: readonly [number, number, number, number, number];
   /** Extra hits needed to free a found rock (inclusive range). */
   freeHits: { min: number; max: number };
+  /** Multiplies the value of rocks found here (deeper = richer). Default 1. */
+  valueMult?: number;
 }
 
 export interface LayerDef {
@@ -80,8 +82,8 @@ export const LAYERS: readonly LayerDef[] = [
   {
     id: 'surface-soil',
     name: 'Surface Soil',
-    thickness: 340,
-    hardness: 1.4,
+    thickness: 300,
+    hardness: 2.5,
     staminaMult: 1,
     look: {
       top: '#c99660',
@@ -104,8 +106,8 @@ export const LAYERS: readonly LayerDef[] = [
   {
     id: 'compact-soil',
     name: 'Compact Soil',
-    thickness: 440,
-    hardness: 3.2,
+    thickness: 340,
+    hardness: 5.8,
     staminaMult: 1.15,
     look: {
       top: '#b5703f',
@@ -128,8 +130,8 @@ export const LAYERS: readonly LayerDef[] = [
   {
     id: 'hard-earth',
     name: 'Hard Earth',
-    thickness: 500,
-    hardness: 5.5,
+    thickness: 360,
+    hardness: 9.9,
     staminaMult: 1.35,
     look: {
       top: '#9a8a70',
@@ -152,8 +154,8 @@ export const LAYERS: readonly LayerDef[] = [
   {
     id: 'rocky-soil',
     name: 'Rocky Soil',
-    thickness: 520,
-    hardness: 8,
+    thickness: 360,
+    hardness: 14.4,
     staminaMult: 1.6,
     look: {
       top: '#5f4a3e',
@@ -176,8 +178,8 @@ export const LAYERS: readonly LayerDef[] = [
   {
     id: 'deep-deposit',
     name: 'Deep Mineral Deposit',
-    thickness: 560,
-    hardness: 12,
+    thickness: 360,
+    hardness: 21.6,
     staminaMult: 2,
     look: {
       top: '#3d3858',
@@ -195,6 +197,131 @@ export const LAYERS: readonly LayerDef[] = [
       baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
       rarityWeights: [28, 26, 24, 15, 7],
       freeHits: { min: 3, max: 4 },
+    },
+  },
+  {
+    id: 'fossil-bed',
+    name: 'Fossil Bed',
+    thickness: 360,
+    hardness: 27,
+    staminaMult: 2.3,
+    look: {
+      top: '#c9b48a',
+      bottom: '#a68d62',
+      blobs: ['rgba(232,214,168,0.5)', 'rgba(140,114,74,0.5)', 'rgba(250,236,200,0.3)', 'rgba(104,82,52,0.4)'],
+      speckDark: 'rgba(60,44,22,0.26)',
+      speckLight: 'rgba(255,246,222,0.22)',
+      stones: { per100k: 24, minRadius: 6, maxRadius: 16, tones: ['#e6d8b4', '#cdbd96', '#b3a47c'], angular: 0.5 },
+      detail: 'bones',
+      detailColor: '#f4ead0',
+      gauge: 0xc9b48a,
+    },
+    feel: { chunkTints: [0xf0e4c4, 0xcdb88a, 0xa68d62, 0x7c6644], chunkScale: 0.85, chunks: 6, dustTint: 0xe0d2aa, shake: 0.0046, clang: 1, sparks: 3 },
+    discovery: {
+      baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
+      rarityWeights: [24, 25, 25, 17, 9],
+      freeHits: { min: 3, max: 5 },
+      valueMult: 1.5,
+    },
+  },
+  {
+    id: 'buried-ruins',
+    name: 'Buried Ruins',
+    thickness: 360,
+    hardness: 34,
+    staminaMult: 2.6,
+    look: {
+      top: '#52606a',
+      bottom: '#36424c',
+      blobs: ['rgba(110,128,140,0.45)', 'rgba(30,38,46,0.55)', 'rgba(80,104,116,0.35)', 'rgba(20,26,32,0.45)'],
+      speckDark: 'rgba(8,12,16,0.4)',
+      speckLight: 'rgba(200,225,235,0.16)',
+      stones: { per100k: 26, minRadius: 8, maxRadius: 20, tones: ['#7a8890', '#5f6e78', '#93a3ac', '#46535c'], angular: 0.8 },
+      detail: 'bricks',
+      detailColor: '#8fa3ad',
+      gauge: 0x52606a,
+    },
+    feel: { chunkTints: [0xb8c8d0, 0x8a9aa4, 0x5f6e78, 0x3a464e], chunkScale: 0.85, chunks: 6, dustTint: 0x9aaab2, shake: 0.0052, clang: 1, sparks: 3 },
+    discovery: {
+      baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
+      rarityWeights: [20, 23, 26, 20, 11],
+      freeHits: { min: 3, max: 5 },
+      valueMult: 1.9,
+    },
+  },
+  {
+    id: 'frozen-cavern',
+    name: 'Frozen Cavern',
+    thickness: 360,
+    hardness: 43,
+    staminaMult: 3,
+    look: {
+      top: '#7fa8c8',
+      bottom: '#4f7898',
+      blobs: ['rgba(190,226,248,0.45)', 'rgba(40,78,112,0.5)', 'rgba(230,246,255,0.3)', 'rgba(30,58,88,0.45)'],
+      speckDark: 'rgba(10,30,50,0.3)',
+      speckLight: 'rgba(240,252,255,0.35)',
+      stones: { per100k: 22, minRadius: 7, maxRadius: 20, tones: ['#c8e4f4', '#9fc8e0', '#7aa8c8', '#e6f4fc'], angular: 1 },
+      detail: 'crystals',
+      detailColor: '#d8f4ff',
+      gauge: 0x7fa8c8,
+    },
+    feel: { chunkTints: [0xf0fbff, 0xbfe4f8, 0x8ec4e4, 0x6aa0c4], chunkScale: 0.8, chunks: 7, dustTint: 0xdaf2ff, shake: 0.0056, clang: 1, sparks: 5 },
+    discovery: {
+      baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
+      rarityWeights: [17, 21, 26, 23, 13],
+      freeHits: { min: 4, max: 5 },
+      valueMult: 2.4,
+    },
+  },
+  {
+    id: 'magma-veins',
+    name: 'Magma Veins',
+    thickness: 360,
+    hardness: 54,
+    staminaMult: 3.4,
+    look: {
+      top: '#4a2420',
+      bottom: '#2c1210',
+      blobs: ['rgba(120,44,32,0.5)', 'rgba(24,8,8,0.6)', 'rgba(160,70,30,0.3)', 'rgba(16,6,6,0.5)'],
+      speckDark: 'rgba(6,2,2,0.45)',
+      speckLight: 'rgba(255,150,70,0.22)',
+      stones: { per100k: 30, minRadius: 8, maxRadius: 22, tones: ['#3a2a28', '#2a1c1a', '#4e3a36', '#1e1412'], angular: 1 },
+      detail: 'magma',
+      detailColor: '#ff7a1a',
+      gauge: 0xc2441f,
+    },
+    feel: { chunkTints: [0xff9a3a, 0xc2441f, 0x5a2a22, 0x2e1614], chunkScale: 0.85, chunks: 7, dustTint: 0xa8603a, shake: 0.0062, clang: 1, sparks: 6 },
+    discovery: {
+      baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
+      rarityWeights: [13, 19, 26, 26, 16],
+      freeHits: { min: 4, max: 6 },
+      valueMult: 3,
+    },
+  },
+  {
+    id: 'heart-of-the-earth',
+    name: 'Heart of the Earth',
+    thickness: 380,
+    hardness: 68,
+    staminaMult: 3.8,
+    look: {
+      top: '#3a1f5c',
+      bottom: '#1c0e38',
+      blobs: ['rgba(120,70,190,0.5)', 'rgba(20,8,44,0.6)', 'rgba(255,200,80,0.18)', 'rgba(12,4,30,0.5)'],
+      speckDark: 'rgba(6,2,16,0.45)',
+      speckLight: 'rgba(255,224,130,0.3)',
+      stones: { per100k: 26, minRadius: 8, maxRadius: 24, tones: ['#5a3a8a', '#44286e', '#7a52b0', '#2e1a52'], angular: 1 },
+      detail: 'crystals',
+      detailColor: '#ffd84d',
+      gauge: 0xffb627,
+    },
+    feel: { chunkTints: [0xffe08a, 0xc89cff, 0x7a52b0, 0x3a1f5c], chunkScale: 0.8, chunks: 8, dustTint: 0xb89cf0, shake: 0.007, clang: 1, sparks: 8 },
+    discovery: {
+      baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
+      rarityWeights: [8, 16, 26, 29, 21],
+      freeHits: { min: 5, max: 6 },
+      valueMult: 4,
     },
   },
 ];

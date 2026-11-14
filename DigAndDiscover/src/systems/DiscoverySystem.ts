@@ -8,11 +8,13 @@ import type { LayerDef } from '../data/layers';
  */
 export class DiscoverySystem {
   private swingsSinceFind = 0;
+  /** Scanners from the store raise every find chance (0.25 = +25%). */
+  findBonus = 0;
 
   /** Chance the next swing in this layer finds a rock. */
   chance(layer: LayerDef): number {
     const d = layer.discovery;
-    return Math.min(d.maxChance, d.baseChance + d.pityPerSwing * this.swingsSinceFind);
+    return Math.min(d.maxChance * (1 + this.findBonus), (d.baseChance + d.pityPerSwing * this.swingsSinceFind) * (1 + this.findBonus));
   }
 
   /** Rolls one swing. Call once per swing that is allowed to find something. */

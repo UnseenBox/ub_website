@@ -371,6 +371,28 @@ class SoundFx {
     this.play('collect');
   }
 
+  /** The big "what was THAT?!" moment: a wobbly rising arpeggio that grows with the tier. */
+  surprise(tier: number): void {
+    this.tone({ f: 330, f2: 392, type: 'square', dur: 0.1, vol: 0.14, at: 0 });
+    this.tone({ f: 523, f2: 466, type: 'square', dur: 0.1, vol: 0.14, at: 0.09 });
+    this.tone({ f: 659, type: 'triangle', dur: 0.14, vol: 0.2, at: 0.18 });
+    if (tier >= 2) this.tone({ f: 880, type: 'triangle', dur: 0.2, vol: 0.2, at: 0.3 });
+    if (tier >= 3) this.tone({ f: 1175, type: 'triangle', dur: 0.3, vol: 0.22, at: 0.42 });
+    if (tier >= 4) {
+      this.tone({ f: 1568, type: 'sine', dur: 0.5, vol: 0.24, at: 0.55 });
+      this.tone({ f: 784, f2: 1568, type: 'sine', dur: 0.6, vol: 0.18, at: 0.3 });
+    }
+  }
+
+  /** A short buzz on phones. */
+  haptic(pattern: number | number[]): void {
+    try {
+      navigator.vibrate?.(pattern);
+    } catch {
+      /* not supported */
+    }
+  }
+
   place(): void {
     this.tone({ f: 140, f2: 70, dur: 0.14, vol: 0.4 });
     this.noise({ dur: 0.09, vol: 0.2, filter: 'lowpass', f: 700 });

@@ -13,6 +13,7 @@ export class ToolChip extends Phaser.GameObjects.Container {
     super(scene, 0, 0);
     this.bg = scene.add.graphics();
     this.icon = scene.add.image(0, 0, state.tool.textureKey).setOrigin(0.5);
+    if (state.tool.tint) this.icon.setTint(state.tool.tint);
     this.nameText = scene.add.text(0, 0, state.tool.name, textStyle(14, '#fff6e6')).setOrigin(0, 0.5);
     this.add([this.bg, this.icon, this.nameText]);
     scene.add.existing(this);
@@ -30,6 +31,8 @@ export class ToolChip extends Phaser.GameObjects.Container {
 
   refresh(): void {
     this.icon.setTexture(state.tool.textureKey);
+    if (state.tool.tint) this.icon.setTint(state.tool.tint);
+    else this.icon.clearTint();
     this.nameText.setText(state.tool.name);
     this.redrawBg();
   }

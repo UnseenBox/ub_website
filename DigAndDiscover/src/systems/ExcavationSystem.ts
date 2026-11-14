@@ -1,6 +1,9 @@
 import type { LayerDef } from '../data/layers';
 import type { ToolDef } from '../data/tools';
 
+/** Exponent on power / hardness: above 1 punishes under-powered tools. */
+const EFFICIENCY_CURVE = 1.4;
+
 export interface WorldConfig {
   readonly width: number;
   readonly surfaceY: number;
@@ -50,6 +53,8 @@ export class ExcavationSystem {
   readonly totalHeight: number;
   readonly unitsPerMeter: number;
 
+  /** Later deposits have harder ground (see data/deposits.ts). */
+  hardnessMult = 1;
   private readonly floors: Float32Array;
   private readonly columnWidth: number;
   private deepest: number;
@@ -92,6 +97,19 @@ export class ExcavationSystem {
     const a = this.floors[i];
     const b = this.floors[Math.min(this.floors.length - 1, i + 1)];
     return a + (b - a) * (f - i);
+  }
+
+  /** The deepest point dug has reached bedrock. */
+  get atBottom(): boolean {
+    return this.deepest >= this.floorLimit - 0.5;
+  }
+
+  /** A fresh deposit: the ground is whole again. */
+  reset(): void {
+    this.floors.fill(this.surfaceY);
+    this.deepest = this.surfaceY;
+    this.focus = this.surfaceY;
+    this.deepestLayer = 0;
   }
 
   isBottom(x: number): boolean {
@@ -151,7 +169,8 @@ export class ExcavationSystem {
     const floorBefore = this.floorAt(cx);
     const layerIndex = this.layerIndexAtY(floorBefore + 1);
     const layer = this.layers[layerIndex];
-    const efficiency = Math.max(tool.minEfficiency, Math.min(1, tool.power / layer.hardness));
+    // A tool that is too weak for the ground falls off steeply (a soft wall), so each layer wants a better tool.
+    const efficiency = Math.max(tool.minEfficiency, Math.pow(Math.min(1, tool.power / (layer.hardness * this.hardnessMult)), EFFICIENCY_CURVE));
     const step = Math.min(tool.digDepth * efficiency, this.floorLimit - floorBefore);
     const rx = tool.craterRadius * (0.78 + 0.22 * efficiency);
     const ry = Math.max(step * 1.45, rx * 0.5);
