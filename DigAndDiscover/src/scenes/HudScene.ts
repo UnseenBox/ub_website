@@ -9,7 +9,7 @@ import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { InventorySlot } from '../ui/InventorySlot';
 import { DepthGauge } from '../ui/DepthGauge';
-import { ICON_SAW, ICON_STAR } from '../art/IconArt';
+import { ICON_STAR } from '../art/IconArt';
 import { uiIcon } from '../art/UiIcons';
 import { FindCard } from '../ui/FindCard';
 import type { FindDef } from '../data/finds';
@@ -28,6 +28,11 @@ const CLOSING_BANNER_DURATION = 1100;
  * Always-on overlay: money, stats, mute, stamina, bag and the main action
  * button. Also owns scene switching between the dig site and the workshop.
  */
+/** Scales a picture so its longer side is `size` field/screen pixels. */
+function fitIcon(img: Phaser.GameObjects.Image, size: number): void {
+  img.setScale(size / Math.max(img.width, img.height, 1));
+}
+
 export class HudScene extends Phaser.Scene {
   private L!: Layout;
   private tray!: Phaser.GameObjects.Graphics;
@@ -38,6 +43,8 @@ export class HudScene extends Phaser.Scene {
   private mute!: Phaser.GameObjects.Container;
   private storeBtn!: Phaser.GameObjects.Container;
   private storeIcon!: Phaser.GameObjects.Graphics;
+  private storeImg!: Phaser.GameObjects.Image;
+  private pauseImg!: Phaser.GameObjects.Image;
   private storeDeal = false;
   private iconR = 20;
   private goalsBtn!: Phaser.GameObjects.Container;
@@ -167,6 +174,7 @@ export class HudScene extends Phaser.Scene {
       kb.on('keydown-ENTER', () => this.handleEnterKey());
       kb.on('keydown-ESC', () => this.handleEscKey());
       kb.on('keydown-M', () => this.toggleMute());
+      kb.on('keydown-P', () => this.openPause());
       kb.on('keydown-S', () => this.openStore());
       kb.on('keydown-G', () => this.openGoals());
       kb.on('keydown-C', () => this.openCollection());
@@ -188,7 +196,7 @@ export class HudScene extends Phaser.Scene {
   private get storeOpen(): boolean {
     return (
       this.scene.isActive('Store') || this.scene.isActive('Goals') || this.scene.isActive('Collection') ||
-      this.scene.isActive('Relocate') || this.scene.isActive('Ledger') || this.scene.isActive('GameOver')
+      this.scene.isActive('Relocate') || this.scene.isActive('Ledger') || this.scene.isActive('GameOver') || this.scene.isActive('Pause')
     );
   }
 
@@ -203,6 +211,8 @@ export class HudScene extends Phaser.Scene {
     if (this.storeOpen) return;
     if (state.mode === 'workshop' && !state.busy) {
       this.action.trigger();
+    } else if (state.mode === 'dig') {
+      this.openPause();
     }
   }
 
@@ -297,10 +307,10 @@ export class HudScene extends Phaser.Scene {
       if (!state.canWork) {
         this.action.setIcon(uiIcon('moon')).setLabel('').setColors(BUTTON_COLORS.blue).setEnabled(false).setPulse(false);
       } else if (ready) {
-        this.action.setIcon(ICON_SAW).setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
+        this.action.setIcon('ui-workshop').setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
       } else if (state.workshopAvailable) {
         // Any rock can be cut right away; the button only starts pulsing once a trip is worth it.
-        this.action.setIcon(ICON_SAW).setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
+        this.action.setIcon('ui-workshop').setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
       } else {
         const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
         this.action.setIcon(uiIcon('pickaxe')).setLabel(`${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
@@ -309,7 +319,7 @@ export class HudScene extends Phaser.Scene {
       // Closing time: no way back to the dig site. The bag has to be emptied first.
       const n = state.rocksLeft;
       this.action
-        .setIcon(n > 0 ? ICON_SAW : uiIcon('moon'))
+        .setIcon(n > 0 ? 'ui-workshop' : uiIcon('moon'))
         .setLabel(n > 0 ? `${n}` : '')
         .setColors(BUTTON_COLORS.blue)
         .setEnabled(false)
@@ -530,15 +540,17 @@ export class HudScene extends Phaser.Scene {
 
   private buildMuteButton(): void {
     this.muteIcon = this.add.graphics();
-    this.mute = this.add.container(0, 0, [this.muteIcon]);
+    this.pauseImg = this.add.image(0, 0, 'ui-pause');
+    this.mute = this.add.container(0, 0, [this.muteIcon, this.pauseImg]);
     this.mute.setSize(40, 40);
     this.mute.setInteractive({ useHandCursor: true });
-    this.mute.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => this.toggleMute());
+    this.mute.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openPause());
   }
 
   private buildStoreButton(): void {
+    this.storeImg = this.add.image(0, 0, 'ui-store');
     this.storeIcon = this.add.graphics();
-    this.storeBtn = this.add.container(0, 0, [this.storeIcon]);
+    this.storeBtn = this.add.container(0, 0, [this.storeImg, this.storeIcon]);
     this.storeBtn.setSize(40, 40);
     this.storeBtn.setInteractive({ useHandCursor: true });
     this.storeBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openStore());
@@ -552,39 +564,11 @@ export class HudScene extends Phaser.Scene {
     this.scene.launch('Store');
   }
 
-  /** A little shop front: striped awning over a window and door. */
+  /** The market stall picture, with a red "!" badge when something worth buying is affordable. */
   private drawStoreIcon(r: number): void {
     const g = this.storeIcon;
     g.clear();
-    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
-    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
-    g.lineStyle(Math.max(2, r * 0.07), PALETTE.gold, 0.9).strokeCircle(0, 0, r - 1);
-    const s = r * 0.5;
-    // Shop body.
-    g.fillStyle(0xfff3dc).fillRect(-s * 0.85, -s * 0.15, s * 1.7, s * 1.05);
-    g.fillStyle(0x4fb0ff).fillRect(-s * 0.62, s * 0.1, s * 0.6, s * 0.5);
-    g.fillStyle(0x8a5a2c).fillRect(s * 0.15, s * 0.1, s * 0.45, s * 0.8);
-    // Awning stripes.
-    const stripes = 4;
-    const top = -s * 0.95;
-    const bottom = -s * 0.15;
-    const topW = s * 1.5;
-    const botW = s * 1.15;
-    for (let i = 0; i < stripes; i++) {
-      const t0 = i / stripes;
-      const t1 = (i + 1) / stripes;
-      g.fillStyle(i % 2 === 0 ? 0xff6b4a : 0xffffff);
-      g.fillPoints(
-        [
-          new Phaser.Geom.Point(-topW + 2 * topW * t0, top),
-          new Phaser.Geom.Point(-topW + 2 * topW * t1, top),
-          new Phaser.Geom.Point(-botW + 2 * botW * t1, bottom),
-          new Phaser.Geom.Point(-botW + 2 * botW * t0, bottom),
-        ],
-        true,
-      );
-    }
-    g.lineStyle(Math.max(1.5, r * 0.06), PALETTE.inkHex, 0.7).strokeRect(-s * 0.85, -s * 0.15, s * 1.7, s * 1.05);
+    fitIcon(this.storeImg, r * 2.5);
     if (this.storeDeal) {
       // Red "!" badge: something worth buying is affordable right now.
       const bx = r * 0.72;
@@ -609,10 +593,8 @@ export class HudScene extends Phaser.Scene {
   private drawGoalsButton(r: number): void {
     const g = this.goalsBg;
     g.clear();
-    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
-    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
-    g.lineStyle(Math.max(2, r * 0.07), 0x5fcf5c, 0.9).strokeCircle(0, 0, r - 1);
-    this.goalsIcon.setDisplaySize(r * 1.3, r * 1.3).setPosition(0, -r * 0.05);
+    fitIcon(this.goalsIcon, r * 2.5);
+    this.goalsIcon.setPosition(0, -r * 0.05);
     this.goalsLevel.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.progress.level}`);
   }
 
@@ -786,32 +768,19 @@ export class HudScene extends Phaser.Scene {
 
   private toggleMute(): void {
     sfx.setMuted(!sfx.muted);
-    this.drawMuteIcon(this.mute.width / 2);
     this.tweens.add({ targets: this.mute, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
   }
 
+  /** The pause badge (this button used to be the mute toggle; sound now lives in the pause menu). */
   private drawMuteIcon(r: number): void {
-    const g = this.muteIcon;
-    g.clear();
-    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
-    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
-    const s = r * 0.42;
-    g.fillStyle(0xffffff);
-    g.fillRect(-s * 1.1, -s * 0.4, s * 0.6, s * 0.8);
-    g.fillTriangle(-s * 0.6, -s * 0.4, s * 0.15, -s * 1.05, s * 0.15, s * 1.05);
-    g.fillTriangle(-s * 0.6, -s * 0.4, s * 0.15, s * 1.05, -s * 0.6, s * 0.4);
-    if (sfx.muted) {
-      g.lineStyle(Math.max(2, r * 0.12), 0xff6b4a);
-      g.lineBetween(s * 0.45, -s * 0.5, s * 1.25, s * 0.5);
-      g.lineBetween(s * 0.45, s * 0.5, s * 1.25, -s * 0.5);
-    } else {
-      g.lineStyle(Math.max(2, r * 0.1), 0xffffff);
-      g.beginPath();
-      g.arc(s * 0.2, 0, s * 0.6, -0.8, 0.8);
-      g.strokePath();
-      g.beginPath();
-      g.arc(s * 0.2, 0, s * 1.05, -0.8, 0.8);
-      g.strokePath();
-    }
+    this.muteIcon.clear();
+    fitIcon(this.pauseImg, r * 2.3);
+  }
+
+  private openPause(): void {
+    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay') || state.isGameOver) return;
+    sfx.click();
+    this.tweens.add({ targets: this.mute, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
+    this.scene.launch('Pause');
   }
 }

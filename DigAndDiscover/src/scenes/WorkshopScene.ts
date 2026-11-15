@@ -43,7 +43,7 @@ const RAY_COUNT = 12;
 export class WorkshopScene extends Phaser.Scene {
   private S: StageLayout = WIDE_STAGE;
   private L!: Layout;
-  private backdrop!: Phaser.GameObjects.Graphics;
+  private backdrop!: Phaser.GameObjects.Image;
   private lamp!: Phaser.GameObjects.Image;
   private stage!: Phaser.GameObjects.Container;
   private machine!: Phaser.GameObjects.Image;
@@ -91,7 +91,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.halves = [];
     this.bench = 'empty';
     this.current = null;
-    this.backdrop = this.add.graphics();
+    this.backdrop = this.add.image(0, 0, 'workshop-bg').setOrigin(0, 0);
     this.lamp = this.add.image(0, 0, 'soft').setTint(0xffd9a0).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD);
     this.stage = this.add.container(0, 0);
     this.buildStage();
@@ -250,22 +250,10 @@ export class WorkshopScene extends Phaser.Scene {
     const scale = Math.min(L.play.w / S.w, L.play.h / S.h);
     this.stage.setScale(scale).setPosition(L.play.x + (L.play.w - S.w * scale) / 2, L.play.y + (L.play.h - S.h * scale) / 2);
 
-    // Full-screen workshop wall and bench.
+    // The supplied workshop picture, covering the screen with its floor edge near the bench.
     const benchY = this.stage.y + (S.bedY + 85) * scale;
-    const g = this.backdrop;
-    g.clear();
-    g.fillStyle(0x2f5d62).fillRect(0, 0, w, h);
-    const plank = Math.max(48, 90 * scale);
-    for (let x = -((w / 2) % plank); x < w; x += plank) {
-      g.fillStyle(0x2a5459).fillRect(x, 0, 4, benchY);
-      g.fillStyle(0x386c71).fillRect(x + 4, 0, 3, benchY);
-    }
-    g.fillStyle(0x264b50).fillRect(0, benchY - 40 * scale, w, 10 * scale);
-    g.fillStyle(0x000000, 0.18).fillRect(0, benchY - 8, w, 14);
-    g.fillStyle(0xc4844e).fillRect(0, benchY, w, 26 * scale);
-    g.fillStyle(0xe0a46a).fillRect(0, benchY, w, 6 * scale);
-    g.fillStyle(0x8c5532).fillRect(0, benchY + 26 * scale, w, h - benchY);
-    for (let y = benchY + 60 * scale; y < h; y += 46 * scale) g.fillStyle(0x7a4a2b).fillRect(0, y, w, 4 * scale);
+    const cover = Math.max(w / this.backdrop.width, h / this.backdrop.height);
+    this.backdrop.setScale(cover).setPosition((w - this.backdrop.width * cover) / 2, Math.min(0, Math.max(h - this.backdrop.height * cover, benchY - 560 * cover)));
     this.lamp.setPosition(this.stage.x + S.machineX * scale, this.stage.y + (S.bedY - 150) * scale).setScale((520 * scale) / 64);
 
     this.layoutStage(prev !== S);
