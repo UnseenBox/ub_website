@@ -1,4 +1,4 @@
-export type RarityId = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+export type RarityId = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'worthless';
 
 export interface RarityDef {
   id: RarityId;
@@ -19,4 +19,6 @@ export const RARITIES: readonly RarityDef[] = [
   { id: 'rare', label: 'Rare', tier: 2, weight: 10, color: 0x4fa8ff, css: '#1f7ad6', sparkleChance: 0.25 },
   { id: 'epic', label: 'Epic', tier: 3, weight: 4, color: 0xb565ff, css: '#9037e0', sparkleChance: 0.4 },
   { id: 'legendary', label: 'Legendary', tier: 4, weight: 1, color: 0xffb627, css: '#e08a00', sparkleChance: 0.6 },
+  // Worthless rocks are a real rarity: they roll like any other and pay nothing.
+  { id: 'worthless', label: 'Worthless', tier: 0, weight: 12, color: 0x8a7f70, css: '#6f6558', sparkleChance: 0.02 },
 ];

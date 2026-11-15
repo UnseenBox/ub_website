@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BUTTON_COLORS, PALETTE, outlinedStyle } from '../config/Theme';
 import { state } from '../core/GameState';
 import { hardnessMult, powerMult, valueMult } from '../data/deposits';
+import { uiIcon } from '../art/UiIcons';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
@@ -63,7 +64,7 @@ export class RelocateScene extends Phaser.Scene {
 
     const next = state.progress.deposit + 1;
 
-    const title = this.add.text(CARD_W / 2, 38, '\u{1F3C1}', outlinedStyle(46)).setOrigin(0.5);
+    const title = this.add.image(CARD_W / 2, 38, uiIcon('flag')).setDisplaySize(46, 46).setOrigin(0.5);
     const rw = title.width + 80;
     const ribbon = this.add.graphics();
     ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - rw / 2, 18, rw, 54, 14);
@@ -73,31 +74,32 @@ export class RelocateScene extends Phaser.Scene {
     content.add([ribbon, title]);
 
     let y = 88;
-    content.add(this.add.text(CARD_W / 2, y, `\u{1F680} ${next}`, outlinedStyle(40, '#8dff9a')).setOrigin(0.5, 0));
+    content.add(this.add.image(CARD_W / 2 - 42, y + 22, uiIcon('flag')).setDisplaySize(44, 44).setOrigin(0.5, 0));
+    content.add(this.add.text(CARD_W / 2 + 14, y, `${next}`, outlinedStyle(40, '#8dff9a')).setOrigin(0.5, 0));
     y += 42;
 
     const pct = (v: number) => `+${Math.round((v - 1) * 100)}%`;
     const rows: Array<[string, string, string]> = [
-      ['\u{1F4B0}', `+${formatMoney(state.relocationBonus)}`, '#2a8a3a'],
-      ['\u{1F48E}', `${pct(valueMult(next))}`, '#2a8a3a'],
-      ['\u26CF\uFE0F', `${pct(powerMult(next))}`, '#2a8a3a'],
-      ['\u{1F9F1}', `${pct(hardnessMult(next))}`, '#b8501f'],
+      [uiIcon('cash'), `+${formatMoney(state.relocationBonus)}`, '#2a8a3a'],
+      [uiIcon('gem'), `${pct(valueMult(next))}`, '#2a8a3a'],
+      [uiIcon('pickaxe'), `${pct(powerMult(next))}`, '#2a8a3a'],
+      [uiIcon('bricks'), `${pct(hardnessMult(next))}`, '#b8501f'],
     ];
-    for (const [label, value, color] of rows) {
+    for (const [iconKey, value, color] of rows) {
       const g = this.add.graphics();
       g.lineStyle(2, 0x7a5a3a, 0.16).lineBetween(PAD, y + 32, CARD_W - PAD, y + 32);
       content.add(g);
-      content.add(this.add.text(PAD + 4, y + 15, label, outlinedStyle(26, '#ffffff', { strokeThickness: 0 })).setOrigin(0, 0.5));
+      content.add(this.add.image(PAD + 4, y + 15, iconKey).setDisplaySize(28, 28).setOrigin(0, 0.5));
       content.add(this.add.text(CARD_W - PAD, y + 15, value, outlinedStyle(20, '#ffffff')).setOrigin(1, 0.5).setStroke(color === '#b8501f' ? '#b8501f' : '#2a8a3a', 5));
       y += 38;
     }
     y += 14;
 
-    const go = new Button(this, { width: 380, height: 66, label: '\u{1F680}  \u25B6', fontSize: 34, colors: BUTTON_COLORS.green, onClick: () => this.close(true) });
+    const go = new Button(this, { width: 380, height: 66, label: '', fontSize: 34, colors: BUTTON_COLORS.green, icon: uiIcon('play'), onClick: () => this.close(true) });
     go.setPosition(CARD_W / 2, y + 36).setPulse(true);
     content.add(go);
     y += 82;
-    const stay = new Button(this, { width: 120, height: 46, label: '\u2716', fontSize: 24, colors: BUTTON_COLORS.blue, onClick: () => this.close(false) });
+    const stay = new Button(this, { width: 120, height: 46, label: '', fontSize: 24, colors: BUTTON_COLORS.blue, icon: uiIcon('cross'), onClick: () => this.close(false) });
     stay.setPosition(CARD_W / 2, y + 26);
     content.add(stay);
     y += 56;

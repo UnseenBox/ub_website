@@ -3,10 +3,11 @@ import { GAME_CONFIG } from '../config/GameConfig';
 import { LAYERS } from '../data/layers';
 import { SCANNERS, TOOL_DEFS, UPGRADE_EFFECTS, type ToolDef } from '../data/tools';
 import { ALL_TOOLS, ALL_UPGRADES, upgradePrice, type ToolItem, type UpgradeItem } from '../data/store';
-import { CurioSystem } from '../systems/CurioSystem';
+import { FindSystem, FindsInventory, type FindItem } from '../systems/FindSystem';
+import { FIND_BY_ID, FIND_CONFIG, type FindDef } from '../data/finds';
 import { hardnessMult, powerMult, relocationBonus, valueMult } from '../data/deposits';
-import { CURIO_VALUE, CURIO_XP, type CurioDef } from '../data/curios';
-import { ProgressSystem, ROCK_XP, readSave, writeSave, type Goal } from '../systems/ProgressSystem';
+import { ProgressSystem, ROCK_XP, clearSave, readSave, writeSave, type Goal } from '../systems/ProgressSystem';
+import { FinanceSystem, type DaySettlement, type FinanceDaySummary, type LedgerView } from '../systems/FinanceSystem';
 import type { ClockConfig } from '../systems/ClockSystem';
 import { DayCycleSystem, type DayPhase, type DaySummary } from '../systems/DayCycleSystem';
 import { DiscoverySystem } from '../systems/DiscoverySystem';
@@ -50,12 +51,18 @@ export const EVT = {
   goalDone: 'goal-done',
   /** The tool in the player's hands changed. */
   toolChanged: 'tool-changed',
-  /** (curio, isFirstTime, cashPaid) something strange was dug up. */
-  curioFound: 'curio-found',
+  /** (def: FindDef, item: FindItem, first: boolean) a find was dug up. */
+  findFound: 'find-found',
   /** The digger struck bedrock: time to offer a new deposit. */
   bedrock: 'bedrock',
   /** (newDepositNumber, bonusCash) the digger moved to a fresh deposit. */
   relocated: 'relocated',
+  /** The household bill, the debt or the payment schedule changed. */
+  financeChanged: 'finance-changed',
+  /** (reason) the run ended: the monthly deadline was missed. */
+  gameOver: 'game-over',
+  /** The whole run was restarted from scratch. */
+  runReset: 'run-reset',
 } as const;
 
 export type BuyResult = 'ok' | 'poor' | 'locked' | 'owned' | 'maxed' | 'weaker' | 'unavailable';
@@ -93,13 +100,21 @@ export class GameState {
     if (index > 0 && this.progress.claimLayer(index)) this.progress.addXp(25 * index);
   });
   readonly discovery = new DiscoverySystem();
-  readonly curios = new CurioSystem();
+  readonly finds = new FindSystem();
+  readonly findsInv = new FindsInventory();
+  readonly finance = new FinanceSystem();
   readonly day = new DayCycleSystem(clockConfig(), GAME_CONFIG.day, {
     onPhase: (phase) => this.bus.emit(EVT.dayPhaseChanged, phase),
   });
   private toolCache: ToolDef | null = null;
   private lastToolId = 'tool-old-shovel';
   readonly stats = { found: 0, cut: 0, best: null as Rock | null };
+  /** The bill of the day that just ended (used by the end-of-day screen). */
+  private financeSettlement: DaySettlement | null = null;
+  /** True once the bill of the current day was settled. */
+  private settlementDone = false;
+  /** True once the game over event was sent out. */
+  private gameOverAnnounced = false;
 
   constructor() {
     this.progress.setTotalDepth(this.dig.totalMeters);
@@ -110,6 +125,9 @@ export class GameState {
       this.day.day = Math.max(1, save.day | 0);
       this.stats.found = save.found | 0;
       this.stats.cut = save.cut | 0;
+      this.finance.restore(save.finance);
+      if (!this.finance.gameOver && typeof save.gameOver === 'string') this.finance.gameOver = save.gameOver;
+      this.findsInv.restore(save.finds);
     }
     this.progress.ensureGoals();
     this.applyUpgrades();
@@ -158,7 +176,7 @@ export class GameState {
 
   // ---------- deposits ----------
 
-  /** Rocks and curios are worth more in later deposits. */
+  /** Rocks and artifacts are worth more in later deposits. */
   get depositValueMult(): number {
     return valueMult(this.progress.deposit);
   }
@@ -225,7 +243,17 @@ export class GameState {
   }
 
   private save(): void {
-    writeSave(this.progress.toSave({ money: this.economy.money, day: this.day.day, found: this.stats.found, cut: this.stats.cut }));
+    writeSave(
+      this.progress.toSave({
+        money: this.economy.money,
+        day: this.day.day,
+        found: this.stats.found,
+        cut: this.stats.cut,
+        finance: this.finance.toSave(),
+        gameOver: this.finance.gameOver,
+        finds: this.findsInv.toSave(),
+      }),
+    );
   }
 
   private currentMode: GameMode = 'dig';
@@ -299,17 +327,77 @@ export class GameState {
     this.bus.emit(EVT.statsChanged);
   }
 
-  /** A curio was dug up: pays cash (double the first time), XP, and joins the collection. */
-  recordCurio(curio: CurioDef): { first: boolean; value: number } {
-    const [lo, hi] = CURIO_VALUE[curio.tier];
-    const { first, milestone } = this.progress.foundCurio(curio.id);
-    const value = Math.round((lo + Math.random() * (hi - lo)) * (first ? 2 : 1) * this.depositValueMult);
-    this.economy.earn(value);
-    this.progress.note('curio');
-    this.progress.addXp(CURIO_XP[curio.tier] * (first ? 2 : 1));
-    this.bus.emit(EVT.curioFound, curio, first, value);
-    if (milestone) this.bus.emit(EVT.toast, `\u{1F3FA} ${milestone}   +$${milestone * 50}`);
-    return { first, value };
+  /**
+   * A find was dug up: it is stored or recorded, pays XP, but NEVER cash.
+   * Rocks (cut open and sold) are the business; finds only add variety and surprise.
+   */
+  recordFindItem(def: FindDef, item: FindItem): { first: boolean } {
+    let first = false;
+    if (def.category === 'artifact') {
+      this.findsInv.addArtifact(item);
+    } else if (def.category === 'collection') {
+      const result = this.findsInv.recordCollection(def.id);
+      first = result.first;
+      this.progress.note('curio');
+    } else if (def.category === 'junk') {
+      this.findsInv.recordJunk(def.id);
+    }
+    const table = FIND_CONFIG.xpByTier[def.category];
+    const xp = (table[Math.min(def.tier, table.length - 1)] ?? 0) * (first && def.category === 'collection' ? 2 : 1);
+    if (xp > 0) this.progress.addXp(xp);
+    this.bus.emit(EVT.findFound, def, item, first);
+    this.bus.emit(EVT.statsChanged);
+    this.save();
+    return { first };
+  }
+
+  /**
+   * Sells a single artifact by its item id: the ONLY way an artifact turns into money.
+   * (x, y) is where the coins start flying from, in screen pixels. Returns the amount received.
+   */
+  sellArtifact(id: string, x = 0, y = 0): number {
+    const held = this.findsInv.artifacts.find((a) => a.id === id);
+    const tier = held ? (FIND_BY_ID[held.defId]?.tier ?? 0) : 0;
+    const amount = this.findsInv.sellArtifact(id);
+    if (amount > 0) {
+      this.economy.earn(amount);
+      this.bus.emit(EVT.sale, amount, x, y, tier);
+      this.bus.emit(EVT.statsChanged);
+      this.save();
+    }
+    return amount;
+  }
+
+  /** Sells every artifact at once. Returns the total amount received. */
+  sellAllArtifacts(x = 0, y = 0): number {
+    const amount = this.findsInv.sellAllArtifacts();
+    if (amount > 0) {
+      this.economy.earn(amount);
+      this.bus.emit(EVT.sale, amount, x, y, 3);
+      this.bus.emit(EVT.statsChanged);
+      this.save();
+    }
+    return amount;
+  }
+
+  /** Number of different collection items found. */
+  get collectionFound(): number {
+    return this.findsInv.collectionUnique;
+  }
+
+  /** Total number of collection items in the catalogue. */
+  get collectionTotal(): number {
+    return this.findsInv.collectionTotal;
+  }
+
+  /** Number of artifacts currently held. */
+  get artifactCount(): number {
+    return this.findsInv.artifacts.length;
+  }
+
+  /** Total value of artifacts currently held. */
+  get artifactValue(): number {
+    return this.findsInv.artifactValue;
   }
 
   recordCut(rock: Rock): void {
@@ -324,13 +412,51 @@ export class GameState {
 
   /** Advance every time-based system. Called once per frame with the (clamped) frame time. */
   tick(deltaMs: number): void {
+    if (this.isGameOver) {
+      // A run that ended stays ended: nothing moves any more.
+      if (!this.gameOverAnnounced) {
+        this.gameOverAnnounced = true;
+        this.bus.emit(EVT.gameOver, this.finance.gameOver);
+      }
+      return;
+    }
     this.stamina.update(deltaMs);
     this.progress.note('depth', this.dig.deepestMeters, true);
     this.day.tick(deltaMs, this.rocksLeft);
     if (this.day.readyForSummary(this.somethingRunning, this.rocksLeft)) {
       this.day.openSummary();
+      this.settleFinance();
       this.bus.emit(EVT.daySummary, this.buildSummary());
     }
+  }
+
+  /** Takes the household bill of the finished day out of the player's money. */
+  private settleFinance(): void {
+    if (this.settlementDone) return;
+    this.settlementDone = true;
+    const settlement = this.finance.settleDay(this.economy.money);
+    if (settlement.paid > 0) this.economy.spend(settlement.paid);
+    this.financeSettlement = settlement;
+    this.bus.emit(EVT.financeChanged);
+  }
+
+  /** The household bill and the debt of the day that just ended. */
+  private buildFinanceSummary(): FinanceDaySummary {
+    const settlement = this.financeSettlement;
+    const view = this.finance.view();
+    return {
+      items: settlement ? settlement.items : [],
+      carriedIn: settlement ? settlement.carriedIn : 0,
+      due: settlement ? settlement.due : 0,
+      paid: settlement ? settlement.paid : 0,
+      carriedOut: settlement ? settlement.carriedOut : 0,
+      installmentIssued: settlement ? settlement.installmentIssued : 0,
+      overdue: settlement ? settlement.overdue : 0,
+      isMonthEnd: settlement ? settlement.isMonthEnd : false,
+      daysLeftInMonth: settlement ? settlement.daysLeftInMonth : view.daysLeftInMonth,
+      debtRemaining: view.debtRemaining,
+      moneyAfterPayment: this.economy.money,
+    };
   }
 
   buildSummary(): DaySummary {
@@ -352,6 +478,7 @@ export class GameState {
       layerName: LAYERS[this.dig.deepestLayerIndex].name,
       layerIndex: this.dig.deepestLayerIndex + 1,
       layerCount: LAYERS.length,
+      finance: this.buildFinanceSummary(),
     };
   }
 
@@ -361,10 +488,122 @@ export class GameState {
    */
   startNextDay(): void {
     if (this.day.phase !== 'summary') return;
+    const view = this.finance.view();
+    if (view.dayInMonth === view.monthDays) {
+      // The month is over: anything still overdue ends the run.
+      const check = this.finance.evaluateMonth();
+      if (!check.ok) {
+        this.finance.triggerGameOver(check.reason ?? 'The debt caught up with the family.');
+        this.gameOverAnnounced = true;
+        this.bus.emit(EVT.gameOver, this.finance.gameOver);
+        this.save();
+        return;
+      }
+    }
+    this.finance.startNextDay();
+    this.settlementDone = false;
+    this.financeSettlement = null;
     this.stamina.reset();
     this.day.startNextDay();
     this.bus.emit(EVT.dayStarted, this.day.day);
     this.save();
+  }
+
+  // ---------- household ledger ----------
+
+  /** A snapshot of the ledger for the UI. */
+  get ledger(): LedgerView {
+    return this.finance.view();
+  }
+
+  /** True when there is an unpaid debt instalment or an unpaid household bill. */
+  get hasOverdue(): boolean {
+    return this.finance.overdue > 0 || this.finance.billsOutstanding > 0;
+  }
+
+  /** True once the run has ended. */
+  get isGameOver(): boolean {
+    return this.finance.gameOver !== null;
+  }
+
+  /** Settles household bills that were carried forward, out of the player's money. */
+  private payCarriedBills(): number {
+    const paid = this.finance.payBills(this.economy.money);
+    if (paid > 0) this.economy.spend(paid);
+    return paid;
+  }
+
+  /**
+   * Pays the household first (bills carried forward), then the bank with whatever is
+   * left, up to `amount`. The cash comes out of the player's money. Returns the total paid.
+   */
+  payDebt(amount: number): number {
+    const bills = this.payCarriedBills();
+    const paid = this.finance.pay(amount, this.economy.money);
+    if (paid > 0) this.economy.spend(paid);
+    if (bills + paid > 0) this.bus.emit(EVT.financeChanged);
+    return bills + paid;
+  }
+
+  /**
+   * Pays what is due: the household bills carried forward and the overdue debt. With
+   * nothing due it pays the next instalment ahead of time.
+   */
+  payDebtDue(): number {
+    const bills = this.payCarriedBills();
+    // Overdue debt is due; otherwise only prepay when there were no bills to clear either.
+    const instalment =
+      this.finance.overdue > 0 || bills === 0 ? this.finance.payInstallment(this.economy.money) : 0;
+    if (instalment > 0) this.economy.spend(instalment);
+    if (bills + instalment > 0) this.bus.emit(EVT.financeChanged);
+    return bills + instalment;
+  }
+
+  /**
+   * Starts the run from scratch: money, day, dig, bag, upgrades, collections,
+   * bills and debt are all cleared and the save file is removed. The audio
+   * mute preference is not touched.
+   */
+  resetRun(): void {
+    this.economy.reset(GAME_CONFIG.economy.startingMoney);
+    this.finance.reset();
+    this.financeSettlement = null;
+    this.settlementDone = false;
+    this.gameOverAnnounced = false;
+
+    this.day.reset();
+    this.stamina.reset();
+    this.stamina.setUpgrades(0, 0, 1);
+
+    this.stats.found = 0;
+    this.stats.cut = 0;
+    this.stats.best = null;
+
+    for (let i = 0; i < GAME_CONFIG.inventory.slots; i++) {
+      const rock = this.inventory.get(i);
+      if (rock) this.inventory.remove(rock.id);
+    }
+
+    this.dig.reset();
+    this.dig.hardnessMult = 1;
+    this.discovery.findBonus = 0;
+
+    this.progress.reset();
+    this.progress.ensureGoals();
+    this.applyUpgrades();
+    this.toolCache = null;
+    this.lastToolId = this.progress.equippedToolId;
+
+    this.findsInv.reset();
+    this.finds.reset();
+
+    this.currentMode = 'dig';
+    this.setMode('dig');
+    this.setBusy(false);
+    this.activity = 0;
+
+    clearSave();
+    this.bus.emit(EVT.runReset);
   }
 }
 

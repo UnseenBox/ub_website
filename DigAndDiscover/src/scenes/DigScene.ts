@@ -14,9 +14,10 @@ import { HOLE_RADIUS, HOLE_VARIANTS, SHOVEL } from '../art/TextureFactory';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
-import { curioKey } from '../art/CurioArt';
+import { ensureFindTexture } from '../art/FindArt';
+import { uiIcon } from '../art/UiIcons';
 import { depositTint } from '../data/deposits';
-import type { CurioDef } from '../data/curios';
+import { CATEGORY_STYLE, type FindDef } from '../data/finds';
 import { computeLayout, type Layout } from '../ui/layout';
 
 const WORLD = GAME_CONFIG.world;
@@ -50,8 +51,12 @@ const SHOVEL_FOLLOW_MS = 35;
 const SHOVEL_HOVER_MIN = 14;
 const SHOVEL_HOVER_MAX = 130;
 const SHOVEL_REST_ANGLE = 18;
-/** A curio sprite is a 160px sticker; this makes it about 112 field units wide. */
-const CURIO_SCALE = 0.7;
+/** A find texture is 160px; this display size is about 70 field units across. */
+const FIND_SIZE = 70;
+/** Junk is a little smaller on screen. */
+const JUNK_SIZE = 56;
+/** Find textures are painted at this many pixels (see ensureFindTexture). */
+const FIND_TEXTURE = 160;
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -82,11 +87,11 @@ function skyTint(p: number): number {
   return SKY_STOPS[SKY_STOPS.length - 1][1];
 }
 
-/** A pocket in the shaft wall holding a rock - or, now and then, a strange curio. */
+/** A pocket in the shaft wall holding a rock - or, now and then, a find. */
 interface EmbeddedRock {
   rock: Rock | null;
-  curio: CurioDef | null;
-  /** The bobbing "?" over a curio that is still a mystery. */
+  find: FindDef | null;
+  /** The bobbing "?" over a find that is still a mystery. */
   mark: Phaser.GameObjects.Text | null;
   sprite: Phaser.GameObjects.Image;
   x: number;
@@ -125,7 +130,7 @@ export class DigScene extends Phaser.Scene {
   private swingEndsAt = 0;
   private pips!: Phaser.GameObjects.Graphics;
   private hint: Phaser.GameObjects.Container | null = null;
-  private tiredText!: Phaser.GameObjects.Text;
+  private tiredText!: Phaser.GameObjects.Image;
   private rings: Phaser.GameObjects.Image[] = [];
   private ringIndex = 0;
   private glints: Phaser.GameObjects.Image[] = [];
@@ -225,6 +230,7 @@ export class DigScene extends Phaser.Scene {
     subscribe(this, EVT.inventoryChanged, () => this.tryReleaseStuckRocks());
     subscribe(this, EVT.toolChanged, () => this.applyToolLook());
     subscribe(this, EVT.relocated, () => this.onRelocated());
+    subscribe(this, EVT.runReset, () => this.onRelocated()); // a restarted run: the ground starts over too
     subscribe(this, EVT.layerEntered, () => this.cameras.main.shake(260, 0.004));
     this.cameras.main.fadeIn(250, 30, 20, 12);
   }
@@ -366,7 +372,7 @@ export class DigScene extends Phaser.Scene {
     for (let i = 0; i < 3; i++) this.rings.push(this.add.image(0, 0, 'ring').setVisible(false).setTint(0xfff0d0));
     for (let i = 0; i < 4; i++) this.glints.push(this.add.image(0, 0, 'star').setVisible(false).setBlendMode(Phaser.BlendModes.ADD));
     this.pips = this.add.graphics().setAlpha(0);
-    this.tiredText = this.add.text(0, 0, '\u{1F4A4}', outlinedStyle(48)).setOrigin(0.5).setVisible(false);
+    this.tiredText = this.add.image(0, 0, uiIcon('zzz')).setDisplaySize(64, 64).setVisible(false);
     this.popLayer.add([
       ...this.rings, ...this.dustFx, ...this.dirtFx, this.pebbleFx, this.sparkleFx, this.crystalFx, ...this.glints, this.pips,
     ]);
@@ -815,9 +821,10 @@ export class DigScene extends Phaser.Scene {
     } else if (this.embedded.length >= GAME_CONFIG.dig.maxEmbeddedRocks) {
       state.discovery.skip();
     } else if (res.dug && state.discovery.roll(res.layer, Math.random)) {
-      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, (res.layer.discovery.valueMult ?? 1) * state.depositValueMult);
-    } else if (res.dug && state.curios.roll(res.layerIndex, Math.random)) {
-      this.embedCurio(res.cx, res.layerIndex);
+      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, (res.layer.discovery.valueMult ?? 1) * state.depositValueMult, res.layerIndex);
+    } else if (res.dug) {
+      const def = state.finds.roll(res.layerIndex, Math.random, (id) => state.findsInv.collectionCount(id) > 0);
+      if (def) this.embedFind(res.cx, def);
     }
   }
 
@@ -855,18 +862,20 @@ export class DigScene extends Phaser.Scene {
     rarityWeights: readonly number[],
     freeHits: { min: number; max: number },
     valueMult = 1,
+    layerIndex = 0,
   ): void {
-    const rock = generateRock(Math.random, rarityWeights, valueMult);
+    const rock = generateRock(Math.random, rarityWeights, valueMult, layerIndex);
     ensureRockTextures(this.textures, rock);
-    const r = GAME_CONFIG.rock.baseRadius * rock.size;
+    const k = GAME_CONFIG.rock.discoveryScale;
+    const r = GAME_CONFIG.rock.baseRadius * rock.size * k;
     const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
     const y = state.dig.floorAt(x) + r * GAME_CONFIG.dig.rockSinkFactor;
     const sprite = this.add.image(x, y + 24, rockKeys(rock).outside).setScale(0).setAngle(range(Math.random, -20, 20));
     this.rockLayer.add(sprite);
     const maxHp = intRange(Math.random, freeHits.min, freeHits.max);
-    const b: EmbeddedRock = { rock, curio: null, mark: null, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    const b: EmbeddedRock = { rock, find: null, mark: null, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
     this.embedded.push(b);
-    this.tweens.add({ targets: sprite, y, scale: 1 / ART_RES, duration: 280, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: sprite, y, scale: k / ART_RES, duration: 280, ease: 'Back.easeOut' });
     // Open a pocket around its top so the find is clearly visible, never just a sliver.
     this.paintCrater(x, y - r * 0.3, r * 0.8, r * 0.62);
     sfx.collect();
@@ -935,8 +944,8 @@ export class DigScene extends Phaser.Scene {
   }
 
   private unearth(b: EmbeddedRock): void {
-    if (b.curio) {
-      this.unearthCurio(b);
+    if (b.find) {
+      this.unearthFind(b);
       return;
     }
     const { rock, sprite } = b;
@@ -963,7 +972,7 @@ export class DigScene extends Phaser.Scene {
     // Pop out: squash, leap, land, then hand off to the HUD's flight to the bag.
     this.rockLayer.remove(sprite);
     this.popLayer.addAt(sprite, 0);
-    const base = 1 / ART_RES;
+    const base = GAME_CONFIG.rock.discoveryScale / ART_RES;
     const landY = b.y - b.r * 0.2;
     this.tweens.killTweensOf(sprite);
     this.tweens.chain({
@@ -985,78 +994,116 @@ export class DigScene extends Phaser.Scene {
     });
   }
 
-  /** The strange stuff: shows up as a dark silhouette with a "?" until it is dug free. */
-  private embedCurio(nearX: number, layerIndex: number): void {
-    const curio = state.curios.pick(layerIndex, (id) => state.progress.curioCount(id) > 0);
-    const r = 50;
+  /** A buried object: shows up as a dark silhouette with a "?" until it is dug free. */
+  private embedFind(nearX: number, def: FindDef): void {
+    const junk = def.category === 'junk';
+    const size = junk ? JUNK_SIZE : FIND_SIZE;
+    const r = size * 0.7;
+    const scale = size / FIND_TEXTURE;
     const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
     const y = state.dig.floorAt(x) + r * GAME_CONFIG.dig.rockSinkFactor;
-    const sprite = this.add.image(x, y + 24, curioKey(curio.id)).setScale(0).setTintFill(0x120a06).setAngle(range(Math.random, -12, 12));
+    const key = ensureFindTexture(this.textures, def);
+    const sprite = this.add.image(x, y + 24, key).setScale(0).setTintFill(0x120a06).setAngle(range(Math.random, -12, 12));
     this.rockLayer.add(sprite);
-    const maxHp = intRange(Math.random, 2, 3);
-    const mark = this.add.text(x, y - r - 34, '?', outlinedStyle(44, '#ffd34d')).setOrigin(0.5).setScale(0);
+    const maxHp = junk ? 1 : intRange(Math.random, 1, 2);
+    // The colour of the "?" hints at the kind: gold artifact, teal collection item, grey rubbish.
+    const mark = this.add
+      .text(x, y - r - 30, '?', outlinedStyle(junk ? 30 : 40, CATEGORY_STYLE[def.category].css))
+      .setOrigin(0.5)
+      .setScale(0);
     this.popLayer.add(mark);
-    const b: EmbeddedRock = { rock: null, curio, mark, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    const b: EmbeddedRock = { rock: null, find: def, mark, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
     this.embedded.push(b);
-    this.tweens.add({ targets: sprite, y, scale: CURIO_SCALE, duration: 280, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: sprite, y, scale, duration: 280, ease: 'Back.easeOut' });
     this.tweens.add({ targets: mark, scale: 1, duration: 300, delay: 120, ease: 'Back.easeOut' });
     this.tweens.add({ targets: mark, y: mark.y - 10, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 420 });
     this.paintCrater(x, y - r * 0.3, r * 0.8, r * 0.62);
-    sfx.collect();
-    sfx.haptic(12);
-    this.sparkleFx.explode(8, x, y - r * 0.5);
+    if (!junk) {
+      sfx.collect();
+      sfx.haptic(12);
+      this.sparkleFx.explode(8, x, y - r * 0.5);
+    }
     this.showPips(b);
   }
 
-  /** The big surprise: it bursts out, hangs in the air, and the HUD announces what it is. */
-  private unearthCurio(b: EmbeddedRock): void {
-    const { curio, sprite } = b;
-    if (!curio) return;
+  /**
+   * A find bursts out of the ground. Artifacts make the biggest fuss, collection items a smaller
+   * one, junk just flops. Nothing here pays money: the HUD card only names what it is, and
+   * artifacts are sold later from the Finds screen.
+   */
+  private unearthFind(b: EmbeddedRock): void {
+    const { find: def, sprite } = b;
+    if (!def) return;
     this.embedded = this.embedded.filter((o) => o !== b);
     if (b.mark) {
       this.tweens.killTweensOf(b.mark);
       b.mark.destroy();
     }
     state.beginActivity();
-    const tier = curio.tier;
+    const cat = def.category;
+    const junk = cat === 'junk';
+    const artifact = cat === 'artifact';
+    const tier = def.tier;
+    const base = (junk ? JUNK_SIZE : FIND_SIZE) / FIND_TEXTURE;
     const layerIndex = state.dig.layerIndexAtY(b.y);
-    this.paintCrater(b.x, b.y - b.r * 0.1, b.r * 1.5, b.r * 1.3);
-    this.dirtFx[layerIndex].explode(30, b.x, b.y);
-    this.dustFx[layerIndex].explode(9, b.x, b.y - b.r * 0.5);
-    this.sparkleFx.explode(12 + tier * 6, b.x, b.y - b.r * 0.4);
-    this.cameras.main.shake(180 + tier * 70, 0.005 + tier * 0.002);
-    if (tier >= 3) this.cameras.main.flash(280, 255, 244, 190);
+    this.paintCrater(b.x, b.y - b.r * 0.1, b.r * (junk ? 1.2 : 1.5), b.r * (junk ? 1.05 : 1.3));
+    this.dirtFx[layerIndex].explode(junk ? 14 : 28, b.x, b.y);
+    this.dustFx[layerIndex].explode(junk ? 5 : 9, b.x, b.y - b.r * 0.5);
+    if (!junk) {
+      this.sparkleFx.explode((artifact ? 14 : 8) + tier * (artifact ? 6 : 3), b.x, b.y - b.r * 0.4);
+      this.cameras.main.shake(artifact ? 170 + tier * 60 : 120, artifact ? 0.005 + tier * 0.0018 : 0.004);
+    }
+    if (artifact && tier >= 3) this.cameras.main.flash(280, 255, 244, 190);
     sprite.clearTint();
     this.rockLayer.remove(sprite);
     this.popLayer.addAt(sprite, 0);
 
-    // The player's own reaction, shouted over the hole.
-    const shout = this.add.text(b.x, b.y - 110, '!', outlinedStyle(64, '#ffd34d')).setOrigin(0.5).setScale(0);
-    this.popLayer.add(shout);
-    this.tweens.add({ targets: shout, scale: 1.1, angle: { from: -8, to: 4 }, duration: 220, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: shout, y: shout.y - 50, alpha: 0, delay: 800, duration: 380, onComplete: () => shout.destroy() });
+    // The player's own reaction, shouted over the hole (not for rubbish).
+    if (!junk) {
+      const shout = this.add.text(b.x, b.y - 110, '!', outlinedStyle(artifact ? 64 : 48, CATEGORY_STYLE[cat].css)).setOrigin(0.5).setScale(0);
+      this.popLayer.add(shout);
+      this.tweens.add({ targets: shout, scale: 1.1, angle: { from: -8, to: 4 }, duration: 220, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: shout, y: shout.y - 50, alpha: 0, delay: 800, duration: 380, onComplete: () => shout.destroy() });
+    }
 
     const landY = b.y - b.r * 0.2;
     this.tweens.killTweensOf(sprite);
-    this.tweens.chain({
-      targets: sprite,
-      tweens: [
-        { scaleX: CURIO_SCALE * 1.3, scaleY: CURIO_SCALE * 0.7, duration: 70, ease: 'Quad.easeOut' },
-        { y: landY - 190, scaleX: CURIO_SCALE * 1.15, scaleY: CURIO_SCALE * 1.2, angle: 360, duration: 360, ease: 'Quad.easeOut' },
-        { y: landY - 170, scale: CURIO_SCALE * 1.35, angle: 372, duration: 420, yoyo: true, ease: 'Sine.easeInOut' },
-      ],
-    });
+    if (junk) {
+      // A dull flop: hop, land, lie there.
+      this.tweens.chain({
+        targets: sprite,
+        tweens: [
+          { y: landY - 50, scaleX: base * 1.1, scaleY: base * 0.9, angle: sprite.angle + 40, duration: 180, ease: 'Quad.easeOut' },
+          { y: landY, scale: base, angle: sprite.angle + 70, duration: 170, ease: 'Quad.easeIn' },
+        ],
+      });
+    } else {
+      this.tweens.chain({
+        targets: sprite,
+        tweens: [
+          { scaleX: base * 1.3, scaleY: base * 0.7, duration: 70, ease: 'Quad.easeOut' },
+          { y: landY - 190, scaleX: base * 1.15, scaleY: base * 1.2, angle: 360, duration: 360, ease: 'Quad.easeOut' },
+          { y: landY - 170, scale: base * (artifact ? 1.35 : 1.2), angle: 372, duration: 420, yoyo: true, ease: 'Sine.easeInOut' },
+        ],
+      });
+    }
 
-    // Pay out right away (the card shows at once); coins fly in as the item settles.
-    const { value } = state.recordCurio(curio);
-    sfx.surprise(tier);
-    sfx.haptic(tier >= 3 ? [30, 40, 70] : 25);
-    this.time.delayedCall(900, () => {
-      const m = sprite.getWorldTransformMatrix();
-      state.bus.emit(EVT.sale, value, m.tx, m.ty, tier);
+    // Record it right away (the HUD card shows at once). Never any cash here.
+    const item = state.finds.makeItem(def, Math.random, state.depositValueMult);
+    state.recordFindItem(def, item);
+    if (artifact) {
+      sfx.surprise(tier);
+      sfx.haptic(tier >= 3 ? [30, 40, 70] : 25);
+    } else if (cat === 'collection') {
+      sfx.surprise(Math.min(2, tier));
+      sfx.haptic(15);
+    } else {
+      sfx.collect();
+    }
+    this.time.delayedCall(junk ? 450 : artifact ? 900 : 700, () => {
       this.tweens.killTweensOf(sprite);
       this.tweens.add({
-        targets: sprite, scale: 0, alpha: 0, y: sprite.y - 40, duration: 260, ease: 'Back.easeIn',
+        targets: sprite, scale: 0, alpha: 0, y: sprite.y - (junk ? 10 : 40), duration: 260, ease: 'Back.easeIn',
         onComplete: () => {
           sprite.destroy();
           state.endActivity();
@@ -1089,8 +1136,8 @@ export class DigScene extends Phaser.Scene {
     this.tweens.add({ targets: this.rig, x: { from: this.rig.x - 8, to: this.rig.x }, duration: 300, ease: 'Elastic.easeOut' });
     const t = this.tiredText;
     this.tweens.killTweensOf(t);
-    t.setPosition(clamp(x, this.visL + 180, this.visR - 180), state.dig.floorAt(x) - 100).setAlpha(1).setScale(0.7).setVisible(true);
-    this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.easeOut' });
+    t.setPosition(clamp(x, this.visL + 180, this.visR - 180), state.dig.floorAt(x) - 100).setAlpha(1).setScale(0.35).setVisible(true);
+    this.tweens.add({ targets: t, scale: 0.5, duration: 200, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, delay: 650, duration: 400, onComplete: () => t.setVisible(false) });
   }
 

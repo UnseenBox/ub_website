@@ -56,8 +56,8 @@ export interface LayerDiscovery {
   /** Extra chance per swing since the last find (a mild pity timer, still random). */
   pityPerSwing: number;
   maxChance: number;
-  /** Rarity weights in RARITIES order: common, uncommon, rare, epic, legendary. */
-  rarityWeights: readonly [number, number, number, number, number];
+  /** Rarity weights in RARITIES order: common, uncommon, rare, epic, legendary, worthless. */
+  rarityWeights: readonly [number, number, number, number, number, number];
   /** Extra hits needed to free a found rock (inclusive range). */
   freeHits: { min: number; max: number };
   /** Multiplies the value of rocks found here (deeper = richer). Default 1. */
@@ -99,7 +99,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xffffff, 0xe0b890, 0xb98a60, 0x8f6440], chunkScale: 1, chunks: 11, dustTint: 0xe3c49c, shake: 0.0012, clang: 0, sparks: 0 },
     discovery: {
       baseChance: 0.12, pityPerSwing: 0.008, maxChance: 0.3,
-      rarityWeights: [78, 17, 4.5, 0.5, 0],
+      rarityWeights: [78, 17, 4.5, 0.5, 0, 9],
       freeHits: { min: 1, max: 2 },
     },
   },
@@ -123,7 +123,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xf0c9a4, 0xc9895b, 0x9c5d36, 0x7a4526], chunkScale: 1.15, chunks: 9, dustTint: 0xd9a57a, shake: 0.0018, clang: 0.2, sparks: 0 },
     discovery: {
       baseChance: 0.11, pityPerSwing: 0.008, maxChance: 0.3,
-      rarityWeights: [62, 25, 10, 2.5, 0.5],
+      rarityWeights: [62, 25, 10, 2.5, 0.5, 9],
       freeHits: { min: 1, max: 3 },
     },
   },
@@ -147,7 +147,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xd8d0c0, 0xa89c88, 0x7c7060, 0x5e5448], chunkScale: 0.9, chunks: 7, dustTint: 0xc2b8a6, shake: 0.0026, clang: 0.55, sparks: 1 },
     discovery: {
       baseChance: 0.10, pityPerSwing: 0.008, maxChance: 0.28,
-      rarityWeights: [50, 27, 15, 6, 2],
+      rarityWeights: [50, 27, 15, 6, 2, 8],
       freeHits: { min: 2, max: 3 },
     },
   },
@@ -171,7 +171,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xb5b8bd, 0x8a8e95, 0x6a5648, 0x4a3b32], chunkScale: 0.85, chunks: 6, dustTint: 0x9a8e84, shake: 0.0034, clang: 0.8, sparks: 2 },
     discovery: {
       baseChance: 0.095, pityPerSwing: 0.008, maxChance: 0.28,
-      rarityWeights: [40, 27, 20, 9, 4],
+      rarityWeights: [40, 27, 20, 9, 4, 8],
       freeHits: { min: 2, max: 4 },
     },
   },
@@ -195,7 +195,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xa9b8ff, 0x7c8ad8, 0x56508a, 0x6fe6ff], chunkScale: 0.8, chunks: 6, dustTint: 0x8a84c8, shake: 0.0042, clang: 1, sparks: 4 },
     discovery: {
       baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
-      rarityWeights: [28, 26, 24, 15, 7],
+      rarityWeights: [28, 26, 24, 15, 7, 7],
       freeHits: { min: 3, max: 4 },
     },
   },
@@ -219,7 +219,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xf0e4c4, 0xcdb88a, 0xa68d62, 0x7c6644], chunkScale: 0.85, chunks: 6, dustTint: 0xe0d2aa, shake: 0.0046, clang: 1, sparks: 3 },
     discovery: {
       baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
-      rarityWeights: [24, 25, 25, 17, 9],
+      rarityWeights: [24, 25, 25, 17, 9, 7],
       freeHits: { min: 3, max: 5 },
       valueMult: 1.5,
     },
@@ -244,7 +244,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xb8c8d0, 0x8a9aa4, 0x5f6e78, 0x3a464e], chunkScale: 0.85, chunks: 6, dustTint: 0x9aaab2, shake: 0.0052, clang: 1, sparks: 3 },
     discovery: {
       baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
-      rarityWeights: [20, 23, 26, 20, 11],
+      rarityWeights: [20, 23, 26, 20, 11, 6],
       freeHits: { min: 3, max: 5 },
       valueMult: 1.9,
     },
@@ -269,7 +269,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xf0fbff, 0xbfe4f8, 0x8ec4e4, 0x6aa0c4], chunkScale: 0.8, chunks: 7, dustTint: 0xdaf2ff, shake: 0.0056, clang: 1, sparks: 5 },
     discovery: {
       baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
-      rarityWeights: [17, 21, 26, 23, 13],
+      rarityWeights: [17, 21, 26, 23, 13, 6],
       freeHits: { min: 4, max: 5 },
       valueMult: 2.4,
     },
@@ -294,7 +294,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xff9a3a, 0xc2441f, 0x5a2a22, 0x2e1614], chunkScale: 0.85, chunks: 7, dustTint: 0xa8603a, shake: 0.0062, clang: 1, sparks: 6 },
     discovery: {
       baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
-      rarityWeights: [13, 19, 26, 26, 16],
+      rarityWeights: [13, 19, 26, 26, 16, 5],
       freeHits: { min: 4, max: 6 },
       valueMult: 3,
     },
@@ -319,7 +319,7 @@ export const LAYERS: readonly LayerDef[] = [
     feel: { chunkTints: [0xffe08a, 0xc89cff, 0x7a52b0, 0x3a1f5c], chunkScale: 0.8, chunks: 8, dustTint: 0xb89cf0, shake: 0.007, clang: 1, sparks: 8 },
     discovery: {
       baseChance: 0.09, pityPerSwing: 0.008, maxChance: 0.26,
-      rarityWeights: [8, 16, 26, 29, 21],
+      rarityWeights: [8, 16, 26, 29, 21, 5],
       freeHits: { min: 5, max: 6 },
       valueMult: 4,
     },

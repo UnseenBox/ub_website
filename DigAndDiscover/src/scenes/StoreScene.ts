@@ -13,6 +13,7 @@ import {
 } from '../data/store';
 import { storeIconKey } from '../art/StoreArt';
 import { ICON_STAR } from '../art/IconArt';
+import { uiIcon } from '../art/UiIcons';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
@@ -130,7 +131,7 @@ export class StoreScene extends Phaser.Scene {
   // ---------- construction ----------
 
   private buildHeader(): void {
-    const title = this.add.text(CARD_W / 2, 36, '\u{1F6D2}', outlinedStyle(44)).setOrigin(0.5);
+    const title = this.add.image(CARD_W / 2, 36, uiIcon('store')).setDisplaySize(44, 44).setOrigin(0.5);
     const ribbonW = title.width + 70;
     const ribbon = this.add.graphics();
     ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - ribbonW / 2, 16, ribbonW, 52, 14);
@@ -159,13 +160,13 @@ export class StoreScene extends Phaser.Scene {
       if (!this.dragging) this.close();
     });
 
-    const tabs: Array<{ id: StoreTab; label: string }> = [
-      { id: 'tools', label: '\u26CF\uFE0F' },
-      { id: 'upgrades', label: '\u26A1' },
+    const tabs: Array<{ id: StoreTab; icon: string }> = [
+      { id: 'tools', icon: uiIcon('pickaxe') },
+      { id: 'upgrades', icon: uiIcon('bolt') },
     ];
     tabs.forEach((t, i) => {
       const b = new Button(this, {
-        width: 224, height: 48, label: t.label, fontSize: 30, colors: BUTTON_COLORS.blue,
+        width: 224, height: 48, label: '', fontSize: 30, colors: BUTTON_COLORS.blue, icon: t.icon,
         onClick: () => this.selectTab(t.id),
       });
       b.setPosition(CARD_W / 2 + (i === 0 ? -118 : 118), 96);
@@ -222,9 +223,10 @@ export class StoreScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(0x4fb0ff, 0.18).fillRoundedRect(0, 0, LIST_W, 60, 16);
     g.lineStyle(2, 0x2a74c4, 0.5).strokeRoundedRect(0, 0, LIST_W, 60, 16);
-    const label = this.add.text(14, 30, `\u{1F4B0} +${formatMoney(adCash())}`, textStyle(26, INK)).setOrigin(0, 0.5);
-    const row = this.add.container(0, y, [g, label]);
-    const b = new Button(this, { width: 100, height: 42, label: '\u25B6', fontSize: 24, colors: BUTTON_COLORS.blue, onClick: () => this.watchForCash() });
+    const cashIcon = this.add.image(14, 30, uiIcon('cash')).setDisplaySize(26, 26).setOrigin(0, 0.5);
+    const label = this.add.text(44, 30, `+${formatMoney(adCash())}`, textStyle(26, INK)).setOrigin(0, 0.5);
+    const row = this.add.container(0, y, [g, cashIcon, label]);
+    const b = new Button(this, { width: 100, height: 42, label: '', fontSize: 24, colors: BUTTON_COLORS.blue, icon: uiIcon('play'), onClick: () => this.watchForCash() });
     b.setPosition(LIST_W - 12 - 50, 29);
     row.add(b);
     this.list.add(row);
@@ -266,8 +268,8 @@ export class StoreScene extends Phaser.Scene {
     return row;
   }
 
-  private buyButton(row: Phaser.GameObjects.Container, label: string, enabled: boolean, colors: typeof BUTTON_COLORS.green, onClick: () => void): void {
-    const b = new Button(this, { width: 124, height: 48, label, fontSize: 18, colors, onClick });
+  private buyButton(row: Phaser.GameObjects.Container, label: string, enabled: boolean, colors: typeof BUTTON_COLORS.green, onClick: () => void, icon?: string): void {
+    const b = new Button(this, { width: 124, height: 48, label, fontSize: 18, colors, onClick, icon });
     b.setPosition(LIST_W - 12 - 62, (ROW_H - 8) / 2).setEnabled(enabled);
     row.add(b);
   }
@@ -278,25 +280,34 @@ export class StoreScene extends Phaser.Scene {
     const owned = state.progress.owns(item.id);
     const locked = !owned && !item.placeholder && state.progress.level < item.minLevel;
     row.add(this.add.text(textX, 12, item.name, textStyle(20, INK)).setOrigin(0, 0));
-    const stat = this.toolStat(item);
-    if (stat) row.add(this.add.text(textX, 44, stat, textStyle(16, GREEN_INK)).setOrigin(0, 0));
+    
+    const def = TOOL_DEFS[item.id];
+    if (def && !item.placeholder) {
+      const pickaxeIcon = this.add.image(textX, 44, uiIcon('pickaxe')).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      const pickaxeText = this.add.text(textX + 24, 44, `${def.power}`, textStyle(16, GREEN_INK)).setOrigin(0, 0.5);
+      const stopwatchIcon = this.add.image(textX + 60, 44, uiIcon('stopwatch')).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      const stopwatchText = this.add.text(textX + 84, 44, `${(1000 / def.swingCooldownMs).toFixed(1)}`, textStyle(16, GREEN_INK)).setOrigin(0, 0.5);
+      row.add([pickaxeIcon, pickaxeText, stopwatchIcon, stopwatchText]);
+    }
+    if (item.id === 'tool-scanner') {
+      const magIcon = this.add.image(textX, 44, uiIcon('magnifier')).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      const magText = this.add.text(textX + 24, 44, '+25%', textStyle(16, GREEN_INK)).setOrigin(0, 0.5);
+      row.add([magIcon, magText]);
+    }
+    if (item.id === 'tool-deep-scanner') {
+      const magIcon = this.add.image(textX, 44, uiIcon('magnifier')).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      const magText = this.add.text(textX + 24, 44, '+50%', textStyle(16, GREEN_INK)).setOrigin(0, 0.5);
+      const starIcon = this.add.image(textX + 70, 44, ICON_STAR).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      row.add([magIcon, magText, starIcon]);
+    }
+    
     const weaker = !owned && item.kind === 'dig' && !item.placeholder && TOOL_DEFS[item.id].power <= TOOL_DEFS[state.progress.equippedToolId].power;
-    if (item.placeholder) this.buyButton(row, '\u2026', false, BUTTON_COLORS.green, () => undefined);
-    else if (owned) this.buyButton(row, state.progress.equippedToolId === item.id ? '\u2714\uFE0F' : '\u2714', false, BUTTON_COLORS.green, () => undefined);
-    else if (locked) this.buyButton(row, `\u{1F512} ${item.minLevel}`, true, NOT_YET, () => this.requestPurchase(item));
-    else if (weaker) this.buyButton(row, '\u2716', false, BUTTON_COLORS.green, () => undefined);
+    if (item.placeholder) this.buyButton(row, '...', false, BUTTON_COLORS.green, () => undefined);
+    else if (owned) this.buyButton(row, '', false, BUTTON_COLORS.green, () => undefined, uiIcon('check'));
+    else if (locked) this.buyButton(row, `${item.minLevel}`, true, NOT_YET, () => this.requestPurchase(item), uiIcon('lock'));
+    else if (weaker) this.buyButton(row, '', false, BUTTON_COLORS.green, () => undefined, uiIcon('cross'));
     else this.buyButton(row, formatMoney(item.price), true, state.economy.money >= item.price ? BUTTON_COLORS.green : NOT_YET, () => this.requestPurchase(item));
     return y + ROW_H;
-  }
-
-  /** A one-line stat under the name, in numbers and pictures. */
-  private toolStat(item: ToolItem): string {
-    if (item.placeholder) return '';
-    const def = TOOL_DEFS[item.id];
-    if (def) return `\u26CF\uFE0F ${def.power}   \u23F1 ${(1000 / def.swingCooldownMs).toFixed(1)}`;
-    if (item.id === 'tool-scanner') return '\u{1F50D} +25%';
-    if (item.id === 'tool-deep-scanner') return '\u{1F50D} +50%   \u2605';
-    return '';
   }
 
   private addUpgradeRow(y: number, item: UpgradeItem): number {
@@ -315,7 +326,7 @@ export class StoreScene extends Phaser.Scene {
     }
     row.add(pips);
     row.add(this.add.text(endless ? textX : textX + item.maxLevel * 17 + 4, 56, endless ? `${level}` : `${level}/${item.maxLevel}`, textStyle(15, SOFT_INK)).setOrigin(0, 0.5));
-    if (level >= item.maxLevel) this.buyButton(row, '\u2605', false, BUTTON_COLORS.green, () => undefined);
+    if (level >= item.maxLevel) this.buyButton(row, '', false, BUTTON_COLORS.green, () => undefined, ICON_STAR);
     else {
       const price = upgradePrice(item, level);
       this.buyButton(row, formatMoney(price), true, state.economy.money >= price ? BUTTON_COLORS.green : NOT_YET, () => this.requestPurchase(item));

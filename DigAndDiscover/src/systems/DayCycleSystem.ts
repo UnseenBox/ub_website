@@ -1,4 +1,5 @@
 import { ClockSystem, type ClockConfig } from './ClockSystem';
+import type { FinanceDaySummary } from './FinanceSystem';
 
 /**
  * working : the clock runs and every action is allowed.
@@ -39,6 +40,8 @@ export interface DaySummary {
   /** Number of layers entered so far / total layers. */
   layerIndex: number;
   layerCount: number;
+  /** The household bill and the debt of the day that just ended. */
+  finance: FinanceDaySummary;
 }
 
 export interface DayCycleHooks {
@@ -119,6 +122,19 @@ export class DayCycleSystem {
     this.today.processed = 0;
     this.today.earned = 0;
     this.setPhase('working');
+  }
+
+  /** Back to day one with a fresh clock (used when a run is restarted). */
+  reset(): void {
+    this.day = 1;
+    this.clock.reset();
+    this.closingMs = 0;
+    this.settleMs = 0;
+    this.today.found = 0;
+    this.today.processed = 0;
+    this.today.earned = 0;
+    this.currentPhase = 'working';
+    this.hooks.onPhase('working');
   }
 
   private setPhase(phase: DayPhase): void {

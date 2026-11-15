@@ -35,7 +35,7 @@ function rockShape(rock: Rock) {
   return { rng, pts };
 }
 
-function drawOutside(ctx: CanvasRenderingContext2D, rock: Rock, size: number): void {
+export function drawOutside(ctx: CanvasRenderingContext2D, rock: Rock, size: number): void {
   const R = rockRadiusPx(rock);
   const c = size / 2;
   const ex = rock.exterior;
@@ -99,7 +99,7 @@ function drawOutside(ctx: CanvasRenderingContext2D, rock: Rock, size: number): v
   ctx.stroke(path);
 }
 
-function drawInside(ctx: CanvasRenderingContext2D, rock: Rock, size: number): void {
+export function drawInside(ctx: CanvasRenderingContext2D, rock: Rock, size: number): void {
   const R = rockRadiusPx(rock);
   const c = size / 2;
   const ex = rock.exterior;

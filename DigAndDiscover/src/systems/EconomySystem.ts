@@ -57,4 +57,10 @@ export class EconomySystem {
   load(amount: number): void {
     this.balance = Math.max(0, Math.round(amount));
   }
+
+  /** Starts a fresh run with the given balance and no income history. */
+  reset(amount: number): void {
+    this.balance = Math.max(0, Math.round(amount));
+    this.earned = 0;
+  }
 }

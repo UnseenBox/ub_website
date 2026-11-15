@@ -13,7 +13,7 @@ export class GoalPill extends Phaser.GameObjects.Container {
   private readonly bg: Phaser.GameObjects.Graphics;
   private readonly ring: Phaser.GameObjects.Graphics;
   private readonly levelText: Phaser.GameObjects.Text;
-  private readonly icon: Phaser.GameObjects.Text;
+  private readonly icon: Phaser.GameObjects.Image;
   private readonly counter: Phaser.GameObjects.Text;
   private readonly bar: Phaser.GameObjects.Graphics;
   private pw = 240;
@@ -25,7 +25,7 @@ export class GoalPill extends Phaser.GameObjects.Container {
     this.bg = scene.add.graphics();
     this.ring = scene.add.graphics();
     this.levelText = scene.add.text(0, 0, '1', outlinedStyle(20, '#ffffff')).setOrigin(0.5);
-    this.icon = scene.add.text(0, 0, '', outlinedStyle(18, '#ffffff', { strokeThickness: 0 })).setOrigin(0.5);
+    this.icon = scene.add.image(0, 0, 'ui-target').setOrigin(0.5);
     this.counter = scene.add.text(0, 0, '', outlinedStyle(14, PALETTE.goldText)).setOrigin(1, 0.5);
     this.bar = scene.add.graphics();
     this.inner = scene.add.container(0, 0, [this.bg, this.ring, this.levelText, this.icon, this.counter, this.bar]);
@@ -82,12 +82,13 @@ export class GoalPill extends Phaser.GameObjects.Container {
 
     this.bar.clear();
     if (!goal) {
-      this.icon.setText('');
+      this.icon.setVisible(false);
       this.counter.setText('');
       return;
     }
     const iconX = h * 1.1;
-    this.icon.setText(goalIcon(goal.metric)).setFontSize(Math.round(h * 0.46)).setPosition(iconX, cy);
+    const iconSize = Math.round(h * 0.46);
+    this.icon.setTexture(goalIcon(goal.metric)).setDisplaySize(iconSize, iconSize).setPosition(iconX, cy).setVisible(true);
     this.counter.setFontSize(Math.round(h * 0.3)).setPosition(w - h * 0.4, cy);
     this.counter.setText(`${Math.floor(goal.progress)}/${goal.target}`);
     const barX = iconX + h * 0.38;

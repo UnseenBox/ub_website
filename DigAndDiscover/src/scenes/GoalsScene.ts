@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
+import { BUTTON_COLORS, PALETTE, textStyle } from '../config/Theme';
 import { state } from '../core/GameState';
 import { goalIcon } from '../data/goals';
 import { ICON_STAR } from '../art/IconArt';
+import { uiIcon } from '../art/UiIcons';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
@@ -65,7 +66,7 @@ export class GoalsScene extends Phaser.Scene {
     this.card.add([panel, content]);
     let y = 6;
 
-    const title = this.add.text(CARD_W / 2, 36, '\u{1F3AF}', outlinedStyle(44)).setOrigin(0.5);
+    const title = this.add.image(CARD_W / 2, 36, uiIcon('target')).setDisplaySize(44, 44).setOrigin(0.5);
     const rw = title.width + 70;
     const ribbon = this.add.graphics();
     ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - rw / 2, 16, rw, 52, 14);
@@ -86,7 +87,8 @@ export class GoalsScene extends Phaser.Scene {
     xp.lineStyle(2, 0x3b2616, 0.5).strokeRoundedRect(PAD, y + 30, CARD_W - PAD * 2, 14, 7);
     content.add(xp);
     y += 54;
-    content.add(this.add.text(PAD, y + 8, `\u{1F680} ${state.progress.deposit}`, textStyle(24, '#2a8a3a')).setOrigin(0, 0.5));
+    content.add(this.add.image(PAD, y + 8, uiIcon('flag')).setDisplaySize(24, 24).setOrigin(0, 0.5));
+    content.add(this.add.text(PAD + 28, y + 8, `${state.progress.deposit}`, textStyle(24, '#2a8a3a')).setOrigin(0, 0.5));
     y += 28;
 
     // Goals.
@@ -102,15 +104,26 @@ export class GoalsScene extends Phaser.Scene {
       if (f > 0) g.fillStyle(0x5fcf5c).fillRoundedRect(PAD + 16, y + 40, Math.max(14, bw * f), 14, 7);
       g.lineStyle(2, 0x3b2616, 0.4).strokeRoundedRect(PAD + 16, y + 40, bw, 14, 7);
       content.add(g);
-      content.add(this.add.text(PAD + 16, y + 18, goalIcon(goal.metric), textStyle(28, INK)).setOrigin(0, 0.5));
+      const goalIconKey = goalIcon(goal.metric);
+      content.add(this.add.image(PAD + 16, y + 18, goalIconKey).setDisplaySize(28, 28).setOrigin(0, 0.5));
       const prog = goal.metric === 'earn' ? `$${Math.floor(goal.progress)} / $${goal.target}` : `${Math.floor(goal.progress)} / ${goal.target}`;
       content.add(this.add.text(CARD_W - PAD - 16, y + 18, prog, textStyle(15, SOFT_INK)).setOrigin(1, 0.5));
-      content.add(this.add.text(PAD + 16, y + 64, `${formatMoney(goal.cash)}    \u2728 ${goal.xp}`, textStyle(13, '#2a8a3a')).setOrigin(0, 0.5));
+      // Reward line: [cash] $30   [sparkle] 25. Goals that pay no cash show only the XP.
+      let rx = PAD + 16;
+      if (goal.cash > 0) {
+        const cashIcon = this.add.image(rx, y + 64, uiIcon('cash')).setDisplaySize(18, 18).setOrigin(0, 0.5);
+        const cashText = this.add.text(rx + 22, y + 64, formatMoney(goal.cash), textStyle(13, '#2a8a3a')).setOrigin(0, 0.5);
+        content.add([cashIcon, cashText]);
+        rx = cashText.x + cashText.width + 14;
+      }
+      const sparkleIcon = this.add.image(rx, y + 64, uiIcon('sparkle')).setDisplaySize(18, 18).setOrigin(0, 0.5);
+      const xpText = this.add.text(rx + 22, y + 64, `${goal.xp}`, textStyle(13, '#2a8a3a')).setOrigin(0, 0.5);
+      content.add([sparkleIcon, xpText]);
       y += rowH;
     }
 
 
-    const ok = new Button(this, { width: 220, height: 56, label: '\u25B6', fontSize: 30, colors: BUTTON_COLORS.orange, onClick: () => this.close() });
+    const ok = new Button(this, { width: 220, height: 56, label: '', fontSize: 30, colors: BUTTON_COLORS.orange, icon: uiIcon('play'), onClick: () => this.close() });
     ok.setPosition(CARD_W / 2, y + 30);
     content.add(ok);
     y += 72;

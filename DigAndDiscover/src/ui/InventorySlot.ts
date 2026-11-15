@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { GAME_CONFIG } from '../config/GameConfig';
 import { PALETTE, outlinedStyle } from '../config/Theme';
 import { iconScale, rockKeys } from '../art/RockArt';
 import type { Rock } from '../core/types';
@@ -106,7 +107,7 @@ export class InventorySlot extends Phaser.GameObjects.Container {
     const keys = rockKeys(rock);
     this.icon
       .setTexture(rock.cut ? keys.inside : keys.outside)
-      .setScale(iconScale(s * 0.74))
+      .setScale(iconScale(s * GAME_CONFIG.rock.inventoryScale))
       .setPosition(0, rock.cut ? -s * 0.06 : 0)
       .setAlpha(onBench ? 0.45 : 1)
       .setVisible(!incoming);

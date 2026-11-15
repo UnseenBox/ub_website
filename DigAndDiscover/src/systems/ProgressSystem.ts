@@ -1,13 +1,15 @@
 import { ALL_TOOLS } from '../data/store';
 import { ONBOARDING, rollGoal, type GoalContext, type GoalDef, type GoalMetric } from '../data/goals';
 import { TOOL_DEFS } from '../data/tools';
+import type { FinanceSave } from './FinanceSystem';
+import type { FindsSave } from './FindSystem';
 
 export interface Goal extends GoalDef {
   progress: number;
 }
 
 export interface SaveData {
-  v: 1;
+  v: 2;
   money: number;
   day: number;
   found: number;
@@ -18,12 +20,16 @@ export interface SaveData {
   goals: Goal[];
   goalSeq: number;
   bestDepth: number;
-  /** Curio id -> times found. */
-  curios?: Record<string, number>;
+  /** Finds inventory save data. */
+  finds?: FindsSave;
   /** Which deposit the digger is working (1 = the first). */
   deposit?: number;
   /** Deepest layer already paid out with XP in this deposit. */
   bestLayer?: number;
+  /** The household ledger of the run. */
+  finance?: FinanceSave;
+  /** Why the run ended, null while the run is alive. */
+  gameOver?: string | null;
 }
 
 export interface ProgressHooks {
@@ -35,7 +41,7 @@ export interface ProgressHooks {
   grant: (cash: number) => void;
 }
 
-const SAVE_KEY = 'dig-and-discover-save-v1';
+const SAVE_KEY = 'dig-and-discover-save-v2';
 const GOAL_SLOTS = 3;
 
 /** XP needed to climb from `level` to `level + 1`. */
@@ -60,7 +66,6 @@ export class ProgressSystem {
   private goalSeq = 0;
   private readonly owned = new Set<string>(['tool-old-shovel']);
   private readonly upgrades: Record<string, number> = {};
-  private readonly curios: Record<string, number> = {};
   private totalDepth = 30;
 
   constructor(private readonly hooks: ProgressHooks) {}
@@ -158,28 +163,6 @@ export class ProgressSystem {
     return true;
   }
 
-  // ---------- collection ----------
-
-  curioCount(id: string): number {
-    return this.curios[id] ?? 0;
-  }
-
-  /** How many different curios have been found. */
-  get curiosFound(): number {
-    return Object.keys(this.curios).length;
-  }
-
-  /** Records a find. Returns whether it is new and the collection size if that crossed a milestone. */
-  foundCurio(id: string): { first: boolean; milestone: number } {
-    const first = !this.curios[id];
-    this.curios[id] = (this.curios[id] ?? 0) + 1;
-    const n = this.curiosFound;
-    const milestone = first && n % 5 === 0 ? n : 0;
-    if (milestone) this.hooks.grant(milestone * 50);
-    this.hooks.changed();
-    return { first, milestone };
-  }
-
   // ---------- goals ----------
 
   /** Fills any empty goal slot (a save may already have restored them). */
@@ -226,9 +209,17 @@ export class ProgressSystem {
 
   // ---------- save ----------
 
-  toSave(extra: { money: number; day: number; found: number; cut: number }): SaveData {
+  toSave(extra: {
+    money: number;
+    day: number;
+    found: number;
+    cut: number;
+    finds?: FindsSave;
+    finance?: FinanceSave;
+    gameOver?: string | null;
+  }): SaveData {
     return {
-      v: 1,
+      v: 2,
       ...extra,
       xp: this.xp,
       owned: [...this.owned],
@@ -236,10 +227,22 @@ export class ProgressSystem {
       goals: this.goals.map((g) => ({ ...g })),
       goalSeq: this.goalSeq,
       bestDepth: this.bestDepth,
-      curios: { ...this.curios },
       deposit: this.deposit,
       bestLayer: this.bestLayer,
     };
+  }
+
+  /** Back to the start of a fresh run: no xp, no tools, no upgrades. */
+  reset(): void {
+    this.xp = 0;
+    this.bestDepth = 0;
+    this.deposit = 1;
+    this.bestLayer = 0;
+    this.goalSeq = 0;
+    this.owned.clear();
+    this.owned.add('tool-old-shovel');
+    for (const id of Object.keys(this.upgrades)) delete this.upgrades[id];
+    this.goals = ONBOARDING.slice(0, GOAL_SLOTS).map((goal) => ({ ...goal, progress: 0 }));
   }
 
   restore(data: SaveData): void {
@@ -249,7 +252,6 @@ export class ProgressSystem {
     this.owned.add('tool-old-shovel');
     for (const id of data.owned ?? []) if (typeof id === 'string') this.owned.add(id);
     for (const [id, lv] of Object.entries(data.upgrades ?? {})) this.upgrades[id] = Math.max(0, lv | 0);
-    for (const [id, n] of Object.entries(data.curios ?? {})) this.curios[id] = Math.max(1, n | 0);
     this.deposit = Math.max(1, (data.deposit ?? 1) | 0);
     this.bestLayer = Math.max(0, (data.bestLayer ?? 0) | 0);
     this.goalSeq = Math.max(0, data.goalSeq | 0);
@@ -267,9 +269,18 @@ export function readSave(): SaveData | null {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as SaveData;
-    return data && data.v === 1 ? data : null;
+    return data && data.v === 2 ? data : null;
   } catch {
     return null;
+  }
+}
+
+/** Removes the save file (used when a run is restarted from scratch). */
+export function clearSave(): void {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch {
+    /* private mode or full storage: there was nothing to remove anyway */
   }
 }
 
