@@ -63,6 +63,10 @@ export class StoreScene extends Phaser.Scene {
   private topL!: Phaser.GameObjects.Container;
 
   private index = 0;
+  /** On a phone the tools and the upgrades take turns (a tab bar at the bottom); wide screens show both. */
+  private view: 'tools' | 'upgrades' = 'tools';
+  private tabY = 0;
+  private tabs: { id: 'tools' | 'upgrades'; c: Phaser.GameObjects.Container; bg: Phaser.GameObjects.Graphics; dot: Phaser.GameObjects.Graphics }[] = [];
   private busy = false;
   private closing = false;
   private pausedKey: string | null = null;
@@ -96,6 +100,8 @@ export class StoreScene extends Phaser.Scene {
     const next = CATALOGUE.findIndex(
       ({ item }) => !state.progress.owns(item.id) && (item.kind === 'scanner' || TOOL_DEFS[item.id].power > power),
     );
+    this.view = 'tools';
+    this.tabs = [];
     this.index = next >= 0 ? next : Math.max(0, CATALOGUE.findIndex((e) => e.item.id === state.progress.equippedToolId));
   }
 
@@ -124,7 +130,7 @@ export class StoreScene extends Phaser.Scene {
 
     // Swipe along the shelf.
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      this.swipeStart = this.inRect(p.x, p.y, this.S) ? { x: p.x, y: p.y } : null;
+      this.swipeStart = this.inRect(p.x, p.y, this.S) && (!this.portrait || this.view === 'tools') ? { x: p.x, y: p.y } : null;
     });
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
       const s = this.swipeStart;
@@ -156,9 +162,15 @@ export class StoreScene extends Phaser.Scene {
     const gap = 10;
     this.portrait = R.w / R.h < 1.1;
     if (this.portrait) {
-      const ph = clamp(R.h * 0.45, 232, 300);
-      this.P = { x: R.x + gap, y: R.y + R.h - ph - gap, w: R.w - gap * 2, h: ph };
-      this.S = { x: R.x, y: top, w: R.w, h: this.P.y - gap - top };
+      // The day plaque of the HUD sits across the top; the tab bar takes the bottom. The tools and
+      // the upgrades each get the whole middle, one at a time.
+      const plaque = 42;
+      const tabH = 62;
+      const areaTop = top + plaque;
+      const areaH = R.h - plaque - tabH - 12;
+      this.S = { x: R.x, y: areaTop, w: R.w, h: areaH };
+      this.P = { x: R.x + gap, y: areaTop, w: R.w - gap * 2, h: areaH };
+      this.tabY = R.y + R.h - tabH / 2 - 4;
     } else {
       const pw = clamp(R.w * 0.4, 280, 380);
       this.P = { x: R.x + R.w - pw - gap, y: top + gap, w: pw, h: R.y + R.h - top - gap * 2 };
@@ -183,14 +195,94 @@ export class StoreScene extends Phaser.Scene {
     this.buildShowcase();
     this.buildUpgrades();
     this.buildClose();
+    this.buildTabs();
+    this.showL.setVisible(!this.portrait || this.view === 'tools');
+    this.panelL.setVisible(!this.portrait || this.view === 'upgrades');
     if (intro) this.playIntro();
+  }
+
+  // ---------- phone: tools / upgrades tabs ----------
+
+  /** Two big buttons at the bottom of the shop (phones only): the tool in hand, and the bolt for upgrades. */
+  private buildTabs(): void {
+    this.tabs = [];
+    if (!this.portrait) return;
+    const { x, w } = this.R;
+    const bw = Math.min(190, (w - 40) / 2);
+    const bh = 56;
+    (['tools', 'upgrades'] as const).forEach((id, i) => {
+      const cx = x + w / 2 + (i === 0 ? -(bw / 2 + 6) : bw / 2 + 6);
+      const bg = this.add.graphics();
+      const key = id === 'tools' ? TOOL_DEFS[state.progress.equippedToolId].textureKey : uiIcon('bolt');
+      const pic = this.add.image(0, 0, key);
+      if (id === 'tools') pic.setScale(46 / pic.height).setAngle(38);
+      else pic.setDisplaySize(40, 40);
+      const dot = this.add.graphics();
+      const c = this.add.container(cx, this.tabY, [bg, pic, dot]);
+      c.setSize(bw, bh).setInteractive({ useHandCursor: true });
+      c.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => this.tweens.add({ targets: c, scale: 0.94, duration: 70 }));
+      c.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => this.tweens.add({ targets: c, scale: 1, duration: 140 }));
+      c.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+        this.tweens.add({ targets: c, scale: 1, duration: 160, ease: 'Back.easeOut' });
+        this.setView(id);
+      });
+      this.topL.add(c);
+      this.tabs.push({ id, c, bg, dot });
+      this.paintTab(id, bw, bh);
+    });
+  }
+
+  private paintTab(id: 'tools' | 'upgrades', bw: number, bh: number): void {
+    const t = this.tabs.find((o) => o.id === id);
+    if (!t) return;
+    const on = this.view === id;
+    const g = t.bg;
+    g.clear();
+    g.fillStyle(0x000000, 0.35).fillRoundedRect(-bw / 2, -bh / 2 + 4, bw, bh, 18);
+    g.fillStyle(on ? 0x8a5530 : 0x3a2412, 0.97).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, 18);
+    g.fillStyle(0xffffff, on ? 0.2 : 0.08).fillRoundedRect(-bw / 2 + 6, -bh / 2 + 4, bw - 12, bh * 0.3, 12);
+    g.lineStyle(on ? 4 : 3, on ? GOLD : 0x8a6a46, 1).strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, 18);
+    // A gold dot on the upgrades tab when something there can be bought right now.
+    t.dot.clear();
+    if (id === 'upgrades' && this.view !== 'upgrades' && this.upgradeAffordable()) {
+      t.dot.fillStyle(0xe5533d).fillCircle(bw / 2 - 14, -bh / 2 + 12, 9);
+      t.dot.lineStyle(2, 0xffffff).strokeCircle(bw / 2 - 14, -bh / 2 + 12, 9);
+      t.dot.fillStyle(0xffffff).fillRect(bw / 2 - 15.5, -bh / 2 + 7, 3, 6).fillCircle(bw / 2 - 14, -bh / 2 + 16, 1.7);
+    }
+  }
+
+  private upgradeAffordable(): boolean {
+    return ALL_UPGRADES.some((u) => {
+      const lv = state.progress.upgradeLevel(u.id);
+      return lv < u.maxLevel && upgradePrice(u, lv) <= state.economy.money;
+    });
+  }
+
+  private repaintTabs(): void {
+    const bw = Math.min(190, (this.R.w - 40) / 2);
+    this.paintTab('tools', bw, 56);
+    this.paintTab('upgrades', bw, 56);
+  }
+
+  /** Phone: swaps the tools and the upgrades with a short slide. */
+  private setView(next: 'tools' | 'upgrades'): void {
+    if (!this.portrait || next === this.view || this.closing) return;
+    sfx.click();
+    const old = this.view === 'tools' ? this.showL : this.panelL;
+    const now = next === 'tools' ? this.showL : this.panelL;
+    this.view = next;
+    this.tweens.killTweensOf([old, now]);
+    this.tweens.add({ targets: old, alpha: 0, duration: 110, onComplete: () => old.setVisible(false) });
+    now.setVisible(true).setAlpha(0).setX(next === 'upgrades' ? 40 : -40).setY(0);
+    this.tweens.add({ targets: now, alpha: 1, x: 0, duration: 240, ease: 'Cubic.easeOut' });
+    this.repaintTabs();
   }
 
   /** The lit tool in the middle, its stats and buy button under it, and the arrows. No backdrop: the play area shows through. */
   private buildShowcase(): void {
     const S = this.S;
-    const f = clamp(S.w / 520, 0.72, 1.15);
-    const infoH = clamp(S.h * 0.32, 96, 150);
+    const f = this.portrait ? Math.max(0.95, clamp(S.w / 520, 0.72, 1.15)) : clamp(S.w / 520, 0.72, 1.15);
+    const infoH = this.portrait ? clamp(S.h * 0.3, 118, 160) : clamp(S.h * 0.32, 96, 150);
     this.counterTop = S.y + S.h - infoH;
     const cx = S.x + S.w / 2;
     const L = this.showL;
@@ -199,7 +291,7 @@ export class StoreScene extends Phaser.Scene {
     const topPad = portal.hasAds ? 46 * f : 8;
     const zoneH = this.counterTop - S.y - topPad;
     this.toolCy = S.y + topPad + zoneH * 0.46;
-    this.toolSize = Math.min(zoneH * 0.7, S.w * 0.58);
+    this.toolSize = this.portrait ? Math.min(zoneH * 0.8, S.w * 0.62) : Math.min(zoneH * 0.7, S.w * 0.58);
 
     // A dark halo so the tool reads against any ground, a soft spotlight and slowly turning rays.
     const halo = this.add.image(cx, this.toolCy, 'soft').setTint(0x000000).setDisplaySize(this.toolSize * 2.1, this.toolSize * 2.1).setAlpha(0.42);
@@ -228,15 +320,15 @@ export class StoreScene extends Phaser.Scene {
     if (portal.hasAds) this.buildAdChip(cx - 75 * f, S.y + 8, f);
 
     // Arrows.
-    const ar = clamp(S.w * 0.075, 24, 36);
+    const ar = this.portrait ? 32 : clamp(S.w * 0.075, 24, 36);
     L.add(this.makeArrow(S.x + ar + 12, this.toolCy, -1, ar));
     L.add(this.makeArrow(S.x + S.w - ar - 12, this.toolCy, 1, ar));
 
     // Stats and the buy button under the tool.
-    const bh = Math.round(46 * Math.max(f, 0.9));
+    const bh = this.portrait ? 56 : Math.round(46 * Math.max(f, 0.9));
     this.statsBox = this.add.container(cx, this.counterTop + 18 * f);
     this.dots = this.add.graphics();
-    this.buyBtn = new Button(this, { width: Math.round(clamp(S.w * 0.46, 170, 230)), height: bh, label: '', fontSize: Math.round(24 * f), colors: BUTTON_COLORS.green, onClick: () => this.pressBuy() });
+    this.buyBtn = new Button(this, { width: Math.round(this.portrait ? clamp(S.w * 0.62, 200, 270) : clamp(S.w * 0.46, 170, 230)), height: bh, label: '', fontSize: Math.round((this.portrait ? 28 : 24) * f), colors: BUTTON_COLORS.green, onClick: () => this.pressBuy() });
     this.buyBtn.setPosition(cx, S.y + S.h - bh / 2 - 10);
     L.add([this.statsBox, this.dots, this.buyBtn]);
 
@@ -370,7 +462,7 @@ export class StoreScene extends Phaser.Scene {
   }
 
   private step(dir: number): void {
-    if (this.busy || this.closing || CATALOGUE.length < 2) return;
+    if (this.busy || this.closing || CATALOGUE.length < 2 || (this.portrait && this.view !== 'tools')) return;
     this.busy = true;
     sfx.click();
     this.index = (this.index + dir + CATALOGUE.length) % CATALOGUE.length;
@@ -595,7 +687,13 @@ export class StoreScene extends Phaser.Scene {
         }
         this.buyUpgrade(item);
       });
-      L.add([iconZone, buyZone]);
+      // Press feedback on the row, so a tap never feels dead.
+      const hl = this.add.graphics().setVisible(false);
+      hl.fillStyle(0xffffff, 0.22).fillRoundedRect(tx0 - pad, ry - th * 0.7, tx1 - tx0 + pad * 2, th * 1.4, th * 0.5);
+      buyZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => hl.setVisible(true));
+      buyZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => hl.setVisible(false));
+      buyZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => hl.setVisible(false));
+      L.add([hl, iconZone, buyZone]);
     });
   }
 
@@ -637,6 +735,7 @@ export class StoreScene extends Phaser.Scene {
     this.refreshInfo(false);
     this.panelL.removeAll(true);
     this.buildUpgrades(popUpgrade ? upgradeId : undefined);
+    if (this.portrait) this.repaintTabs();
   }
 
   // ---------- close, intro ----------
@@ -655,10 +754,11 @@ export class StoreScene extends Phaser.Scene {
   private playIntro(): void {
     this.showL.setAlpha(0).setY(90);
     this.tweens.add({ targets: this.showL, alpha: 1, y: 0, duration: 420, delay: 110, ease: 'Cubic.easeOut' });
-    if (this.portrait) this.panelL.y = this.P.h + 30;
-    else this.panelL.x = this.P.w + 40;
-    this.panelL.setAlpha(0);
-    this.tweens.add({ targets: this.panelL, alpha: 1, x: 0, y: 0, duration: 460, delay: 200, ease: 'Back.easeOut' });
+    if (!this.portrait) {
+      this.panelL.x = this.P.w + 40;
+      this.panelL.setAlpha(0);
+      this.tweens.add({ targets: this.panelL, alpha: 1, x: 0, y: 0, duration: 460, delay: 200, ease: 'Back.easeOut' });
+    }
     this.topL.setAlpha(0);
     this.tweens.add({ targets: this.topL, alpha: 1, duration: 260, delay: 300 });
     if (this.holder) {
