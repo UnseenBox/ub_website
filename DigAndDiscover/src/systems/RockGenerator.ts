@@ -1,8 +1,8 @@
 import { GAME_CONFIG } from '../config/GameConfig';
-import { EXTERIORS } from '../data/exteriors';
-import { EXTERIOR_HINT_CHANCE, MINERALS, type MineralDef } from '../data/minerals';
+import { pickExterior } from '../data/exteriors';
+import { MINERALS, type MineralDef } from '../data/minerals';
 import { RARITIES, type RarityId } from '../data/rarities';
-import { pick, range, weightedPick, type Rng } from '../core/Random';
+import { range, weightedPick, type Rng } from '../core/Random';
 import type { Rock } from '../core/types';
 
 const mineralsByRarity = new Map<RarityId, MineralDef[]>();
@@ -48,9 +48,8 @@ function poolFor(rarity: RarityId, layerIndex: number): MineralDef[] {
 
 /**
  * Rolls a new rock. Rarity is rolled first (weighted), then a mineral of that
- * rarity that fits the layer. The exterior is picked independently, so the
- * outside never reliably reveals the inside; a mineral's own exteriors are
- * used as a weak hint. Sparkly exteriors are only a weak, rarity-skewed hint.
+ * rarity that fits the layer. The outside leans toward the rarity (see pickExterior)
+ * but never reliably reveals the inside. Sparkly exteriors are only a weak, rarity-skewed hint.
  */
 export function generateRock(
   rng: Rng = Math.random,
@@ -67,11 +66,8 @@ export function generateRock(
   if (pool.length === 0) throw new Error(`No minerals defined for rarity "${rarity.id}"`);
   const mineral = weightedPick(rng, pool, (m) => m.weight);
 
-  // The mineral's own exteriors are only a hint, never a promise.
-  const hints = (mineral.exteriors ?? [])
-    .map((id) => EXTERIORS.find((e) => e.id === id))
-    .filter((e): e is (typeof EXTERIORS)[number] => e !== undefined);
-  const exterior = hints.length > 0 && rng() < EXTERIOR_HINT_CHANCE ? pick(rng, hints) : pick(rng, EXTERIORS);
+  // The painted rock follows the rarity (plain stones for common finds, glowing ones for legendary), but only as a lean.
+  const exterior = pickExterior(rng, rarity.tier);
 
   const { minSize, maxSize } = GAME_CONFIG.rock;
   const size = range(rng, minSize, maxSize);

@@ -6,6 +6,7 @@ import { paintUiIcons } from '../art/UiIcons';
 import coinUrl from '../assets/ui/coin.png';
 import aboveSurfaceUrl from '../assets/world/above-surface.jpg';
 import { loadShovelImages } from '../art/ShovelArt';
+import { loadRockSprites } from '../art/RockSprites';
 import storeIconUrl from '../assets/ui/icons/store.png';
 import goalsIconUrl from '../assets/ui/icons/goals.png';
 import workshopIconUrl from '../assets/ui/icons/workshop.png';
@@ -29,6 +30,7 @@ export class BootScene extends Phaser.Scene {
     // The supplied pickaxe coin replaces the painted one (see TextureFactory).
     this.load.image('coin', coinUrl);
     loadShovelImages(this.load);
+    loadRockSprites(this.load);
     // Supplied icons replace the painted ones of the same name (ui-store, ui-target) and add two more.
     this.load.image('ui-store', storeIconUrl);
     this.load.image('ui-target', goalsIconUrl);
