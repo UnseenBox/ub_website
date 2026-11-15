@@ -15,6 +15,9 @@ import ledgerIconUrl from '../assets/ui/icons/ledger.png';
 import albumIconUrl from '../assets/ui/icons/album.png';
 import playIconUrl from '../assets/ui/icons/play.png';
 import refillIconUrl from '../assets/ui/icons/refill.png';
+import returnIconUrl from '../assets/ui/icons/return.png';
+import crossIconUrl from '../assets/ui/icons/cross.png';
+import collectIconUrl from '../assets/ui/icons/collect.png';
 import workshopBgUrl from '../assets/world/workshop-bg.jpg';
 import trayUrl from '../assets/ui/rocks-tray.png';
 import machineUrl from '../assets/workshop/machine.png';
@@ -41,6 +44,10 @@ export class BootScene extends Phaser.Scene {
     // Every play triangle in the game is this wooden one.
     this.load.image('ui-play', playIconUrl);
     this.load.image('ui-refill', refillIconUrl);
+    // Back to the dig site, cancel (every X in the game) and "collect the money" in the workshop.
+    this.load.image('ui-return', returnIconUrl);
+    this.load.image('ui-cross', crossIconUrl);
+    this.load.image('ui-collect', collectIconUrl);
     this.load.image('workshop-bg', workshopBgUrl);
     // The bag panel: stamina bar, five slots and the plank that holds the rock count.
     this.load.image('rocks-tray', trayUrl);

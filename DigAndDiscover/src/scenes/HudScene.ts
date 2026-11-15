@@ -409,7 +409,7 @@ export class HudScene extends Phaser.Scene {
       this.action.setIcon(n > 0 ? 'ui-workshop' : uiIcon('moon')).setEnabled(false);
       this.setCraft('cover', '');
     } else {
-      this.action.setIcon(uiIcon('back')).setEnabled(!state.busy);
+      this.action.setIcon('ui-return').setEnabled(!state.busy);
       this.setCraft('cover', '');
     }
   }

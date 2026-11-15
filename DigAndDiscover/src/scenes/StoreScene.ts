@@ -623,14 +623,11 @@ export class StoreScene extends Phaser.Scene {
 
   private buildClose(): void {
     const { x, y } = this.R;
-    const r = 18;
+    const r = 20;
     const c = this.add.container(x + r + 10, y + r + 10);
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.3).fillCircle(0, 3, r);
-    g.fillStyle(0xe5533d).fillCircle(0, 0, r);
-    g.lineStyle(3, 0xfff3dc, 1).strokeCircle(0, 0, r);
-    g.lineStyle(4, 0xffffff).lineBetween(-r * 0.36, -r * 0.36, r * 0.36, r * 0.36).lineBetween(-r * 0.36, r * 0.36, r * 0.36, -r * 0.36);
-    c.add(g).setSize(r * 2.6, r * 2.6).setInteractive({ useHandCursor: true });
+    c.add(this.add.image(0, 0, uiIcon('cross')).setDisplaySize(r * 2, r * 2));
+    c.setSize(r * 2.6, r * 2.6).setInteractive({ useHandCursor: true });
+    c.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => this.tweens.add({ targets: c, scale: 0.88, duration: 70 }));
     c.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.requestClose());
     this.topL.add(c);
   }

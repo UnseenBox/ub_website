@@ -242,7 +242,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.sub = this.add.text(0, 0, '', textStyle(19, '#8a6a4a', { fontStyle: '500', align: 'center' })).setOrigin(0.5);
     this.big = this.add.text(0, 0, '', outlinedStyle(56, PALETTE.money)).setOrigin(0.5);
     this.sellBtn = new Button(this, {
-      width: 280, height: 74, label: '', icon: uiIcon('cash'), fontSize: 40, colors: BUTTON_COLORS.green,
+      width: 280, height: 74, label: '', icon: 'ui-collect', ghost: true, iconScale: 1.0, fontSize: 40, colors: BUTTON_COLORS.green,
       onClick: () => this.sell(1),
     });
     this.sellBtn.setVisible(false);
@@ -696,7 +696,7 @@ export class WorkshopScene extends Phaser.Scene {
       return;
     }
     // A worthless rock cannot be "sold": the same button throws it away.
-    this.sellBtn.setIcon(rock.value > 0 ? uiIcon('cash') : uiIcon('junk'));
+    this.sellBtn.setIcon(rock.value > 0 ? 'ui-collect' : uiIcon('junk'));
     if (this.bench === 'placing' || this.bench === 'ready' || this.bench === 'cutting') {
       this.big.setText('?').setColor(PALETTE.money);
       return;
