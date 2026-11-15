@@ -1,18 +1,19 @@
 import Phaser from 'phaser';
-import { PALETTE, outlinedStyle, textStyle } from '../config/Theme';
-import { goalText } from '../data/goals';
+import { PALETTE, outlinedStyle } from '../config/Theme';
+import { goalIcon } from '../data/goals';
 import { state } from '../core/GameState';
 
 /**
- * Under the top bar: the prospector level (badge ringed by an XP arc) and the
- * goal that is closest to done, with its progress bar. Tapping opens the goals card.
+ * Under the top bar: the prospector level (badge ringed by an XP arc) and the goal that is
+ * closest to done - a picture, a progress bar and two numbers. No words.
+ * Tapping opens the goals card.
  */
 export class GoalPill extends Phaser.GameObjects.Container {
   private readonly inner: Phaser.GameObjects.Container;
   private readonly bg: Phaser.GameObjects.Graphics;
   private readonly ring: Phaser.GameObjects.Graphics;
   private readonly levelText: Phaser.GameObjects.Text;
-  private readonly title: Phaser.GameObjects.Text;
+  private readonly icon: Phaser.GameObjects.Text;
   private readonly counter: Phaser.GameObjects.Text;
   private readonly bar: Phaser.GameObjects.Graphics;
   private pw = 240;
@@ -24,10 +25,10 @@ export class GoalPill extends Phaser.GameObjects.Container {
     this.bg = scene.add.graphics();
     this.ring = scene.add.graphics();
     this.levelText = scene.add.text(0, 0, '1', outlinedStyle(20, '#ffffff')).setOrigin(0.5);
-    this.title = scene.add.text(0, 0, '', textStyle(14, '#fff6e6')).setOrigin(0, 0.5);
-    this.counter = scene.add.text(0, 0, '', textStyle(13, PALETTE.goldText)).setOrigin(1, 0.5);
+    this.icon = scene.add.text(0, 0, '', outlinedStyle(18, '#ffffff', { strokeThickness: 0 })).setOrigin(0.5);
+    this.counter = scene.add.text(0, 0, '', outlinedStyle(14, PALETTE.goldText)).setOrigin(1, 0.5);
     this.bar = scene.add.graphics();
-    this.inner = scene.add.container(0, 0, [this.bg, this.ring, this.levelText, this.title, this.counter, this.bar]);
+    this.inner = scene.add.container(0, 0, [this.bg, this.ring, this.levelText, this.icon, this.counter, this.bar]);
     this.add(this.inner);
     scene.add.existing(this);
     this.setSize(this.pw, this.ph); // a container needs a size before it can take input
@@ -79,30 +80,23 @@ export class GoalPill extends Phaser.GameObjects.Container {
     }
     this.levelText.setText(`${lp.level}`).setFontSize(Math.round(h * 0.4)).setPosition(cx, cy);
 
-    const textX = h * 0.98;
-    const barW = w - textX - h * 0.4;
-    this.title.setFontSize(Math.round(h * 0.28)).setPosition(textX, h * 0.32);
-    this.counter.setFontSize(Math.round(h * 0.26)).setPosition(w - h * 0.4, h * 0.32);
     this.bar.clear();
-    if (goal) {
-      const label = goalText(goal);
-      this.title.setText(label);
-      this.counter.setText(goal.metric === 'earn' ? `$${Math.floor(goal.progress)}/${goal.target}` : `${Math.floor(goal.progress)}/${goal.target}`);
-      // Never let the text run into the counter.
-      let t = label;
-      while (this.title.width > barW - this.counter.width - 8 && t.length > 6) {
-        t = t.slice(0, -2);
-        this.title.setText(`${t}...`);
-      }
-      const by = h * 0.62;
-      const bh = Math.max(6, h * 0.16);
-      this.bar.fillStyle(0xffffff, 0.14).fillRoundedRect(textX, by, barW, bh, bh / 2);
-      const f = Phaser.Math.Clamp(goal.progress / goal.target, 0, 1);
-      if (f > 0) this.bar.fillStyle(0x5fcf5c).fillRoundedRect(textX, by, Math.max(bh, barW * f), bh, bh / 2);
-    } else {
-      this.title.setText('');
+    if (!goal) {
+      this.icon.setText('');
       this.counter.setText('');
+      return;
     }
+    const iconX = h * 1.1;
+    this.icon.setText(goalIcon(goal.metric)).setFontSize(Math.round(h * 0.46)).setPosition(iconX, cy);
+    this.counter.setFontSize(Math.round(h * 0.3)).setPosition(w - h * 0.4, cy);
+    this.counter.setText(`${Math.floor(goal.progress)}/${goal.target}`);
+    const barX = iconX + h * 0.38;
+    const barW = Math.max(20, w - h * 0.4 - this.counter.width - 10 - barX);
+    const bh = Math.max(8, h * 0.24);
+    const by = cy - bh / 2;
+    this.bar.fillStyle(0xffffff, 0.14).fillRoundedRect(barX, by, barW, bh, bh / 2);
+    const f = Phaser.Math.Clamp(goal.progress / goal.target, 0, 1);
+    if (f > 0) this.bar.fillStyle(0x5fcf5c).fillRoundedRect(barX, by, Math.max(bh, barW * f), bh, bh / 2);
   }
 
   /** A small pop when a goal moves forward. */

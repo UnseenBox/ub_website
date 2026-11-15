@@ -1,9 +1,8 @@
 import Phaser from 'phaser';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { state } from '../core/GameState';
-import { goalText } from '../data/goals';
-import { depositName } from '../data/deposits';
-import { ALL_TOOLS } from '../data/store';
+import { goalIcon } from '../data/goals';
+import { ICON_STAR } from '../art/IconArt';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
@@ -66,7 +65,7 @@ export class GoalsScene extends Phaser.Scene {
     this.card.add([panel, content]);
     let y = 6;
 
-    const title = this.add.text(CARD_W / 2, 36, 'GOALS', outlinedStyle(34)).setOrigin(0.5);
+    const title = this.add.text(CARD_W / 2, 36, '\u{1F3AF}', outlinedStyle(44)).setOrigin(0.5);
     const rw = title.width + 70;
     const ribbon = this.add.graphics();
     ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - rw / 2, 16, rw, 52, 14);
@@ -78,19 +77,16 @@ export class GoalsScene extends Phaser.Scene {
 
     // Level + XP.
     const lp = state.progress.levelProgress;
-    content.add(this.add.text(PAD, y + 12, `Prospector level ${lp.level}`, textStyle(22, INK)).setOrigin(0, 0.5));
-    content.add(this.add.text(CARD_W - PAD, y + 12, `${lp.into} / ${lp.need} XP`, textStyle(16, SOFT_INK)).setOrigin(1, 0.5));
+    content.add(this.add.image(PAD + 18, y + 12, ICON_STAR).setDisplaySize(40, 40));
+    content.add(this.add.text(PAD + 46, y + 12, `${lp.level}`, textStyle(28, INK)).setOrigin(0, 0.5));
+    content.add(this.add.text(CARD_W - PAD, y + 12, `${lp.into} / ${lp.need}`, textStyle(16, SOFT_INK)).setOrigin(1, 0.5));
     const xp = this.add.graphics();
     xp.fillStyle(0x3b2616, 0.18).fillRoundedRect(PAD, y + 30, CARD_W - PAD * 2, 14, 7);
     xp.fillStyle(PALETTE.gold).fillRoundedRect(PAD, y + 30, Math.max(14, (CARD_W - PAD * 2) * lp.fraction), 14, 7);
     xp.lineStyle(2, 0x3b2616, 0.5).strokeRoundedRect(PAD, y + 30, CARD_W - PAD * 2, 14, 7);
     content.add(xp);
     y += 54;
-    content.add(
-      this.add
-        .text(PAD, y + 4, `Deposit ${state.progress.deposit}: ${depositName(state.progress.deposit)}`, textStyle(16, '#2a8a3a'))
-        .setOrigin(0, 0.5),
-    );
+    content.add(this.add.text(PAD, y + 8, `\u{1F680} ${state.progress.deposit}`, textStyle(24, '#2a8a3a')).setOrigin(0, 0.5));
     y += 28;
 
     // Goals.
@@ -106,21 +102,15 @@ export class GoalsScene extends Phaser.Scene {
       if (f > 0) g.fillStyle(0x5fcf5c).fillRoundedRect(PAD + 16, y + 40, Math.max(14, bw * f), 14, 7);
       g.lineStyle(2, 0x3b2616, 0.4).strokeRoundedRect(PAD + 16, y + 40, bw, 14, 7);
       content.add(g);
-      content.add(this.add.text(PAD + 16, y + 18, goalText(goal), textStyle(19, INK)).setOrigin(0, 0.5));
+      content.add(this.add.text(PAD + 16, y + 18, goalIcon(goal.metric), textStyle(28, INK)).setOrigin(0, 0.5));
       const prog = goal.metric === 'earn' ? `$${Math.floor(goal.progress)} / $${goal.target}` : `${Math.floor(goal.progress)} / ${goal.target}`;
       content.add(this.add.text(CARD_W - PAD - 16, y + 18, prog, textStyle(15, SOFT_INK)).setOrigin(1, 0.5));
-      content.add(this.add.text(PAD + 16, y + 64, `Reward:  ${formatMoney(goal.cash)}  +  ${goal.xp} XP`, textStyle(13, '#2a8a3a')).setOrigin(0, 0.5));
+      content.add(this.add.text(PAD + 16, y + 64, `${formatMoney(goal.cash)}    \u2728 ${goal.xp}`, textStyle(13, '#2a8a3a')).setOrigin(0, 0.5));
       y += rowH;
     }
 
-    // What is next in the store.
-    const next = ALL_TOOLS.filter((t) => !t.placeholder && !state.progress.owns(t.id) && t.minLevel > lp.level).sort((a, b) => a.minLevel - b.minLevel)[0];
-    y += 4;
-    const hint = next ? `Level ${next.minLevel} unlocks the ${next.name} in the store!` : 'Every tool is unlocked. Keep digging for the big finds!';
-    content.add(this.add.text(CARD_W / 2, y + 12, hint, { ...textStyle(15, SOFT_INK), align: 'center', wordWrap: { width: CARD_W - PAD * 2 } }).setOrigin(0.5, 0));
-    y += 48;
 
-    const ok = new Button(this, { width: 220, height: 56, label: 'KEEP DIGGING', fontSize: 22, colors: BUTTON_COLORS.orange, onClick: () => this.close() });
+    const ok = new Button(this, { width: 220, height: 56, label: '\u25B6', fontSize: 30, colors: BUTTON_COLORS.orange, onClick: () => this.close() });
     ok.setPosition(CARD_W / 2, y + 30);
     content.add(ok);
     y += 72;

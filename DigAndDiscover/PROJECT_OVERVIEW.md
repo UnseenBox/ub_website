@@ -190,13 +190,13 @@ Larger rocks get a value bonus of up to about +15% (smaller rocks lose up to abo
 | --- | --- |
 | `Play Dig and Discover.bat` | One click: checks for Node.js, installs dependencies on the first run, builds the game, then starts a local server and opens the browser. |
 | `index.html` | Page shell: viewport and touch settings, full-screen game container, loading text. |
-| `package.json` | Dependencies (Phaser, the Fredoka font, TypeScript, Vite) and the `dev` / `build` / `preview` scripts. |
+| `package.json` | Dependencies (Phaser, the Rye font, TypeScript, Vite) and the `dev` / `build` / `preview` scripts. |
 | `vite.config.ts` | Build settings: relative paths, dev and preview ports, Phaser split into its own bundle file. |
 | `tsconfig.json` | Strict TypeScript settings. |
 | `README.md` | Setup and run instructions. |
 
 ### `src/main.ts`
-Entry point. Waits for the Fredoka font and for the window to have a real size, then creates the Phaser game: WebGL with automatic Canvas fallback, resize-to-fit mode, 2 touch pointers, and the scene order Boot → Dig → Workshop → HUD → End of Day. On the dev server only, it also exposes `window.__dd` (game and state) for debugging; this is removed from production builds.
+Entry point. Waits for the Rye font and for the window to have a real size, then creates the Phaser game: WebGL with automatic Canvas fallback, resize-to-fit mode, 2 touch pointers, and the scene order Boot → Dig → Workshop → HUD → End of Day. On the dev server only, it also exposes `window.__dd` (game and state) for debugging; this is removed from production builds.
 
 ### `src/config/`
 | File | Purpose |

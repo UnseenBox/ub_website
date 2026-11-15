@@ -308,7 +308,7 @@ export class GameState {
     this.progress.note('curio');
     this.progress.addXp(CURIO_XP[curio.tier] * (first ? 2 : 1));
     this.bus.emit(EVT.curioFound, curio, first, value);
-    if (milestone) this.bus.emit(EVT.toast, `Collection milestone: ${milestone} curios!  +$${milestone * 50}`);
+    if (milestone) this.bus.emit(EVT.toast, `\u{1F3FA} ${milestone}   +$${milestone * 50}`);
     return { first, value };
   }
 

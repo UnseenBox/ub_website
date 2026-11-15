@@ -6,14 +6,17 @@ import { intRange, range } from '../core/Random';
 import type { Rock } from '../core/types';
 import { ART_RES, ensureRockTextures, rockKeys } from '../art/RockArt';
 import { paintStrata } from '../art/StrataArt';
-import { paintHome } from '../art/SurfaceArt';
+import { paintHome, paintMine } from '../art/SurfaceArt';
+import {
+  CLOUDS, RIDGE_FAR, RIDGE_MID, RIDGE_NEAR, RIDGE_W, SKY, SUN_DISC, SUN_RAYS, createScenicTextures,
+} from '../art/ScenicArt';
 import { HOLE_RADIUS, HOLE_VARIANTS, SHOVEL } from '../art/TextureFactory';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
 import { curioKey } from '../art/CurioArt';
 import { depositTint } from '../data/deposits';
-import { CURIO_CATEGORIES, type CurioDef } from '../data/curios';
+import type { CurioDef } from '../data/curios';
 import { computeLayout, type Layout } from '../ui/layout';
 
 const WORLD = GAME_CONFIG.world;
@@ -30,7 +33,15 @@ const WHEEL_GAIN = 1.5;
 /** Arrow keys: screen pixels scrolled per second. */
 const KEY_SCROLL_SPEED = 760;
 /** A touch that drags further than this (screen px) scrolls the view instead of digging. */
-const TOUCH_PAN_THRESHOLD = 22;
+const TOUCH_PAN_THRESHOLD = 10;
+/** A touch shorter than this that did not drag is a tap: it digs once, on release. */
+const TAP_MAX_MS = 280;
+/** A finger held still this long starts digging continuously (until it lifts or drags). */
+const HOLD_START_MS = 140;
+/** Scrolling keeps gliding after the finger lifts, faster than this (px per ms), fading out. */
+const FLING_MIN = 0.06;
+const FLING_MAX = 2.4;
+const FLING_DECAY_MS = 340;
 /** Ground must be this far (field units) below the top of the view to count as diggable: leaves room for the shovel. */
 const FLOOR_TOP_PAD = 70;
 /** Mouse shovel: how quickly it catches up with the cursor (ms time constant; lower = tighter). */
@@ -41,10 +52,6 @@ const SHOVEL_HOVER_MAX = 130;
 const SHOVEL_REST_ANGLE = 18;
 /** A curio sprite is a 160px sticker; this makes it about 112 field units wide. */
 const CURIO_SCALE = 0.7;
-/** Swings in a row (each within this much of the last cooldown) build a streak. */
-const STREAK_GRACE_MS = 520;
-const MISS_MESSAGES = ['Aim at the floor of your hole!', 'Tip: the mouse wheel scrolls the view'];
-const MISS_MESSAGES_TOUCH = ['Aim at the floor of your hole!', 'Tip: drag to scroll the view'];
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -101,6 +108,10 @@ export class DigScene extends Phaser.Scene {
   private L!: Layout;
   private sky!: Phaser.GameObjects.Image;
   private sun!: Phaser.GameObjects.Image;
+  private sunRays!: Phaser.GameObjects.Image;
+  private ridgeFar!: Phaser.GameObjects.Image;
+  private ridgeMid!: Phaser.GameObjects.Image;
+  private ridgeNear!: Phaser.GameObjects.Image;
   private clouds: Phaser.GameObjects.Image[] = [];
   private wrap!: Phaser.GameObjects.Container;
   private root!: Phaser.GameObjects.Container;
@@ -128,9 +139,7 @@ export class DigScene extends Phaser.Scene {
   private crystalFx!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private embedded: EmbeddedRock[] = [];
-  private streak = 0;
   private bedrockAnnounced = false;
-  private lastSwingAt = 0;
   private aimMark!: Phaser.GameObjects.Image;
   private fieldScale = 1;
   private visL = 0;
@@ -147,13 +156,17 @@ export class DigScene extends Phaser.Scene {
   private holdPointer: Phaser.Input.Pointer | null = null;
   private gesturePointer: Phaser.Input.Pointer | null = null;
   private panning = false;
+  private touchDownAt = 0;
+  private touchHolding = false;
+  private panLastY = 0;
+  private panHistory: Array<{ t: number; y: number }> = [];
+  private flingV = 0;
   private keyUp: Phaser.Input.Keyboard.Key | null = null;
   private keyDown: Phaser.Input.Keyboard.Key | null = null;
   private nextDigAt = 0;
   private lastFullWarning = 0;
   private lastBottomWarning = 0;
   private lastMissWarning = 0;
-  private missCount = 0;
   private lastTouch = false;
   private skyProgress = -1;
 
@@ -170,7 +183,6 @@ export class DigScene extends Phaser.Scene {
 
   create(): void {
     this.embedded = [];
-    this.streak = 0;
     this.bedrockAnnounced = false;
     this.clouds = [];
     this.rings = [];
@@ -194,6 +206,7 @@ export class DigScene extends Phaser.Scene {
 
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     this.input.on(Phaser.Input.Events.POINTER_MOVE, this.onPointerMove, this);
+    this.input.on(Phaser.Input.Events.POINTER_UP, this.onPointerUp, this);
     this.input.on(Phaser.Input.Events.POINTER_WHEEL, this.onWheel, this);
     const kb = this.input.keyboard;
     if (kb) {
@@ -218,6 +231,7 @@ export class DigScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
+    this.sunRays.rotation += dt * 0.00005;
     for (const cloud of this.clouds) {
       cloud.x += cloud.getData('speed') * dt;
       if (cloud.x - cloud.displayWidth / 2 > W + 400) cloud.x = -400 - cloud.displayWidth / 2;
@@ -227,6 +241,17 @@ export class DigScene extends Phaser.Scene {
       else if (this.inPlayArea(this.holdPointer.y)) this.tryDig(this.toFieldX(this.holdPointer.x));
     }
     if (this.panning && !this.gesturePointer?.isDown) this.panning = false;
+    // Touch: a steady press digs while held; a drag scrolls and keeps gliding after release.
+    const gp = this.gesturePointer;
+    if (gp && gp.wasTouch && gp.isDown && !this.panning && state.canWork) {
+      if (!this.touchHolding && this.time.now - this.touchDownAt >= HOLD_START_MS) this.touchHolding = true;
+      if (this.touchHolding && this.inPlayArea(gp.y)) this.tryDig(this.toFieldX(gp.x));
+    }
+    if (this.flingV !== 0) {
+      this.scrollBy(this.flingV * dt, true);
+      this.flingV *= Math.exp(-dt / FLING_DECAY_MS);
+      if (Math.abs(this.flingV) < 0.02) this.flingV = 0;
+    }
     const keyDir = (this.keyDown?.isDown ? 1 : 0) - (this.keyUp?.isDown ? 1 : 0);
     if (keyDir !== 0) this.scrollBy((keyDir * KEY_SCROLL_SPEED * dt) / 1000);
     this.followCursor(dt);
@@ -242,19 +267,26 @@ export class DigScene extends Phaser.Scene {
     makeCanvasTexture(this.textures, 'strata', W, TOTAL_H, (ctx) =>
       paintStrata(ctx, { width: W, height: TOTAL_H, surfaceY: SURFACE, bands: state.dig.bands }),
     );
+    createScenicTextures(this.textures);
     makeCanvasTexture(this.textures, 'home', HOME_W, HOME_H, (ctx, w, h) => paintHome(ctx, w, h));
+    makeCanvasTexture(this.textures, 'mine', HOME_W, HOME_H, (ctx, w, h) => paintMine(ctx, w, h));
 
-    this.sky = this.add.image(-1500, -SKY_HEIGHT, 'sky').setOrigin(0, 0).setDisplaySize(W + 3000, SKY_HEIGHT + SURFACE + 2);
-    this.sun = this.add.image(0, 0, 'soft').setTint(0xfff3b0).setAlpha(0.9).setScale(2.6);
-    for (let i = 0; i < 3; i++) {
-      const cloud = this.add.image(W * (0.1 + i * 0.36), SURFACE - 190 - i * 34, 'cloud').setAlpha(0.9).setScale(1 - i * 0.16);
-      cloud.setData('speed', 0.006 + i * 0.004);
+    this.sky = this.add.image(-1500, -SKY_HEIGHT, SKY).setOrigin(0, 0).setDisplaySize(W + 3000, SKY_HEIGHT + SURFACE + 2);
+    this.sunRays = this.add.image(0, 0, SUN_RAYS).setAlpha(0.5).setScale(1.5);
+    this.sun = this.add.image(0, 0, SUN_DISC).setScale(1.55);
+    for (let i = 0; i < 4; i++) {
+      const cloud = this.add.image(W * (0.06 + i * 0.28), SURFACE - 230 - (i % 2) * 70 - i * 12, CLOUDS[i % CLOUDS.length]);
+      cloud.setAlpha(0.96).setScale(1.15 - i * 0.1);
+      cloud.setData('speed', 0.005 + i * 0.0035);
       this.clouds.push(cloud);
     }
-    const hills = this.add.graphics();
-    hills.fillStyle(0x9dd37a).fillEllipse(W * 0.15, SURFACE + 20, W * 0.7, 150);
-    hills.fillStyle(0x86c463).fillEllipse(W * 0.78, SURFACE + 24, W * 0.85, 170);
-    const home = this.add.image(W / 2 - 320, SURFACE + 4, 'home').setOrigin(0.5, 1).setScale(0.8);
+    // Three ridges, far to near, like cut-paper stage flats; the far ones drift slower as the view scrolls.
+    const ridgeX = -(RIDGE_W - W) / 2;
+    this.ridgeFar = this.add.image(ridgeX, SURFACE + 8, RIDGE_FAR).setOrigin(0, 1);
+    this.ridgeMid = this.add.image(ridgeX, SURFACE + 12, RIDGE_MID).setOrigin(0, 1);
+    this.ridgeNear = this.add.image(ridgeX, SURFACE + 18, RIDGE_NEAR).setOrigin(0, 1);
+    const home = this.add.image(W / 2 - 215, SURFACE + 6, 'home').setOrigin(0.5, 1).setScale(0.8);
+    const mine = this.add.image(W / 2 + 215, SURFACE + 6, 'mine').setOrigin(0.5, 1).setScale(0.8);
 
     // The back wall of the shaft: the same strata, darkened. Cropped so the grass is not repeated.
     const under = this.add.image(0, 0, 'strata').setOrigin(0, 0).setTint(0x5d5a6c);
@@ -269,7 +301,7 @@ export class DigScene extends Phaser.Scene {
     this.wrap = this.add.container(0, 0);
     this.root = this.add.container(-W / 2, 0);
     this.wrap.add(this.root);
-    this.root.add([this.sky, this.sun, ...this.clouds, hills, home, under, this.rockLayer, this.soil, this.popLayer]);
+    this.root.add([this.sky, this.sunRays, this.sun, ...this.clouds, this.ridgeFar, this.ridgeMid, this.ridgeNear, home, mine, under, this.rockLayer, this.soil, this.popLayer]);
     this.stamp = this.make.image({ key: 'hole0', add: false });
   }
 
@@ -334,7 +366,7 @@ export class DigScene extends Phaser.Scene {
     for (let i = 0; i < 3; i++) this.rings.push(this.add.image(0, 0, 'ring').setVisible(false).setTint(0xfff0d0));
     for (let i = 0; i < 4; i++) this.glints.push(this.add.image(0, 0, 'star').setVisible(false).setBlendMode(Phaser.BlendModes.ADD));
     this.pips = this.add.graphics().setAlpha(0);
-    this.tiredText = this.add.text(0, 0, 'Too tired! Rest a moment', outlinedStyle(26)).setOrigin(0.5).setVisible(false);
+    this.tiredText = this.add.text(0, 0, '\u{1F4A4}', outlinedStyle(48)).setOrigin(0.5).setVisible(false);
     this.popLayer.add([
       ...this.rings, ...this.dustFx, ...this.dirtFx, this.pebbleFx, this.sparkleFx, this.crystalFx, ...this.glints, this.pips,
     ]);
@@ -372,7 +404,7 @@ export class DigScene extends Phaser.Scene {
       if (band.index === 0) continue;
       const meters = (band.top - SURFACE) / WORLD.unitsPerMeter;
       const label = this.add
-        .text(W / 2, band.top + 30, `${band.layer.name}  -  ${meters.toFixed(1)} m`, outlinedStyle(22, '#fff3dc'))
+        .text(W / 2, band.top + 30, `${Math.round(meters)} m`, outlinedStyle(22, '#fff3dc'))
         .setOrigin(0.5)
         .setAlpha(0.8);
       this.popLayer.add(label);
@@ -380,11 +412,10 @@ export class DigScene extends Phaser.Scene {
   }
 
   private buildHint(): void {
-    const text = this.add.text(0, 0, 'Tap to dig!', outlinedStyle(38)).setOrigin(0.5, 1);
     const arrow = this.add.graphics();
     arrow.fillStyle(0x3b2616).fillTriangle(-17, 4, 17, 4, 0, 30);
     arrow.fillStyle(0xffffff).fillTriangle(-12, 6, 12, 6, 0, 24);
-    this.hint = this.add.container(W / 2, SURFACE - 38, [text, arrow]);
+    this.hint = this.add.container(W / 2, SURFACE - 38, [arrow]);
     this.popLayer.add(this.hint);
     this.tweens.add({ targets: this.hint, y: this.hint.y - 12, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
@@ -486,7 +517,7 @@ export class DigScene extends Phaser.Scene {
 
   private buildReturnChip(): void {
     this.chipBg = this.add.graphics();
-    this.chipText = this.add.text(12, 0, 'Back to the hole', outlinedStyle(16, '#fff6e6')).setOrigin(0.5);
+    this.chipText = this.add.text(12, 0, '', outlinedStyle(16, '#fff6e6')).setOrigin(0.5);
     this.chip = this.add.container(0, 0, [this.chipBg, this.chipText]).setDepth(30).setVisible(false);
   }
 
@@ -506,7 +537,7 @@ export class DigScene extends Phaser.Scene {
     if (dir === 0) return;
     const L = this.L;
     const h = L.compact ? 30 : 34;
-    const w = this.chipText.width + 62;
+    const w = 58; // just an arrow, no words
     const x = L.w / 2;
     const y = dir < 0 ? L.play.y + 70 : L.play.y + L.play.h - 30;
     this.chip.setPosition(x, y);
@@ -515,7 +546,7 @@ export class DigScene extends Phaser.Scene {
     g.fillStyle(0x000000, 0.25).fillRoundedRect(-w / 2, -h / 2 + 3, w, h, h / 2);
     g.fillStyle(PALETTE.tray, 0.94).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
     g.lineStyle(2, PALETTE.gold, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-    const ax = -w / 2 + 22;
+    const ax = 0;
     g.fillStyle(0xffd23f);
     if (dir < 0) g.fillTriangle(ax - 8, 5, ax + 8, 5, ax, -7);
     else g.fillTriangle(ax - 8, -5, ax + 8, -5, ax, 7);
@@ -529,14 +560,24 @@ export class DigScene extends Phaser.Scene {
   private applyScroll(): void {
     // Snap to whole screen pixels so the terrain never shimmers while scrolling.
     this.root.y = -Math.round(this.scrollY * this.fieldScale) / this.fieldScale;
+    // Parallax: the distant ridges lag behind the ground as the view scrolls.
+    this.ridgeFar.y = SURFACE + 8 + this.scrollY * 0.5;
+    this.ridgeMid.y = SURFACE + 12 + this.scrollY * 0.25;
   }
 
   private applyTimeOfDay(p: number): void {
     this.skyProgress = p;
-    this.sky.setTint(skyTint(p));
-    this.sun
-      .setPosition(Phaser.Math.Linear(W * 0.12, W * 0.88, p), SURFACE - 80 - Math.sin(Math.PI * p) * 130)
-      .setTint(mixColor(0xfff3b0, 0xffa94d, Math.max(0, (p - 0.6) / 0.4)));
+    const tint = skyTint(p);
+    this.sky.setTint(tint);
+    const sunColor = mixColor(0xfff3b0, 0xffa94d, Math.max(0, (p - 0.6) / 0.4));
+    const sx = Phaser.Math.Linear(W * 0.12, W * 0.88, p);
+    const sy = SURFACE - 90 - Math.sin(Math.PI * p) * 150;
+    this.sun.setPosition(sx, sy).setTint(sunColor);
+    this.sunRays.setPosition(sx, sy).setTint(sunColor);
+    // The mountains and hills take the light too, the far ones most.
+    this.ridgeFar.setTint(mixColor(0xffffff, tint, 0.8));
+    this.ridgeMid.setTint(mixColor(0xffffff, tint, 0.55));
+    this.ridgeNear.setTint(mixColor(0xffffff, tint, 0.3));
   }
 
   private toFieldX(sx: number): number {
@@ -556,6 +597,20 @@ export class DigScene extends Phaser.Scene {
       this.returnToHole();
       return;
     }
+    this.flingV = 0;
+    if (pointer.wasTouch) {
+      // Touch: a press only starts a gesture. A quick tap digs on release, a steady press digs
+      // while held, and a drag scrolls - so scrolling never swings the shovel by accident.
+      if (this.gesturePointer?.isDown && this.gesturePointer !== pointer) return; // one finger at a time
+      this.gesturePointer = pointer;
+      this.panning = false;
+      this.touchHolding = false;
+      this.holdPointer = null;
+      this.touchDownAt = this.time.now;
+      this.panLastY = pointer.y;
+      this.panHistory = [];
+      return;
+    }
     this.gesturePointer = pointer;
     this.panning = false;
     this.holdPointer = pointer;
@@ -568,6 +623,25 @@ export class DigScene extends Phaser.Scene {
     // Mouse: the shovel follows the cursor every frame (see followCursor).
   }
 
+  private onPointerUp(pointer: Phaser.Input.Pointer): void {
+    if (!pointer.wasTouch || pointer !== this.gesturePointer) return;
+    const quick = this.time.now - this.touchDownAt < TAP_MAX_MS;
+    if (!this.panning && !this.touchHolding && quick) this.tryDig(this.toFieldX(pointer.x));
+    // Let a fast flick keep gliding. Speed comes from the last ~110 ms of the drag, never from one frame.
+    if (this.panning) {
+      const h = this.panHistory;
+      const first = h[0];
+      const last = h[h.length - 1];
+      const span = first && last ? last.t - first.t : 0;
+      if (span >= 30 && this.time.now - last.t < 90) {
+        const v = (first.y - last.y) / span;
+        if (Math.abs(v) > FLING_MIN) this.flingV = clamp(v, -FLING_MAX, FLING_MAX);
+      }
+    }
+    this.panning = false;
+    this.touchHolding = false;
+  }
+
   /**
    * With a mouse, the shovel's tip is glued to the cursor: it tracks the pointer
    * (smoothly, ~35 ms behind), leans into the direction of travel, and never goes
@@ -575,16 +649,24 @@ export class DigScene extends Phaser.Scene {
    * view or hold the button; only a swing in progress takes it over.
    */
   private followCursor(dt: number): void {
-    if (this.lastTouch || !state.canWork || this.time.now < this.swingEndsAt) {
+    if (!state.canWork || this.time.now < this.swingEndsAt) {
       this.aimMark.setAlpha(0);
       return;
     }
-    const pointer = this.input.activePointer;
+    // Touch: the shovel follows the finger sideways while it rests on the screen, and stays
+    // put (no tug-of-war) while the view scrolls. Mouse: it follows the cursor.
+    const touch = this.lastTouch;
+    const gp = this.gesturePointer;
+    if (touch && (!gp || !gp.isDown || this.panning)) {
+      this.aimMark.setAlpha(0);
+      return;
+    }
+    const pointer = touch && gp ? gp : this.input.activePointer;
     if (!this.inPlayArea(pointer.y)) return;
     const x = this.aim(this.toFieldX(pointer.x));
     if (x === null) return; // over the bare wall: stay where we are
     const floorY = state.dig.floorAt(x);
-    const cursorY = pointer.y / this.fieldScale + this.scrollY;
+    const cursorY = touch ? floorY - 70 : pointer.y / this.fieldScale + this.scrollY;
     // Tip at the cursor, but resting just above the ground and not floating too high.
     const targetY = clamp(cursorY, floorY - SHOVEL_HOVER_MAX, floorY - SHOVEL_HOVER_MIN);
     const k = 1 - Math.exp(-dt / SHOVEL_FOLLOW_MS);
@@ -599,12 +681,20 @@ export class DigScene extends Phaser.Scene {
 
   /** Dragging a finger scrolls the view: 1:1 with the finger, and it cancels the dig that touch started. */
   private touchPan(pointer: Phaser.Input.Pointer): void {
-    if (!pointer.isDown || pointer !== this.gesturePointer) return;
+    if (!pointer.isDown || pointer !== this.gesturePointer || this.touchHolding) return;
     if (!this.panning && Math.abs(pointer.y - pointer.downY) > TOUCH_PAN_THRESHOLD) {
       this.panning = true;
       this.holdPointer = null;
+      this.panLastY = pointer.y; // the view follows the finger from here, no jump
+      this.panHistory = [];
     }
-    if (this.panning) this.scrollBy(pointer.prevPosition.y - pointer.y, true);
+    if (!this.panning) return;
+    const now = this.time.now;
+    const dy = this.panLastY - pointer.y;
+    this.panLastY = pointer.y;
+    this.panHistory.push({ t: now, y: pointer.y });
+    while (this.panHistory.length > 2 && now - this.panHistory[0].t > 110) this.panHistory.shift();
+    this.scrollBy(dy, true);
   }
 
   private onWheel(pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number): void {
@@ -628,18 +718,23 @@ export class DigScene extends Phaser.Scene {
   /** A tap landed where there is nothing to dig (the wall of the shaft, ground that is out of view). */
   private missedAim(): void {
     const now = this.time.now;
-    if (now - this.lastMissWarning < 2500) return;
+    if (now - this.lastMissWarning < 900) return;
     this.lastMissWarning = now;
-    const messages = this.lastTouch ? MISS_MESSAGES_TOUCH : MISS_MESSAGES;
-    state.bus.emit(EVT.toast, messages[this.missCount++ % messages.length]);
-    sfx.denied();
+    sfx.denied(); // no sentence: the shovel simply does not bite
+  }
+
+  /** Touch is imprecise: a tap beside the hole still digs the hole, as long as its floor is on screen. */
+  private fallbackAim(): number | null {
+    if (!this.lastTouch) return null;
+    const x = clamp(this.lastX, this.visL, this.visR);
+    return this.floorInView(state.dig.floorAt(x)) ? x : null;
   }
 
   private tryDig(tapX: number): void {
     if (!state.canWork) return;
     const now = this.time.now;
     if (now < this.nextDigAt) return;
-    const x = this.aim(tapX);
+    const x = this.aim(tapX) ?? this.fallbackAim();
     if (x === null) {
       this.nextDigAt = now + 350;
       this.missedAim();
@@ -659,14 +754,6 @@ export class DigScene extends Phaser.Scene {
       this.nextDigAt = now + 450;
       this.showTired(x);
       return;
-    }
-    // Keep swinging and the streak grows: every tenth swing gives a little energy back.
-    const nowT = this.time.now;
-    this.streak = nowT - this.lastSwingAt < state.tool.swingCooldownMs + STREAK_GRACE_MS ? this.streak + 1 : 1;
-    this.lastSwingAt = nowT;
-    if (this.streak % 10 === 0) {
-      state.stamina.restore(state.stamina.max * 0.06);
-      this.floatText(`STREAK x${this.streak}!`, clamp(x, this.visL + 140, this.visR - 140), state.dig.floorAt(x) - 150);
     }
     // Hard ground makes the swing heavier and slower, not just less effective.
     this.nextDigAt = now + state.tool.swingCooldownMs * (1 + 0.5 * layer.feel.clang);
@@ -707,7 +794,8 @@ export class DigScene extends Phaser.Scene {
     if (res.dug) {
       this.paintCrater(res.cx, res.cy, res.rx, res.ry);
       this.followFloor(state.dig.floorAt(x));
-      const chunks = Math.max(3, Math.round(feel.chunks * (0.55 + 0.45 * res.efficiency)));
+      const lite = this.sys.game.device.input.touch ? 0.65 : 1; // phones: fewer particles
+      const chunks = Math.max(3, Math.round(feel.chunks * (0.55 + 0.45 * res.efficiency) * lite));
       this.dirtFx[res.layerIndex].explode(chunks, x, y);
       this.dustFx[res.layerIndex].explode(3, x, y - 6);
       if (Math.random() < GAME_CONFIG.dig.pebbleChance * (0.6 + feel.clang)) this.pebbleFx.explode(1, x, y);
@@ -719,7 +807,7 @@ export class DigScene extends Phaser.Scene {
       this.bedrockAnnounced = true;
       this.time.delayedCall(900, () => state.bus.emit(EVT.bedrock));
     }
-    this.cameras.main.shake(100, feel.shake);
+    this.cameras.main.shake(100, feel.shake * (this.sys.game.device.input.touch ? 0.6 : 1));
     this.dismissHint();
 
     if (target && direct) {
@@ -807,7 +895,7 @@ export class DigScene extends Phaser.Scene {
       b.hp = 0.01;
       if (this.time.now - this.lastFullWarning > 2500) {
         this.lastFullWarning = this.time.now;
-        state.bus.emit(EVT.toast, 'Bag full! Visit the workshop.');
+        sfx.denied();
       }
       return;
     }
@@ -943,7 +1031,7 @@ export class DigScene extends Phaser.Scene {
     this.popLayer.addAt(sprite, 0);
 
     // The player's own reaction, shouted over the hole.
-    const shout = this.add.text(b.x, b.y - 110, CURIO_CATEGORIES[curio.category].shout, outlinedStyle(42, '#ffd34d')).setOrigin(0.5).setScale(0);
+    const shout = this.add.text(b.x, b.y - 110, '!', outlinedStyle(64, '#ffd34d')).setOrigin(0.5).setScale(0);
     this.popLayer.add(shout);
     this.tweens.add({ targets: shout, scale: 1.1, angle: { from: -8, to: 4 }, duration: 220, ease: 'Back.easeOut' });
     this.tweens.add({ targets: shout, y: shout.y - 50, alpha: 0, delay: 800, duration: 380, onComplete: () => shout.destroy() });
@@ -975,14 +1063,6 @@ export class DigScene extends Phaser.Scene {
         },
       });
     });
-  }
-
-  /** A short pop-up line over the dig ("STREAK x10!"). */
-  private floatText(text: string, x: number, y: number, color = '#ffd34d'): void {
-    const t = this.add.text(x, y, text, outlinedStyle(30, color)).setOrigin(0.5).setScale(0.6);
-    this.popLayer.add(t);
-    this.tweens.add({ targets: t, scale: 1, duration: 180, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: t, y: y - 60, alpha: 0, delay: 500, duration: 450, onComplete: () => t.destroy() });
   }
 
   /** After selling frees a slot, rocks that were dug out but blocked by a full bag pop right away. */
@@ -1027,6 +1107,8 @@ export class DigScene extends Phaser.Scene {
     this.holdPointer = null;
     this.gesturePointer = null;
     this.panning = false;
+    this.touchHolding = false;
+    this.flingV = 0;
     this.swingEndsAt = 0;
     this.input.keyboard?.resetKeys();
     this.snapCamera();

@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
-import '@fontsource/fredoka/500.css';
-import '@fontsource/fredoka/700.css';
+import '@fontsource/rye/400.css';
 import { state } from './core/GameState';
 import { BootScene } from './scenes/BootScene';
 import { DigScene } from './scenes/DigScene';
@@ -15,7 +14,7 @@ import { portal } from './ads/Portal';
 
 async function waitForFonts(): Promise<void> {
   if (!document.fonts) return;
-  const load = Promise.all([document.fonts.load('700 24px Fredoka'), document.fonts.load('500 24px Fredoka')]);
+  const load = Promise.all([document.fonts.load('400 24px Rye')]);
   // Never block the game on a slow font: fall back after a short wait.
   await Promise.race([load.catch(() => undefined), new Promise((resolve) => setTimeout(resolve, 2500))]);
 }

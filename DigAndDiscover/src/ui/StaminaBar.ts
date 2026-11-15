@@ -1,22 +1,20 @@
 import Phaser from 'phaser';
-import { outlinedStyle } from '../config/Theme';
 
 /** Rounded stamina bar with a bolt badge. Redraws only when the value changes. */
 export class StaminaBar extends Phaser.GameObjects.Container {
   private readonly g: Phaser.GameObjects.Graphics;
-  private readonly label: Phaser.GameObjects.Text;
   private bw = 200;
   private bh = 22;
   private shownFraction = -1;
   private shownRegen = false;
+  private shownShimmer = -1;
   private flash = 0;
   private shimmer = 0;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0);
     this.g = scene.add.graphics();
-    this.label = scene.add.text(0, 0, '', outlinedStyle(14)).setOrigin(1, 0.5);
-    this.add([this.g, this.label]);
+    this.add([this.g]);
     scene.add.existing(this);
   }
 
@@ -24,8 +22,6 @@ export class StaminaBar extends Phaser.GameObjects.Container {
     this.setPosition(x, y);
     this.bw = w;
     this.bh = h;
-    this.label.setFontSize(Math.round(h * 0.68));
-    this.label.setPosition(w - 10, h / 2);
     this.shownFraction = -1;
   }
 
@@ -34,11 +30,13 @@ export class StaminaBar extends Phaser.GameObjects.Container {
     const fraction = value / max;
     if (this.flash > 0) this.flash = Math.max(0, this.flash - deltaMs / 400);
     if (regenerating) this.shimmer = (this.shimmer + deltaMs / 900) % 1;
-    const changed = Math.abs(fraction - this.shownFraction) > 0.001 || regenerating !== this.shownRegen;
-    if (!changed && this.flash <= 0 && !regenerating) return;
+    // The shimmer only needs ~16 steps per sweep, so phones are not redrawing the bar every frame.
+    const step = Math.floor(this.shimmer * 16);
+    const changed = Math.abs(fraction - this.shownFraction) > 0.002 || regenerating !== this.shownRegen || (regenerating && step !== this.shownShimmer);
+    if (!changed && this.flash <= 0) return;
     this.shownFraction = fraction;
     this.shownRegen = regenerating;
-    this.label.setText(`${Math.floor(value)} / ${max}`);
+    this.shownShimmer = step;
     this.draw(fraction, regenerating);
   }
 

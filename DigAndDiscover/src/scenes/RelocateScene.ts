@@ -1,15 +1,13 @@
 import Phaser from 'phaser';
-import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
+import { BUTTON_COLORS, PALETTE, outlinedStyle } from '../config/Theme';
 import { state } from '../core/GameState';
-import { depositName, hardnessMult, powerMult, valueMult } from '../data/deposits';
+import { hardnessMult, powerMult, valueMult } from '../data/deposits';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
 
 const CARD_W = 460;
 const PAD = 24;
-const INK = '#3b2616';
-const SOFT_INK = '#7a5a3a';
 
 /**
  * Bedrock! The deposit is dug out. This card offers a fresh one: the ground starts over,
@@ -63,10 +61,9 @@ export class RelocateScene extends Phaser.Scene {
     const content = this.add.container(0, 0);
     this.card.add([panel, content]);
 
-    const cur = state.progress.deposit;
-    const next = cur + 1;
+    const next = state.progress.deposit + 1;
 
-    const title = this.add.text(CARD_W / 2, 38, 'BEDROCK!', outlinedStyle(36)).setOrigin(0.5);
+    const title = this.add.text(CARD_W / 2, 38, '\u{1F3C1}', outlinedStyle(46)).setOrigin(0.5);
     const rw = title.width + 80;
     const ribbon = this.add.graphics();
     ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - rw / 2, 18, rw, 54, 14);
@@ -76,36 +73,31 @@ export class RelocateScene extends Phaser.Scene {
     content.add([ribbon, title]);
 
     let y = 88;
-    const intro = `You dug Deposit ${cur} (${depositName(cur)}) all the way down!`;
-    content.add(this.add.text(CARD_W / 2, y, intro, { ...textStyle(18, INK), align: 'center', wordWrap: { width: CARD_W - PAD * 2 } }).setOrigin(0.5, 0));
-    y += 56;
-    content.add(this.add.text(CARD_W / 2, y, `Next: Deposit ${next} - ${depositName(next)}`, textStyle(22, '#2a8a3a')).setOrigin(0.5, 0));
+    content.add(this.add.text(CARD_W / 2, y, `\u{1F680} ${next}`, outlinedStyle(40, '#8dff9a')).setOrigin(0.5, 0));
     y += 42;
 
     const pct = (v: number) => `+${Math.round((v - 1) * 100)}%`;
     const rows: Array<[string, string, string]> = [
-      ['Relocation bonus', `+${formatMoney(state.relocationBonus)}`, '#2a8a3a'],
-      ['Richer finds', `${pct(valueMult(next))} value`, '#2a8a3a'],
-      ['Stronger tools', `${pct(powerMult(next))} power`, '#2a8a3a'],
-      ['Tougher ground', `${pct(hardnessMult(next))} harder`, '#b8501f'],
+      ['\u{1F4B0}', `+${formatMoney(state.relocationBonus)}`, '#2a8a3a'],
+      ['\u{1F48E}', `${pct(valueMult(next))}`, '#2a8a3a'],
+      ['\u26CF\uFE0F', `${pct(powerMult(next))}`, '#2a8a3a'],
+      ['\u{1F9F1}', `${pct(hardnessMult(next))}`, '#b8501f'],
     ];
     for (const [label, value, color] of rows) {
       const g = this.add.graphics();
       g.lineStyle(2, 0x7a5a3a, 0.16).lineBetween(PAD, y + 32, CARD_W - PAD, y + 32);
       content.add(g);
-      content.add(this.add.text(PAD, y + 15, label, textStyle(19, SOFT_INK)).setOrigin(0, 0.5));
+      content.add(this.add.text(PAD + 4, y + 15, label, outlinedStyle(26, '#ffffff', { strokeThickness: 0 })).setOrigin(0, 0.5));
       content.add(this.add.text(CARD_W - PAD, y + 15, value, outlinedStyle(20, '#ffffff')).setOrigin(1, 0.5).setStroke(color === '#b8501f' ? '#b8501f' : '#2a8a3a', 5));
       y += 38;
     }
-    y += 6;
-    content.add(this.add.text(CARD_W / 2, y, 'Your money, tools, upgrades and collection come with you.', { ...textStyle(14, SOFT_INK), align: 'center', wordWrap: { width: CARD_W - PAD * 2 } }).setOrigin(0.5, 0));
-    y += 44;
+    y += 14;
 
-    const go = new Button(this, { width: 380, height: 66, label: 'MOVE TO A NEW DEPOSIT', fontSize: 23, colors: BUTTON_COLORS.green, onClick: () => this.close(true) });
+    const go = new Button(this, { width: 380, height: 66, label: '\u{1F680}  \u25B6', fontSize: 34, colors: BUTTON_COLORS.green, onClick: () => this.close(true) });
     go.setPosition(CARD_W / 2, y + 36).setPulse(true);
     content.add(go);
     y += 82;
-    const stay = new Button(this, { width: 230, height: 46, label: 'STAY HERE', fontSize: 18, colors: BUTTON_COLORS.blue, onClick: () => this.close(false) });
+    const stay = new Button(this, { width: 120, height: 46, label: '\u2716', fontSize: 24, colors: BUTTON_COLORS.blue, onClick: () => this.close(false) });
     stay.setPosition(CARD_W / 2, y + 26);
     content.add(stay);
     y += 56;

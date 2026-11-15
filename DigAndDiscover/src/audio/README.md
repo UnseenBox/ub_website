@@ -1,8 +1,8 @@
 # Sound effects
 
-Thirteen cues play MP3 samples from this folder, and one MP3 loops as the
-background music. Four cues are still synthesized in `Sfx.ts`: `timesUp`,
-`newDay`, `dayEnd`, `place`, plus the dud sting in `reveal()`.
+Fourteen cues play MP3 samples from this folder, and one MP3 loops as the
+background music. The rest — `timesUp`, `newDay`, `dayEnd`, `place` — are
+synthesized in `Sfx.ts`.
 
 | Source file | Project file | Cue | Plays when |
 | --- | --- | --- | --- |
@@ -11,22 +11,24 @@ background music. Four cues are still synthesized in `Sfx.ts`: `timesUp`,
 | `coin.mp3` | `coin.mp3` | `coin()` | Coins flying into the money counter |
 | `denied.mp3` | `denied.mp3` | `denied()` | Disabled button, or digging at nothing |
 | `exhausted.mp3` | `exhausted.mp3` | `tired()` | A swing refused because stamina is empty |
-| `layer enter.mp3` | `layer-enter.mp3` | `layerEnter()` | Entering a new soil/stone layer |
+| `soil level Up.mp3` | `soil-level-up.mp3` | `layerEnter()` | Entering a new soil/stone layer (replaced `layer-enter.mp3`) |
 | `money collect.mp3` | `money-collect.mp3` | `collect()` | Rock first appears in the dirt, and again when it lands in the bag |
 | `Rock found.mp3` | `rock-found.mp3` | `discover()` | Buried rock popping free |
 | `Saw.mp3` | `saw.mp3` | `startSaw()` | Workshop cutting loop |
 | `Sell.mp3` | `sell.mp3` | `sell()` | Sale celebration |
 | `tool hits the Rock.mp3` | `tool-hit.mp3` | `dig(true)` | Shovel striking an embedded rock directly |
-| `reaveal inside the rock.mp3` | `reveal.mp3` | `reveal()` | Every non-dud rock opening at the cutting bench |
+| `reaveal inside the rock.mp3` | `reveal.mp3` | `reveal()` | Cutting-bench reveal of a rock worth $15 or more |
+| `rock under 15 Dollar.mp3` | `rock-under-15.mp3` | `reveal()` | Cutting-bench reveal of a rock worth under $15 |
 | `bg music.mp3` | `music.mp3` | (background) | Loops across the whole game, starts on the first gesture, quiet under the SFX |
 
 Notes:
 
 - A direct rock strike no longer also plays the synthesized metallic tick;
   `tool-hit.mp3` carries that moment on its own. Dirt swings keep `dig.mp3`.
-- `reveal()` plays the reveal piece for every non-dud cut. The tier still
-  drives the visual celebration (flash, shake, rays, burst, confetti), and
-  duds keep the short synthesized sting.
+- `reveal()` splits on the rock's value, not on the dud flag: anything
+  worth under $15 gets `rock-under-15.mp3`, everything else gets the reveal
+  piece. The old synthesized dud sting is retired. Tier still drives the
+  visual celebration (flash, shake, rays, burst, confetti).
 - The music loops everywhere (dig, workshop, end-of-day), fades in over
   about a second, pauses when the tab is hidden, and honours the mute button
   like everything else. `MUSIC_GAIN` in `Sfx.ts` sets how far under the SFX

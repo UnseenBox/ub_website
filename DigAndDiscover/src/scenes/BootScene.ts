@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { createSharedTextures } from '../art/TextureFactory';
 import { createStoreTextures, loadStoreOverrides } from '../art/StoreArt';
+import { createIconTextures } from '../art/IconArt';
 import { createCurioTextures, loadCurioOverrides } from '../art/CurioArt';
+import coinUrl from '../assets/ui/coin.png';
 
 /** Paints every shared texture once, then drops straight into gameplay. */
 export class BootScene extends Phaser.Scene {
@@ -10,6 +12,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // The supplied pickaxe coin replaces the painted one (see TextureFactory).
+    this.load.image('coin', coinUrl);
     // Optional PNGs from src/assets/store/ replace painted store icons.
     loadStoreOverrides(this.load);
     loadCurioOverrides(this.load);
@@ -17,6 +21,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     createSharedTextures(this.textures);
+    createIconTextures(this.textures);
     createStoreTextures(this.textures);
     createCurioTextures(this.textures);
     this.scene.start('Dig');
