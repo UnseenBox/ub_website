@@ -6,7 +6,8 @@ import { intRange, range } from '../core/Random';
 import type { Rock } from '../core/types';
 import { ART_RES, ensureRockTextures, rockKeys } from '../art/RockArt';
 import { paintStrata } from '../art/StrataArt';
-import { HOLE_RADIUS, HOLE_VARIANTS, SHOVEL } from '../art/TextureFactory';
+import { HOLE_RADIUS, HOLE_VARIANTS } from '../art/TextureFactory';
+import { shovelImage } from '../art/ShovelArt';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
@@ -22,7 +23,6 @@ const W = WORLD.width;
 const SURFACE = WORLD.surfaceY;
 const TOTAL_H = state.dig.totalHeight;
 const SKY_HEIGHT = 900;
-const SHOVEL_SCALE = 1.05 / ART_RES;
 /** Width, in field units, of the painted scene above the ground (its height follows the picture). */
 const BACKDROP_W = 1300;
 export const BACKDROP_KEY = 'above-surface';
@@ -112,6 +112,7 @@ export class DigScene extends Phaser.Scene {
   private backdrop!: Phaser.GameObjects.Image;
   private skyFill!: Phaser.GameObjects.Image;
   private life!: SurfaceLife;
+  private shovelScale = 1;
   private lifeLayer!: Phaser.GameObjects.Container;
   private wrap!: Phaser.GameObjects.Container;
   private root!: Phaser.GameObjects.Container;
@@ -360,7 +361,7 @@ export class DigScene extends Phaser.Scene {
 
   private buildShovel(): void {
     const tool = state.tool;
-    this.shovel = this.add.image(0, 0, tool.textureKey).setOrigin(0.5, SHOVEL.tipY / SHOVEL.height).setScale(SHOVEL_SCALE);
+    this.shovel = this.add.image(0, 0, tool.textureKey);
     this.rig = this.add.container(W / 2 + 60, SURFACE - 70, [this.shovel]).setAngle(14);
     // A soft shadow on the ground where the next swing will land.
     this.aimMark = this.add.image(0, 0, 'soft').setTint(0x1a0f08).setScale(0.95, 0.24).setAlpha(0);
@@ -378,10 +379,12 @@ export class DigScene extends Phaser.Scene {
   }
 
   /** Better tools wash the shovel sprite with their colour (until they get their own art). */
+  /** Shows the picture of the tool in hand, pivoting on its blade tip. */
   private applyToolLook(): void {
-    const tint = state.tool.tint;
-    if (tint) this.shovel.setTint(tint);
-    else this.shovel.clearTint();
+    const key = state.tool.textureKey;
+    const img = shovelImage(key);
+    this.shovelScale = img.displayH / img.texH;
+    this.shovel.setTexture(key).setOrigin(img.tipX, img.tipY).setScale(this.shovelScale).clearTint();
   }
 
   /** Small depth labels where each new layer begins, written into the dirt. */
@@ -751,8 +754,8 @@ export class DigScene extends Phaser.Scene {
     this.time.delayedCall(plungeMs, () => {
       this.impact(x);
       const squash = 1 + clang;
-      this.shovel.setScale(SHOVEL_SCALE * (1 + 0.08 * squash), SHOVEL_SCALE * (1 - 0.12 * squash));
-      this.tweens.add({ targets: this.shovel, scaleX: SHOVEL_SCALE, scaleY: SHOVEL_SCALE, duration: 200, ease: 'Back.easeOut' });
+      this.shovel.setScale(this.shovelScale * (1 + 0.08 * squash), this.shovelScale * (1 - 0.12 * squash));
+      this.tweens.add({ targets: this.shovel, scaleX: this.shovelScale, scaleY: this.shovelScale, duration: 200, ease: 'Back.easeOut' });
       this.tweens.killTweensOf(this.rig);
       const upY = state.dig.floorAt(x) - 40 - 14 * clang;
       this.tweens.add({ targets: this.rig, x: x + 16, y: upY, angle: 24 + 10 * clang, duration: 170, ease: 'Back.easeOut' });
