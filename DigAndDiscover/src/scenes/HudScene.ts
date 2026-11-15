@@ -35,7 +35,8 @@ function fitIcon(img: Phaser.GameObjects.Image, size: number): void {
 
 export class HudScene extends Phaser.Scene {
   private L!: Layout;
-  private tray!: Phaser.GameObjects.Graphics;
+  private tray!: Phaser.GameObjects.Image;
+  private lanternGlows: Phaser.GameObjects.Image[] = [];
   private stamina!: StaminaBar;
   private slots: InventorySlot[] = [];
   private action!: Button;
@@ -87,13 +88,19 @@ export class HudScene extends Phaser.Scene {
     this.floats = [];
     this.incoming.clear();
 
-    this.tray = this.add.graphics();
+    this.tray = this.add.image(0, 0, 'rocks-tray').setOrigin(0, 0);
+    // The two lanterns on the panel glow and flicker a little.
+    this.lanternGlows = [0, 1].map((i) => {
+      const glow = this.add.image(0, 0, 'soft').setTint(0xffc060).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.35);
+      this.tweens.add({ targets: glow, alpha: { from: 0.22, to: 0.5 }, duration: 900 + i * 260, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      return glow;
+    });
     this.stamina = new StaminaBar(this);
     for (let i = 0; i < GAME_CONFIG.inventory.slots; i++) {
       this.slots.push(new InventorySlot(this, () => this.onSlotPressed(i)));
     }
     this.action = new Button(this, {
-      width: 220, height: 56, label: '', fontSize: 22, colors: BUTTON_COLORS.orange,
+      width: 220, height: 56, label: '', fontSize: 22, colors: BUTTON_COLORS.orange, ghost: true,
       onClick: () => this.onAction(),
     });
     this.money = new MoneyCounter(this, state.economy.money);
@@ -246,10 +253,8 @@ export class HudScene extends Phaser.Scene {
   private onResize(): void {
     const L = (this.L = computeLayout(this.scale.width, this.scale.height));
     const t = L.tray;
-    this.tray.clear();
-    this.tray.fillStyle(0x000000, 0.18).fillRoundedRect(t.x, t.y - 4, t.w, t.h, 24);
-    this.tray.fillStyle(PALETTE.tray, 0.88).fillRoundedRect(t.x, t.y, t.w, t.h, 24);
-    this.tray.lineStyle(2, 0xffffff, 0.08).strokeRoundedRect(t.x, t.y, t.w, t.h, 24);
+    this.tray.setPosition(t.x, t.y).setDisplaySize(t.w, t.h);
+    L.lanterns.forEach((l, i) => this.lanternGlows[i]?.setPosition(l.x, l.y).setDisplaySize(l.r * 3.2, l.r * 3.2));
 
     this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h);
     const goalH = L.compact ? 44 : 50;
@@ -260,7 +265,7 @@ export class HudScene extends Phaser.Scene {
       slot.resizeSlot(L.slotSize);
     });
     const b = L.button;
-    this.action.setPosition(b.x + b.w / 2, b.y + b.h / 2).resize(b.w, b.h, Math.round(b.h * 0.4));
+    this.action.setPosition(b.x + b.w / 2, b.y + b.h / 2).resize(b.w, b.h, Math.round(b.h * 0.62));
 
     const pillH = Math.round(L.topH * 0.62);
     // The money pill may grow until it meets the first of the three round buttons.
@@ -313,7 +318,8 @@ export class HudScene extends Phaser.Scene {
         this.action.setIcon('ui-workshop').setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
       } else {
         const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
-        this.action.setIcon(uiIcon('pickaxe')).setLabel(`${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
+        // The plank already shows a pickaxe; only the count is added.
+        this.action.setIcon(null).setLabel(`${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
       }
     } else if (!state.canWork) {
       // Closing time: no way back to the dig site. The bag has to be emptied first.

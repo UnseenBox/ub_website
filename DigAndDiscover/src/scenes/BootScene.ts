@@ -11,6 +11,7 @@ import goalsIconUrl from '../assets/ui/icons/goals.png';
 import workshopIconUrl from '../assets/ui/icons/workshop.png';
 import pauseIconUrl from '../assets/ui/icons/pause.png';
 import workshopBgUrl from '../assets/world/workshop-bg.jpg';
+import trayUrl from '../assets/ui/rocks-tray.png';
 import machineUrl from '../assets/workshop/machine.png';
 import sawUrl from '../assets/workshop/saw.png';
 
@@ -30,6 +31,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-workshop', workshopIconUrl);
     this.load.image('ui-pause', pauseIconUrl);
     this.load.image('workshop-bg', workshopBgUrl);
+    // The bag panel: stamina bar, five slots and the plank that holds the rock count.
+    this.load.image('rocks-tray', trayUrl);
     // The saw machine: the wooden frame and the circular blade are separate pictures.
     this.load.image('machine-art', machineUrl);
     this.load.image('saw-art', sawUrl);
