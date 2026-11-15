@@ -12,6 +12,7 @@ import { Button } from '../ui/Button';
 import { computeLayout } from '../ui/layout';
 import { formatMoney } from '../ui/MoneyCounter';
 import type { DigScene } from './DigScene';
+import type { WorkshopScene } from './WorkshopScene';
 
 interface Rect {
   x: number;
@@ -112,6 +113,7 @@ export class StoreScene extends Phaser.Scene {
     else this.pausedKey = null;
 
     (this.scene.get('Dig') as DigScene).setShovelHidden(true);
+    (this.scene.get('Workshop') as WorkshopScene).setStageHidden(true);
     this.block = this.add.rectangle(0, 0, 10, 10, 0x000000, 0).setOrigin(0, 0).setInteractive();
     this.showL = this.add.container(0, 0);
     this.panelL = this.add.container(0, 0);
@@ -124,6 +126,7 @@ export class StoreScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
       (this.scene.get('Dig') as DigScene).setShovelHidden(false);
+      (this.scene.get('Workshop') as WorkshopScene).setStageHidden(false);
       if (this.pausedKey && this.scene.isPaused(this.pausedKey)) this.scene.resume(this.pausedKey);
       this.pausedKey = null;
     });
@@ -194,7 +197,7 @@ export class StoreScene extends Phaser.Scene {
     this.bubble = null;
     this.buildShowcase();
     this.buildUpgrades();
-    this.buildClose();
+    if (!this.portrait) this.buildClose();
     this.buildTabs();
     this.showL.setVisible(!this.portrait || this.view === 'tools');
     this.panelL.setVisible(!this.portrait || this.view === 'upgrades');
@@ -208,10 +211,14 @@ export class StoreScene extends Phaser.Scene {
     this.tabs = [];
     if (!this.portrait) return;
     const { x, w } = this.R;
-    const bw = Math.min(190, (w - 40) / 2);
+    const bw = this.tabW();
     const bh = 56;
+    // [tools] [upgrades] [x]: the close button lives in the same bar, clear of everything else.
+    const closeR = 28;
+    const total = bw * 2 + 6 + 12 + closeR * 2;
+    const left = x + (w - total) / 2;
     (['tools', 'upgrades'] as const).forEach((id, i) => {
-      const cx = x + w / 2 + (i === 0 ? -(bw / 2 + 6) : bw / 2 + 6);
+      const cx = left + bw / 2 + i * (bw + 6);
       const bg = this.add.graphics();
       const key = id === 'tools' ? TOOL_DEFS[state.progress.equippedToolId].textureKey : uiIcon('bolt');
       const pic = this.add.image(0, 0, key);
@@ -230,6 +237,17 @@ export class StoreScene extends Phaser.Scene {
       this.tabs.push({ id, c, bg, dot });
       this.paintTab(id, bw, bh);
     });
+    const close = this.add.container(left + bw * 2 + 6 + 12 + closeR, this.tabY);
+    close.add(this.add.image(0, 0, uiIcon('cross')).setDisplaySize(closeR * 2, closeR * 2));
+    close.setSize(closeR * 2.4, closeR * 2.4).setInteractive({ useHandCursor: true });
+    close.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => this.tweens.add({ targets: close, scale: 0.88, duration: 70 }));
+    close.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.requestClose());
+    this.topL.add(close);
+  }
+
+  /** Width of one of the two tabs, leaving room for the close button beside them. */
+  private tabW(): number {
+    return Math.min(150, (this.R.w - 40 - 12 - 56) / 2);
   }
 
   private paintTab(id: 'tools' | 'upgrades', bw: number, bh: number): void {
@@ -259,7 +277,7 @@ export class StoreScene extends Phaser.Scene {
   }
 
   private repaintTabs(): void {
-    const bw = Math.min(190, (this.R.w - 40) / 2);
+    const bw = this.tabW();
     this.paintTab('tools', bw, 56);
     this.paintTab('upgrades', bw, 56);
   }

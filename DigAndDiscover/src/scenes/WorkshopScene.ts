@@ -34,7 +34,7 @@ interface StageLayout {
 }
 
 const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 300, machineW: 500, bedY: 430, cardX: 770, cardY: 300, cardW: 300, cardH: 400, cardScale: 0.714, tabsX: 770, tabsY: 46, tabsRow: true };
-const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 480, bedY: 400, cardX: 320, cardY: 704, cardW: 600, cardH: 290, cardScale: 0.6, tabsX: 34, tabsY: 70, tabsRow: false };
+const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 480, bedY: 400, cardX: 320, cardY: 706, cardW: 360, cardH: 300, cardScale: 0.68, tabsX: 34, tabsY: 70, tabsRow: false };
 
 /** The supplied saw table (assets/workshop/machine2.png), measured in its own pixels. */
 const MACHINE_ART = { w: 700, h: 803, bed: 602, beam: 88, playX: 532, playY: 738, playD: 100 };
@@ -368,6 +368,12 @@ export class WorkshopScene extends Phaser.Scene {
       g.lineStyle(on ? 4 : 3, on ? 0xffc83d : 0x8a6a46, 1).strokeCircle(0, 0, 28);
       t.c.setScale(on ? 1.08 : 1);
     }
+  }
+
+  /** The shop opens over the workshop's background only: the table, card and tabs step aside while it is up. */
+  setStageHidden(hidden: boolean): void {
+    this.stage?.setVisible(!hidden);
+    this.lamp?.setVisible(!hidden);
   }
 
   /** Switches between the saw table and the (locked) crusher. Not while a cut or a placing is running. */
