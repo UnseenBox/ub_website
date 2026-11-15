@@ -369,7 +369,7 @@ export class DigScene extends Phaser.Scene {
   /** Better tools wash the shovel sprite with their colour (until they get their own art). */
   /** The store takes the tool out of the world while it shows the same tools on its shelf. */
   setShovelHidden(hidden: boolean): void {
-    this.shovel.setVisible(!hidden);
+    this.shovel?.setVisible(!hidden);
   }
 
   /** Shows the picture of the tool in hand, pivoting on its blade tip. */

@@ -36,7 +36,7 @@ type SampleKey = keyof typeof SAMPLE_URLS;
 /** Samples are peak-normalised; this is the mix, not a volume correction. */
 const SAMPLE_GAIN: Record<SampleKey, number> = {
   dig: 0.9,
-  click: 0.45,
+  click: 1,
   coin: 0.35,
   denied: 0.4,
   exhausted: 0.65,

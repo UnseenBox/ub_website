@@ -27,10 +27,14 @@ interface StageLayout {
   cardH: number;
   /** Scale of the card picture (its bottom part, with the two button slots, keeps this size). */
   cardScale: number;
+  /** The two station tabs (saw, crusher): where they are and which way they line up. */
+  tabsX: number;
+  tabsY: number;
+  tabsRow: boolean;
 }
 
-const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 300, machineW: 500, bedY: 430, cardX: 770, cardY: 300, cardW: 300, cardH: 400, cardScale: 0.714 };
-const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 480, bedY: 400, cardX: 320, cardY: 704, cardW: 600, cardH: 290, cardScale: 0.6 };
+const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 300, machineW: 500, bedY: 430, cardX: 770, cardY: 300, cardW: 300, cardH: 400, cardScale: 0.714, tabsX: 770, tabsY: 46, tabsRow: true };
+const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 480, bedY: 400, cardX: 320, cardY: 706, cardW: 360, cardH: 300, cardScale: 0.68, tabsX: 34, tabsY: 70, tabsRow: false };
 
 /** The supplied saw table (assets/workshop/machine2.png), measured in its own pixels. */
 const MACHINE_ART = { w: 700, h: 803, bed: 602, beam: 88, playX: 532, playY: 738, playD: 100 };
@@ -65,6 +69,17 @@ export class WorkshopScene extends Phaser.Scene {
   private rockImg!: Phaser.GameObjects.Image;
   private cutLine!: Phaser.GameObjects.Rectangle;
   private halves: Phaser.GameObjects.Image[] = [];
+  /** Everything that belongs to the saw table (machine, rock, blade, effects, result card). */
+  private sawGroup!: Phaser.GameObjects.Container;
+  /** The rock crusher: shown dimmed and locked, with a "coming soon" label. */
+  private crusherGroup!: Phaser.GameObjects.Container;
+  private crusher!: Phaser.GameObjects.Image;
+  private crusherLock!: Phaser.GameObjects.Image;
+  private crusherRibbon!: Phaser.GameObjects.Graphics;
+  private crusherLabel!: Phaser.GameObjects.Text;
+  private ribbonBox!: Phaser.GameObjects.Container;
+  private tabs: { id: 'saw' | 'crusher'; c: Phaser.GameObjects.Container; ring: Phaser.GameObjects.Graphics }[] = [];
+  private station: 'saw' | 'crusher' = 'saw';
   private card!: Phaser.GameObjects.NineSlice;
   private titleSize = 34;
   private bigSize = 56;
@@ -111,9 +126,14 @@ export class WorkshopScene extends Phaser.Scene {
     this.backdrop = this.add.image(0, 0, 'workshop-bg').setOrigin(0, 0);
     this.lamp = this.add.image(0, 0, 'soft').setTint(0xffd9a0).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD);
     this.stage = this.add.container(0, 0);
+    this.sawGroup = this.add.container(0, 0);
+    this.crusherGroup = this.add.container(0, 0).setVisible(false);
+    this.station = 'saw';
+    this.stage.add([this.sawGroup, this.crusherGroup]);
     this.buildStage();
     this.buildCard();
     this.buildEffects();
+    this.buildCrusher();
 
     subscribe(this, EVT.slotSelected, (id: string) => this.onSlotSelected(id));
     subscribe(this, EVT.dayPhaseChanged, () => this.refreshCard());
@@ -225,7 +245,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.rod = this.add.rectangle(0, 0, 14, 0, 0x8d99a6).setOrigin(0.5, 0).setStrokeStyle(2, 0x4f5763);
     this.blade = this.add.image(0, 0, 'saw-art');
     this.blade.setScale((SAW_R * 2) / this.blade.width);
-    this.stage.add([this.machineShadow, this.machine, this.playGlow, this.playIcon, this.playZone, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
+    this.sawGroup.add([this.machineShadow, this.machine, this.playGlow, this.playIcon, this.playZone, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
   }
 
   private buildCard(): void {
@@ -249,7 +269,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.adBtn.setVisible(false);
     // A picture where the big number goes while no rock is on the bench (all done / pick a rock).
     this.bigIcon = this.add.image(0, 0, uiIcon('bag')).setVisible(false);
-    this.stage.add([this.card, this.chip, this.title, this.sub, this.big, this.bigIcon, this.sellBtn, this.adBtn]);
+    this.sawGroup.add([this.card, this.chip, this.title, this.sub, this.big, this.bigIcon, this.sellBtn, this.adBtn]);
   }
 
   private buildEffects(): void {
@@ -302,8 +322,71 @@ export class WorkshopScene extends Phaser.Scene {
       blendMode: Phaser.BlendModes.ADD,
     });
     // Particles render just below the blade so sparks fly in front of the rock.
-    this.stage.addAt([this.dustFx, this.burstFx, this.glitterFx, this.sparkFx], this.stage.getIndex(this.rod));
-    this.stage.add(this.confettiFx);
+    this.sawGroup.addAt([this.dustFx, this.burstFx, this.glitterFx, this.sparkFx], this.sawGroup.getIndex(this.rod));
+    this.sawGroup.add(this.confettiFx);
+  }
+
+  // ---------- the rock crusher (locked for now) ----------
+
+  /** The crusher picture, dimmed, with a lock over it and a "coming soon" ribbon; plus the two station tabs. */
+  private buildCrusher(): void {
+    this.crusher = this.add.image(0, 0, 'crusher-art').setOrigin(0.5, 1).setTint(0x7c7c8c);
+    this.crusherLock = this.add.image(0, 0, uiIcon('lock'));
+    this.crusherRibbon = this.add.graphics();
+    this.crusherLabel = this.add.text(0, 0, 'Coming soon', outlinedStyle(30, '#fff3dc')).setOrigin(0.5);
+    this.ribbonBox = this.add.container(0, 0, [this.crusherRibbon, this.crusherLabel]);
+    this.crusherGroup.add([this.crusher, this.crusherLock, this.ribbonBox]);
+    // The lock sways a little, the ribbon bobs: it is waiting, not broken.
+    this.tweens.add({ targets: this.crusherLock, angle: { from: -6, to: 6 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: this.ribbonBox, y: 5, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    // Tabs: the saw table (open) and the crusher (locked).
+    this.tabs = (['saw', 'crusher'] as const).map((id) => {
+      const ring = this.add.graphics();
+      const pic = this.add.image(0, 0, id === 'saw' ? 'saw-art' : 'crusher-art');
+      const fit = id === 'saw' ? 40 : 46;
+      pic.setScale(fit / Math.max(pic.width, pic.height));
+      if (id === 'crusher') pic.setTint(0x8a8a98);
+      const parts: Phaser.GameObjects.GameObject[] = [ring, pic];
+      if (id === 'crusher') parts.push(this.add.image(17, 17, uiIcon('lock')).setDisplaySize(24, 24));
+      const c = this.add.container(0, 0, parts);
+      c.setSize(60, 60).setInteractive({ useHandCursor: true });
+      c.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.setStation(id));
+      this.stage.add(c);
+      return { id, c, ring };
+    });
+    this.paintTabs();
+  }
+
+  private paintTabs(): void {
+    for (const t of this.tabs) {
+      const on = t.id === this.station;
+      const g = t.ring;
+      g.clear();
+      g.fillStyle(0x000000, 0.3).fillCircle(0, 3, 29);
+      g.fillStyle(0x3a2412, 0.95).fillCircle(0, 0, 29);
+      g.lineStyle(on ? 4 : 3, on ? 0xffc83d : 0x8a6a46, 1).strokeCircle(0, 0, 28);
+      t.c.setScale(on ? 1.08 : 1);
+    }
+  }
+
+  /** The shop opens over the workshop's background only: the table, card and tabs step aside while it is up. */
+  setStageHidden(hidden: boolean): void {
+    this.stage?.setVisible(!hidden);
+    this.lamp?.setVisible(!hidden);
+  }
+
+  /** Switches between the saw table and the (locked) crusher. Not while a cut or a placing is running. */
+  private setStation(next: 'saw' | 'crusher'): void {
+    if (next === this.station || state.busy || this.bench === 'cutting' || this.bench === 'placing' || this.bench === 'selling') return;
+    this.station = next;
+    sfx.click();
+    this.sawGroup.setVisible(next === 'saw');
+    this.crusherGroup.setVisible(next === 'crusher');
+    const shown = next === 'saw' ? this.sawGroup : this.crusherGroup;
+    shown.setAlpha(0).setY(14);
+    this.tweens.add({ targets: shown, alpha: 1, y: 0, duration: 240, ease: 'Cubic.easeOut' });
+    this.paintTabs();
   }
 
   // ---------- layout ----------
@@ -336,6 +419,25 @@ export class WorkshopScene extends Phaser.Scene {
     if (!this.cutting) this.blade.setPosition(S.machineX, S.bedY + BLADE_REST);
     if (recenterRock && this.current && this.bench !== 'placing') this.rockImg.setPosition(S.machineX, this.rockCenterY());
     if (this.bench === 'revealed' || this.bench === 'selling') this.placeHalves(false);
+
+    // The crusher stands where the saw table does; the tabs sit above the card (wide) or at the left (phone).
+    const kMachine = this.machine.scaleX;
+    const baseY = S.bedY + (MACHINE_ART.h - MACHINE_ART.bed) * kMachine;
+    this.crusher.setPosition(S.machineX, baseY).setScale((S.machineW * 1.04) / this.crusher.width);
+    const ch0 = this.crusher.displayHeight;
+    this.crusherLock.setPosition(S.machineX, baseY - ch0 * 0.5).setDisplaySize(ch0 * 0.34, ch0 * 0.34);
+    const ry = baseY - ch0 * 0.16;
+    const rw = Math.min(S.machineW * 0.78, 300);
+    this.crusherRibbon.setPosition(0, 0).clear();
+    this.crusherRibbon.fillStyle(0x000000, 0.35).fillRoundedRect(S.machineX - rw / 2, ry - 20 + 5, rw, 46, 14);
+    this.crusherRibbon.fillStyle(0xff8a3d).fillRoundedRect(S.machineX - rw / 2, ry - 20, rw, 46, 14);
+    this.crusherRibbon.fillStyle(0xffffff, 0.25).fillRoundedRect(S.machineX - rw / 2 + 8, ry - 16, rw - 16, 14, 7);
+    this.crusherRibbon.lineStyle(3, 0x3b2616, 0.9).strokeRoundedRect(S.machineX - rw / 2, ry - 20, rw, 46, 14);
+    this.crusherLabel.setPosition(S.machineX, ry + 3);
+    this.tabs.forEach((t, i) => {
+      if (S.tabsRow) t.c.setPosition(S.tabsX + (i === 0 ? -36 : 36), S.tabsY);
+      else t.c.setPosition(S.tabsX, S.tabsY + i * 66);
+    });
 
     // The card picture: frame, a big cream area for the rock, and two slots at the bottom for the buttons.
     const { cardX: x, cardY: y, cardW: w, cardH: h, cardScale: cs } = S;
@@ -407,6 +509,8 @@ export class WorkshopScene extends Phaser.Scene {
   }
 
   private onSlotSelected(id: string): void {
+    // Picking a rock goes to the saw table, wherever the player was looking.
+    if (this.station !== 'saw') this.setStation('saw');
     if (!state.canCut || (this.bench !== 'empty' && this.bench !== 'ready')) return;
     if (this.current?.id === id) return;
     const index = state.inventory.indexOf(id);

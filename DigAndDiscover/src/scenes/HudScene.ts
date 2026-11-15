@@ -55,6 +55,9 @@ export class HudScene extends Phaser.Scene {
   private money!: MoneyCounter;
   private mute!: Phaser.GameObjects.Container;
   private storeBtn!: Phaser.GameObjects.Container;
+  private workshopBtn!: Phaser.GameObjects.Container;
+  private workshopImg!: Phaser.GameObjects.Image;
+  private workshopRing!: Phaser.GameObjects.Graphics;
   private storeIcon!: Phaser.GameObjects.Graphics;
   private storeImg!: Phaser.GameObjects.Image;
   private pauseImg!: Phaser.GameObjects.Image;
@@ -122,6 +125,7 @@ export class HudScene extends Phaser.Scene {
     this.timeText = this.add.text(0, 0, '', outlinedStyle(14, '#fff3dc')).setOrigin(0.5);
     this.buildMuteButton();
     this.buildStoreButton();
+    this.buildWorkshopButton();
     this.toast = new Toast(this);
     this.switching = false;
     this.buildLedgerButton();
@@ -143,7 +147,10 @@ export class HudScene extends Phaser.Scene {
     }
 
     subscribe(this, EVT.inventoryChanged, () => this.refresh());
-    subscribe(this, EVT.modeChanged, () => this.refresh());
+    subscribe(this, EVT.modeChanged, () => {
+      this.refresh();
+      if (this.L) this.drawWorkshopButton(this.iconR);
+    });
     subscribe(this, EVT.busyChanged, () => this.refresh());
     subscribe(this, EVT.rockCollected, (rock: Rock, x: number, y: number, scale: number) => this.flyRockToBag(rock, x, y, scale));
     subscribe(this, EVT.placedChanged, (id: string | null) => {
@@ -285,7 +292,7 @@ export class HudScene extends Phaser.Scene {
 
     const pillH = Math.round(L.topH * 0.62);
     // The money pill may grow until it meets the first of the round buttons.
-    const topButtons = FEATURES.goals ? 4 : 3;
+    const topButtons = FEATURES.goals ? 5 : 4;
     this.money.maxWidth = L.w - 14 - pillH * topButtons - (topButtons - 1) * 10 - 8 - 14;
     this.money.layout(14, L.topH / 2, pillH);
     // The day and time plaque sits at the top middle, just under the top bar.
@@ -305,10 +312,15 @@ export class HudScene extends Phaser.Scene {
     (this.storeBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.iconR = muteR;
     this.drawStoreIcon(muteR);
-    this.goalsBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
+    // The workshop icon sits next to the store.
+    this.workshopBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
+    this.workshopBtn.setSize(pillH, pillH);
+    (this.workshopBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
+    this.drawWorkshopButton(muteR);
+    this.goalsBtn.setPosition(this.workshopBtn.x - muteR * 2 - 10, this.storeBtn.y);
     // The debt book joins the other round buttons at the top.
     // (With the objectives off, the book takes the goals button's place.)
-    this.ledgerBtn.setPosition((FEATURES.goals ? this.goalsBtn.x : this.storeBtn.x) - muteR * 2 - 10, this.storeBtn.y);
+    this.ledgerBtn.setPosition((FEATURES.goals ? this.goalsBtn.x : this.workshopBtn.x) - muteR * 2 - 10, this.storeBtn.y);
     this.goalsBtn.setSize(pillH, pillH);
     (this.goalsBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawGoalsButton(muteR);
@@ -661,6 +673,41 @@ export class HudScene extends Phaser.Scene {
     this.storeBtn.setSize(40, 40);
     this.storeBtn.setInteractive({ useHandCursor: true });
     this.storeBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openStore());
+  }
+
+  /** The workshop icon: a trip to the workshop (and back to the dig site from there). */
+  private buildWorkshopButton(): void {
+    this.workshopImg = this.add.image(0, 0, 'ui-workshop');
+    this.workshopRing = this.add.graphics();
+    this.workshopBtn = this.add.container(0, 0, [this.workshopRing, this.workshopImg]);
+    this.workshopBtn.setSize(40, 40);
+    this.workshopBtn.setInteractive({ useHandCursor: true });
+    this.workshopBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.toggleWorkshop());
+  }
+
+  private drawWorkshopButton(r: number): void {
+    fitIcon(this.workshopImg, r * 2.3);
+    this.workshopRing.clear();
+    // A gold ring while you are in the workshop.
+    if (state.mode === 'workshop') this.workshopRing.lineStyle(Math.max(3, r * 0.14), PALETTE.gold, 1).strokeCircle(0, 0, r * 1.02);
+  }
+
+  /** Top-bar workshop icon: dig site -> workshop, workshop -> dig site. */
+  private toggleWorkshop(): void {
+    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay') || state.isGameOver) return;
+    if (!state.canWork || (state.mode === 'workshop' && state.busy)) {
+      sfx.denied();
+      return;
+    }
+    sfx.click();
+    this.tweens.add({ targets: this.workshopBtn, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
+    this.switchMode(state.mode === 'dig' ? 'workshop' : 'dig');
+  }
+
+  /** The pause menu's workshop shortcut: only ever heads for the workshop. */
+  gotoWorkshop(): void {
+    if (state.mode !== 'dig' || this.switching || !state.canWork || this.scene.isActive('EndOfDay') || state.isGameOver) return;
+    this.switchMode('workshop');
   }
 
   /** Opens the store overlay. It pauses the world while open (see StoreScene). */

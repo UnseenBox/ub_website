@@ -5,6 +5,7 @@ import { state } from '../core/GameState';
 import { uiIcon } from '../art/UiIcons';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
+import type { HudScene } from './HudScene';
 
 const CARD_W = 400;
 const CARD_H = 360;
@@ -69,7 +70,7 @@ export class PauseScene extends Phaser.Scene {
 
     // Round shortcuts.
     const y = 150;
-    const xs = FEATURES.goals ? [CARD_W * 0.2, CARD_W * 0.5, CARD_W * 0.8] : [CARD_W * 0.32, CARD_W * 0.68];
+    const xs = FEATURES.goals ? [CARD_W * 0.14, CARD_W * 0.38, CARD_W * 0.62, CARD_W * 0.86] : [CARD_W * 0.2, CARD_W * 0.5, CARD_W * 0.8];
     this.soundG = this.add.graphics();
     const sound = this.add.container(xs[0], y, [this.soundG]).setSize(76, 76).setInteractive({ useHandCursor: true });
     this.drawSound();
@@ -80,7 +81,8 @@ export class PauseScene extends Phaser.Scene {
     });
     this.card.add(sound);
     this.shortcut(xs[1], y, 'ui-store', 'Store');
-    if (FEATURES.goals) this.shortcut(xs[2], y, 'ui-target', 'Goals');
+    this.shortcut(xs[2], y, 'ui-workshop', 'Workshop');
+    if (FEATURES.goals) this.shortcut(xs[3], y, 'ui-target', 'Goals');
 
     const play = new Button(this, { width: 260, height: 84, label: '', icon: uiIcon('play'), ghost: true, iconScale: 1.25, fontSize: 40, colors: BUTTON_COLORS.green, onClick: () => this.close() });
     play.setPosition(CARD_W / 2, 270).setPulse(true);
@@ -88,7 +90,7 @@ export class PauseScene extends Phaser.Scene {
   }
 
   /** A big picture button that closes the menu and opens another card. */
-  private shortcut(x: number, y: number, key: string, scene: 'Store' | 'Goals'): void {
+  private shortcut(x: number, y: number, key: string, scene: 'Store' | 'Goals' | 'Workshop'): void {
     const img = this.add.image(0, 0, key);
     img.setScale(76 / Math.max(img.width, img.height));
     const c = this.add.container(x, y, [img]).setSize(80, 80).setInteractive({ useHandCursor: true });
@@ -96,7 +98,11 @@ export class PauseScene extends Phaser.Scene {
       if (this.closing) return;
       sfx.click();
       this.close();
-      this.time.delayedCall(260, () => this.scene.launch(scene));
+      this.time.delayedCall(260, () => {
+        // The workshop is a place, not a card: the HUD takes the player there.
+        if (scene === 'Workshop') (this.scene.get('Hud') as HudScene).gotoWorkshop();
+        else this.scene.launch(scene);
+      });
     });
     this.card.add(c);
   }
