@@ -68,7 +68,7 @@ export const GAME_CONFIG = {
     /** The camera tries to keep the digging point this far down the view (0..1). */
     cameraFocus: 0.46,
     /** The grass line sits this far down the view at the very start (0..1). */
-    startSurfaceFraction: 0.4,
+    startSurfaceFraction: 0.5,
     /** Comfortable view height in field units; the scale is derived from it. */
     viewHeight: 540,
     minVisibleWidth: 480,

@@ -6,10 +6,6 @@ import { intRange, range } from '../core/Random';
 import type { Rock } from '../core/types';
 import { ART_RES, ensureRockTextures, rockKeys } from '../art/RockArt';
 import { paintStrata } from '../art/StrataArt';
-import { paintHome, paintMine } from '../art/SurfaceArt';
-import {
-  CLOUDS, RIDGE_FAR, RIDGE_MID, RIDGE_NEAR, RIDGE_W, SKY, SUN_DISC, SUN_RAYS, createScenicTextures,
-} from '../art/ScenicArt';
 import { HOLE_RADIUS, HOLE_VARIANTS, SHOVEL } from '../art/TextureFactory';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
@@ -26,8 +22,9 @@ const SURFACE = WORLD.surfaceY;
 const TOTAL_H = state.dig.totalHeight;
 const SKY_HEIGHT = 900;
 const SHOVEL_SCALE = 1.05 / ART_RES;
-const HOME_W = 520;
-const HOME_H = 300;
+/** Width, in field units, of the painted scene above the ground (its height follows the picture). */
+const BACKDROP_W = 1300;
+export const BACKDROP_KEY = 'above-surface';
 
 /** Mouse wheel: screen pixels scrolled per wheel pixel. */
 const WHEEL_GAIN = 1.5;
@@ -111,13 +108,8 @@ interface EmbeddedRock {
  */
 export class DigScene extends Phaser.Scene {
   private L!: Layout;
-  private sky!: Phaser.GameObjects.Image;
-  private sun!: Phaser.GameObjects.Image;
-  private sunRays!: Phaser.GameObjects.Image;
-  private ridgeFar!: Phaser.GameObjects.Image;
-  private ridgeMid!: Phaser.GameObjects.Image;
-  private ridgeNear!: Phaser.GameObjects.Image;
-  private clouds: Phaser.GameObjects.Image[] = [];
+  private backdrop!: Phaser.GameObjects.Image;
+  private skyFill!: Phaser.GameObjects.Image;
   private wrap!: Phaser.GameObjects.Container;
   private root!: Phaser.GameObjects.Container;
   private rockLayer!: Phaser.GameObjects.Container;
@@ -189,7 +181,6 @@ export class DigScene extends Phaser.Scene {
   create(): void {
     this.embedded = [];
     this.bedrockAnnounced = false;
-    this.clouds = [];
     this.rings = [];
     this.glints = [];
     this.dirtFx = [];
@@ -237,11 +228,6 @@ export class DigScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
-    this.sunRays.rotation += dt * 0.00005;
-    for (const cloud of this.clouds) {
-      cloud.x += cloud.getData('speed') * dt;
-      if (cloud.x - cloud.displayWidth / 2 > W + 400) cloud.x = -400 - cloud.displayWidth / 2;
-    }
     if (this.holdPointer) {
       if (!this.holdPointer.isDown) this.holdPointer = null;
       else if (this.inPlayArea(this.holdPointer.y)) this.tryDig(this.toFieldX(this.holdPointer.x));
@@ -273,26 +259,14 @@ export class DigScene extends Phaser.Scene {
     makeCanvasTexture(this.textures, 'strata', W, TOTAL_H, (ctx) =>
       paintStrata(ctx, { width: W, height: TOTAL_H, surfaceY: SURFACE, bands: state.dig.bands }),
     );
-    createScenicTextures(this.textures);
-    makeCanvasTexture(this.textures, 'home', HOME_W, HOME_H, (ctx, w, h) => paintHome(ctx, w, h));
-    makeCanvasTexture(this.textures, 'mine', HOME_W, HOME_H, (ctx, w, h) => paintMine(ctx, w, h));
-
-    this.sky = this.add.image(-1500, -SKY_HEIGHT, SKY).setOrigin(0, 0).setDisplaySize(W + 3000, SKY_HEIGHT + SURFACE + 2);
-    this.sunRays = this.add.image(0, 0, SUN_RAYS).setAlpha(0.5).setScale(1.5);
-    this.sun = this.add.image(0, 0, SUN_DISC).setScale(1.55);
-    for (let i = 0; i < 4; i++) {
-      const cloud = this.add.image(W * (0.06 + i * 0.28), SURFACE - 230 - (i % 2) * 70 - i * 12, CLOUDS[i % CLOUDS.length]);
-      cloud.setAlpha(0.96).setScale(1.15 - i * 0.1);
-      cloud.setData('speed', 0.005 + i * 0.0035);
-      this.clouds.push(cloud);
-    }
-    // Three ridges, far to near, like cut-paper stage flats; the far ones drift slower as the view scrolls.
-    const ridgeX = -(RIDGE_W - W) / 2;
-    this.ridgeFar = this.add.image(ridgeX, SURFACE + 8, RIDGE_FAR).setOrigin(0, 1);
-    this.ridgeMid = this.add.image(ridgeX, SURFACE + 12, RIDGE_MID).setOrigin(0, 1);
-    this.ridgeNear = this.add.image(ridgeX, SURFACE + 18, RIDGE_NEAR).setOrigin(0, 1);
-    const home = this.add.image(W / 2 - 215, SURFACE + 6, 'home').setOrigin(0.5, 1).setScale(0.8);
-    const mine = this.add.image(W / 2 + 215, SURFACE + 6, 'mine').setOrigin(0.5, 1).setScale(0.8);
+    // Everything above the ground is one painted picture. Its bottom edge sits on the grass line;
+    // a stretched copy of its top row carries the sky up past the top of the view.
+    const tex = this.textures.get(BACKDROP_KEY).getSourceImage() as { width: number; height: number };
+    const bs = BACKDROP_W / tex.width;
+    const bx = -(BACKDROP_W - W) / 2 + 8; // the cottage stands just left of the dig
+    this.backdrop = this.add.image(bx, SURFACE + 10, BACKDROP_KEY).setOrigin(0, 1).setScale(bs);
+    this.skyFill = this.add.image(bx, SURFACE + 10 - tex.height * bs + 1, BACKDROP_KEY).setOrigin(0, 1).setCrop(0, 0, tex.width, 2);
+    this.skyFill.setScale(bs, (SKY_HEIGHT + 400) / 2);
 
     // The back wall of the shaft: the same strata, darkened. Cropped so the grass is not repeated.
     const under = this.add.image(0, 0, 'strata').setOrigin(0, 0).setTint(0x5d5a6c);
@@ -307,7 +281,7 @@ export class DigScene extends Phaser.Scene {
     this.wrap = this.add.container(0, 0);
     this.root = this.add.container(-W / 2, 0);
     this.wrap.add(this.root);
-    this.root.add([this.sky, this.sunRays, this.sun, ...this.clouds, this.ridgeFar, this.ridgeMid, this.ridgeNear, home, mine, under, this.rockLayer, this.soil, this.popLayer]);
+    this.root.add([this.skyFill, this.backdrop, under, this.rockLayer, this.soil, this.popLayer]);
     this.stamp = this.make.image({ key: 'hole0', add: false });
   }
 
@@ -566,24 +540,14 @@ export class DigScene extends Phaser.Scene {
   private applyScroll(): void {
     // Snap to whole screen pixels so the terrain never shimmers while scrolling.
     this.root.y = -Math.round(this.scrollY * this.fieldScale) / this.fieldScale;
-    // Parallax: the distant ridges lag behind the ground as the view scrolls.
-    this.ridgeFar.y = SURFACE + 8 + this.scrollY * 0.5;
-    this.ridgeMid.y = SURFACE + 12 + this.scrollY * 0.25;
   }
 
+  /** The picture takes the light of the day: warm at dawn, bright at noon, amber in the evening. */
   private applyTimeOfDay(p: number): void {
     this.skyProgress = p;
-    const tint = skyTint(p);
-    this.sky.setTint(tint);
-    const sunColor = mixColor(0xfff3b0, 0xffa94d, Math.max(0, (p - 0.6) / 0.4));
-    const sx = Phaser.Math.Linear(W * 0.12, W * 0.88, p);
-    const sy = SURFACE - 90 - Math.sin(Math.PI * p) * 150;
-    this.sun.setPosition(sx, sy).setTint(sunColor);
-    this.sunRays.setPosition(sx, sy).setTint(sunColor);
-    // The mountains and hills take the light too, the far ones most.
-    this.ridgeFar.setTint(mixColor(0xffffff, tint, 0.8));
-    this.ridgeMid.setTint(mixColor(0xffffff, tint, 0.55));
-    this.ridgeNear.setTint(mixColor(0xffffff, tint, 0.3));
+    const tint = mixColor(0xffffff, skyTint(p), 0.7);
+    this.backdrop.setTint(tint);
+    this.skyFill.setTint(tint);
   }
 
   private toFieldX(sx: number): number {

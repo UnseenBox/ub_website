@@ -4,6 +4,7 @@ import { createStoreTextures, loadStoreOverrides } from '../art/StoreArt';
 import { createIconTextures } from '../art/IconArt';
 import { paintUiIcons } from '../art/UiIcons';
 import coinUrl from '../assets/ui/coin.png';
+import aboveSurfaceUrl from '../assets/world/above-surface.jpg';
 
 /** Paints every shared texture once, then drops straight into gameplay. */
 export class BootScene extends Phaser.Scene {
@@ -14,6 +15,8 @@ export class BootScene extends Phaser.Scene {
   preload(): void {
     // The supplied pickaxe coin replaces the painted one (see TextureFactory).
     this.load.image('coin', coinUrl);
+    // The painted scene above the ground.
+    this.load.image('above-surface', aboveSurfaceUrl);
     // Optional PNGs from src/assets/store/ replace painted store icons.
     loadStoreOverrides(this.load);
   }
