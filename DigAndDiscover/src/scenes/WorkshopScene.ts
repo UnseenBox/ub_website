@@ -25,21 +25,23 @@ interface StageLayout {
   cardY: number;
   cardW: number;
   cardH: number;
-  /** Sell and ad buttons side by side instead of stacked. */
-  buttonsRow: boolean;
+  /** Scale of the card picture (its bottom part, with the two button slots, keeps this size). */
+  cardScale: number;
 }
 
-const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 308, machineW: 596, bedY: 430, cardX: 770, cardY: 300, cardW: 340, cardH: 390, buttonsRow: false };
-const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 540, bedY: 404, cardX: 320, cardY: 712, cardW: 600, cardH: 250, buttonsRow: true };
+const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 300, machineW: 500, bedY: 430, cardX: 770, cardY: 300, cardW: 300, cardH: 400, cardScale: 0.714 };
+const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 480, bedY: 400, cardX: 320, cardY: 704, cardW: 600, cardH: 290, cardScale: 0.6 };
 
-/** The supplied machine picture (art/workshop/machine.png), measured in its own pixels. */
-const MACHINE_ART = { w: 960, bed: 454, beam: 45, lightY: 616, green: 631, red: 694, blue: 787, blueW: 100, blueH: 50 };
+/** The supplied saw table (assets/workshop/machine2.png), measured in its own pixels. */
+const MACHINE_ART = { w: 700, h: 803, bed: 602, beam: 88, playX: 532, playY: 738, playD: 100 };
+/** The supplied card (assets/workshop/card.png): its frame, and where the bottom part with the two slots starts. */
+const CARD_ART = { w: 420, h: 565, edge: 45, bottom: 213, bigBottom: 208, slot1: 165, slot2: 92, slotH1: 60, slotH2: 68 };
 /** Drawn radius of the circular blade, in stage pixels. */
 const SAW_R = 80;
 
 /** Rocks worth at least this much offer a "sell for double" ad. */
 const AD_SELL_MIN_VALUE = 30;
-const BLADE_REST = -272;
+const BLADE_REST = -300;
 const BLADE_END = -62;
 const RAY_COUNT = 12;
 
@@ -59,13 +61,13 @@ export class WorkshopScene extends Phaser.Scene {
   private rays!: Phaser.GameObjects.Container;
   private rod!: Phaser.GameObjects.Rectangle;
   private blade!: Phaser.GameObjects.Image;
-  private greenLamp!: Phaser.GameObjects.Image;
-  private redLamp!: Phaser.GameObjects.Image;
   private lampTime = 0;
   private rockImg!: Phaser.GameObjects.Image;
   private cutLine!: Phaser.GameObjects.Rectangle;
   private halves: Phaser.GameObjects.Image[] = [];
-  private card!: Phaser.GameObjects.Graphics;
+  private card!: Phaser.GameObjects.NineSlice;
+  private titleSize = 34;
+  private bigSize = 56;
   private chip!: Phaser.GameObjects.Container;
   private chipBg!: Phaser.GameObjects.Graphics;
   private chipText!: Phaser.GameObjects.Text;
@@ -171,33 +173,29 @@ export class WorkshopScene extends Phaser.Scene {
   }
 
   /**
-   * Life in the machine: the lights on its panel (green while idle, red while the blade runs), a
+   * Life in the machine: the play button on the base (lit and breathing while a rock waits), a
    * tremble through the frame and the blade while it cuts, and a slight sway when it parks.
    */
   private animateMachine(dt: number): void {
     this.lampTime += dt;
     const S = this.S;
     const k = this.machine.scaleX;
-    const running = this.bladeSpeed > 0.15;
     const shake = this.cutting ? Phaser.Math.FloatBetween(-1.3, 1.3) : 0;
-    const dx = (MACHINE_ART.green - MACHINE_ART.w / 2) * k;
     this.machine.x = S.machineX + shake * 0.6;
     this.blade.x = S.machineX + shake;
     this.rod.x = S.machineX + shake;
-    const pulse = 0.5 + 0.5 * Math.sin(this.lampTime / (running ? 70 : 520));
-    // The blue key: a lit, pulsing play triangle while a rock waits on the bench.
-    const bx = this.machine.x + (MACHINE_ART.blue - MACHINE_ART.w / 2) * k;
-    const by = this.machine.y + (MACHINE_ART.lightY - MACHINE_ART.bed) * k;
-    this.playGlow.setPosition(bx, by).setDisplaySize(MACHINE_ART.blueW * k * 2.2, MACHINE_ART.blueH * k * 3.4);
-    this.playGlow.setAlpha(this.playReady ? 0.35 + 0.45 * Math.sin(this.lampTime / 260) ** 2 : 0);
-    const iconSize = MACHINE_ART.blueH * k * 1.35;
-    if (!this.tweens.isTweening(this.playIcon)) this.playIcon.setDisplaySize(iconSize * (this.playReady ? 1 + 0.08 * pulse : 1), iconSize * (this.playReady ? 1 + 0.08 * pulse : 1));
-    this.playIcon.setPosition(bx, by).setAlpha(this.playReady ? 1 : 0.3);
-    this.playZone.setPosition(bx, by).setSize(MACHINE_ART.blueW * k * 1.9, MACHINE_ART.blueH * k * 3);
+    const pulse = 0.5 + 0.5 * Math.sin(this.lampTime / 520);
+    // The play button on the base: a glow and a gentle pulse while a rock waits on the bench.
+    const bx = this.machine.x + (MACHINE_ART.playX - MACHINE_ART.w / 2) * k;
+    const by = this.machine.y + (MACHINE_ART.playY - MACHINE_ART.bed) * k;
+    const d = MACHINE_ART.playD * k;
+    this.playGlow.setPosition(bx, by).setDisplaySize(d * 2.4, d * 2.4);
+    this.playGlow.setAlpha(this.playReady ? 0.3 + 0.45 * Math.sin(this.lampTime / 260) ** 2 : 0);
+    const size = d * (this.playReady ? 1 + 0.07 * pulse : 1);
+    if (!this.tweens.isTweening(this.playIcon)) this.playIcon.setDisplaySize(size, size);
+    this.playIcon.setPosition(bx, by).setAlpha(this.playReady ? 1 : 0.4);
+    this.playZone.setPosition(bx, by).setSize(d * 1.5, d * 1.5);
     (this.playZone.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, this.playZone.width, this.playZone.height);
-    const ly = this.machine.y + (MACHINE_ART.lightY - MACHINE_ART.bed) * k;
-    this.greenLamp.setPosition(this.machine.x + dx, ly).setAlpha(running ? 0.08 : 0.35 + 0.3 * pulse);
-    this.redLamp.setPosition(this.machine.x + (MACHINE_ART.red - MACHINE_ART.w / 2) * k, ly).setAlpha(running ? 0.55 + 0.45 * pulse : 0.05);
     if (!this.cutting && this.bladeSpeed < 0.05 && this.bench !== 'cutting') {
       // Parked: the blade rocks gently on its rod.
       this.blade.y = S.bedY + BLADE_REST + Math.sin(this.lampTime / 700) * 2;
@@ -208,11 +206,9 @@ export class WorkshopScene extends Phaser.Scene {
 
   private buildStage(): void {
     this.machineShadow = this.add.image(0, 0, 'shadow').setScale(5.4, 1.4);
-    this.machine = this.add.image(0, 0, 'machine-art').setOrigin(0.5, MACHINE_ART.bed / 705);
-    this.greenLamp = this.add.image(0, 0, 'soft').setTint(0x6dff7a).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(46, 46);
-    this.redLamp = this.add.image(0, 0, 'soft').setTint(0xff4a3a).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(52, 52);
-    // The blue key on the machine's panel is the start button: a glow, a play triangle and a big tap zone.
-    this.playGlow = this.add.image(0, 0, 'soft').setTint(0x6fd0ff).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    this.machine = this.add.image(0, 0, 'machine-art').setOrigin(0.5, MACHINE_ART.bed / MACHINE_ART.h);
+    // The play button on the table's base is the start button: a glow, the play picture and a big tap zone.
+    this.playGlow = this.add.image(0, 0, 'soft').setTint(0xffd27a).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
     this.playIcon = this.add.image(0, 0, uiIcon('play')).setAlpha(0.35);
     this.playZone = this.add.zone(0, 0, 10, 10).setInteractive({ useHandCursor: true });
     this.playZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => {
@@ -229,11 +225,11 @@ export class WorkshopScene extends Phaser.Scene {
     this.rod = this.add.rectangle(0, 0, 14, 0, 0x8d99a6).setOrigin(0.5, 0).setStrokeStyle(2, 0x4f5763);
     this.blade = this.add.image(0, 0, 'saw-art');
     this.blade.setScale((SAW_R * 2) / this.blade.width);
-    this.stage.add([this.machineShadow, this.machine, this.greenLamp, this.redLamp, this.playGlow, this.playIcon, this.playZone, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
+    this.stage.add([this.machineShadow, this.machine, this.playGlow, this.playIcon, this.playZone, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
   }
 
   private buildCard(): void {
-    this.card = this.add.graphics();
+    this.card = this.add.nineslice(0, 0, 'workshop-card', undefined, CARD_ART.w, CARD_ART.h, CARD_ART.edge, CARD_ART.edge, CARD_ART.edge, CARD_ART.bottom).setOrigin(0, 0);
     this.chipBg = this.add.graphics();
     this.chipText = this.add.text(0, 0, '', outlinedStyle(22)).setOrigin(0.5);
     this.chipStars = Array.from({ length: 5 }, () => this.add.image(0, 0, ICON_STAR).setVisible(false));
@@ -242,7 +238,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.sub = this.add.text(0, 0, '', textStyle(19, '#8a6a4a', { fontStyle: '500', align: 'center' })).setOrigin(0.5);
     this.big = this.add.text(0, 0, '', outlinedStyle(56, PALETTE.money)).setOrigin(0.5);
     this.sellBtn = new Button(this, {
-      width: 280, height: 74, label: '', icon: 'ui-collect', ghost: true, iconScale: 1.0, fontSize: 40, colors: BUTTON_COLORS.green,
+      width: 280, height: 74, label: '', icon: 'ui-collect', ghost: true, iconScale: 1.35, fontSize: 40, colors: BUTTON_COLORS.green,
       onClick: () => this.sell(1),
     });
     this.sellBtn.setVisible(false);
@@ -333,7 +329,7 @@ export class WorkshopScene extends Phaser.Scene {
   private layoutStage(recenterRock: boolean): void {
     const S = this.S;
     this.machine.setScale(S.machineW / MACHINE_ART.w);
-    this.machineShadow.setPosition(S.machineX, S.bedY + (705 - MACHINE_ART.bed) * this.machine.scaleX - 8);
+    this.machineShadow.setPosition(S.machineX, S.bedY + (MACHINE_ART.h - MACHINE_ART.bed) * this.machine.scaleX - 8);
     this.machine.setPosition(S.machineX, S.bedY);
     this.rays.setPosition(S.machineX, this.rockCenterY());
     this.rod.setPosition(S.machineX, this.rodTop());
@@ -341,33 +337,30 @@ export class WorkshopScene extends Phaser.Scene {
     if (recenterRock && this.current && this.bench !== 'placing') this.rockImg.setPosition(S.machineX, this.rockCenterY());
     if (this.bench === 'revealed' || this.bench === 'selling') this.placeHalves(false);
 
-    const { cardX: x, cardY: y, cardW: w, cardH: h } = S;
-    const g = this.card;
-    g.clear();
-    g.fillStyle(0x000000, 0.25).fillRoundedRect(x - w / 2, y - h / 2 + 8, w, h, 28);
-    g.fillStyle(PALETTE.cream).fillRoundedRect(x - w / 2, y - h / 2, w, h, 28);
-    g.fillStyle(PALETTE.creamShade).fillRoundedRect(x - w / 2 + 10, y + h * 0.12, w - 20, h * 0.38 - 10, 20);
-    g.lineStyle(4, 0xe2c497).strokeRoundedRect(x - w / 2, y - h / 2, w, h, 28);
-    this.chip.setPosition(x, y - h * 0.37);
-    this.title.setPosition(x, y - h * 0.21).setWordWrapWidth(w - 40);
-    this.sub.setPosition(x, y - h * 0.07).setWordWrapWidth(w - 40);
-    this.big.setPosition(x, y + h * 0.1);
-    this.bigIcon.setPosition(x, y + h * 0.1).setDisplaySize(84, 84);
+    // The card picture: frame, a big cream area for the rock, and two slots at the bottom for the buttons.
+    const { cardX: x, cardY: y, cardW: w, cardH: h, cardScale: cs } = S;
+    this.card.setSize(w / cs, h / cs).setScale(cs).setPosition(x - w / 2, y - h / 2);
+    const top0 = y - h / 2 + CARD_ART.edge * cs;
+    const bottom0 = y + h / 2 - CARD_ART.bigBottom * cs;
+    const hz = bottom0 - top0;
+    this.titleSize = Math.round(Math.max(22, Math.min(36, hz * 0.16)));
+    this.bigSize = Math.round(Math.max(34, Math.min(58, hz * 0.26)));
+    this.chip.setPosition(x, top0 + hz * 0.17);
+    this.title.setPosition(x, top0 + hz * 0.45).setWordWrapWidth(9999).setFontSize(this.titleSize);
+    this.sub.setPosition(x, top0 + hz * 0.6).setWordWrapWidth(w - 70 * cs);
+    this.big.setPosition(x, top0 + hz * 0.78).setFontSize(this.bigSize);
+    const isz = Math.min(84, hz * 0.45);
+    this.bigIcon.setPosition(x, top0 + hz * 0.62).setDisplaySize(isz, isz);
     this.placeButtons();
   }
 
-  /** Sell and double-ad buttons: stacked beside the machine, or side by side on a wide, short card (phones). */
+  /** The sell button sits in the card's upper slot and the "2x" ad button in the lower one. */
   private placeButtons(): void {
-    const { cardX: x, cardY: y, cardW: w, cardH: h, buttonsRow } = this.S;
-    if (buttonsRow) {
-      const bw = Math.floor((w - 50) / 2);
-      const both = this.adBtn.visible;
-      this.sellBtn.resize(both ? bw : w - 60, 74, 40).setPosition(both ? x - bw / 2 - 10 : x, y + h * 0.33);
-      this.adBtn.resize(bw, 74, 30).setPosition(x + bw / 2 + 10, y + h * 0.33);
-    } else {
-      this.sellBtn.resize(280, 74, 40).setPosition(x, y + h * 0.33);
-      this.adBtn.resize(280, 50, 24).setPosition(x, y + h * 0.33 + 64);
-    }
+    const { cardX: x, cardY: y, cardW: w, cardH: h, cardScale: cs } = this.S;
+    const bottom = y + h / 2;
+    const slotW = w - CARD_ART.edge * 2 * cs - 12 * cs;
+    this.sellBtn.resize(slotW, CARD_ART.slotH1 * cs, Math.round(30 * cs + 10)).setPosition(x, bottom - CARD_ART.slot1 * cs);
+    this.adBtn.resize(slotW - 8, CARD_ART.slotH2 * cs - 8, Math.round(24 * cs + 6)).setPosition(x, bottom - CARD_ART.slot2 * cs);
   }
 
   private rockScale(): number {
@@ -682,9 +675,9 @@ export class WorkshopScene extends Phaser.Scene {
     this.chip.setVisible(!!showChip);
     this.playReady = this.bench === 'ready' && state.canCut;
     if (this.bench !== 'revealed' && this.bench !== 'selling') this.sellBtn.setVisible(false);
-    this.big.setScale(1).setFontSize(56);
+    this.big.setScale(1).setFontSize(this.bigSize);
     // No words here: a picture says what to do next.
-    this.title.setText('');
+    this.title.setText('').setScale(1);
     this.sub.setText('');
     this.bigIcon.setVisible(!rock);
 
@@ -703,6 +696,8 @@ export class WorkshopScene extends Phaser.Scene {
     }
     const tier = rock.rarity.tier;
     this.title.setText(rock.mineral.name);
+    // The name stays on one line: shrink it to fit the card.
+    this.title.setScale(Math.min(1, (this.S.cardW - 70 * this.S.cardScale) / Math.max(1, this.title.width)));
     this.big.setColor(rock.mineral.dud || rock.value <= 0 ? '#d8d0c4' : PALETTE.money);
     // Rarity is a row of gold stars on the chip - no words. A worthless rock has no stars at all.
     const n = rock.rarity.id === 'worthless' ? 0 : tier + 1;

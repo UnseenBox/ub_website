@@ -22,8 +22,9 @@ import collectIconUrl from '../assets/ui/icons/collect.png';
 import workshopBgUrl from '../assets/world/workshop-bg.jpg';
 import upgradePanelUrl from '../assets/ui/upgrade-panel.png';
 import trayUrl from '../assets/ui/rocks-tray.png';
-import machineUrl from '../assets/workshop/machine.png';
-import sawUrl from '../assets/workshop/saw.png';
+import machineUrl from '../assets/workshop/machine2.png';
+import cardUrl from '../assets/workshop/card.png';
+import sawUrl from '../assets/workshop/saw2.png';
 
 /** Paints every shared texture once, then drops straight into gameplay. */
 export class BootScene extends Phaser.Scene {
@@ -60,6 +61,8 @@ export class BootScene extends Phaser.Scene {
     // The saw machine: the wooden frame and the circular blade are separate pictures.
     this.load.image('machine-art', machineUrl);
     this.load.image('saw-art', sawUrl);
+    // The card beside the table: frame, cream area and two slots for the buttons.
+    this.load.image('workshop-card', cardUrl);
     // The painted scene above the ground.
     this.load.image('above-surface', aboveSurfaceUrl);
     // Optional PNGs from src/assets/store/ replace painted store icons.
