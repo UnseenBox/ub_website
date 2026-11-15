@@ -40,6 +40,8 @@ npm run typecheck        # TypeScript check only
 
 **URL options:** `?secondsPerHour=3` makes one in-game hour last 3 real seconds (default 24, a 4-minute day). `?reset` clears the saved progress. `?mockads` shows fake 3-second test ads in any build.
 
+**Backups:** `backups/2026-11-15_friend-version-before-rockfirst-update/` (in the website repo copy of this folder) holds the build that was live before the rock-first update, with its own README on how to restore it.
+
 **Publishing to the website:** run `npm run build`, then copy `dist/` over `public/arcade/dig-and-discover/` in the website repository (keep its `poster.jpg`). The site serves that build, not this source folder.
 
 ## How to play
