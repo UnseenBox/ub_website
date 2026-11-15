@@ -37,7 +37,15 @@ export class HudScene extends Phaser.Scene {
   private L!: Layout;
   private tray!: Phaser.GameObjects.Image;
   private trayBadge!: Phaser.GameObjects.Image;
-  private lanternGlows: Phaser.GameObjects.Image[] = [];
+  private trayBolt!: Phaser.GameObjects.Graphics;
+  /** Craft medallion: glow while a trip is worth it, dark disc while locked, cover with a picture in other modes. */
+  private craftGlow!: Phaser.GameObjects.Image;
+  private craftDim!: Phaser.GameObjects.Graphics;
+  private craftCover!: Phaser.GameObjects.Graphics;
+  private craftCount!: Phaser.GameObjects.Container;
+  private craftCountBg!: Phaser.GameObjects.Graphics;
+  private craftCountText!: Phaser.GameObjects.Text;
+  private craftTween: Phaser.Tweens.Tween | null = null;
   private stamina!: StaminaBar;
   private slots: InventorySlot[] = [];
   private action!: Button;
@@ -90,16 +98,15 @@ export class HudScene extends Phaser.Scene {
     this.incoming.clear();
 
     this.tray = this.add.image(0, 0, 'rocks-tray').setOrigin(0, 0);
-    // The two lanterns on the panel glow and flicker a little.
-    this.lanternGlows = [0, 1].map((i) => {
-      const glow = this.add.image(0, 0, 'soft').setTint(0xffc060).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.35);
-      this.tweens.add({ targets: glow, alpha: { from: 0.22, to: 0.5 }, duration: 900 + i * 260, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      return glow;
-    });
+    // The craft medallion's states, drawn over the picture: a glow, a dark "locked" disc, a cover for other modes.
+    this.craftGlow = this.add.image(0, 0, 'soft').setTint(0xffc060).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setVisible(false);
+    this.craftDim = this.add.graphics().setVisible(false);
+    this.craftCover = this.add.graphics().setVisible(false);
     this.stamina = new StaminaBar(this);
-    // The bolt badge is drawn again above the fill, so the bar appears to run in underneath it.
+    // The round socket is drawn again above the fill, so the bar appears to run in underneath it.
     const bc = TRAY_ART.badgeCrop;
     this.trayBadge = this.add.image(0, 0, 'rocks-tray').setOrigin(0, 0).setCrop(bc.x, bc.y, bc.w, bc.h);
+    this.trayBolt = this.add.graphics();
     for (let i = 0; i < GAME_CONFIG.inventory.slots; i++) {
       this.slots.push(new InventorySlot(this, () => this.onSlotPressed(i)));
     }
@@ -107,6 +114,10 @@ export class HudScene extends Phaser.Scene {
       width: 220, height: 56, label: '', fontSize: 22, colors: BUTTON_COLORS.orange, ghost: true,
       onClick: () => this.onAction(),
     });
+    // Rock count on the lower edge of the medallion.
+    this.craftCountBg = this.add.graphics();
+    this.craftCountText = this.add.text(0, 0, '', outlinedStyle(16)).setOrigin(0.5);
+    this.craftCount = this.add.container(0, 0, [this.craftCountBg, this.craftCountText]).setVisible(false);
     this.money = new MoneyCounter(this, state.economy.money);
     this.buildMuteButton();
     this.buildStoreButton();
@@ -259,7 +270,7 @@ export class HudScene extends Phaser.Scene {
     const t = L.tray;
     this.tray.setPosition(t.x, t.y).setDisplaySize(t.w, t.h);
     this.trayBadge.setPosition(t.x, t.y).setScale(this.tray.scaleX, this.tray.scaleY);
-    L.lanterns.forEach((l, i) => this.lanternGlows[i]?.setPosition(l.x, l.y).setDisplaySize(l.r * 3.2, l.r * 3.2));
+    this.drawBolt(L.badge);
 
     this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h, TRAY_ART.trackCover);
     const goalH = L.compact ? 44 : 50;
@@ -269,8 +280,9 @@ export class HudScene extends Phaser.Scene {
       slot.setPosition(c.x, c.y);
       slot.resizeSlot(L.slotSize);
     });
-    const b = L.button;
-    this.action.setPosition(b.x + b.w / 2, b.y + b.h / 2).resize(b.w, b.h, Math.round(b.h * 0.62));
+    const c = L.craft;
+    this.action.setPosition(c.x, c.y).resize(c.r * 2, c.r * 2, Math.round(c.r * 0.8));
+    this.drawCraft();
 
     const pillH = Math.round(L.topH * 0.62);
     // The money pill may grow until it meets the first of the three round buttons.
@@ -306,38 +318,98 @@ export class HudScene extends Phaser.Scene {
     this.depthGauge.layout(L.depth.x, L.depth.y, L.depth.w, L.depth.h);
   }
 
+  /** A lightning bolt in the round socket at the left end of the stamina bar. */
+  private drawBolt(b: { x: number; y: number; r: number }): void {
+    const g = this.trayBolt;
+    g.clear();
+    const s = b.r * 0.95;
+    const pts = [
+      { x: 0.25, y: -1 }, { x: -0.55, y: 0.15 }, { x: -0.02, y: 0.15 },
+      { x: -0.25, y: 1 }, { x: 0.55, y: -0.15 }, { x: 0.02, y: -0.15 },
+    ].map((p) => ({ x: b.x + p.x * s, y: b.y + p.y * s }));
+    g.fillStyle(0x2a1405).fillPoints(pts.map((p) => ({ x: p.x + s * 0.07, y: p.y + s * 0.09 })) as Phaser.Types.Math.Vector2Like[], true);
+    g.fillStyle(0xffd23f).fillPoints(pts as Phaser.Types.Math.Vector2Like[], true);
+  }
+
+  /** How the craft medallion looks: 'locked' (dark, off), 'open', 'ready' (glowing), or a picture on a cover. */
+  private craftLook: { kind: 'locked' | 'open' | 'ready' | 'cover'; count: string } = { kind: 'locked', count: '' };
+
+  private setCraft(kind: 'locked' | 'open' | 'ready' | 'cover', count: string): void {
+    this.craftLook = { kind, count };
+    this.drawCraft();
+  }
+
+  private drawCraft(): void {
+    if (!this.L) return;
+    const c = this.L.craft;
+    const { kind, count } = this.craftLook;
+    // Locked: the anvil stays visible but dark and quiet.
+    this.craftDim.setVisible(kind === 'locked').clear();
+    if (kind === 'locked') this.craftDim.fillStyle(0x1a0c04, 0.62).fillCircle(c.x, c.y, c.r * 0.93);
+    // Cover: a medallion disc that carries another picture (back to the dig site, the moon).
+    this.craftCover.setVisible(kind === 'cover').clear();
+    if (kind === 'cover') {
+      this.craftCover.fillStyle(0x3a1c08).fillCircle(c.x, c.y, c.r * 0.93);
+      this.craftCover.lineStyle(Math.max(2, c.r * 0.09), 0xf0a020, 0.9).strokeCircle(c.x, c.y, c.r * 0.84);
+    }
+    // Ready: a soft glow that breathes.
+    this.craftGlow.setPosition(c.x, c.y).setDisplaySize(c.r * 3.4, c.r * 3.4);
+    if (kind === 'ready') {
+      this.craftGlow.setVisible(true);
+      if (!this.craftTween) {
+        this.craftTween = this.tweens.add({ targets: this.craftGlow, alpha: { from: 0.2, to: 0.75 }, duration: 620, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      }
+    } else {
+      this.craftTween?.remove();
+      this.craftTween = null;
+      this.craftGlow.setVisible(false).setAlpha(0);
+    }
+    // The count rides on the lower rim of the medallion.
+    this.craftCount.setVisible(count !== '' && kind !== 'cover');
+    if (count !== '') {
+      const t = this.craftCountText.setFontSize(Math.max(12, Math.round(c.r * 0.5))).setText(count);
+      const w = Math.max(c.r * 0.7, t.width + c.r * 0.35);
+      const h = c.r * 0.62;
+      const g = this.craftCountBg;
+      g.clear();
+      g.fillStyle(0x000000, 0.3).fillRoundedRect(-w / 2, -h / 2 + 2, w, h, h / 2);
+      g.fillStyle(0x3a1c08).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+      g.lineStyle(2, kind === 'locked' ? 0x8a6a46 : 0xf0a020, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+      this.craftCount.setPosition(c.x, c.y + c.r * 0.92);
+    }
+  }
+
   // ---------- state -> UI ----------
 
   private refresh(): void {
     this.refreshSlots();
     const inv = state.inventory;
 
+    // The craft medallion is a picture: the button itself only carries a picture on a cover when the
+    // medallion's own anvil is not what should be shown.
+    this.action.setLabel('');
     if (state.mode === 'dig') {
-      const ready = state.workshopReady && state.canWork;
+      const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
       if (!state.canWork) {
-        this.action.setIcon(uiIcon('moon')).setLabel('').setColors(BUTTON_COLORS.blue).setEnabled(false).setPulse(false);
-      } else if (ready) {
-        this.action.setIcon('ui-workshop').setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
-      } else if (state.workshopAvailable) {
-        // Any rock can be cut right away; the button only starts pulsing once a trip is worth it.
-        this.action.setIcon('ui-workshop').setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
+        this.action.setIcon(uiIcon('moon')).setEnabled(false);
+        this.setCraft('cover', '');
+      } else if (state.workshopReady) {
+        // Enough rocks collected: the craft button wakes up and glows.
+        this.action.setIcon(null).setEnabled(true);
+        this.setCraft('ready', `${inv.uncutCount}`);
       } else {
-        const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
-        // The plank already shows a pickaxe; only the count is added.
-        this.action.setIcon(null).setLabel(`${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
+        // Still collecting: the craft button stays off and shows how far along the bag is.
+        this.action.setIcon(null).setEnabled(false);
+        this.setCraft('locked', `${inv.uncutCount}/${need}`);
       }
     } else if (!state.canWork) {
       // Closing time: no way back to the dig site. The bag has to be emptied first.
       const n = state.rocksLeft;
-      this.action
-        .setIcon(n > 0 ? 'ui-workshop' : uiIcon('moon'))
-        .setLabel(n > 0 ? `${n}` : '')
-        .setColors(BUTTON_COLORS.blue)
-        .setEnabled(false)
-        .setPulse(false);
+      this.action.setIcon(n > 0 ? 'ui-workshop' : uiIcon('moon')).setEnabled(false);
+      this.setCraft('cover', '');
     } else {
-      const nothingLeft = inv.uncutCount === 0 && !state.busy;
-      this.action.setIcon(uiIcon('back')).setLabel('').setColors(BUTTON_COLORS.blue).setEnabled(!state.busy).setPulse(nothingLeft);
+      this.action.setIcon(uiIcon('back')).setEnabled(!state.busy);
+      this.setCraft('cover', '');
     }
   }
 
@@ -358,7 +430,7 @@ export class HudScene extends Phaser.Scene {
   private onAction(): void {
     if (this.switching) return;
     if (state.mode === 'dig') {
-      if (state.workshopAvailable && state.canWork) this.switchMode('workshop');
+      if (state.workshopReady && state.canWork) this.switchMode('workshop');
     } else if (!state.busy && state.canWork) {
       this.switchMode('dig');
     }
