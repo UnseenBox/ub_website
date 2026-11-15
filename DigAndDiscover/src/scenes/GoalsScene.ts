@@ -123,7 +123,7 @@ export class GoalsScene extends Phaser.Scene {
     }
 
 
-    const ok = new Button(this, { width: 220, height: 56, label: '', fontSize: 30, colors: BUTTON_COLORS.orange, icon: uiIcon('play'), onClick: () => this.close() });
+    const ok = new Button(this, { width: 220, height: 56, label: '', fontSize: 30, colors: BUTTON_COLORS.orange, icon: uiIcon('play'), ghost: true, iconScale: 1.25, onClick: () => this.close() });
     ok.setPosition(CARD_W / 2, y + 30);
     content.add(ok);
     y += 72;

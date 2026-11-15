@@ -82,7 +82,7 @@ export class PauseScene extends Phaser.Scene {
     this.shortcut(xs[2], y, 'ui-target', 'Goals');
     this.shortcut(xs[3], y, uiIcon('album'), 'Collection');
 
-    const play = new Button(this, { width: 260, height: 84, label: '', icon: uiIcon('play'), fontSize: 40, colors: BUTTON_COLORS.green, onClick: () => this.close() });
+    const play = new Button(this, { width: 260, height: 84, label: '', icon: uiIcon('play'), ghost: true, iconScale: 1.25, fontSize: 40, colors: BUTTON_COLORS.green, onClick: () => this.close() });
     play.setPosition(CARD_W / 2, 270).setPulse(true);
     this.card.add(play);
   }

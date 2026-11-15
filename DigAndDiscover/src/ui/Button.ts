@@ -19,6 +19,8 @@ export interface ButtonOptions {
   onClick: () => void;
   /** No painted face: the button sits on a picture (a plank) and only draws its picture and text. */
   ghost?: boolean;
+  /** Picture height as a share of the button height (default 0.7). */
+  iconScale?: number;
 }
 
 /** Chunky rounded button with a 3D lip, press squash and optional pulse. */
@@ -35,10 +37,12 @@ export class Button extends Phaser.GameObjects.Container {
   private pulseTween: Phaser.Tweens.Tween | null = null;
   private readonly onClick: () => void;
   private readonly ghost: boolean;
+  private readonly iconShare: number;
 
   constructor(scene: Phaser.Scene, opts: ButtonOptions) {
     super(scene, 0, 0);
     this.ghost = !!opts.ghost;
+    this.iconShare = opts.iconScale ?? 0.7;
     this.bw = opts.width;
     this.bh = opts.height;
     this.colors = opts.colors;
@@ -108,7 +112,7 @@ export class Button extends Phaser.GameObjects.Container {
       this.label.setX(0);
       return;
     }
-    const size = this.bh * 0.7;
+    const size = this.bh * this.iconShare;
     icon.setDisplaySize(size, size).setY(y);
     const textW = this.label.text ? this.label.width : 0;
     const gap = textW ? size * 0.18 : 0;

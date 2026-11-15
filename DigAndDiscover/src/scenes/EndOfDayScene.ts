@@ -230,7 +230,7 @@ export class EndOfDayScene extends Phaser.Scene {
     });
     payBtn.setPosition(PAD + 75, y + 36);
     this.startBtn = new Button(this, {
-      width: 238, height: 66, label: '', icon: uiIcon('play'), fontSize: 38, colors: BUTTON_COLORS.orange,
+      width: 238, height: 66, label: '', icon: uiIcon('play'), ghost: true, iconScale: 1.25, fontSize: 38, colors: BUTTON_COLORS.orange,
       onClick: () => this.startNextDay(),
     });
     this.startBtn.setPosition(CARD_W - PAD - 119, y + 36).setPulse(true);

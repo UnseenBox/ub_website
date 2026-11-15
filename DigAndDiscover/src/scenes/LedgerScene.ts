@@ -132,7 +132,7 @@ export class LedgerScene extends Phaser.Scene {
     }
 
     // A clear way out on a phone, where the dim area around the card is only a thin strip.
-    const done = new Button(this, { width: 150, height: 56, label: '', icon: uiIcon('play'), fontSize: 30, colors: BUTTON_COLORS.green, onClick: () => this.close() });
+    const done = new Button(this, { width: 150, height: 56, label: '', icon: uiIcon('play'), ghost: true, iconScale: 1.25, fontSize: 30, colors: BUTTON_COLORS.green, onClick: () => this.close() });
     done.setPosition(CARD_W / 2, y + 34);
     this.content.add(done);
     y += 70;

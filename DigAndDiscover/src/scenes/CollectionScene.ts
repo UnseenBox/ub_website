@@ -119,7 +119,7 @@ export class CollectionScene extends Phaser.Scene {
     });
 
     const ok = new Button(this, {
-      width: 220, height: 54, label: '', icon: uiIcon('play'), fontSize: 30, colors: BUTTON_COLORS.orange,
+      width: 220, height: 54, label: '', icon: uiIcon('play'), ghost: true, iconScale: 1.25, fontSize: 30, colors: BUTTON_COLORS.orange,
       onClick: () => this.close(),
     });
     ok.setPosition(CARD_W / 2, CARD_H - 52);

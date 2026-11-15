@@ -95,7 +95,7 @@ export class RelocateScene extends Phaser.Scene {
     }
     y += 14;
 
-    const go = new Button(this, { width: 380, height: 66, label: '', fontSize: 34, colors: BUTTON_COLORS.green, icon: uiIcon('play'), onClick: () => this.close(true) });
+    const go = new Button(this, { width: 380, height: 66, label: '', fontSize: 34, colors: BUTTON_COLORS.green, icon: uiIcon('play'), ghost: true, iconScale: 1.25, onClick: () => this.close(true) });
     go.setPosition(CARD_W / 2, y + 36).setPulse(true);
     content.add(go);
     y += 82;
