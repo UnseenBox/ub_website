@@ -488,7 +488,7 @@ export class WorkshopScene extends Phaser.Scene {
         },
       });
     }
-    sfx.reveal(tier, dud);
+    sfx.reveal(tier, rock.value);
 
     this.bench = 'revealed';
     this.refreshCard();
