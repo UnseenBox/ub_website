@@ -260,11 +260,10 @@ export class StoreScene extends Phaser.Scene {
     g.fillStyle(0x000000, 0.3).fillRoundedRect(x, y + 3, w, h, h / 2);
     g.fillStyle(0x2a1b12, 0.92).fillRoundedRect(x, y, w, h, h / 2);
     g.lineStyle(2, GOLD, 0.7).strokeRoundedRect(x, y, w, h, h / 2);
-    const cash = this.add.image(x + 18 * f, y + h / 2, uiIcon('cash')).setDisplaySize(22 * f, 22 * f);
-    const t = this.add.text(x + 34 * f, y + h / 2, `+${formatMoney(adCash())}`, outlinedStyle(Math.round(17 * f), PALETTE.money)).setOrigin(0, 0.5);
+    const t = this.add.text(x + 16 * f, y + h / 2, formatMoney(adCash()), outlinedStyle(Math.round(17 * f), PALETTE.money)).setOrigin(0, 0.5);
     const b = new Button(this, { width: 52 * f, height: h - 8, label: '', fontSize: 16, colors: BUTTON_COLORS.blue, icon: uiIcon('play'), onClick: () => this.watchForCash() });
     b.setPosition(x + w - 30 * f, y + h / 2);
-    this.showL.add([g, cash, t, b]);
+    this.showL.add([g, t, b]);
   }
 
   private watchForCash(): void {
@@ -326,10 +325,19 @@ export class StoreScene extends Phaser.Scene {
     const bob = this.add.container(0, 0, [rim, img]);
     const locked = !state.progress.owns(item.id) && state.progress.level < item.minLevel;
     if (locked) {
-      img.setTintFill(0x24150a).setAlpha(0.85);
-      const lock = this.add.image(0, 0, uiIcon('lock')).setDisplaySize(this.toolSize * 0.42, this.toolSize * 0.42);
-      const lv = this.add.text(0, this.toolSize * 0.34, `${item.minLevel}`, outlinedStyle(Math.round(this.toolSize * 0.2), PALETTE.goldText)).setOrigin(0.5);
-      bob.add([lock, lv]);
+      // Still the real picture, so the player sees what is coming - just dimmed, with a lock on it.
+      img.setTint(0x8c8c96);
+      rim.setTintFill(0x8a7a5a).setAlpha(0.6);
+      const ls = this.toolSize * 0.2;
+      const lx = this.toolSize * 0.2;
+      const ly = this.toolSize * 0.3;
+      const badge = this.add.graphics();
+      badge.fillStyle(0x000000, 0.5).fillCircle(lx, ly + 3, ls * 0.78);
+      badge.fillStyle(0x2a1b12, 0.92).fillCircle(lx, ly, ls * 0.78);
+      badge.lineStyle(3, GOLD, 0.9).strokeCircle(lx, ly, ls * 0.78);
+      const lock = this.add.image(lx, ly - ls * 0.08, uiIcon('lock')).setDisplaySize(ls, ls);
+      const lv = this.add.text(lx + ls * 0.95, ly + ls * 0.55, `${item.minLevel}`, outlinedStyle(Math.round(this.toolSize * 0.12), PALETTE.goldText)).setOrigin(0, 0.5);
+      bob.add([badge, lock, lv]);
     }
     this.tweens.add({ targets: bob, y: { from: -this.toolSize * 0.035, to: this.toolSize * 0.035 }, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.tweens.add({ targets: bob, angle: { from: -2.5, to: 2.5 }, duration: 2100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
