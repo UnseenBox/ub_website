@@ -7,6 +7,7 @@ import type { GameMode, Rock } from '../core/types';
 import { iconScale, rockKeys } from '../art/RockArt';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
+import type { StoreScene } from './StoreScene';
 import { InventorySlot } from '../ui/InventorySlot';
 import { DepthGauge } from '../ui/DepthGauge';
 import { ICON_STAR } from '../art/IconArt';
@@ -641,6 +642,11 @@ export class HudScene extends Phaser.Scene {
 
   /** Opens the store overlay. It pauses the world while open (see StoreScene). */
   private openStore(): void {
+    // The stall is open: the same icon closes it again.
+    if (this.scene.isActive('Store')) {
+      (this.scene.get('Store') as StoreScene).requestClose();
+      return;
+    }
     if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
     sfx.click();
     this.tweens.add({ targets: this.storeBtn, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
