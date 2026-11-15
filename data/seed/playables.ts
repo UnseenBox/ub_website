@@ -8,6 +8,38 @@ import { L, SEED_DATE } from "./helpers";
  */
 export const playables: Playable[] = [
   {
+    id: "play_dig-and-discover",
+    slug: "dig-and-discover",
+    title: "DIG & DISCOVER",
+    added: "2026-11-14",
+    moods: ["quick", "brain", "phone"],
+    src: "/arcade/dig-and-discover/index.html",
+    poster: "/arcade/dig-and-discover/poster.jpg",
+    genre: L(
+      "2D mining & crystal discovery",
+      "Minage 2D et découverte de cristaux",
+      "تعدين ثنائي الأبعاد واكتشاف البلورات",
+    ),
+    summary: L(
+      "Play an ordinary father with a geology degree working a small claim. Dig down through five layers of soil and stone, free the rocks your shovel turns up, then cut them open at the workshop and sell what is inside. Every day runs from 7:00 AM to 5:00 PM: spend stamina on each swing, watch for rarer finds deeper down, and choose what to carry home in a five-slot bag. The shaft, your money and your best finds carry over to the next day.",
+      "Incarnez un père ordinaire diplômé en géologie qui exploite un petit gisement. Creusez à travers cinq couches de terre et de pierre, dégagez les roches que votre pelle met au jour, puis ouvrez-les à l'atelier et vendez ce qu'elles contiennent. Chaque journée va de 7 h à 17 h : chaque coup coûte de l'endurance, les trouvailles rares se cachent plus profond, et votre sac de cinq places vous oblige à choisir. Le puits, votre argent et vos meilleures découvertes vous suivent d'un jour à l'autre.",
+      "العب دور أب عادي يحمل شهادة في الجيولوجيا ويعمل في موقع صغير. احفر عبر خمس طبقات من التراب والحجر، وحرّر الصخور التي تظهرها مجرفتك، ثم اقطعها في الورشة وبِع ما بداخلها. يمتد كل يوم من السابعة صباحاً حتى الخامسة مساءً: كل ضربة تستهلك التحمل، والكنوز الأندر تنتظر في الأعماق، وحقيبة بخمس خانات تجبرك على الاختيار. يبقى الحفر ومالك وأفضل اكتشافاتك معك إلى اليوم التالي.",
+    ),
+    desktopControls: L(
+      "Click or tap the ground to dig · hold to keep digging · Space also digs · mouse wheel scrolls the view · Enter opens the workshop",
+      "Cliquez ou touchez le sol pour creuser · maintenez pour creuser sans arrêt · Espace creuse aussi · la molette fait défiler la vue · Entrée ouvre l'atelier",
+      "انقر أو المس الأرض للحفر · استمر بالضغط للحفر المتواصل · المسافة تحفر أيضاً · عجلة الفأرة تمرّر العرض · Enter يفتح الورشة",
+    ),
+    phoneControls: L(
+      "Tap the ground to dig · hold to keep digging · drag to look around · tap a rock in the bag to cut it · the workshop opens at three rocks",
+      "Touchez le sol pour creuser · maintenez pour creuser sans arrêt · faites glisser pour regarder autour · touchez une roche du sac pour la couper · l'atelier s'ouvre à trois roches",
+      "المس الأرض للحفر · استمر بالضغط للحفر المتواصل · اسحب للنظر حولك · المس صخرة في الحقيبة لقطعها · تُفتح الورشة عند ثلاث صخور",
+    ),
+    enabled: true,
+    order: 0,
+    updatedAt: SEED_DATE,
+  },
+  {
     id: "play_garage-empire",
     slug: "garage-empire",
     title: "GARAGE EMPIRE",
