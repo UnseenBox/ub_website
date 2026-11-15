@@ -130,7 +130,7 @@ export class HudScene extends Phaser.Scene {
     this.depthGauge = new DepthGauge(this);
     this.buildGoalsButton();
     this.refillBtn = new Button(this, {
-      width: 120, height: 48, label: '', icon: uiIcon('refill'), fontSize: 22, colors: BUTTON_COLORS.blue,
+      width: 84, height: 70, label: '', icon: uiIcon('refill'), ghost: true, iconScale: 1, fontSize: 22, colors: BUTTON_COLORS.blue,
       onClick: () => this.watchRefill(),
     });
     this.refillBtn.setVisible(false).setDepth(30);
