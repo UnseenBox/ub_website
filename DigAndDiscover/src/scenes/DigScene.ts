@@ -12,6 +12,7 @@ import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
 import { ensureFindTexture } from '../art/FindArt';
 import { uiIcon } from '../art/UiIcons';
+import { SurfaceLife } from '../ui/SurfaceLife';
 import { depositTint } from '../data/deposits';
 import { CATEGORY_STYLE, type FindDef } from '../data/finds';
 import { computeLayout, type Layout } from '../ui/layout';
@@ -110,6 +111,8 @@ export class DigScene extends Phaser.Scene {
   private L!: Layout;
   private backdrop!: Phaser.GameObjects.Image;
   private skyFill!: Phaser.GameObjects.Image;
+  private life!: SurfaceLife;
+  private lifeLayer!: Phaser.GameObjects.Container;
   private wrap!: Phaser.GameObjects.Container;
   private root!: Phaser.GameObjects.Container;
   private rockLayer!: Phaser.GameObjects.Container;
@@ -228,6 +231,7 @@ export class DigScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
+    this.life.update(dt);
     if (this.holdPointer) {
       if (!this.holdPointer.isDown) this.holdPointer = null;
       else if (this.inPlayArea(this.holdPointer.y)) this.tryDig(this.toFieldX(this.holdPointer.x));
@@ -267,6 +271,8 @@ export class DigScene extends Phaser.Scene {
     this.backdrop = this.add.image(bx, SURFACE + 10, BACKDROP_KEY).setOrigin(0, 1).setScale(bs);
     this.skyFill = this.add.image(bx, SURFACE + 10 - tex.height * bs + 1, BACKDROP_KEY).setOrigin(0, 1).setCrop(0, 0, tex.width, 2);
     this.skyFill.setScale(bs, (SKY_HEIGHT + 400) / 2);
+    this.lifeLayer = this.add.container(0, 0);
+    this.life = new SurfaceLife(this, this.lifeLayer, { x: bx, bottom: SURFACE + 10, width: BACKDROP_W, height: tex.height * bs });
 
     // The back wall of the shaft: the same strata, darkened. Cropped so the grass is not repeated.
     const under = this.add.image(0, 0, 'strata').setOrigin(0, 0).setTint(0x5d5a6c);
@@ -281,7 +287,7 @@ export class DigScene extends Phaser.Scene {
     this.wrap = this.add.container(0, 0);
     this.root = this.add.container(-W / 2, 0);
     this.wrap.add(this.root);
-    this.root.add([this.skyFill, this.backdrop, under, this.rockLayer, this.soil, this.popLayer]);
+    this.root.add([this.skyFill, this.backdrop, this.lifeLayer, under, this.rockLayer, this.soil, this.popLayer]);
     this.stamp = this.make.image({ key: 'hole0', add: false });
   }
 
