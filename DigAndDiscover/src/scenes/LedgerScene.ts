@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { state } from '../core/GameState';
 import { sfx } from '../audio/Sfx';
+import { uiIcon } from '../art/UiIcons';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
 
@@ -129,6 +130,12 @@ export class LedgerScene extends Phaser.Scene {
       this.content.add(all);
       y += 72;
     }
+
+    // A clear way out on a phone, where the dim area around the card is only a thin strip.
+    const done = new Button(this, { width: 150, height: 56, label: '', icon: uiIcon('play'), fontSize: 30, colors: BUTTON_COLORS.green, onClick: () => this.close() });
+    done.setPosition(CARD_W / 2, y + 34);
+    this.content.add(done);
+    y += 70;
 
     this.cardH = y + 10;
     this.drawPanel();

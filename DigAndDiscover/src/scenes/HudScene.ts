@@ -15,7 +15,7 @@ import { FindCard } from '../ui/FindCard';
 import type { FindDef } from '../data/finds';
 import type { FindItem } from '../systems/FindSystem';
 import { portal } from '../ads/Portal';
-import { computeLayout, slotCenter, type Layout } from '../ui/layout';
+import { TRAY_ART, computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { MoneyCounter, formatMoney } from '../ui/MoneyCounter';
 import { StaminaBar } from '../ui/StaminaBar';
 import { Toast } from '../ui/Toast';
@@ -36,6 +36,7 @@ function fitIcon(img: Phaser.GameObjects.Image, size: number): void {
 export class HudScene extends Phaser.Scene {
   private L!: Layout;
   private tray!: Phaser.GameObjects.Image;
+  private trayBadge!: Phaser.GameObjects.Image;
   private lanternGlows: Phaser.GameObjects.Image[] = [];
   private stamina!: StaminaBar;
   private slots: InventorySlot[] = [];
@@ -96,6 +97,9 @@ export class HudScene extends Phaser.Scene {
       return glow;
     });
     this.stamina = new StaminaBar(this);
+    // The bolt badge is drawn again above the fill, so the bar appears to run in underneath it.
+    const bc = TRAY_ART.badgeCrop;
+    this.trayBadge = this.add.image(0, 0, 'rocks-tray').setOrigin(0, 0).setCrop(bc.x, bc.y, bc.w, bc.h);
     for (let i = 0; i < GAME_CONFIG.inventory.slots; i++) {
       this.slots.push(new InventorySlot(this, () => this.onSlotPressed(i)));
     }
@@ -254,9 +258,10 @@ export class HudScene extends Phaser.Scene {
     const L = (this.L = computeLayout(this.scale.width, this.scale.height));
     const t = L.tray;
     this.tray.setPosition(t.x, t.y).setDisplaySize(t.w, t.h);
+    this.trayBadge.setPosition(t.x, t.y).setScale(this.tray.scaleX, this.tray.scaleY);
     L.lanterns.forEach((l, i) => this.lanternGlows[i]?.setPosition(l.x, l.y).setDisplaySize(l.r * 3.2, l.r * 3.2));
 
-    this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h);
+    this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h, TRAY_ART.trackCover);
     const goalH = L.compact ? 44 : 50;
     this.refillBtn.setPosition(L.w / 2, L.tray.y - 30);
     this.slots.forEach((slot, i) => {
@@ -618,10 +623,9 @@ export class HudScene extends Phaser.Scene {
   private drawCollectionButton(r: number): void {
     const g = this.collectBg;
     g.clear();
-    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
-    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
-    g.lineStyle(Math.max(2, r * 0.07), 0xb98cff, 0.9).strokeCircle(0, 0, r - 1);
-    this.collectIcon.setDisplaySize(r * 1.3, r * 1.3).setPosition(0, -r * 0.05);
+    // The bag-of-finds picture stands on its own, like the other round-button pictures.
+    fitIcon(this.collectIcon, r * 2.3);
+    this.collectIcon.setPosition(0, -r * 0.05);
     this.collectCount.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.collectionFound}`);
     this.collectCount.setVisible(state.collectionFound > 0);
   }
@@ -672,10 +676,10 @@ export class HudScene extends Phaser.Scene {
     const ring = mood === 'late' ? 0xe5533d : mood === 'soon' ? 0xffb627 : PALETTE.gold;
     const g = this.ledgerBg;
     g.clear();
-    g.fillStyle(0x000000, 0.22).fillCircle(0, 3, r);
-    g.fillStyle(PALETTE.tray, 0.88).fillCircle(0, 0, r);
-    g.lineStyle(Math.max(2, r * 0.08), ring, mood === 'ok' ? 0.55 : 1).strokeCircle(0, 0, r - 1);
-    this.ledgerIcon.setDisplaySize(r * 1.35, r * 1.35).setPosition(0, -r * 0.04);
+    // The book stands on its own; a ring only appears when a payment is near or overdue.
+    if (mood !== 'ok') g.lineStyle(Math.max(2, r * 0.1), ring, 1).strokeCircle(0, 0, r * 1.08);
+    fitIcon(this.ledgerIcon, r * 2.1);
+    this.ledgerIcon.setPosition(0, -r * 0.04);
     const b = this.ledgerBadge;
     b.clear();
     if (mood !== 'ok') {

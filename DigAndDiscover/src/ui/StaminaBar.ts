@@ -8,6 +8,7 @@ export class StaminaBar extends Phaser.GameObjects.Container {
   private readonly g: Phaser.GameObjects.Graphics;
   private bw = 200;
   private bh = 22;
+  private cover = 0;
   private shownFraction = -1;
   private shownRegen = false;
   private shownShimmer = -1;
@@ -21,10 +22,12 @@ export class StaminaBar extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
-  layout(x: number, y: number, w: number, h: number): void {
+  /** `cover` is the share of the width that hides under the badge, so the visible part still reads 0..100%. */
+  layout(x: number, y: number, w: number, h: number, cover = 0): void {
     this.setPosition(x, y);
     this.bw = w;
     this.bh = h;
+    this.cover = cover;
     this.shownFraction = -1;
   }
 
@@ -53,18 +56,21 @@ export class StaminaBar extends Phaser.GameObjects.Container {
     const g = this.g;
     g.clear();
     const color = fraction > 0.5 ? 0x7ee05a : fraction > 0.22 ? 0xffd23f : 0xff6b4a;
-    const pad = Math.max(2, h * 0.12);
-    const fillW = Math.max(0, (w - pad * 2) * fraction);
+    // Equal gaps above and below keep the fill centred in the track. It starts square under the
+    // badge and only the right end is rounded.
+    const pad = Math.max(1.5, h * 0.1);
+    const fh = h - pad * 2;
+    const hidden = w * this.cover;
+    const fillW = fraction > 0.001 ? hidden + (w - hidden - pad) * fraction : 0;
     if (fillW > 2) {
-      const fh = h - pad * 2;
-      const fr = Math.min(fh / 2, fillW / 2);
-      g.fillStyle(color).fillRoundedRect(pad, pad, fillW, fh, fr);
-      g.fillStyle(0xffffff, 0.32).fillRoundedRect(pad + 3, pad + 2, Math.max(0, fillW - 6), fh * 0.36, Math.min(fr, fh * 0.18));
+      const r = Math.min(fh / 2, fillW / 2);
+      g.fillStyle(color).fillRoundedRect(0, pad, fillW, fh, { tl: 0, bl: 0, tr: r, br: r });
+      g.fillStyle(0xffffff, 0.3).fillRoundedRect(hidden, pad + fh * 0.1, Math.max(0, fillW - hidden - r * 0.5), fh * 0.3, { tl: 0, bl: 0, tr: fh * 0.15, br: fh * 0.15 });
       if (regenerating) {
-        const sx = pad + fillW * this.shimmer;
-        g.fillStyle(0xffffff, 0.35).fillRect(sx, pad, Math.min(10, pad + fillW - sx), fh);
+        const sx = hidden + (fillW - hidden) * this.shimmer;
+        g.fillStyle(0xffffff, 0.35).fillRect(sx, pad, Math.min(10, fillW - r - sx), fh);
       }
     }
-    if (this.flash > 0) g.fillStyle(0xff3b30, 0.45 * this.flash).fillRoundedRect(0, 0, w, h, h / 2);
+    if (this.flash > 0) g.fillStyle(0xff3b30, 0.45 * this.flash).fillRoundedRect(0, pad, w, fh, { tl: 0, bl: 0, tr: fh / 2, br: fh / 2 });
   }
 }

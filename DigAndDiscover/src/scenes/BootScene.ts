@@ -10,6 +10,8 @@ import storeIconUrl from '../assets/ui/icons/store.png';
 import goalsIconUrl from '../assets/ui/icons/goals.png';
 import workshopIconUrl from '../assets/ui/icons/workshop.png';
 import pauseIconUrl from '../assets/ui/icons/pause.png';
+import ledgerIconUrl from '../assets/ui/icons/ledger.png';
+import albumIconUrl from '../assets/ui/icons/album.png';
 import workshopBgUrl from '../assets/world/workshop-bg.jpg';
 import trayUrl from '../assets/ui/rocks-tray.png';
 import machineUrl from '../assets/workshop/machine.png';
@@ -30,6 +32,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-target', goalsIconUrl);
     this.load.image('ui-workshop', workshopIconUrl);
     this.load.image('ui-pause', pauseIconUrl);
+    this.load.image('ui-ledger', ledgerIconUrl);
+    this.load.image('ui-album', albumIconUrl);
     this.load.image('workshop-bg', workshopBgUrl);
     // The bag panel: stamina bar, five slots and the plank that holds the rock count.
     this.load.image('rocks-tray', trayUrl);

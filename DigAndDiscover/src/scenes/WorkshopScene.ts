@@ -6,7 +6,7 @@ import type { Rock } from '../core/types';
 import { ART_RES, iconScale, releaseRockTextures, rockKeys } from '../art/RockArt';
 import { sfx, type SawHandle } from '../audio/Sfx';
 import { portal } from '../ads/Portal';
-import { ICON_SAW, ICON_STAR } from '../art/IconArt';
+import { ICON_STAR } from '../art/IconArt';
 import { uiIcon } from '../art/UiIcons';
 import { Button } from '../ui/Button';
 import { computeLayout, slotCenter, type Layout } from '../ui/layout';
@@ -25,13 +25,15 @@ interface StageLayout {
   cardY: number;
   cardW: number;
   cardH: number;
+  /** Sell and ad buttons side by side instead of stacked. */
+  buttonsRow: boolean;
 }
 
-const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 308, machineW: 596, bedY: 430, cardX: 770, cardY: 300, cardW: 340, cardH: 390 };
-const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 560, bedY: 440, cardX: 320, cardY: 708, cardW: 590, cardH: 270 };
+const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 308, machineW: 596, bedY: 430, cardX: 770, cardY: 300, cardW: 340, cardH: 390, buttonsRow: false };
+const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 540, bedY: 404, cardX: 320, cardY: 712, cardW: 600, cardH: 250, buttonsRow: true };
 
 /** The supplied machine picture (art/workshop/machine.png), measured in its own pixels. */
-const MACHINE_ART = { w: 960, bed: 454, beam: 45, lightY: 616, green: 631, red: 694 };
+const MACHINE_ART = { w: 960, bed: 454, beam: 45, lightY: 616, green: 631, red: 694, blue: 787, blueW: 100, blueH: 50 };
 /** Drawn radius of the circular blade, in stage pixels. */
 const SAW_R = 80;
 
@@ -72,7 +74,11 @@ export class WorkshopScene extends Phaser.Scene {
   private sub!: Phaser.GameObjects.Text;
   private big!: Phaser.GameObjects.Text;
   private bigIcon!: Phaser.GameObjects.Image;
-  private cutBtn!: Button;
+  private playGlow!: Phaser.GameObjects.Image;
+  private playIcon!: Phaser.GameObjects.Image;
+  private playZone!: Phaser.GameObjects.Zone;
+  /** The rock is on the bench and the saw may start. */
+  private playReady = false;
   private sellBtn!: Button;
   private adBtn!: Button;
   private sparkFx!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -110,7 +116,7 @@ export class WorkshopScene extends Phaser.Scene {
     subscribe(this, EVT.slotSelected, (id: string) => this.onSlotSelected(id));
     subscribe(this, EVT.dayPhaseChanged, () => this.refreshCard());
     this.input.keyboard?.on('keydown-SPACE', () => {
-      if (this.bench === 'ready') this.cutBtn.trigger();
+      if (this.bench === 'ready') this.pressPlay();
       else if (this.bench === 'revealed') this.sellBtn.trigger();
     });
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
@@ -149,6 +155,16 @@ export class WorkshopScene extends Phaser.Scene {
     }
   }
 
+  /** The machine's start key (blue button, or SPACE). */
+  private pressPlay(): void {
+    if (this.bench !== 'ready' || !state.canCut) {
+      if (this.bench === 'ready') sfx.denied();
+      return;
+    }
+    sfx.click();
+    void this.cut();
+  }
+
   /** Where the saw's rod hangs from: the middle of the machine's top beam. */
   private rodTop(): number {
     return this.S.bedY - (MACHINE_ART.bed - MACHINE_ART.beam) * (this.S.machineW / MACHINE_ART.w);
@@ -169,6 +185,16 @@ export class WorkshopScene extends Phaser.Scene {
     this.blade.x = S.machineX + shake;
     this.rod.x = S.machineX + shake;
     const pulse = 0.5 + 0.5 * Math.sin(this.lampTime / (running ? 70 : 520));
+    // The blue key: a lit, pulsing play triangle while a rock waits on the bench.
+    const bx = this.machine.x + (MACHINE_ART.blue - MACHINE_ART.w / 2) * k;
+    const by = this.machine.y + (MACHINE_ART.lightY - MACHINE_ART.bed) * k;
+    this.playGlow.setPosition(bx, by).setDisplaySize(MACHINE_ART.blueW * k * 2.2, MACHINE_ART.blueH * k * 3.4);
+    this.playGlow.setAlpha(this.playReady ? 0.35 + 0.45 * Math.sin(this.lampTime / 260) ** 2 : 0);
+    const iconSize = MACHINE_ART.blueH * k * 1.35;
+    if (!this.tweens.isTweening(this.playIcon)) this.playIcon.setDisplaySize(iconSize * (this.playReady ? 1 + 0.08 * pulse : 1), iconSize * (this.playReady ? 1 + 0.08 * pulse : 1));
+    this.playIcon.setPosition(bx, by).setAlpha(this.playReady ? 1 : 0.3);
+    this.playZone.setPosition(bx, by).setSize(MACHINE_ART.blueW * k * 1.9, MACHINE_ART.blueH * k * 3);
+    (this.playZone.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, this.playZone.width, this.playZone.height);
     const ly = this.machine.y + (MACHINE_ART.lightY - MACHINE_ART.bed) * k;
     this.greenLamp.setPosition(this.machine.x + dx, ly).setAlpha(running ? 0.08 : 0.35 + 0.3 * pulse);
     this.redLamp.setPosition(this.machine.x + (MACHINE_ART.red - MACHINE_ART.w / 2) * k, ly).setAlpha(running ? 0.55 + 0.45 * pulse : 0.05);
@@ -185,6 +211,14 @@ export class WorkshopScene extends Phaser.Scene {
     this.machine = this.add.image(0, 0, 'machine-art').setOrigin(0.5, MACHINE_ART.bed / 705);
     this.greenLamp = this.add.image(0, 0, 'soft').setTint(0x6dff7a).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(46, 46);
     this.redLamp = this.add.image(0, 0, 'soft').setTint(0xff4a3a).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(52, 52);
+    // The blue key on the machine's panel is the start button: a glow, a play triangle and a big tap zone.
+    this.playGlow = this.add.image(0, 0, 'soft').setTint(0x6fd0ff).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    this.playIcon = this.add.image(0, 0, uiIcon('play')).setAlpha(0.35);
+    this.playZone = this.add.zone(0, 0, 10, 10).setInteractive({ useHandCursor: true });
+    this.playZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => {
+      if (this.bench === 'ready' && state.canCut) this.tweens.add({ targets: this.playIcon, scale: this.playIcon.scale * 0.8, duration: 70, yoyo: true });
+    });
+    this.playZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.pressPlay());
     this.rays = this.add.container(0, 0).setVisible(false);
     for (let i = 0; i < RAY_COUNT; i++) {
       this.rays.add(this.add.image(0, 0, 'ray').setOrigin(0.5, 1).setRotation((i / RAY_COUNT) * Math.PI * 2).setBlendMode(Phaser.BlendModes.ADD));
@@ -195,7 +229,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.rod = this.add.rectangle(0, 0, 14, 0, 0x8d99a6).setOrigin(0.5, 0).setStrokeStyle(2, 0x4f5763);
     this.blade = this.add.image(0, 0, 'saw-art');
     this.blade.setScale((SAW_R * 2) / this.blade.width);
-    this.stage.add([this.machineShadow, this.machine, this.greenLamp, this.redLamp, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
+    this.stage.add([this.machineShadow, this.machine, this.greenLamp, this.redLamp, this.playGlow, this.playIcon, this.playZone, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
   }
 
   private buildCard(): void {
@@ -207,15 +241,10 @@ export class WorkshopScene extends Phaser.Scene {
     this.title = this.add.text(0, 0, '', textStyle(34, PALETTE.ink)).setOrigin(0.5);
     this.sub = this.add.text(0, 0, '', textStyle(19, '#8a6a4a', { fontStyle: '500', align: 'center' })).setOrigin(0.5);
     this.big = this.add.text(0, 0, '', outlinedStyle(56, PALETTE.money)).setOrigin(0.5);
-    this.cutBtn = new Button(this, {
-      width: 280, height: 74, label: '', icon: ICON_SAW, fontSize: 40, colors: BUTTON_COLORS.orange,
-      onClick: () => void this.cut(),
-    });
     this.sellBtn = new Button(this, {
       width: 280, height: 74, label: '', icon: uiIcon('cash'), fontSize: 40, colors: BUTTON_COLORS.green,
       onClick: () => this.sell(1),
     });
-    this.cutBtn.setVisible(false);
     this.sellBtn.setVisible(false);
     this.adBtn = new Button(this, {
       width: 280, height: 50, label: '2x', icon: uiIcon('watch'), fontSize: 24, colors: BUTTON_COLORS.blue,
@@ -224,7 +253,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.adBtn.setVisible(false);
     // A picture where the big number goes while no rock is on the bench (all done / pick a rock).
     this.bigIcon = this.add.image(0, 0, uiIcon('bag')).setVisible(false);
-    this.stage.add([this.card, this.chip, this.title, this.sub, this.big, this.bigIcon, this.cutBtn, this.sellBtn, this.adBtn]);
+    this.stage.add([this.card, this.chip, this.title, this.sub, this.big, this.bigIcon, this.sellBtn, this.adBtn]);
   }
 
   private buildEffects(): void {
@@ -324,9 +353,21 @@ export class WorkshopScene extends Phaser.Scene {
     this.sub.setPosition(x, y - h * 0.07).setWordWrapWidth(w - 40);
     this.big.setPosition(x, y + h * 0.1);
     this.bigIcon.setPosition(x, y + h * 0.1).setDisplaySize(84, 84);
-    this.cutBtn.setPosition(x, y + h * 0.33);
-    this.sellBtn.setPosition(x, y + h * 0.33);
-    this.adBtn.setPosition(x, y + h * 0.33 + 64);
+    this.placeButtons();
+  }
+
+  /** Sell and double-ad buttons: stacked beside the machine, or side by side on a wide, short card (phones). */
+  private placeButtons(): void {
+    const { cardX: x, cardY: y, cardW: w, cardH: h, buttonsRow } = this.S;
+    if (buttonsRow) {
+      const bw = Math.floor((w - 50) / 2);
+      const both = this.adBtn.visible;
+      this.sellBtn.resize(both ? bw : w - 60, 74, 40).setPosition(both ? x - bw / 2 - 10 : x, y + h * 0.33);
+      this.adBtn.resize(bw, 74, 30).setPosition(x + bw / 2 + 10, y + h * 0.33);
+    } else {
+      this.sellBtn.resize(280, 74, 40).setPosition(x, y + h * 0.33);
+      this.adBtn.resize(280, 50, 24).setPosition(x, y + h * 0.33 + 64);
+    }
   }
 
   private rockScale(): number {
@@ -584,7 +625,10 @@ export class WorkshopScene extends Phaser.Scene {
   private updateAdButton(): void {
     const rock = this.current;
     const show = this.bench === 'revealed' && !!rock && rock.value >= AD_SELL_MIN_VALUE && portal.rewardedReady && this.sellBtn.visible;
-    if (this.adBtn.visible !== show) this.adBtn.setVisible(show);
+    if (this.adBtn.visible !== show) {
+      this.adBtn.setVisible(show);
+      this.placeButtons();
+    }
   }
 
   private sellDoubled(): void {
@@ -636,7 +680,7 @@ export class WorkshopScene extends Phaser.Scene {
     const rock = this.current;
     const showChip = (this.bench === 'revealed' || this.bench === 'selling') && rock;
     this.chip.setVisible(!!showChip);
-    this.cutBtn.setVisible(this.bench === 'ready').setEnabled(state.canCut);
+    this.playReady = this.bench === 'ready' && state.canCut;
     if (this.bench !== 'revealed' && this.bench !== 'selling') this.sellBtn.setVisible(false);
     this.big.setScale(1).setFontSize(56);
     // No words here: a picture says what to do next.
