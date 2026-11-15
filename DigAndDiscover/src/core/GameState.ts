@@ -3,8 +3,6 @@ import { GAME_CONFIG } from '../config/GameConfig';
 import { LAYERS } from '../data/layers';
 import { SCANNERS, TOOL_DEFS, UPGRADE_EFFECTS, type ToolDef } from '../data/tools';
 import { ALL_TOOLS, ALL_UPGRADES, upgradePrice, type ToolItem, type UpgradeItem } from '../data/store';
-import { FindSystem, FindsInventory, type FindItem } from '../systems/FindSystem';
-import { FIND_BY_ID, FIND_CONFIG, type FindDef } from '../data/finds';
 import { hardnessMult, powerMult, relocationBonus, valueMult } from '../data/deposits';
 import { ProgressSystem, ROCK_XP, clearSave, readSave, writeSave, type Goal } from '../systems/ProgressSystem';
 import { FinanceSystem, type DaySettlement, type FinanceDaySummary, type LedgerView } from '../systems/FinanceSystem';
@@ -51,8 +49,6 @@ export const EVT = {
   goalDone: 'goal-done',
   /** The tool in the player's hands changed. */
   toolChanged: 'tool-changed',
-  /** (def: FindDef, item: FindItem, first: boolean) a find was dug up. */
-  findFound: 'find-found',
   /** The digger struck bedrock: time to offer a new deposit. */
   bedrock: 'bedrock',
   /** (newDepositNumber, bonusCash) the digger moved to a fresh deposit. */
@@ -100,8 +96,6 @@ export class GameState {
     if (index > 0 && this.progress.claimLayer(index)) this.progress.addXp(25 * index);
   });
   readonly discovery = new DiscoverySystem();
-  readonly finds = new FindSystem();
-  readonly findsInv = new FindsInventory();
   readonly finance = new FinanceSystem();
   readonly day = new DayCycleSystem(clockConfig(), GAME_CONFIG.day, {
     onPhase: (phase) => this.bus.emit(EVT.dayPhaseChanged, phase),
@@ -127,7 +121,6 @@ export class GameState {
       this.stats.cut = save.cut | 0;
       this.finance.restore(save.finance);
       if (!this.finance.gameOver && typeof save.gameOver === 'string') this.finance.gameOver = save.gameOver;
-      this.findsInv.restore(save.finds);
     }
     this.progress.ensureGoals();
     this.applyUpgrades();
@@ -176,7 +169,7 @@ export class GameState {
 
   // ---------- deposits ----------
 
-  /** Rocks and artifacts are worth more in later deposits. */
+  /** Rocks are worth more in later deposits. */
   get depositValueMult(): number {
     return valueMult(this.progress.deposit);
   }
@@ -251,7 +244,6 @@ export class GameState {
         cut: this.stats.cut,
         finance: this.finance.toSave(),
         gameOver: this.finance.gameOver,
-        finds: this.findsInv.toSave(),
       }),
     );
   }
@@ -325,79 +317,6 @@ export class GameState {
     this.day.today.found++;
     this.progress.note('find');
     this.bus.emit(EVT.statsChanged);
-  }
-
-  /**
-   * A find was dug up: it is stored or recorded, pays XP, but NEVER cash.
-   * Rocks (cut open and sold) are the business; finds only add variety and surprise.
-   */
-  recordFindItem(def: FindDef, item: FindItem): { first: boolean } {
-    let first = false;
-    if (def.category === 'artifact') {
-      this.findsInv.addArtifact(item);
-    } else if (def.category === 'collection') {
-      const result = this.findsInv.recordCollection(def.id);
-      first = result.first;
-      this.progress.note('curio');
-    } else if (def.category === 'junk') {
-      this.findsInv.recordJunk(def.id);
-    }
-    const table = FIND_CONFIG.xpByTier[def.category];
-    const xp = (table[Math.min(def.tier, table.length - 1)] ?? 0) * (first && def.category === 'collection' ? 2 : 1);
-    if (xp > 0) this.progress.addXp(xp);
-    this.bus.emit(EVT.findFound, def, item, first);
-    this.bus.emit(EVT.statsChanged);
-    this.save();
-    return { first };
-  }
-
-  /**
-   * Sells a single artifact by its item id: the ONLY way an artifact turns into money.
-   * (x, y) is where the coins start flying from, in screen pixels. Returns the amount received.
-   */
-  sellArtifact(id: string, x = 0, y = 0): number {
-    const held = this.findsInv.artifacts.find((a) => a.id === id);
-    const tier = held ? (FIND_BY_ID[held.defId]?.tier ?? 0) : 0;
-    const amount = this.findsInv.sellArtifact(id);
-    if (amount > 0) {
-      this.economy.earn(amount);
-      this.bus.emit(EVT.sale, amount, x, y, tier);
-      this.bus.emit(EVT.statsChanged);
-      this.save();
-    }
-    return amount;
-  }
-
-  /** Sells every artifact at once. Returns the total amount received. */
-  sellAllArtifacts(x = 0, y = 0): number {
-    const amount = this.findsInv.sellAllArtifacts();
-    if (amount > 0) {
-      this.economy.earn(amount);
-      this.bus.emit(EVT.sale, amount, x, y, 3);
-      this.bus.emit(EVT.statsChanged);
-      this.save();
-    }
-    return amount;
-  }
-
-  /** Number of different collection items found. */
-  get collectionFound(): number {
-    return this.findsInv.collectionUnique;
-  }
-
-  /** Total number of collection items in the catalogue. */
-  get collectionTotal(): number {
-    return this.findsInv.collectionTotal;
-  }
-
-  /** Number of artifacts currently held. */
-  get artifactCount(): number {
-    return this.findsInv.artifacts.length;
-  }
-
-  /** Total value of artifacts currently held. */
-  get artifactValue(): number {
-    return this.findsInv.artifactValue;
   }
 
   recordCut(rock: Rock): void {
@@ -593,9 +512,6 @@ export class GameState {
     this.applyUpgrades();
     this.toolCache = null;
     this.lastToolId = this.progress.equippedToolId;
-
-    this.findsInv.reset();
-    this.finds.reset();
 
     this.currentMode = 'dig';
     this.setMode('dig');

@@ -10,7 +10,7 @@ const CARD_H = 360;
 
 /**
  * The pause menu: the game holds still. A big pause badge, a row of round shortcuts
- * (sound, store, goals, collection) and one big play button. No words.
+ * (sound, store, goals) and one big play button. No words.
  */
 export class PauseScene extends Phaser.Scene {
   private dim!: Phaser.GameObjects.Rectangle;
@@ -68,7 +68,7 @@ export class PauseScene extends Phaser.Scene {
 
     // Round shortcuts.
     const y = 150;
-    const xs = [CARD_W * 0.14, CARD_W * 0.38, CARD_W * 0.62, CARD_W * 0.86].map((x) => x);
+    const xs = [CARD_W * 0.2, CARD_W * 0.5, CARD_W * 0.8];
     this.soundG = this.add.graphics();
     const sound = this.add.container(xs[0], y, [this.soundG]).setSize(76, 76).setInteractive({ useHandCursor: true });
     this.drawSound();
@@ -80,7 +80,6 @@ export class PauseScene extends Phaser.Scene {
     this.card.add(sound);
     this.shortcut(xs[1], y, 'ui-store', 'Store');
     this.shortcut(xs[2], y, 'ui-target', 'Goals');
-    this.shortcut(xs[3], y, uiIcon('album'), 'Collection');
 
     const play = new Button(this, { width: 260, height: 84, label: '', icon: uiIcon('play'), ghost: true, iconScale: 1.25, fontSize: 40, colors: BUTTON_COLORS.green, onClick: () => this.close() });
     play.setPosition(CARD_W / 2, 270).setPulse(true);
@@ -88,7 +87,7 @@ export class PauseScene extends Phaser.Scene {
   }
 
   /** A big picture button that closes the menu and opens another card. */
-  private shortcut(x: number, y: number, key: string, scene: 'Store' | 'Goals' | 'Collection'): void {
+  private shortcut(x: number, y: number, key: string, scene: 'Store' | 'Goals'): void {
     const img = this.add.image(0, 0, key);
     img.setScale(76 / Math.max(img.width, img.height));
     const c = this.add.container(x, y, [img]).setSize(80, 80).setInteractive({ useHandCursor: true });

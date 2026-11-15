@@ -12,9 +12,6 @@ import { InventorySlot } from '../ui/InventorySlot';
 import { DepthGauge } from '../ui/DepthGauge';
 import { ICON_STAR } from '../art/IconArt';
 import { uiIcon } from '../art/UiIcons';
-import { FindCard } from '../ui/FindCard';
-import type { FindDef } from '../data/finds';
-import type { FindItem } from '../systems/FindSystem';
 import { portal } from '../ads/Portal';
 import { TRAY_ART, computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { MoneyCounter, formatMoney } from '../ui/MoneyCounter';
@@ -67,11 +64,6 @@ export class HudScene extends Phaser.Scene {
   private ledgerIcon!: Phaser.GameObjects.Image;
   private ledgerBadge!: Phaser.GameObjects.Graphics;
   private ledgerSize = 44;
-  private findCard!: FindCard;
-  private collectBtn!: Phaser.GameObjects.Container;
-  private collectBg!: Phaser.GameObjects.Graphics;
-  private collectIcon!: Phaser.GameObjects.Image;
-  private collectCount!: Phaser.GameObjects.Text;
   private refillBtn!: Button;
   private userActed = false;
   private lastRelocateCard = -1e9;
@@ -122,8 +114,6 @@ export class HudScene extends Phaser.Scene {
     this.money = new MoneyCounter(this, state.economy.money);
     this.buildMuteButton();
     this.buildStoreButton();
-    this.buildCollectionButton();
-    this.findCard = new FindCard(this);
     this.toast = new Toast(this);
     this.switching = false;
     this.buildLedgerButton();
@@ -165,10 +155,6 @@ export class HudScene extends Phaser.Scene {
       if (!earned) this.money.countTo(money, 0, 450);
       this.updateStoreDeal();
     });
-    subscribe(this, EVT.findFound, (def: FindDef, item: FindItem, first: boolean) => {
-      this.findCard.show(def, item, first, this.L.w - 24);
-      this.drawCollectionButton(this.iconR);
-    });
     subscribe(this, EVT.bedrock, () => this.offerRelocation());
     subscribe(this, EVT.relocated, (deposit: number) => {
       this.drawGoalsButton(this.iconR);
@@ -200,7 +186,6 @@ export class HudScene extends Phaser.Scene {
       kb.on('keydown-P', () => this.openPause());
       kb.on('keydown-S', () => this.openStore());
       kb.on('keydown-G', () => this.openGoals());
-      kb.on('keydown-C', () => this.openCollection());
       kb.on('keydown-L', () => this.openLedger());
       kb.on('keydown', (e: KeyboardEvent) => {
         if (this.storeOpen) return;
@@ -218,7 +203,7 @@ export class HudScene extends Phaser.Scene {
   /** The store or goals card is up: the world and the day clock hold still. */
   private get storeOpen(): boolean {
     return (
-      this.scene.isActive('Store') || this.scene.isActive('Goals') || this.scene.isActive('Collection') ||
+      this.scene.isActive('Store') || this.scene.isActive('Goals') ||
       this.scene.isActive('Relocate') || this.scene.isActive('Ledger') || this.scene.isActive('GameOver') || this.scene.isActive('Pause')
     );
   }
@@ -286,8 +271,8 @@ export class HudScene extends Phaser.Scene {
     this.drawCraft();
 
     const pillH = Math.round(L.topH * 0.62);
-    // The money pill may grow until it meets the first of the three round buttons.
-    this.money.maxWidth = L.w - 14 - pillH * 4 - 30 - 8 - 14;
+    // The money pill may grow until it meets the first of the round buttons.
+    this.money.maxWidth = L.w - 14 - pillH * 3 - 20 - 8 - 14;
     this.money.layout(14, L.topH / 2, pillH);
     const muteR = pillH / 2;
     this.mute.setPosition(L.w - 14 - muteR, L.topH / 2);
@@ -296,15 +281,10 @@ export class HudScene extends Phaser.Scene {
     (this.storeBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.iconR = muteR;
     this.drawStoreIcon(muteR);
-    this.collectBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
-    this.collectBtn.setSize(pillH, pillH);
-    (this.collectBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
-    this.drawCollectionButton(muteR);
-    this.goalsBtn.setPosition(this.collectBtn.x - muteR * 2 - 10, this.collectBtn.y);
+    this.goalsBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
     this.goalsBtn.setSize(pillH, pillH);
     (this.goalsBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawGoalsButton(muteR);
-    this.findCard.place(L.w / 2, L.topH + 120);
     this.mute.setSize(pillH, pillH);
     (this.mute.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawMuteIcon(muteR);
@@ -687,27 +667,6 @@ export class HudScene extends Phaser.Scene {
     this.goalsLevel.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.progress.level}`);
   }
 
-  private buildCollectionButton(): void {
-    this.collectBg = this.add.graphics();
-    this.collectIcon = this.add.image(0, 0, uiIcon('album'));
-    this.collectCount = this.add.text(0, 0, '', outlinedStyle(11)).setOrigin(0.5);
-    this.collectBtn = this.add.container(0, 0, [this.collectBg, this.collectIcon, this.collectCount]);
-    this.collectBtn.setSize(40, 40);
-    this.collectBtn.setInteractive({ useHandCursor: true });
-    this.collectBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openCollection());
-  }
-
-  /** The album button: the number of different collection items found so far. */
-  private drawCollectionButton(r: number): void {
-    const g = this.collectBg;
-    g.clear();
-    // The bag-of-finds picture stands on its own, like the other round-button pictures.
-    fitIcon(this.collectIcon, r * 2.3);
-    this.collectIcon.setPosition(0, -r * 0.05);
-    this.collectCount.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.collectionFound}`);
-    this.collectCount.setVisible(state.collectionFound > 0);
-  }
-
   /** Bedrock reached: offer a fresh deposit (never over another card or mid-trip). */
   private offerRelocation(): void {
     if (this.storeOpen || this.switching || state.mode !== 'dig' || !state.canRelocate) return;
@@ -719,12 +678,6 @@ export class HudScene extends Phaser.Scene {
     }
     this.lastRelocateCard = this.time.now;
     this.scene.launch('Relocate');
-  }
-
-  private openCollection(): void {
-    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
-    sfx.click();
-    this.scene.launch('Collection');
   }
 
   // ---------- household ledger (debt) ----------
@@ -784,7 +737,7 @@ export class HudScene extends Phaser.Scene {
 
   /** The run was reset: every scene starts over from day one. */
   private onRunReset(): void {
-    for (const key of ['EndOfDay', 'Store', 'Goals', 'Collection', 'Relocate', 'Ledger', 'GameOver', 'Workshop']) {
+    for (const key of ['EndOfDay', 'Store', 'Goals', 'Relocate', 'Ledger', 'GameOver', 'Workshop']) {
       if (this.scene.isActive(key) || this.scene.isPaused(key) || this.scene.isSleeping(key)) this.scene.stop(key);
     }
     this.time.delayedCall(0, () => this.scene.restart());

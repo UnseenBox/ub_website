@@ -13,7 +13,7 @@ const PAD = 24;
 /**
  * Bedrock! The deposit is dug out. This card offers a fresh one: the ground starts over,
  * a little harder and a lot richer, tools hit harder, and a cash bonus comes along.
- * Everything the digger owns - money, tools, upgrades, collection - stays with him.
+ * Everything the digger owns - money, tools, upgrades - stays with him.
  */
 export class RelocateScene extends Phaser.Scene {
   private dim!: Phaser.GameObjects.Rectangle;

@@ -22,7 +22,6 @@ export const UI_ICON_KEYS = [
   'ruler',
   'store',
   'target',
-  'album',
   'bag',
   'lock',
   'check',
@@ -46,8 +45,6 @@ export const UI_ICON_KEYS = [
   'warning',
   'skull',
   'trophy',
-  'artifact',
-  'collection',
   'junk',
   'deposit',
   'scanner',
@@ -539,38 +536,6 @@ function pTarget(ctx: CanvasRenderingContext2D): void {
   fletch.lineTo(44, 88);
   fletch.closePath();
   shape(ctx, fletch, '#e5493b', 4);
-}
-
-function pAlbum(ctx: CanvasRenderingContext2D): void {
-  const book = new Path2D();
-  book.moveTo(64, 30);
-  book.quadraticCurveTo(38, 20, 14, 30);
-  book.lineTo(14, 100);
-  book.quadraticCurveTo(38, 90, 64, 100);
-  book.quadraticCurveTo(90, 90, 114, 100);
-  book.lineTo(114, 30);
-  book.quadraticCurveTo(90, 20, 64, 30);
-  book.closePath();
-  shape(ctx, book, linGrad(ctx, 14, 20, 114, 100, CREAM), 6);
-
-  ctx.strokeStyle = 'rgba(120,90,50,0.55)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(64, 30);
-  ctx.lineTo(64, 100);
-  ctx.moveTo(26, 46);
-  ctx.lineTo(54, 42);
-  ctx.moveTo(74, 42);
-  ctx.lineTo(102, 46);
-  ctx.moveTo(26, 62);
-  ctx.lineTo(54, 58);
-  ctx.moveTo(74, 58);
-  ctx.lineTo(102, 62);
-  ctx.stroke();
-
-  const ribbon = new Path2D();
-  roundRectPath(ribbon, 86, 24, 12, 86, 4);
-  shape(ctx, ribbon, linGrad(ctx, 86, 24, 98, 110, RED), 4);
 }
 
 function pBag(ctx: CanvasRenderingContext2D): void {
@@ -1195,68 +1160,6 @@ function pTrophy(ctx: CanvasRenderingContext2D): void {
   gloss(ctx, 50, 30, 6, 10, 0.3, 0.4);
 }
 
-function pArtifact(ctx: CanvasRenderingContext2D): void {
-  const neck = new Path2D();
-  roundRectPath(neck, 52, 20, 24, 20, 6);
-  shape(ctx, neck, linGrad(ctx, 52, 20, 76, 40, ['#e0b062', '#b57f34', '#7c4d18']), 5);
-
-  const body = new Path2D();
-  body.moveTo(50, 38);
-  body.quadraticCurveTo(18, 72, 50, 104);
-  body.quadraticCurveTo(64, 112, 78, 104);
-  body.quadraticCurveTo(110, 72, 78, 38);
-  body.closePath();
-  shape(ctx, body, linGrad(ctx, 20, 40, 106, 108, ['#e8bd72', '#c08c3c', '#84571c']), 6);
-  shadeBottom(ctx, body, 72, 108, 0.26);
-
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 13;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.arc(42, 48, 16, Math.PI * 0.1, Math.PI * 1.1);
-  ctx.stroke();
-  ctx.strokeStyle = '#d9a352';
-  ctx.lineWidth = 7;
-  ctx.beginPath();
-  ctx.arc(42, 48, 16, Math.PI * 0.1, Math.PI * 1.1);
-  ctx.stroke();
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 13;
-  ctx.beginPath();
-  ctx.arc(86, 48, 16, Math.PI * 1.9, Math.PI * 0.9);
-  ctx.stroke();
-  ctx.strokeStyle = '#d9a352';
-  ctx.lineWidth = 7;
-  ctx.beginPath();
-  ctx.arc(86, 48, 16, Math.PI * 1.9, Math.PI * 0.9);
-  ctx.stroke();
-
-  ctx.save();
-  ctx.clip(body);
-  ctx.fillStyle = 'rgba(120,70,22,0.45)';
-  ctx.fillRect(14, 62, 100, 8);
-  ctx.fillRect(14, 84, 100, 6);
-  ctx.restore();
-  gloss(ctx, 46, 60, 7, 15, 0.3, 0.4);
-}
-
-function pCollection(ctx: CanvasRenderingContext2D): void {
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * TAU;
-    const px = 64 + Math.cos(a) * 38;
-    const py = 64 + Math.sin(a) * 38;
-    ctx.fillStyle = '#2f9c94';
-    ellipse(ctx, px, py, 16, 16);
-  }
-  const disc = new Path2D();
-  disc.arc(64, 64, 44, 0, TAU);
-  shape(ctx, disc, radGrad(ctx, 48, 46, 4, 64, 64, 46, ['#7fe0d4', '#33a99d', '#1c6f67']), 6);
-
-  const s = sparklePath(64, 64, 24);
-  shape(ctx, s, linGrad(ctx, 44, 44, 84, 84, YELLOW), 5);
-  gloss(ctx, 46, 44, 10, 7, -0.6, 0.35);
-}
-
 function pJunk(ctx: CanvasRenderingContext2D): void {
   const can = new Path2D();
   roundRectPath(can, 74, 14, 18, 30, 3);
@@ -1400,7 +1303,6 @@ const PAINTERS: Record<UiIconKey, (ctx: CanvasRenderingContext2D) => void> = {
   ruler: pRuler,
   store: pStore,
   target: pTarget,
-  album: pAlbum,
   bag: pBag,
   lock: pLock,
   check: pCheck,
@@ -1424,8 +1326,6 @@ const PAINTERS: Record<UiIconKey, (ctx: CanvasRenderingContext2D) => void> = {
   warning: pWarning,
   skull: pSkull,
   trophy: pTrophy,
-  artifact: pArtifact,
-  collection: pCollection,
   junk: pJunk,
   deposit: pDeposit,
   scanner: pScanner,

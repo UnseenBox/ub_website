@@ -11,11 +11,9 @@ import { shovelImage } from '../art/ShovelArt';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
-import { ensureFindTexture } from '../art/FindArt';
 import { uiIcon } from '../art/UiIcons';
 import { SurfaceLife } from '../ui/SurfaceLife';
 import { depositTint } from '../data/deposits';
-import { CATEGORY_STYLE, type FindDef } from '../data/finds';
 import { computeLayout, type Layout } from '../ui/layout';
 
 const WORLD = GAME_CONFIG.world;
@@ -49,13 +47,6 @@ const SHOVEL_FOLLOW_MS = 35;
 const SHOVEL_HOVER_MIN = 14;
 const SHOVEL_HOVER_MAX = 130;
 const SHOVEL_REST_ANGLE = 18;
-/** A find texture is 160px; this display size is about 70 field units across. */
-const FIND_SIZE = 70;
-/** Junk is a little smaller on screen. */
-const JUNK_SIZE = 56;
-/** Find textures are painted at this many pixels (see ensureFindTexture). */
-const FIND_TEXTURE = 160;
-
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
 /** Linear blend of two 0xRRGGBB colours. */
@@ -85,12 +76,9 @@ function skyTint(p: number): number {
   return SKY_STOPS[SKY_STOPS.length - 1][1];
 }
 
-/** A pocket in the shaft wall holding a rock - or, now and then, a find. */
+/** A pocket in the shaft wall holding a rock. */
 interface EmbeddedRock {
-  rock: Rock | null;
-  find: FindDef | null;
-  /** The bobbing "?" over a find that is still a mystery. */
-  mark: Phaser.GameObjects.Text | null;
+  rock: Rock;
   sprite: Phaser.GameObjects.Image;
   x: number;
   y: number;
@@ -800,9 +788,6 @@ export class DigScene extends Phaser.Scene {
       state.discovery.skip();
     } else if (res.dug && state.discovery.roll(res.layer, Math.random)) {
       this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, (res.layer.discovery.valueMult ?? 1) * state.depositValueMult, res.layerIndex);
-    } else if (res.dug) {
-      const def = state.finds.roll(res.layerIndex, Math.random, (id) => state.findsInv.collectionCount(id) > 0);
-      if (def) this.embedFind(res.cx, def);
     }
   }
 
@@ -851,7 +836,7 @@ export class DigScene extends Phaser.Scene {
     const sprite = this.add.image(x, y + 24, rockKeys(rock).outside).setScale(0).setAngle(range(Math.random, -20, 20));
     this.rockLayer.add(sprite);
     const maxHp = intRange(Math.random, freeHits.min, freeHits.max);
-    const b: EmbeddedRock = { rock, find: null, mark: null, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    const b: EmbeddedRock = { rock, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
     this.embedded.push(b);
     this.tweens.add({ targets: sprite, y, scale: k / ART_RES, duration: 280, ease: 'Back.easeOut' });
     // Open a pocket around its top so the find is clearly visible, never just a sliver.
@@ -922,12 +907,7 @@ export class DigScene extends Phaser.Scene {
   }
 
   private unearth(b: EmbeddedRock): void {
-    if (b.find) {
-      this.unearthFind(b);
-      return;
-    }
     const { rock, sprite } = b;
-    if (!rock) return;
     // Take it off the list first: adding to the bag fires inventoryChanged, which looks for stuck rocks.
     this.embedded = this.embedded.filter((o) => o !== b);
     if (state.inventory.add(rock) < 0) {
@@ -969,124 +949,6 @@ export class DigScene extends Phaser.Scene {
       this.tweens.killTweensOf(sprite);
       sprite.destroy();
       state.endActivity();
-    });
-  }
-
-  /** A buried object: shows up as a dark silhouette with a "?" until it is dug free. */
-  private embedFind(nearX: number, def: FindDef): void {
-    const junk = def.category === 'junk';
-    const size = junk ? JUNK_SIZE : FIND_SIZE;
-    const r = size * 0.7;
-    const scale = size / FIND_TEXTURE;
-    const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
-    const y = state.dig.floorAt(x) + r * GAME_CONFIG.dig.rockSinkFactor;
-    const key = ensureFindTexture(this.textures, def);
-    const sprite = this.add.image(x, y + 24, key).setScale(0).setTintFill(0x120a06).setAngle(range(Math.random, -12, 12));
-    this.rockLayer.add(sprite);
-    const maxHp = junk ? 1 : intRange(Math.random, 1, 2);
-    // The colour of the "?" hints at the kind: gold artifact, teal collection item, grey rubbish.
-    const mark = this.add
-      .text(x, y - r - 30, '?', outlinedStyle(junk ? 30 : 40, CATEGORY_STYLE[def.category].css))
-      .setOrigin(0.5)
-      .setScale(0);
-    this.popLayer.add(mark);
-    const b: EmbeddedRock = { rock: null, find: def, mark, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
-    this.embedded.push(b);
-    this.tweens.add({ targets: sprite, y, scale, duration: 280, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: mark, scale: 1, duration: 300, delay: 120, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: mark, y: mark.y - 10, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 420 });
-    this.paintCrater(x, y - r * 0.3, r * 0.8, r * 0.62);
-    if (!junk) {
-      sfx.collect();
-      sfx.haptic(12);
-      this.sparkleFx.explode(8, x, y - r * 0.5);
-    }
-    this.showPips(b);
-  }
-
-  /**
-   * A find bursts out of the ground. Artifacts make the biggest fuss, collection items a smaller
-   * one, junk just flops. Nothing here pays money: the HUD card only names what it is, and
-   * artifacts are sold later from the Finds screen.
-   */
-  private unearthFind(b: EmbeddedRock): void {
-    const { find: def, sprite } = b;
-    if (!def) return;
-    this.embedded = this.embedded.filter((o) => o !== b);
-    if (b.mark) {
-      this.tweens.killTweensOf(b.mark);
-      b.mark.destroy();
-    }
-    state.beginActivity();
-    const cat = def.category;
-    const junk = cat === 'junk';
-    const artifact = cat === 'artifact';
-    const tier = def.tier;
-    const base = (junk ? JUNK_SIZE : FIND_SIZE) / FIND_TEXTURE;
-    const layerIndex = state.dig.layerIndexAtY(b.y);
-    this.paintCrater(b.x, b.y - b.r * 0.1, b.r * (junk ? 1.2 : 1.5), b.r * (junk ? 1.05 : 1.3));
-    this.dirtFx[layerIndex].explode(junk ? 14 : 28, b.x, b.y);
-    this.dustFx[layerIndex].explode(junk ? 5 : 9, b.x, b.y - b.r * 0.5);
-    if (!junk) {
-      this.sparkleFx.explode((artifact ? 14 : 8) + tier * (artifact ? 6 : 3), b.x, b.y - b.r * 0.4);
-      this.cameras.main.shake(artifact ? 170 + tier * 60 : 120, artifact ? 0.005 + tier * 0.0018 : 0.004);
-    }
-    if (artifact && tier >= 3) this.cameras.main.flash(280, 255, 244, 190);
-    sprite.clearTint();
-    this.rockLayer.remove(sprite);
-    this.popLayer.addAt(sprite, 0);
-
-    // The player's own reaction, shouted over the hole (not for rubbish).
-    if (!junk) {
-      const shout = this.add.text(b.x, b.y - 110, '!', outlinedStyle(artifact ? 64 : 48, CATEGORY_STYLE[cat].css)).setOrigin(0.5).setScale(0);
-      this.popLayer.add(shout);
-      this.tweens.add({ targets: shout, scale: 1.1, angle: { from: -8, to: 4 }, duration: 220, ease: 'Back.easeOut' });
-      this.tweens.add({ targets: shout, y: shout.y - 50, alpha: 0, delay: 800, duration: 380, onComplete: () => shout.destroy() });
-    }
-
-    const landY = b.y - b.r * 0.2;
-    this.tweens.killTweensOf(sprite);
-    if (junk) {
-      // A dull flop: hop, land, lie there.
-      this.tweens.chain({
-        targets: sprite,
-        tweens: [
-          { y: landY - 50, scaleX: base * 1.1, scaleY: base * 0.9, angle: sprite.angle + 40, duration: 180, ease: 'Quad.easeOut' },
-          { y: landY, scale: base, angle: sprite.angle + 70, duration: 170, ease: 'Quad.easeIn' },
-        ],
-      });
-    } else {
-      this.tweens.chain({
-        targets: sprite,
-        tweens: [
-          { scaleX: base * 1.3, scaleY: base * 0.7, duration: 70, ease: 'Quad.easeOut' },
-          { y: landY - 190, scaleX: base * 1.15, scaleY: base * 1.2, angle: 360, duration: 360, ease: 'Quad.easeOut' },
-          { y: landY - 170, scale: base * (artifact ? 1.35 : 1.2), angle: 372, duration: 420, yoyo: true, ease: 'Sine.easeInOut' },
-        ],
-      });
-    }
-
-    // Record it right away (the HUD card shows at once). Never any cash here.
-    const item = state.finds.makeItem(def, Math.random, state.depositValueMult);
-    state.recordFindItem(def, item);
-    if (artifact) {
-      sfx.surprise(tier);
-      sfx.haptic(tier >= 3 ? [30, 40, 70] : 25);
-    } else if (cat === 'collection') {
-      sfx.surprise(Math.min(2, tier));
-      sfx.haptic(15);
-    } else {
-      sfx.collect();
-    }
-    this.time.delayedCall(junk ? 450 : artifact ? 900 : 700, () => {
-      this.tweens.killTweensOf(sprite);
-      this.tweens.add({
-        targets: sprite, scale: 0, alpha: 0, y: sprite.y - (junk ? 10 : 40), duration: 260, ease: 'Back.easeIn',
-        onComplete: () => {
-          sprite.destroy();
-          state.endActivity();
-        },
-      });
     });
   }
 

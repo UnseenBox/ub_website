@@ -12,7 +12,6 @@ import goalsIconUrl from '../assets/ui/icons/goals.png';
 import workshopIconUrl from '../assets/ui/icons/workshop.png';
 import pauseIconUrl from '../assets/ui/icons/pause.png';
 import ledgerIconUrl from '../assets/ui/icons/ledger.png';
-import albumIconUrl from '../assets/ui/icons/album.png';
 import playIconUrl from '../assets/ui/icons/play.png';
 import refillIconUrl from '../assets/ui/icons/refill.png';
 import returnIconUrl from '../assets/ui/icons/return.png';
@@ -41,7 +40,6 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-workshop', workshopIconUrl);
     this.load.image('ui-pause', pauseIconUrl);
     this.load.image('ui-ledger', ledgerIconUrl);
-    this.load.image('ui-album', albumIconUrl);
     // Every play triangle in the game is this wooden one.
     this.load.image('ui-play', playIconUrl);
     this.load.image('ui-refill', refillIconUrl);
