@@ -11,8 +11,6 @@ import { InventorySlot } from '../ui/InventorySlot';
 import { DepthGauge } from '../ui/DepthGauge';
 import { ICON_SAW, ICON_STAR } from '../art/IconArt';
 import { uiIcon } from '../art/UiIcons';
-import { GoalPill } from '../ui/GoalPill';
-import { ClockPill } from '../ui/ClockPill';
 import { FindCard } from '../ui/FindCard';
 import type { FindDef } from '../data/finds';
 import type { FindItem } from '../systems/FindSystem';
@@ -42,9 +40,10 @@ export class HudScene extends Phaser.Scene {
   private storeIcon!: Phaser.GameObjects.Graphics;
   private storeDeal = false;
   private iconR = 20;
-  private goalPill!: GoalPill;
-  private clockPill!: ClockPill;
-  private clockStacked = false;
+  private goalsBtn!: Phaser.GameObjects.Container;
+  private goalsBg!: Phaser.GameObjects.Graphics;
+  private goalsIcon!: Phaser.GameObjects.Image;
+  private goalsLevel!: Phaser.GameObjects.Text;
   private ledgerBtn!: Phaser.GameObjects.Container;
   private ledgerBg!: Phaser.GameObjects.Graphics;
   private ledgerIcon!: Phaser.GameObjects.Image;
@@ -91,8 +90,6 @@ export class HudScene extends Phaser.Scene {
       onClick: () => this.onAction(),
     });
     this.money = new MoneyCounter(this, state.economy.money);
-    ClockPill.createSunTexture(this.textures);
-    this.clockPill = new ClockPill(this);
     this.buildMuteButton();
     this.buildStoreButton();
     this.buildCollectionButton();
@@ -102,7 +99,7 @@ export class HudScene extends Phaser.Scene {
     this.buildLedgerButton();
 
     this.depthGauge = new DepthGauge(this);
-    this.goalPill = new GoalPill(this, () => this.openGoals());
+    this.buildGoalsButton();
     this.refillBtn = new Button(this, {
       width: 120, height: 48, label: '', icon: uiIcon('refill'), fontSize: 22, colors: BUTTON_COLORS.blue,
       onClick: () => this.watchRefill(),
@@ -130,7 +127,7 @@ export class HudScene extends Phaser.Scene {
     subscribe(this, EVT.dayStarted, (day: number) => this.onDayStarted(day));
     subscribe(this, EVT.layerEntered, (layerIndex: number) => this.onLayerEntered(layerIndex));
     subscribe(this, EVT.progressChanged, () => {
-      this.goalPill.refresh();
+      this.drawGoalsButton(this.iconR);
       this.updateStoreDeal();
     });
     subscribe(this, EVT.moneyChanged, (money: number, _delta: number, earned: boolean) => {
@@ -144,7 +141,7 @@ export class HudScene extends Phaser.Scene {
     });
     subscribe(this, EVT.bedrock, () => this.offerRelocation());
     subscribe(this, EVT.relocated, (deposit: number) => {
-      this.goalPill.refresh();
+      this.drawGoalsButton(this.iconR);
       this.time.delayedCall(1000, () => {
         sfx.newDay();
         this.showCenterBanner(`${deposit}`, '', uiIcon('flag'));
@@ -153,7 +150,7 @@ export class HudScene extends Phaser.Scene {
     subscribe(this, EVT.levelUp, (level: number, bonus: number) => this.onLevelUp(level, bonus));
     subscribe(this, EVT.goalDone, (goal: { cash: number; xp: number }) => {
       this.toast.show(goal.cash > 0 ? `+${formatMoney(goal.cash)}` : `+${goal.xp}`, 1800, goal.cash > 0 ? uiIcon('cash') : uiIcon('sparkle'));
-      this.goalPill.bump();
+      this.tweens.add({ targets: this.goalsBtn, scale: { from: 1.25, to: 1 }, duration: 380, ease: 'Back.easeOut' });
       sfx.coin();
     });
     subscribe(this, EVT.financeChanged, () => this.drawLedgerButton());
@@ -216,8 +213,6 @@ export class HudScene extends Phaser.Scene {
     if (!frozen) state.tick(dt);
     portal.setPlaying(this.userActed && state.canWork && !frozen && !this.scene.isActive('EndOfDay'));
     this.updateRefillOffer();
-    this.clockPill.setTime(state.day.clock.progress, state.day.clock.label, state.day.day);
-    if (!this.clockStacked) this.clockPill.setMinLeft(this.money.rightEdge + 10);
     const s = state.stamina;
     this.stamina.setValue(s.value, s.max, s.isRegenerating, dt);
 
@@ -247,9 +242,7 @@ export class HudScene extends Phaser.Scene {
     this.tray.lineStyle(2, 0xffffff, 0.08).strokeRoundedRect(t.x, t.y, t.w, t.h, 24);
 
     this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h);
-    const pillW = L.compact ? Math.min(L.w * 0.62, 270) : 300;
     const goalH = L.compact ? 44 : 50;
-    this.goalPill.layout(14 + pillW / 2, L.topH + 8 + goalH / 2, pillW, goalH);
     this.refillBtn.setPosition(L.w / 2, L.tray.y - 30);
     this.slots.forEach((slot, i) => {
       const c = slotCenter(L, i);
@@ -261,18 +254,8 @@ export class HudScene extends Phaser.Scene {
 
     const pillH = Math.round(L.topH * 0.62);
     // The money pill may grow until it meets the first of the three round buttons.
-    this.money.maxWidth = L.w - 14 - pillH * 3 - 20 - 8 - 14;
+    this.money.maxWidth = L.w - 14 - pillH * 4 - 30 - 8 - 14;
     this.money.layout(14, L.topH / 2, pillH);
-    // A small clock. Wide screens: top centre, pushed right when the money pill grows (see update()).
-    // Narrow screens (the money pill and three buttons leave no gap): its own row under the goal pill.
-    this.clockStacked = L.w < 520;
-    if (this.clockStacked) {
-      const clockH = Math.round(pillH * 0.9);
-      const goalBottom = L.topH + 8 + (L.compact ? 44 : 50);
-      this.clockPill.layout(0, goalBottom + 6 + clockH / 2, clockH, 14, true);
-    } else {
-      this.clockPill.layout(L.w / 2, L.topH / 2, Math.round(pillH * 0.86), this.money.rightEdge + 10);
-    }
     const muteR = pillH / 2;
     this.mute.setPosition(L.w - 14 - muteR, L.topH / 2);
     this.storeBtn.setPosition(L.w - 14 - muteR * 2 - 10 - muteR, L.topH / 2);
@@ -284,12 +267,16 @@ export class HudScene extends Phaser.Scene {
     this.collectBtn.setSize(pillH, pillH);
     (this.collectBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawCollectionButton(muteR);
+    this.goalsBtn.setPosition(this.collectBtn.x - muteR * 2 - 10, this.collectBtn.y);
+    this.goalsBtn.setSize(pillH, pillH);
+    (this.goalsBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
+    this.drawGoalsButton(muteR);
     this.findCard.place(L.w / 2, L.topH + 120);
     this.mute.setSize(pillH, pillH);
     (this.mute.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawMuteIcon(muteR);
 
-    this.toast.place(L.w / 2, L.topH + 108 + (this.clockStacked ? 28 : 0), L.compact ? 16 : 20);
+    this.toast.place(L.w / 2, L.topH + 108, L.compact ? 16 : 20);
     // The debt chip sits in the row under the top bar, at the right, clear of the depth label.
     this.ledgerBtn.setPosition(L.w - 14 - L.depth.w - 46 - goalH / 2, L.topH + 8 + goalH / 2);
     this.ledgerBtn.setSize(goalH, goalH);
@@ -608,6 +595,27 @@ export class HudScene extends Phaser.Scene {
     }
   }
 
+  private buildGoalsButton(): void {
+    this.goalsBg = this.add.graphics();
+    this.goalsIcon = this.add.image(0, 0, uiIcon('target'));
+    this.goalsLevel = this.add.text(0, 0, '', outlinedStyle(11)).setOrigin(0.5);
+    this.goalsBtn = this.add.container(0, 0, [this.goalsBg, this.goalsIcon, this.goalsLevel]);
+    this.goalsBtn.setSize(40, 40);
+    this.goalsBtn.setInteractive({ useHandCursor: true });
+    this.goalsBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openGoals());
+  }
+
+  /** The goals button: a target, with the prospector level in the corner. */
+  private drawGoalsButton(r: number): void {
+    const g = this.goalsBg;
+    g.clear();
+    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
+    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
+    g.lineStyle(Math.max(2, r * 0.07), 0x5fcf5c, 0.9).strokeCircle(0, 0, r - 1);
+    this.goalsIcon.setDisplaySize(r * 1.3, r * 1.3).setPosition(0, -r * 0.05);
+    this.goalsLevel.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.progress.level}`);
+  }
+
   private buildCollectionButton(): void {
     this.collectBg = this.add.graphics();
     this.collectIcon = this.add.image(0, 0, uiIcon('album'));
@@ -744,8 +752,8 @@ export class HudScene extends Phaser.Scene {
 
   private onLevelUp(level: number, bonus: number): void {
     sfx.newDay();
-    this.goalPill.refresh();
-    this.goalPill.bump();
+    this.drawGoalsButton(this.iconR);
+    this.tweens.add({ targets: this.goalsBtn, scale: { from: 1.25, to: 1 }, duration: 380, ease: 'Back.easeOut' });
     this.showCenterBanner(`${level}`, `+${formatMoney(bonus)}`, ICON_STAR);
   }
 
