@@ -1,0 +1,130 @@
+/* Phones held sideways (and any screen this short): the room is the game.
+   Loaded last so it wins. Desktop and tablets never match (max-height: 520px).
+
+   HUD: one slim row along the top edge, nothing standing on the floor. Kept: hearts, the room's
+   goal tags, coins, pause, the boss bar. Gone: the room badge, the hearts' number and track, the
+   score, the heat meter. */
+@media (max-height: 520px) {
+  .b2-hud__top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    padding-top: max(4px, env(safe-area-inset-top));
+  }
+  .b2-hud__left { grid-column: 1; grid-row: 1; }
+  .b2-hud__center { grid-column: 2; grid-row: 1; }
+  .b2-hud__right { grid-column: 3; grid-row: 1; flex-direction: row; align-items: center; gap: 6px; }
+
+  .b2-hud__room,
+  .b2-hud__hp,
+  .b2-hud__track,
+  .b2-hud__score,
+  .b2-hud__heat,
+  .b2-hud__toastribbon,
+  .b2-hud__toastcard {
+    display: none !important;
+  }
+
+  .b2-hud__health { transform: none; }
+  .b2-hud .healthbar {
+    width: auto;
+    min-height: 0;
+    padding: 3px 9px 4px;
+    border-width: 2px;
+    box-shadow: 0 2px 0 var(--b2-ink);
+  }
+  .b2-hud__heart { width: 13px; height: 13px; }
+
+  /* the room's goal tags sit in the top row, small, and never on the floor */
+  .b2-hud__center {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+  .b2-hud__sticky {
+    min-height: 0;
+    padding: 2px 7px;
+    font-size: 10px;
+    line-height: 1.2;
+    border-width: 2px;
+    box-shadow: 0 2px 0 var(--b2-ink);
+    transform: none !important;
+  }
+
+  .b2-hud__chips { gap: 6px; }
+  .b2-hud .scrap-slip {
+    min-width: 0;
+    height: 28px;
+    align-items: center;
+    padding: 0 9px 0 28px;
+    border-width: 2px;
+    font-size: 15px;
+  }
+  .b2-hud .scrap-slip::before { left: 6px; width: 17px; height: 17px; }
+  .b2-hud .scrap-slip::after { display: none; }
+  .b2-hud .hud-pause { width: 32px; height: 32px; }
+  .b2-hud .hud-pause span:first-child { left: 9px; }
+  .b2-hud .hud-pause span:last-child { right: 9px; }
+
+  /* room hints and lesson cards: a short strip under the top row, not a banner across the room */
+  .b2-hud .hud-hint,
+  .b2-hud .b2-lesson {
+    top: calc(env(safe-area-inset-top, 0px) + 38px);
+    max-width: min(60vw, 420px);
+    padding: 3px 10px 4px;
+    font-size: 11px;
+    border-width: 2px;
+    box-shadow: 0 2px 0 var(--b2-ink);
+  }
+}
+
+/* Touch buttons: still big enough for a thumb, small enough not to hide a corner of the room. */
+@media (max-height: 520px) {
+  .touch-btn { opacity: 0.8; }
+  .touch-btn.act {
+    width: 70px;
+    height: 70px;
+    font-size: 14px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    right: calc(12px + env(safe-area-inset-right));
+  }
+  .touch-btn.dodge {
+    width: 50px;
+    height: 50px;
+    font-size: 11px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    right: calc(92px + env(safe-area-inset-right));
+  }
+  .touch-btn.drop {
+    width: 42px;
+    height: 42px;
+    font-size: 10px;
+    bottom: calc(90px + env(safe-area-inset-bottom));
+    right: calc(26px + env(safe-area-inset-right));
+  }
+  .touch-btn.power {
+    width: 44px;
+    height: 44px;
+    font-size: 10px;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    right: calc(82px + env(safe-area-inset-right));
+  }
+  .stick { width: 96px; height: 96px; left: -48px; top: -48px; }
+  .stick-knob { width: 42px; height: 42px; margin: -21px 0 0 -21px; }
+}
+
+/* Menus: the same screens, scaled down, so a panel is a panel and not the whole phone. Zoom keeps
+   every screen filling the frame (percentages and insets are not scaled) while its text, buttons
+   and cards shrink; the shorter the screen, the further. */
+@media (max-height: 520px) {
+  #screens > .screen { zoom: 0.82; }
+  /* a room hint never sits on top of the pause menu, a report or the store */
+  body:not(.playing) .b2-hud .hud-hint { display: none !important; }
+}
+@media (max-height: 400px) {
+  #screens > .screen { zoom: 0.76; }
+}
+@media (max-height: 320px) {
+  #screens > .screen { zoom: 0.64; }
+}

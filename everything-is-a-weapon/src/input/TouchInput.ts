@@ -1,7 +1,16 @@
 import type { InputAction, InputSource, RawInput } from './InputManager';
 
 const STICK_RADIUS = 52;
-const AIM_DEADZONE = 16;
+/** A drag shorter than this is a wobbly thumb, not an aim. */
+const AIM_DEADZONE = 24;
+/**
+ * A touch on the open screen only acts when it means it: a quick tap grabs (empty-handed), and a
+ * throw needs a hold this long or a drag. A quick tap while carrying does nothing, so resting a
+ * thumb to aim never throws by accident. The THROW button still throws on a tap.
+ */
+const HOLD_TO_ENGAGE_MS = 160;
+/** How much of each new drag direction is taken at once: the rest smooths out finger jitter. */
+const AIM_SMOOTHING = 0.45;
 const MOVE_ZONE = 0.42;
 
 /**
@@ -28,6 +37,9 @@ export class TouchInput implements InputSource {
   private aimId = -1;
   private aimX = 0;
   private aimY = 0;
+  private aimDownAt = 0;
+  /** The current open-screen touch has pressed (a hold, a drag, or the action button). */
+  private aimEngaged = false;
 
   private root: HTMLElement | null = null;
   private moveBase: HTMLElement | null = null;
@@ -105,7 +117,7 @@ export class TouchInput implements InputSource {
         if (event.pointerType !== 'touch') return;
         this.enterTouchMode();
         const p = this.local(event);
-        this.beginAim(event.pointerId, p.x, p.y);
+        this.beginAim(event.pointerId, p.x, p.y, true);
       },
       { signal: this.abort.signal },
     );
@@ -156,18 +168,33 @@ export class TouchInput implements InputSource {
     }
   };
 
-  /** Starts the grab / charge-and-throw gesture. Shared by the right half of the screen and the big action button. */
-  private beginAim(pointerId: number, x: number, y: number): void {
+  /**
+   * Starts the grab / charge-and-throw gesture. Shared by the right half of the screen and the big
+   * action button; the button acts at once, the open screen waits to see what the touch means.
+   */
+  private beginAim(pointerId: number, x: number, y: number, fromButton = false): void {
     const raw = this.raw;
     if (!raw || this.aimId >= 0) return;
     this.aimId = pointerId;
     this.aimX = x;
     this.aimY = y;
+    this.aimDownAt = performance.now();
+    this.aimEngaged = false;
     raw.aimIdle = true;
-    raw.primaryDown = true;
-    raw.primaryPresses++;
+    if (fromButton) this.engage(raw);
     this.place(this.aimBase, x, y, true);
     this.knob(this.aimKnob, 0, 0);
+  }
+
+  /** The touch has shown it means it: press (grab, or start charging a throw). */
+  private engage(raw: RawInput): void {
+    this.aimEngaged = true;
+    raw.primaryDown = true;
+    raw.primaryPresses++;
+  }
+
+  poll(raw: RawInput): void {
+    if (this.aimId >= 0 && !this.aimEngaged && performance.now() - this.aimDownAt >= HOLD_TO_ENGAGE_MS) this.engage(raw);
   }
 
   private onMove = (event: PointerEvent): void => {
@@ -199,9 +226,14 @@ export class TouchInput implements InputSource {
       const dy = p.y - this.aimY;
       const len = Math.hypot(dx, dy);
       if (len > AIM_DEADZONE) {
-        raw.aimDirX = dx / len;
-        raw.aimDirY = dy / len;
+        const fresh = raw.aimIdle;
+        const nx = fresh ? dx / len : raw.aimDirX + (dx / len - raw.aimDirX) * AIM_SMOOTHING;
+        const ny = fresh ? dy / len : raw.aimDirY + (dy / len - raw.aimDirY) * AIM_SMOOTHING;
+        const n = Math.hypot(nx, ny) || 1;
+        raw.aimDirX = nx / n;
+        raw.aimDirY = ny / n;
         raw.aimIdle = false;
+        if (!this.aimEngaged) this.engage(raw);
       }
       const clamped = Math.min(1, len / STICK_RADIUS);
       this.knob(this.aimKnob, len > 0 ? (dx / len) * clamped : 0, len > 0 ? (dy / len) * clamped : 0);
@@ -218,8 +250,15 @@ export class TouchInput implements InputSource {
       this.place(this.moveBase, this.moveX, this.moveY, false);
     } else if (event.pointerId === this.aimId) {
       this.aimId = -1;
-      raw.primaryDown = false;
-      raw.primaryReleases++;
+      if (this.aimEngaged) {
+        raw.primaryDown = false;
+        raw.primaryReleases++;
+      } else if (!document.body.classList.contains('carrying')) {
+        // a quick tap with empty hands grabs the nearest thing
+        raw.primaryPresses++;
+        raw.primaryReleases++;
+        raw.primaryDown = false;
+      }
       // aimIdle is cleared on the next touch, so the release tick still uses the dragged direction.
       this.place(this.aimBase, this.aimX, this.aimY, false);
     }

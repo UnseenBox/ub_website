@@ -13,9 +13,14 @@ const MIN_PLAYABLE_SCALE = 0.72;
  * off-screen are unfair. Tighter margins, and only follow when the room would be tinier than this.
  */
 const COMPACT_HEIGHT = 480;
-const COMPACT_HUD_MARGIN_TOP = 34;
+/** The phone HUD is one slim row (see ui-kit/bonk2/phone.css). */
+const COMPACT_HUD_MARGIN_TOP = 24;
 const COMPACT_VIEW_PADDING = 6;
-const COMPACT_MIN_PLAYABLE_SCALE = 0.4;
+const COMPACT_MIN_PLAYABLE_SCALE = 0.28;
+/** Phones: a little wider than the room, so its edges and the touch buttons never crowd the play. */
+const COMPACT_ZOOM_OUT = 0.9;
+/** Phones: zoom punches and focus pulls at this fraction, so the room never leaves the frame. */
+const COMPACT_PUNCH = 0.35;
 
 /**
  * Fits the whole room on screen at any aspect ratio and owns every kind of screen
@@ -28,6 +33,8 @@ export class Camera {
   dpr = 1;
   /** World units → CSS pixels. */
   scale = 1;
+  /** A short (landscape phone) screen: see the COMPACT_ constants. */
+  compact = false;
   centerX = 0;
   centerY = 0;
 
@@ -78,7 +85,8 @@ export class Camera {
     const minScale = compact ? COMPACT_MIN_PLAYABLE_SCALE : MIN_PLAYABLE_SCALE;
     const viewW = this.roomW + WALL * 2 + this.viewPadding * 2;
     const viewH = this.roomH + WALL * 2 + this.viewPadding * 2 + this.hudMarginTop;
-    const fitScale = Math.min(this.width / viewW, this.height / viewH);
+    const fitScale = Math.min(this.width / viewW, this.height / viewH) * (compact ? COMPACT_ZOOM_OUT : 1);
+    this.compact = compact;
     this.following = fitScale < minScale;
     this.scale = this.following ? minScale : fitScale;
     if (!this.following) {
@@ -141,7 +149,8 @@ export class Camera {
     this.kickX *= settle;
     this.kickY *= settle;
     this.zoomPunch *= Math.exp(-7 * dt);
-    this.zoom = 1 + this.zoomPunch * this.shakeScale;
+    const punch = this.compact ? COMPACT_PUNCH : 1;
+    this.zoom = 1 + this.zoomPunch * this.shakeScale * punch;
 
     this.viewX = this.centerX;
     this.viewY = this.centerY;
@@ -149,7 +158,7 @@ export class Camera {
       this.focusLeft -= dt;
       const t = 1 - Math.max(0, this.focusLeft) / this.focusTotal;
       // fast in, linger, ease out
-      const k = Math.pow(Math.sin(Math.PI * Math.min(1, t)), 0.55) * this.shakeScale;
+      const k = Math.pow(Math.sin(Math.PI * Math.min(1, t)), 0.55) * this.shakeScale * punch;
       this.zoom *= 1 + (this.focusZoom - 1) * k;
       this.viewX += (this.focusX - this.centerX) * 0.42 * k;
       this.viewY += (this.focusY - this.centerY) * 0.42 * k;
