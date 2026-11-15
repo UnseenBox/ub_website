@@ -14,6 +14,8 @@ import pauseIconUrl from '../assets/ui/icons/pause.png';
 import ledgerIconUrl from '../assets/ui/icons/ledger.png';
 import playIconUrl from '../assets/ui/icons/play.png';
 import refillIconUrl from '../assets/ui/icons/refill.png';
+import lockIconUrl from '../assets/ui/icons/lock.png';
+import timeBarUrl from '../assets/ui/time-bar.png';
 import returnIconUrl from '../assets/ui/icons/return.png';
 import crossIconUrl from '../assets/ui/icons/cross.png';
 import collectIconUrl from '../assets/ui/icons/collect.png';
@@ -44,6 +46,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-play', playIconUrl);
     this.load.image('ui-refill', refillIconUrl);
     // Back to the dig site, cancel (every X in the game) and "collect the money" in the workshop.
+    this.load.image('ui-lock', lockIconUrl);
+    // The clock-and-calendar plaque for the day and the time.
+    this.load.image('time-bar', timeBarUrl);
     this.load.image('ui-return', returnIconUrl);
     this.load.image('ui-cross', crossIconUrl);
     this.load.image('ui-collect', collectIconUrl);

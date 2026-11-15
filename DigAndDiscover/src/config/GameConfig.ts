@@ -96,3 +96,12 @@ export const GAME_CONFIG = {
     startingMoney: 0,
   },
 } as const;
+
+/**
+ * Features that are built but switched off for now. Flip one to `true` to bring it back
+ * (the code and the scene stay in the project).
+ */
+export const FEATURES = {
+  /** The daily objectives: the target icon at the top, its pause-menu shortcut and the G key. */
+  goals: false,
+} as const;

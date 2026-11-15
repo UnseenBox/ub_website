@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BUTTON_COLORS, PALETTE } from '../config/Theme';
+import { FEATURES } from '../config/GameConfig';
 import { state } from '../core/GameState';
 import { uiIcon } from '../art/UiIcons';
 import { sfx } from '../audio/Sfx';
@@ -68,7 +69,7 @@ export class PauseScene extends Phaser.Scene {
 
     // Round shortcuts.
     const y = 150;
-    const xs = [CARD_W * 0.2, CARD_W * 0.5, CARD_W * 0.8];
+    const xs = FEATURES.goals ? [CARD_W * 0.2, CARD_W * 0.5, CARD_W * 0.8] : [CARD_W * 0.32, CARD_W * 0.68];
     this.soundG = this.add.graphics();
     const sound = this.add.container(xs[0], y, [this.soundG]).setSize(76, 76).setInteractive({ useHandCursor: true });
     this.drawSound();
@@ -79,7 +80,7 @@ export class PauseScene extends Phaser.Scene {
     });
     this.card.add(sound);
     this.shortcut(xs[1], y, 'ui-store', 'Store');
-    this.shortcut(xs[2], y, 'ui-target', 'Goals');
+    if (FEATURES.goals) this.shortcut(xs[2], y, 'ui-target', 'Goals');
 
     const play = new Button(this, { width: 260, height: 84, label: '', icon: uiIcon('play'), ghost: true, iconScale: 1.25, fontSize: 40, colors: BUTTON_COLORS.green, onClick: () => this.close() });
     play.setPosition(CARD_W / 2, 270).setPulse(true);

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_CONFIG } from '../config/GameConfig';
+import { FEATURES, GAME_CONFIG } from '../config/GameConfig';
 import { BUTTON_COLORS, PALETTE, outlinedStyle } from '../config/Theme';
 import { EVT, state, subscribe } from '../core/GameState';
 import type { DaySummary } from '../core/GameState';
@@ -36,6 +36,11 @@ export class HudScene extends Phaser.Scene {
   private tray!: Phaser.GameObjects.Image;
   private trayBadge!: Phaser.GameObjects.Image;
   private trayBolt!: Phaser.GameObjects.Graphics;
+  private lastStamina = -1;
+  private timeBar!: Phaser.GameObjects.Image;
+  private timeText!: Phaser.GameObjects.Text;
+  private timeSlot = { cx: 0, cy: 0, w: 60 };
+  private timeLabel = '';
   /** Craft medallion: glow while a trip is worth it, dark disc while locked, cover with a picture in other modes. */
   private craftGlow!: Phaser.GameObjects.Image;
   private craftDim!: Phaser.GameObjects.Graphics;
@@ -112,6 +117,9 @@ export class HudScene extends Phaser.Scene {
     this.craftCountText = this.add.text(0, 0, '', outlinedStyle(16)).setOrigin(0.5);
     this.craftCount = this.add.container(0, 0, [this.craftCountBg, this.craftCountText]).setVisible(false);
     this.money = new MoneyCounter(this, state.economy.money);
+    // The day and the time of day, on the clock-and-calendar plaque at the top middle.
+    this.timeBar = this.add.image(0, 0, 'time-bar').setOrigin(0, 0);
+    this.timeText = this.add.text(0, 0, '', outlinedStyle(14, '#fff3dc')).setOrigin(0.5);
     this.buildMuteButton();
     this.buildStoreButton();
     this.toast = new Toast(this);
@@ -120,6 +128,9 @@ export class HudScene extends Phaser.Scene {
 
     this.depthGauge = new DepthGauge(this);
     this.buildGoalsButton();
+    // The daily objectives are switched off for the moment (see FEATURES in GameConfig).
+    this.goalsBtn.setVisible(FEATURES.goals);
+    if (!FEATURES.goals) this.goalsBtn.disableInteractive();
     this.refillBtn = new Button(this, {
       width: 84, height: 70, label: '', icon: uiIcon('refill'), ghost: true, iconScale: 1, fontSize: 22, colors: BUTTON_COLORS.blue,
       onClick: () => this.watchRefill(),
@@ -185,7 +196,7 @@ export class HudScene extends Phaser.Scene {
       kb.on('keydown-M', () => this.toggleMute());
       kb.on('keydown-P', () => this.openPause());
       kb.on('keydown-S', () => this.openStore());
-      kb.on('keydown-G', () => this.openGoals());
+      if (FEATURES.goals) kb.on('keydown-G', () => this.openGoals());
       kb.on('keydown-L', () => this.openLedger());
       kb.on('keydown', (e: KeyboardEvent) => {
         if (this.storeOpen) return;
@@ -233,6 +244,9 @@ export class HudScene extends Phaser.Scene {
     this.updateRefillOffer();
     const s = state.stamina;
     this.stamina.setValue(s.value, s.max, s.isRegenerating, dt);
+    if (this.lastStamina >= 0 && s.value < this.lastStamina - 0.01) this.punchBolt();
+    this.lastStamina = s.value;
+    this.updateTime();
 
     this.depthGauge.tick(dt);
     this.forceWorkshopTrip();
@@ -259,7 +273,6 @@ export class HudScene extends Phaser.Scene {
     this.drawBolt(L.badge);
 
     this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h, TRAY_ART.trackCover);
-    const goalH = L.compact ? 44 : 50;
     this.refillBtn.setPosition(L.w / 2, L.tray.y - 30);
     this.slots.forEach((slot, i) => {
       const c = slotCenter(L, i);
@@ -272,8 +285,19 @@ export class HudScene extends Phaser.Scene {
 
     const pillH = Math.round(L.topH * 0.62);
     // The money pill may grow until it meets the first of the round buttons.
-    this.money.maxWidth = L.w - 14 - pillH * 3 - 20 - 8 - 14;
+    const topButtons = FEATURES.goals ? 4 : 3;
+    this.money.maxWidth = L.w - 14 - pillH * topButtons - (topButtons - 1) * 10 - 8 - 14;
     this.money.layout(14, L.topH / 2, pillH);
+    // The day and time plaque sits at the top middle, just under the top bar.
+    const th = Math.round(Math.max(28, Math.min(40, L.topH * 0.52)));
+    const tw = (th * 720) / 146;
+    const tx = Math.round((L.w - tw) / 2);
+    const ty = L.topH + 4;
+    this.timeBar.setPosition(tx, ty).setDisplaySize(tw, th);
+    this.timeSlot = { cx: tx + (369 / 720) * tw, cy: ty + (73 / 146) * th, w: ((596 - 142) / 720) * tw };
+    this.timeText.setPosition(this.timeSlot.cx, this.timeSlot.cy).setFontSize(Math.max(11, Math.round(th * 0.4)));
+    this.timeLabel = '';
+    this.updateTime();
     const muteR = pillH / 2;
     this.mute.setPosition(L.w - 14 - muteR, L.topH / 2);
     this.storeBtn.setPosition(L.w - 14 - muteR * 2 - 10 - muteR, L.topH / 2);
@@ -282,6 +306,9 @@ export class HudScene extends Phaser.Scene {
     this.iconR = muteR;
     this.drawStoreIcon(muteR);
     this.goalsBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
+    // The debt book joins the other round buttons at the top.
+    // (With the objectives off, the book takes the goals button's place.)
+    this.ledgerBtn.setPosition((FEATURES.goals ? this.goalsBtn.x : this.storeBtn.x) - muteR * 2 - 10, this.storeBtn.y);
     this.goalsBtn.setSize(pillH, pillH);
     (this.goalsBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawGoalsButton(muteR);
@@ -291,10 +318,9 @@ export class HudScene extends Phaser.Scene {
 
     this.toast.place(L.w / 2, L.topH + 108, L.compact ? 16 : 20);
     // The debt chip sits in the row under the top bar, at the right, clear of the depth label.
-    this.ledgerBtn.setPosition(L.w - 14 - L.depth.w - 46 - goalH / 2, L.topH + 8 + goalH / 2);
-    this.ledgerBtn.setSize(goalH, goalH);
-    (this.ledgerBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, goalH, goalH);
-    this.ledgerSize = goalH;
+    this.ledgerBtn.setSize(pillH, pillH);
+    (this.ledgerBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
+    this.ledgerSize = pillH;
     this.drawLedgerButton();
     this.depthGauge.layout(L.depth.x, L.depth.y, L.depth.w, L.depth.h);
   }
@@ -302,14 +328,31 @@ export class HudScene extends Phaser.Scene {
   /** A lightning bolt in the round socket at the left end of the stamina bar. */
   private drawBolt(b: { x: number; y: number; r: number }): void {
     const g = this.trayBolt;
-    g.clear();
+    g.clear().setPosition(b.x, b.y);
     const s = b.r * 0.95;
     const pts = [
       { x: 0.25, y: -1 }, { x: -0.55, y: 0.15 }, { x: -0.02, y: 0.15 },
       { x: -0.25, y: 1 }, { x: 0.55, y: -0.15 }, { x: 0.02, y: -0.15 },
-    ].map((p) => ({ x: b.x + p.x * s, y: b.y + p.y * s }));
+    ].map((p) => ({ x: p.x * s, y: p.y * s }));
     g.fillStyle(0x2a1405).fillPoints(pts.map((p) => ({ x: p.x + s * 0.07, y: p.y + s * 0.09 })) as Phaser.Types.Math.Vector2Like[], true);
     g.fillStyle(0xffd23f).fillPoints(pts as Phaser.Types.Math.Vector2Like[], true);
+  }
+
+  /** The bolt in the stamina socket jolts whenever stamina is spent. */
+  private punchBolt(): void {
+    this.tweens.killTweensOf(this.trayBolt);
+    this.trayBolt.setScale(1.45).setAngle(-12);
+    this.tweens.add({ targets: this.trayBolt, scale: 1, angle: 0, duration: 340, ease: 'Back.easeOut' });
+  }
+
+  /** "Day 3  2:30 PM" on the plaque; only touched when the label changes. */
+  private updateTime(): void {
+    const label = `Day ${state.day.day}  ${state.day.clock.label}`;
+    if (label === this.timeLabel) return;
+    this.timeLabel = label;
+    const t = this.timeText;
+    t.setText(label).setScale(1);
+    t.setScale(Math.min(1, (this.timeSlot.w * 0.94) / Math.max(1, t.width)));
   }
 
   /** How the craft medallion looks: 'locked' (dark, off), 'open', 'ready' (glowing), or a picture on a cover. */
