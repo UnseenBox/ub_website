@@ -11,6 +11,8 @@ import goalsIconUrl from '../assets/ui/icons/goals.png';
 import workshopIconUrl from '../assets/ui/icons/workshop.png';
 import pauseIconUrl from '../assets/ui/icons/pause.png';
 import workshopBgUrl from '../assets/world/workshop-bg.jpg';
+import machineUrl from '../assets/workshop/machine.png';
+import sawUrl from '../assets/workshop/saw.png';
 
 /** Paints every shared texture once, then drops straight into gameplay. */
 export class BootScene extends Phaser.Scene {
@@ -28,6 +30,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-workshop', workshopIconUrl);
     this.load.image('ui-pause', pauseIconUrl);
     this.load.image('workshop-bg', workshopBgUrl);
+    // The saw machine: the wooden frame and the circular blade are separate pictures.
+    this.load.image('machine-art', machineUrl);
+    this.load.image('saw-art', sawUrl);
     // The painted scene above the ground.
     this.load.image('above-surface', aboveSurfaceUrl);
     // Optional PNGs from src/assets/store/ replace painted store icons.
