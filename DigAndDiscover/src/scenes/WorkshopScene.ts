@@ -6,7 +6,9 @@ import type { Rock } from '../core/types';
 import { ART_RES, iconScale, releaseRockTextures, rockKeys } from '../art/RockArt';
 import { MACHINE, SAW_RADIUS } from '../art/TextureFactory';
 import { sfx, type SawHandle } from '../audio/Sfx';
-import { sizeLabel } from '../systems/RockGenerator';
+import { portal } from '../ads/Portal';
+import { ICON_SAW, ICON_STAR } from '../art/IconArt';
+import { uiIcon } from '../art/UiIcons';
 import { Button } from '../ui/Button';
 import { computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { formatMoney } from '../ui/MoneyCounter';
@@ -27,6 +29,8 @@ interface StageLayout {
 const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 340, bedY: 430, cardX: 770, cardY: 300, cardW: 340, cardH: 390 };
 const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, bedY: 440, cardX: 320, cardY: 708, cardW: 590, cardH: 270 };
 
+/** Rocks worth at least this much offer a "sell for double" ad. */
+const AD_SELL_MIN_VALUE = 30;
 const BLADE_REST = -290;
 const BLADE_END = -60;
 const RAY_COUNT = 12;
@@ -54,11 +58,14 @@ export class WorkshopScene extends Phaser.Scene {
   private chip!: Phaser.GameObjects.Container;
   private chipBg!: Phaser.GameObjects.Graphics;
   private chipText!: Phaser.GameObjects.Text;
+  private chipStars: Phaser.GameObjects.Image[] = [];
   private title!: Phaser.GameObjects.Text;
   private sub!: Phaser.GameObjects.Text;
   private big!: Phaser.GameObjects.Text;
+  private bigIcon!: Phaser.GameObjects.Image;
   private cutBtn!: Button;
   private sellBtn!: Button;
+  private adBtn!: Button;
   private sparkFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dustFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private burstFx!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -109,6 +116,7 @@ export class WorkshopScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
+    this.updateAdButton();
     this.bladeSpeed += (this.bladeTarget - this.bladeSpeed) * Math.min(1, dt / 220);
     if (this.bladeSpeed > 0.001) this.blade.rotation += this.bladeSpeed * dt * 0.03;
     this.rod.height = Math.max(0, this.blade.y - (this.S.bedY + BLADE_REST));
@@ -126,7 +134,8 @@ export class WorkshopScene extends Phaser.Scene {
     if (this.rays.visible) this.rays.rotation += this.raysSpin * dt;
     if (this.legendaryHue >= 0) {
       this.legendaryHue = (this.legendaryHue + dt * 0.12) % 360;
-      this.chipText.setTint(Phaser.Display.Color.HSVToRGB(this.legendaryHue / 360, 0.35, 1).color);
+      const tint = Phaser.Display.Color.HSVToRGB(this.legendaryHue / 360, 0.35, 1).color;
+      for (const star of this.chipStars) star.setTint(tint);
     }
   }
 
@@ -151,21 +160,29 @@ export class WorkshopScene extends Phaser.Scene {
     this.card = this.add.graphics();
     this.chipBg = this.add.graphics();
     this.chipText = this.add.text(0, 0, '', outlinedStyle(22)).setOrigin(0.5);
-    this.chip = this.add.container(0, 0, [this.chipBg, this.chipText]).setVisible(false);
+    this.chipStars = Array.from({ length: 5 }, () => this.add.image(0, 0, ICON_STAR).setVisible(false));
+    this.chip = this.add.container(0, 0, [this.chipBg, this.chipText, ...this.chipStars]).setVisible(false);
     this.title = this.add.text(0, 0, '', textStyle(34, PALETTE.ink)).setOrigin(0.5);
     this.sub = this.add.text(0, 0, '', textStyle(19, '#8a6a4a', { fontStyle: '500', align: 'center' })).setOrigin(0.5);
     this.big = this.add.text(0, 0, '', outlinedStyle(56, PALETTE.money)).setOrigin(0.5);
     this.cutBtn = new Button(this, {
-      width: 280, height: 74, label: 'CUT IT OPEN!', fontSize: 30, colors: BUTTON_COLORS.orange,
+      width: 280, height: 74, label: '', icon: ICON_SAW, fontSize: 40, colors: BUTTON_COLORS.orange,
       onClick: () => void this.cut(),
     });
     this.sellBtn = new Button(this, {
-      width: 280, height: 74, label: 'SELL', fontSize: 30, colors: BUTTON_COLORS.green,
-      onClick: () => this.sell(),
+      width: 280, height: 74, label: '', icon: uiIcon('cash'), fontSize: 40, colors: BUTTON_COLORS.green,
+      onClick: () => this.sell(1),
     });
     this.cutBtn.setVisible(false);
     this.sellBtn.setVisible(false);
-    this.stage.add([this.card, this.chip, this.title, this.sub, this.big, this.cutBtn, this.sellBtn]);
+    this.adBtn = new Button(this, {
+      width: 280, height: 50, label: '2x', icon: uiIcon('watch'), fontSize: 24, colors: BUTTON_COLORS.blue,
+      onClick: () => this.sellDoubled(),
+    });
+    this.adBtn.setVisible(false);
+    // A picture where the big number goes while no rock is on the bench (all done / pick a rock).
+    this.bigIcon = this.add.image(0, 0, uiIcon('bag')).setVisible(false);
+    this.stage.add([this.card, this.chip, this.title, this.sub, this.big, this.bigIcon, this.cutBtn, this.sellBtn, this.adBtn]);
   }
 
   private buildEffects(): void {
@@ -275,8 +292,10 @@ export class WorkshopScene extends Phaser.Scene {
     this.title.setPosition(x, y - h * 0.21).setWordWrapWidth(w - 40);
     this.sub.setPosition(x, y - h * 0.07).setWordWrapWidth(w - 40);
     this.big.setPosition(x, y + h * 0.1);
+    this.bigIcon.setPosition(x, y + h * 0.1).setDisplaySize(84, 84);
     this.cutBtn.setPosition(x, y + h * 0.33);
     this.sellBtn.setPosition(x, y + h * 0.33);
+    this.adBtn.setPosition(x, y + h * 0.33 + 64);
   }
 
   private rockScale(): number {
@@ -351,7 +370,7 @@ export class WorkshopScene extends Phaser.Scene {
   }
 
   private slotIconScale(): number {
-    return iconScale(this.L.slotSize * 0.74) / this.stage.scaleX;
+    return iconScale(this.L.slotSize * GAME_CONFIG.rock.inventoryScale) / this.stage.scaleX;
   }
 
   private place(rock: Rock): void {
@@ -429,7 +448,9 @@ export class WorkshopScene extends Phaser.Scene {
   private reveal(rock: Rock): void {
     const S = this.S;
     const tier = rock.rarity.tier;
-    const dud = !!rock.mineral.dud;
+    // A dud (plain stone) or a worthless rock ($0) gets no celebration: only a sad little puff.
+    const dud = !!rock.mineral.dud || rock.value <= 0;
+    const tint = revealColor(rock);
     state.inventory.markCut(rock.id);
     state.recordCut(rock);
 
@@ -442,13 +463,22 @@ export class WorkshopScene extends Phaser.Scene {
     });
     this.placeHalves(true);
 
-    const color = Phaser.Display.Color.IntegerToColor(rock.rarity.color);
+    const color = Phaser.Display.Color.IntegerToColor(tint);
     if (!dud) this.cameras.main.flash(120 + tier * 70, color.red, color.green, color.blue);
+    if (!dud && rock.mineral.reveal === 'storm') this.time.delayedCall(150, () => this.cameras.main.flash(90, 170, 225, 255));
     if (tier >= 2) this.cameras.main.shake(180 + tier * 70, 0.002 + tier * 0.0015);
     this.dustFx.explode(8, S.machineX, cy);
     if (!dud) {
-      this.burstFx.setParticleTint(rock.rarity.color);
-      this.burstFx.explode(8 + tier * 10, S.machineX, cy);
+      if (rock.mineral.reveal === 'rainbow') {
+        // Three bursts in different colours: a rainbow pop.
+        [0xff9ad5, 0x7fe0d0, 0xffe27a].forEach((c, i) => {
+          this.burstFx.setParticleTint(c);
+          this.burstFx.explode(Math.ceil((8 + tier * 10) / 3), S.machineX, cy - 8 + i * 8);
+        });
+      } else {
+        this.burstFx.setParticleTint(tint);
+        this.burstFx.explode(8 + tier * 10, S.machineX, cy);
+      }
     }
     if (tier >= 4) {
       this.confettiFx.explode(70, S.machineX, cy);
@@ -456,7 +486,7 @@ export class WorkshopScene extends Phaser.Scene {
     }
     if (tier >= 2) {
       this.rays.setVisible(true).setAlpha(0).setScale(0.3).setPosition(S.machineX, cy);
-      this.rays.each((ray: Phaser.GameObjects.Image) => ray.setTint(rock.rarity.color));
+      this.rays.each((ray: Phaser.GameObjects.Image) => ray.setTint(tint));
       this.raysSpin = 0.0003 + tier * 0.0001;
       this.tweens.add({ targets: this.rays, alpha: 0.25 + tier * 0.08, scale: 0.85 + tier * 0.15, duration: 500, ease: 'Back.easeOut' });
     }
@@ -474,7 +504,7 @@ export class WorkshopScene extends Phaser.Scene {
         },
       });
     }
-    sfx.reveal(tier, dud);
+    sfx.reveal(tier, rock.value);
 
     this.bench = 'revealed';
     this.refreshCard();
@@ -519,11 +549,24 @@ export class WorkshopScene extends Phaser.Scene {
     });
   }
 
-  private sell(): void {
+  /** "Sell for double (watch an ad)" under the SELL button, for rocks worth the wait. */
+  private updateAdButton(): void {
+    const rock = this.current;
+    const show = this.bench === 'revealed' && !!rock && rock.value >= AD_SELL_MIN_VALUE && portal.rewardedReady && this.sellBtn.visible;
+    if (this.adBtn.visible !== show) this.adBtn.setVisible(show);
+  }
+
+  private sellDoubled(): void {
+    if (this.bench !== 'revealed') return;
+    portal.rewarded(() => this.sell(2));
+  }
+
+  private sell(multiplier = 1): void {
     const rock = this.current;
     if (this.bench !== 'revealed' || !rock) return;
     this.bench = 'selling';
-    const amount = state.economy.sell(rock);
+    this.adBtn.setVisible(false);
+    const amount = state.economy.sell(rock, multiplier);
     const p = this.stageToScreen(this.big.x, this.big.y);
     state.bus.emit(EVT.sale, amount, p.x, p.y, rock.rarity.tier);
     state.inventory.remove(rock.id);
@@ -533,7 +576,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.glitterTimer?.remove();
     this.glitterTimer = null;
     this.legendaryHue = -1;
-    this.chipText.clearTint();
+    for (const star of this.chipStars) star.clearTint();
     this.tweens.add({ targets: this.rays, alpha: 0, duration: 300, onComplete: () => this.rays.setVisible(false) });
     for (const half of this.halves) this.tweens.killTweensOf(half);
     this.tweens.add({
@@ -565,48 +608,40 @@ export class WorkshopScene extends Phaser.Scene {
     this.cutBtn.setVisible(this.bench === 'ready').setEnabled(state.canCut);
     if (this.bench !== 'revealed' && this.bench !== 'selling') this.sellBtn.setVisible(false);
     this.big.setScale(1).setFontSize(56);
-    // After closing time the last rocks have to be cut before the day can end.
-    const lastRocks = !state.canWork && state.canCut;
+    // No words here: a picture says what to do next.
+    this.title.setText('');
+    this.sub.setText('');
+    this.bigIcon.setVisible(!rock);
 
     if (!rock) {
+      // Nothing on the bench: a tick when every rock is done, otherwise the bag (pick the next rock).
       const none = state.inventory.uncutCount === 0;
-      this.title.setText(none ? 'All cut!' : 'Workbench');
-      this.sub.setText(
-        none
-          ? (lastRocks ? 'All done for today!\nTime to head home.' : 'Head back and dig up\nmore mystery rocks.')
-          : 'Tap a rock in your bag\nto put it on the bench.',
-      );
       this.big.setText('');
+      this.bigIcon.setTexture(none ? uiIcon('check') : uiIcon('bag'));
       return;
     }
+    // A worthless rock cannot be "sold": the same button throws it away.
+    this.sellBtn.setIcon(rock.value > 0 ? uiIcon('cash') : uiIcon('junk'));
     if (this.bench === 'placing' || this.bench === 'ready' || this.bench === 'cutting') {
-      this.title.setText(rock.exterior.name);
-      const hint = rock.sparkly ? 'It glitters a little...' : 'What could be inside?';
-      const left = state.inventory.uncutCount;
-      this.sub.setText(
-        this.bench === 'cutting'
-          ? 'Cutting...'
-          : lastRocks
-            ? `Last rocks of the day!\n${left} left to cut`
-            : `${sizeLabel(rock.size)} rock\n${hint}`,
-      );
       this.big.setText('?').setColor(PALETTE.money);
       return;
     }
     const tier = rock.rarity.tier;
     this.title.setText(rock.mineral.name);
-    this.sub.setText(rock.mineral.flavor);
-    this.big.setColor(rock.mineral.dud ? '#d8d0c4' : PALETTE.money);
-    this.chipText.setText(rock.rarity.label.toUpperCase()).setFontSize(22 + tier * 2);
-    const cw = this.chipText.width + 36;
-    const ch = this.chipText.height + 10;
+    this.big.setColor(rock.mineral.dud || rock.value <= 0 ? '#d8d0c4' : PALETTE.money);
+    // Rarity is a row of gold stars on the chip - no words. A worthless rock has no stars at all.
+    const n = rock.rarity.id === 'worthless' ? 0 : tier + 1;
+    const sz = 32 + tier * 3;
+    const gap = sz * 0.9;
+    this.chipStars.forEach((star, i) => star.setVisible(i < n).setDisplaySize(sz, sz).setPosition((i - (n - 1) / 2) * gap, -1));
+    const cw = n * gap + 44;
+    const ch = sz + 18;
     this.chipBg.clear();
     this.chipBg.fillStyle(0x000000, 0.25).fillRoundedRect(-cw / 2, -ch / 2 + 3, cw, ch, ch / 2);
     this.chipBg.fillStyle(rock.rarity.color).fillRoundedRect(-cw / 2, -ch / 2, cw, ch, ch / 2);
     this.chipBg.fillStyle(0xffffff, 0.25).fillRoundedRect(-cw / 2 + 6, -ch / 2 + 3, cw - 12, ch * 0.35, ch * 0.17);
     this.legendaryHue = tier >= 4 ? 0 : -1;
-    if (tier < 4) this.chipText.clearTint();
-    this.sellBtn.setLabel(`SELL  ${formatMoney(rock.value)}`);
+    if (tier < 4) for (const star of this.chipStars) star.clearTint();
   }
 
   // ---------- helpers ----------
@@ -617,6 +652,20 @@ export class WorkshopScene extends Phaser.Scene {
 
   private wait(ms: number): Promise<void> {
     return new Promise((resolve) => this.time.delayedCall(ms, resolve));
+  }
+}
+
+/** Tint of the reveal burst, flash and rays: the mineral's own feel beats the plain rarity colour. */
+function revealColor(rock: Rock): number {
+  switch (rock.mineral.reveal) {
+    case 'embers': return 0xff8a2b;
+    case 'frost': return 0xcfeaff;
+    case 'storm': return 0x7fd0ff;
+    case 'stars': return 0xfff3c0;
+    case 'shimmer': return 0xe8ecf2;
+    case 'glow': return rock.mineral.colors[0];
+    case 'rainbow': return 0xff9ad5;
+    default: return rock.rarity.color;
   }
 }
 

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dig &amp; Discover - mineral preview</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #1b1b20;
+    color: #e8e6e1;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: 0.04em; }
+  p.lead { margin: 0 0 18px; color: #9a978f; font-size: 13px; }
+  table.counts { border-collapse: collapse; margin-bottom: 22px; font-size: 13px; }
+  table.counts th, table.counts td { border: 1px solid #34343c; padding: 5px 12px; text-align: left; }
+  table.counts th { background: #24242b; color: #cfccc4; }
+  h2 { font-size: 16px; margin: 26px 0 10px; text-transform: uppercase; letter-spacing: 0.12em; }
+  .grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .card {
+    width: 200px;
+    background: #232329;
+    border: 1px solid #34343c;
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .canvases { display: flex; gap: 8px; }
+  .canvases canvas { width: 80px; height: 80px; background: #17171b; border-radius: 8px; }
+  .name { font-size: 13px; font-weight: bold; margin-top: 8px; }
+  .meta { font-size: 11px; color: #9a978f; line-height: 1.5; margin-top: 3px; }
+  .tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 999px; margin-right: 4px; }
+</style>
+</head>
+<body>
+<h1>Mineral catalogue preview</h1>
+<p class="lead">Every mineral: cross-section (left) and outside (right). Built from the live data tables.</p>
+<table class="counts" id="counts"></table>
+<div id="root"></div>
+<script type="module" src="./rocks-preview.ts"></script>
+</body>
+</html>

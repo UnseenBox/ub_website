@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UI Icon Preview</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #f6efe2; color: #3b2616;
+        font: 400 14px/1.4 "Rye", Georgia, serif; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      .card { background: #ffffff; border: 2px solid #e2d4b8; border-radius: 12px;
+        padding: 10px; margin-bottom: 12px; }
+      .row { display: flex; flex-wrap: wrap; gap: 12px; }
+      .panel { border-radius: 10px; padding: 8px; display: flex; align-items: flex-end; gap: 10px; }
+      .panel.light { background: #fff3dc; }
+      .panel.dark { background: #3b2616; }
+      .panel.sky { background: #7fcfff; }
+      .panel canvas { display: block; image-rendering: auto; }
+      .name { font-size: 15px; margin: 8px 0 6px; color: #3b2616; }
+    </style>
+  </head>
+  <body>
+    <h1>UI Icon Preview</h1>
+    <div id="root"></div>
+    <script type="module" src="/dev/icons-preview.ts"></script>
+  </body>
+</html>

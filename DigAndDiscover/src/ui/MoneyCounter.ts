@@ -14,12 +14,18 @@ export class MoneyCounter extends Phaser.GameObjects.Container {
   private countTween: Phaser.Tweens.Tween | null = null;
   private h = 44;
   private drawnWidth = 0;
+  /** Widest the whole pill may get, in pixels. */
+  maxWidth = Infinity;
+  private fit = 1;
+  /** Texture pixel width of the coin in use (painted 52, or the supplied PNG). */
+  private readonly coinBase: number;
 
   constructor(scene: Phaser.Scene, initial: number) {
     super(scene, 0, 0);
     this.counter.value = initial;
     this.bg = scene.add.graphics();
     this.coin = scene.add.image(0, 0, 'coin');
+    this.coinBase = Math.max(1, this.coin.width);
     this.text = scene.add.text(0, 0, formatMoney(initial), outlinedStyle(22, PALETTE.money)).setOrigin(0, 0.5);
     this.add([this.bg, this.coin, this.text]);
     scene.add.existing(this);
@@ -28,10 +34,15 @@ export class MoneyCounter extends Phaser.GameObjects.Container {
   layout(x: number, y: number, h: number): void {
     this.h = h;
     this.setPosition(x, y);
-    this.coin.setScale((h * 0.9) / 52).setPosition(h * 0.5, 0);
-    this.text.setFontSize(Math.round(h * 0.52)).setPosition(h * 0.98, -1);
+    this.coin.setScale((h * 1.55) / this.coinBase).setPosition(h * 0.62, 0); // the coin is the star of the pill: bigger than the pill itself
+    this.text.setFontSize(Math.round(h * 0.56)).setPosition(h * 1.5, -1);
     this.drawnWidth = 0;
     this.redrawBg();
+  }
+
+  /** Right edge of the pill in screen space; it grows with the amount. */
+  get rightEdge(): number {
+    return this.x + this.drawnWidth;
   }
 
   /** Screen position where flying coins should land. */
@@ -55,12 +66,16 @@ export class MoneyCounter extends Phaser.GameObjects.Container {
   }
 
   pulse(): void {
-    this.scene.tweens.add({ targets: this.coin, scale: { from: (this.h * 1.15) / 52, to: (this.h * 0.9) / 52 }, duration: 160 });
-    this.scene.tweens.add({ targets: this.text, scale: { from: 1.12, to: 1 }, duration: 160 });
+    this.scene.tweens.add({ targets: this.coin, scale: { from: (this.h * 1.85) / this.coinBase, to: (this.h * 1.55) / this.coinBase }, duration: 160 });
+    this.scene.tweens.add({ targets: this.text, scale: { from: 1.12 * this.fit, to: this.fit }, duration: 160 });
   }
 
   private redrawBg(): void {
-    const w = Math.max(this.h * 3, this.text.x + this.text.width + this.h * 0.4);
+    // A huge amount shrinks to fit the room it is given instead of running under its neighbours.
+    const room = this.maxWidth - this.text.x - this.h * 0.4;
+    this.fit = this.text.width > 0 ? Math.min(1, Math.max(0.5, room / this.text.width)) : 1;
+    this.text.setScale(this.fit);
+    const w = Math.max(this.h * 3, this.text.x + this.text.displayWidth + this.h * 0.4);
     if (Math.abs(w - this.drawnWidth) < 1) return;
     this.drawnWidth = w;
     const h = this.h;

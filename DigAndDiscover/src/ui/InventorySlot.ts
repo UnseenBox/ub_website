@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
+import { GAME_CONFIG } from '../config/GameConfig';
 import { PALETTE, outlinedStyle } from '../config/Theme';
 import { iconScale, rockKeys } from '../art/RockArt';
 import type { Rock } from '../core/types';
+import { state } from '../core/GameState';
 
 export interface SlotDisplay {
   rock: Rock | null;
@@ -105,7 +107,7 @@ export class InventorySlot extends Phaser.GameObjects.Container {
     const keys = rockKeys(rock);
     this.icon
       .setTexture(rock.cut ? keys.inside : keys.outside)
-      .setScale(iconScale(s * 0.74))
+      .setScale(iconScale(s * GAME_CONFIG.rock.inventoryScale))
       .setPosition(0, rock.cut ? -s * 0.06 : 0)
       .setAlpha(onBench ? 0.45 : 1)
       .setVisible(!incoming);
@@ -120,15 +122,9 @@ export class InventorySlot extends Phaser.GameObjects.Container {
       });
     }
 
-    this.badge.setVisible(!rock.cut && !incoming && !onBench).setPosition(s * 0.3, -s * 0.3);
-    if (onBench) {
-      this.tag.setText('ON BENCH').setColor(PALETTE.goldText).setPosition(0, s * 0.34).setVisible(true);
-    } else if (rock.cut) {
-      this.tag.setText(rock.rarity.label.toUpperCase()).setColor('#ffffff').setPosition(0, s * 0.34).setVisible(true);
-      this.tag.setStroke(rock.rarity.css, Math.max(3, Math.round(s * 0.05)));
-    } else {
-      this.tag.setVisible(false);
-    }
-    if (!onBench && !rock.cut) this.tag.setStroke(PALETTE.ink, 3);
+    // A Deep Scanner colours the "?" with the rock's rarity.
+    const hint = state.showsRarity ? `#${rock.rarity.color.toString(16).padStart(6, '0')}` : PALETTE.goldText;
+    this.badge.setColor(hint).setVisible(!rock.cut && !incoming && !onBench).setPosition(s * 0.3, -s * 0.3);
+    this.tag.setVisible(false); // no words on the slots: the frame colour says the rarity
   }
 }

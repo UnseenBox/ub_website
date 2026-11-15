@@ -1,5 +1,5 @@
 /**
- * Game sound effects. Thirteen cues play MP3 samples from `./samples`; the
+ * Game sound effects. Fourteen cues play MP3 samples from `./samples`; the
  * rest (clock stings, the workshop bench thud) are still synthesized with
  * Web Audio. Background music loops from `./samples/music.mp3`. Everything is
  * a silent no-op when audio is muted, unsupported, or still locked by the
@@ -20,13 +20,14 @@ const SAMPLE_URLS = {
   coin: new URL('./samples/coin.mp3', import.meta.url).href,
   denied: new URL('./samples/denied.mp3', import.meta.url).href,
   exhausted: new URL('./samples/exhausted.mp3', import.meta.url).href,
-  layerEnter: new URL('./samples/layer-enter.mp3', import.meta.url).href,
+  layerEnter: new URL('./samples/soil-level-up.mp3', import.meta.url).href,
   collect: new URL('./samples/money-collect.mp3', import.meta.url).href,
   rockFound: new URL('./samples/rock-found.mp3', import.meta.url).href,
   saw: new URL('./samples/saw.mp3', import.meta.url).href,
   sell: new URL('./samples/sell.mp3', import.meta.url).href,
   toolHit: new URL('./samples/tool-hit.mp3', import.meta.url).href,
   reveal: new URL('./samples/reveal.mp3', import.meta.url).href,
+  rockUnder15: new URL('./samples/rock-under-15.mp3', import.meta.url).href,
   music: new URL('./samples/music.mp3', import.meta.url).href,
 } as const;
 
@@ -46,6 +47,7 @@ const SAMPLE_GAIN: Record<SampleKey, number> = {
   sell: 0.6,
   toolHit: 0.8,
   reveal: 0.6,
+  rockUnder15: 0.6,
   // Unused through play(); the background loop mixes itself via MUSIC_GAIN.
   music: 1,
 };
@@ -109,6 +111,7 @@ class SoundFx {
   private digVoice: AudioBufferSourceNode | null = null;
   private rockVoice: AudioBufferSourceNode | null = null;
   private revealVoice: AudioBufferSourceNode | null = null;
+  private rockUnderVoice: AudioBufferSourceNode | null = null;
   private tiredVoice: AudioBufferSourceNode | null = null;
   private deniedVoice: AudioBufferSourceNode | null = null;
   private coinVoices: AudioBufferSourceNode[] = [];
@@ -371,6 +374,28 @@ class SoundFx {
     this.play('collect');
   }
 
+  /** The big "what was THAT?!" moment: a wobbly rising arpeggio that grows with the tier. */
+  surprise(tier: number): void {
+    this.tone({ f: 330, f2: 392, type: 'square', dur: 0.1, vol: 0.14, at: 0 });
+    this.tone({ f: 523, f2: 466, type: 'square', dur: 0.1, vol: 0.14, at: 0.09 });
+    this.tone({ f: 659, type: 'triangle', dur: 0.14, vol: 0.2, at: 0.18 });
+    if (tier >= 2) this.tone({ f: 880, type: 'triangle', dur: 0.2, vol: 0.2, at: 0.3 });
+    if (tier >= 3) this.tone({ f: 1175, type: 'triangle', dur: 0.3, vol: 0.22, at: 0.42 });
+    if (tier >= 4) {
+      this.tone({ f: 1568, type: 'sine', dur: 0.5, vol: 0.24, at: 0.55 });
+      this.tone({ f: 784, f2: 1568, type: 'sine', dur: 0.6, vol: 0.18, at: 0.3 });
+    }
+  }
+
+  /** A short buzz on phones. */
+  haptic(pattern: number | number[]): void {
+    try {
+      navigator.vibrate?.(pattern);
+    } catch {
+      /* not supported */
+    }
+  }
+
   place(): void {
     this.tone({ f: 140, f2: 70, dur: 0.14, vol: 0.4 });
     this.noise({ dur: 0.09, vol: 0.2, filter: 'lowpass', f: 700 });
@@ -417,14 +442,15 @@ class SoundFx {
     };
   }
 
-  reveal(_tier: number, dud: boolean): void {
-    if (dud) {
-      this.tone({ f: 392, f2: 370, type: 'triangle', dur: 0.22, vol: 0.18 });
-      this.tone({ f: 311, f2: 260, type: 'triangle', dur: 0.4, vol: 0.18, at: 0.2 });
+  reveal(_tier: number, value: number): void {
+    // A weak take (Ordinary Stone, most honey calcite, cheap quartz) gets the
+    // "under $15" sting instead of the reveal piece; the dud flag used to be
+    // the test, value is finer. Tier still drives flash/rays/confetti.
+    if (value < 15) {
+      this.stopVoice(this.rockUnderVoice);
+      this.rockUnderVoice = this.play('rockUnder15');
       return;
     }
-    // The reveal piece carries the moment for every non-dud cut; tier still
-    // drives the flash, shake, rays, burst and confetti on the workshop side.
     this.stopVoice(this.revealVoice);
     this.revealVoice = this.play('reveal', { gain: SAMPLE_GAIN.reveal });
   }

@@ -6,11 +6,18 @@ import { intRange, range } from '../core/Random';
 import type { Rock } from '../core/types';
 import { ART_RES, ensureRockTextures, rockKeys } from '../art/RockArt';
 import { paintStrata } from '../art/StrataArt';
-import { paintHome } from '../art/SurfaceArt';
+import { paintHome, paintMine } from '../art/SurfaceArt';
+import {
+  CLOUDS, RIDGE_FAR, RIDGE_MID, RIDGE_NEAR, RIDGE_W, SKY, SUN_DISC, SUN_RAYS, createScenicTextures,
+} from '../art/ScenicArt';
 import { HOLE_RADIUS, HOLE_VARIANTS, SHOVEL } from '../art/TextureFactory';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
+import { ensureFindTexture } from '../art/FindArt';
+import { uiIcon } from '../art/UiIcons';
+import { depositTint } from '../data/deposits';
+import { CATEGORY_STYLE, type FindDef } from '../data/finds';
 import { computeLayout, type Layout } from '../ui/layout';
 
 const WORLD = GAME_CONFIG.world;
@@ -27,7 +34,15 @@ const WHEEL_GAIN = 1.5;
 /** Arrow keys: screen pixels scrolled per second. */
 const KEY_SCROLL_SPEED = 760;
 /** A touch that drags further than this (screen px) scrolls the view instead of digging. */
-const TOUCH_PAN_THRESHOLD = 22;
+const TOUCH_PAN_THRESHOLD = 10;
+/** A touch shorter than this that did not drag is a tap: it digs once, on release. */
+const TAP_MAX_MS = 280;
+/** A finger held still this long starts digging continuously (until it lifts or drags). */
+const HOLD_START_MS = 140;
+/** Scrolling keeps gliding after the finger lifts, faster than this (px per ms), fading out. */
+const FLING_MIN = 0.06;
+const FLING_MAX = 2.4;
+const FLING_DECAY_MS = 340;
 /** Ground must be this far (field units) below the top of the view to count as diggable: leaves room for the shovel. */
 const FLOOR_TOP_PAD = 70;
 /** Mouse shovel: how quickly it catches up with the cursor (ms time constant; lower = tighter). */
@@ -36,8 +51,12 @@ const SHOVEL_FOLLOW_MS = 35;
 const SHOVEL_HOVER_MIN = 14;
 const SHOVEL_HOVER_MAX = 130;
 const SHOVEL_REST_ANGLE = 18;
-const MISS_MESSAGES = ['Aim at the floor of your hole!', 'Tip: the mouse wheel scrolls the view'];
-const MISS_MESSAGES_TOUCH = ['Aim at the floor of your hole!', 'Tip: drag to scroll the view'];
+/** A find texture is 160px; this display size is about 70 field units across. */
+const FIND_SIZE = 70;
+/** Junk is a little smaller on screen. */
+const JUNK_SIZE = 56;
+/** Find textures are painted at this many pixels (see ensureFindTexture). */
+const FIND_TEXTURE = 160;
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -68,8 +87,12 @@ function skyTint(p: number): number {
   return SKY_STOPS[SKY_STOPS.length - 1][1];
 }
 
+/** A pocket in the shaft wall holding a rock - or, now and then, a find. */
 interface EmbeddedRock {
-  rock: Rock;
+  rock: Rock | null;
+  find: FindDef | null;
+  /** The bobbing "?" over a find that is still a mystery. */
+  mark: Phaser.GameObjects.Text | null;
   sprite: Phaser.GameObjects.Image;
   x: number;
   y: number;
@@ -90,6 +113,10 @@ export class DigScene extends Phaser.Scene {
   private L!: Layout;
   private sky!: Phaser.GameObjects.Image;
   private sun!: Phaser.GameObjects.Image;
+  private sunRays!: Phaser.GameObjects.Image;
+  private ridgeFar!: Phaser.GameObjects.Image;
+  private ridgeMid!: Phaser.GameObjects.Image;
+  private ridgeNear!: Phaser.GameObjects.Image;
   private clouds: Phaser.GameObjects.Image[] = [];
   private wrap!: Phaser.GameObjects.Container;
   private root!: Phaser.GameObjects.Container;
@@ -103,7 +130,7 @@ export class DigScene extends Phaser.Scene {
   private swingEndsAt = 0;
   private pips!: Phaser.GameObjects.Graphics;
   private hint: Phaser.GameObjects.Container | null = null;
-  private tiredText!: Phaser.GameObjects.Text;
+  private tiredText!: Phaser.GameObjects.Image;
   private rings: Phaser.GameObjects.Image[] = [];
   private ringIndex = 0;
   private glints: Phaser.GameObjects.Image[] = [];
@@ -117,6 +144,8 @@ export class DigScene extends Phaser.Scene {
   private crystalFx!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private embedded: EmbeddedRock[] = [];
+  private bedrockAnnounced = false;
+  private aimMark!: Phaser.GameObjects.Image;
   private fieldScale = 1;
   private visL = 0;
   private visR: number = W;
@@ -132,13 +161,17 @@ export class DigScene extends Phaser.Scene {
   private holdPointer: Phaser.Input.Pointer | null = null;
   private gesturePointer: Phaser.Input.Pointer | null = null;
   private panning = false;
+  private touchDownAt = 0;
+  private touchHolding = false;
+  private panLastY = 0;
+  private panHistory: Array<{ t: number; y: number }> = [];
+  private flingV = 0;
   private keyUp: Phaser.Input.Keyboard.Key | null = null;
   private keyDown: Phaser.Input.Keyboard.Key | null = null;
   private nextDigAt = 0;
   private lastFullWarning = 0;
   private lastBottomWarning = 0;
   private lastMissWarning = 0;
-  private missCount = 0;
   private lastTouch = false;
   private skyProgress = -1;
 
@@ -155,6 +188,7 @@ export class DigScene extends Phaser.Scene {
 
   create(): void {
     this.embedded = [];
+    this.bedrockAnnounced = false;
     this.clouds = [];
     this.rings = [];
     this.glints = [];
@@ -177,6 +211,7 @@ export class DigScene extends Phaser.Scene {
 
     this.input.on(Phaser.Input.Events.POINTER_DOWN, this.onPointerDown, this);
     this.input.on(Phaser.Input.Events.POINTER_MOVE, this.onPointerMove, this);
+    this.input.on(Phaser.Input.Events.POINTER_UP, this.onPointerUp, this);
     this.input.on(Phaser.Input.Events.POINTER_WHEEL, this.onWheel, this);
     const kb = this.input.keyboard;
     if (kb) {
@@ -193,12 +228,16 @@ export class DigScene extends Phaser.Scene {
       this.events.off(Phaser.Scenes.Events.WAKE, this.onWake, this);
     });
     subscribe(this, EVT.inventoryChanged, () => this.tryReleaseStuckRocks());
+    subscribe(this, EVT.toolChanged, () => this.applyToolLook());
+    subscribe(this, EVT.relocated, () => this.onRelocated());
+    subscribe(this, EVT.runReset, () => this.onRelocated()); // a restarted run: the ground starts over too
     subscribe(this, EVT.layerEntered, () => this.cameras.main.shake(260, 0.004));
     this.cameras.main.fadeIn(250, 30, 20, 12);
   }
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
+    this.sunRays.rotation += dt * 0.00005;
     for (const cloud of this.clouds) {
       cloud.x += cloud.getData('speed') * dt;
       if (cloud.x - cloud.displayWidth / 2 > W + 400) cloud.x = -400 - cloud.displayWidth / 2;
@@ -208,6 +247,17 @@ export class DigScene extends Phaser.Scene {
       else if (this.inPlayArea(this.holdPointer.y)) this.tryDig(this.toFieldX(this.holdPointer.x));
     }
     if (this.panning && !this.gesturePointer?.isDown) this.panning = false;
+    // Touch: a steady press digs while held; a drag scrolls and keeps gliding after release.
+    const gp = this.gesturePointer;
+    if (gp && gp.wasTouch && gp.isDown && !this.panning && state.canWork) {
+      if (!this.touchHolding && this.time.now - this.touchDownAt >= HOLD_START_MS) this.touchHolding = true;
+      if (this.touchHolding && this.inPlayArea(gp.y)) this.tryDig(this.toFieldX(gp.x));
+    }
+    if (this.flingV !== 0) {
+      this.scrollBy(this.flingV * dt, true);
+      this.flingV *= Math.exp(-dt / FLING_DECAY_MS);
+      if (Math.abs(this.flingV) < 0.02) this.flingV = 0;
+    }
     const keyDir = (this.keyDown?.isDown ? 1 : 0) - (this.keyUp?.isDown ? 1 : 0);
     if (keyDir !== 0) this.scrollBy((keyDir * KEY_SCROLL_SPEED * dt) / 1000);
     this.followCursor(dt);
@@ -223,19 +273,26 @@ export class DigScene extends Phaser.Scene {
     makeCanvasTexture(this.textures, 'strata', W, TOTAL_H, (ctx) =>
       paintStrata(ctx, { width: W, height: TOTAL_H, surfaceY: SURFACE, bands: state.dig.bands }),
     );
+    createScenicTextures(this.textures);
     makeCanvasTexture(this.textures, 'home', HOME_W, HOME_H, (ctx, w, h) => paintHome(ctx, w, h));
+    makeCanvasTexture(this.textures, 'mine', HOME_W, HOME_H, (ctx, w, h) => paintMine(ctx, w, h));
 
-    this.sky = this.add.image(-1500, -SKY_HEIGHT, 'sky').setOrigin(0, 0).setDisplaySize(W + 3000, SKY_HEIGHT + SURFACE + 2);
-    this.sun = this.add.image(0, 0, 'soft').setTint(0xfff3b0).setAlpha(0.9).setScale(2.6);
-    for (let i = 0; i < 3; i++) {
-      const cloud = this.add.image(W * (0.1 + i * 0.36), SURFACE - 190 - i * 34, 'cloud').setAlpha(0.9).setScale(1 - i * 0.16);
-      cloud.setData('speed', 0.006 + i * 0.004);
+    this.sky = this.add.image(-1500, -SKY_HEIGHT, SKY).setOrigin(0, 0).setDisplaySize(W + 3000, SKY_HEIGHT + SURFACE + 2);
+    this.sunRays = this.add.image(0, 0, SUN_RAYS).setAlpha(0.5).setScale(1.5);
+    this.sun = this.add.image(0, 0, SUN_DISC).setScale(1.55);
+    for (let i = 0; i < 4; i++) {
+      const cloud = this.add.image(W * (0.06 + i * 0.28), SURFACE - 230 - (i % 2) * 70 - i * 12, CLOUDS[i % CLOUDS.length]);
+      cloud.setAlpha(0.96).setScale(1.15 - i * 0.1);
+      cloud.setData('speed', 0.005 + i * 0.0035);
       this.clouds.push(cloud);
     }
-    const hills = this.add.graphics();
-    hills.fillStyle(0x9dd37a).fillEllipse(W * 0.15, SURFACE + 20, W * 0.7, 150);
-    hills.fillStyle(0x86c463).fillEllipse(W * 0.78, SURFACE + 24, W * 0.85, 170);
-    const home = this.add.image(W / 2 - 320, SURFACE + 4, 'home').setOrigin(0.5, 1).setScale(0.8);
+    // Three ridges, far to near, like cut-paper stage flats; the far ones drift slower as the view scrolls.
+    const ridgeX = -(RIDGE_W - W) / 2;
+    this.ridgeFar = this.add.image(ridgeX, SURFACE + 8, RIDGE_FAR).setOrigin(0, 1);
+    this.ridgeMid = this.add.image(ridgeX, SURFACE + 12, RIDGE_MID).setOrigin(0, 1);
+    this.ridgeNear = this.add.image(ridgeX, SURFACE + 18, RIDGE_NEAR).setOrigin(0, 1);
+    const home = this.add.image(W / 2 - 215, SURFACE + 6, 'home').setOrigin(0.5, 1).setScale(0.8);
+    const mine = this.add.image(W / 2 + 215, SURFACE + 6, 'mine').setOrigin(0.5, 1).setScale(0.8);
 
     // The back wall of the shaft: the same strata, darkened. Cropped so the grass is not repeated.
     const under = this.add.image(0, 0, 'strata').setOrigin(0, 0).setTint(0x5d5a6c);
@@ -243,12 +300,14 @@ export class DigScene extends Phaser.Scene {
     this.rockLayer = this.add.container(0, 0);
     this.soil = this.add.renderTexture(0, 0, W, TOTAL_H).setOrigin(0, 0);
     this.soil.draw('strata', 0, 0);
+    // Each deposit has its own colour wash.
+    this.soil.setTint(depositTint(state.progress.deposit));
     this.popLayer = this.add.container(0, 0);
 
     this.wrap = this.add.container(0, 0);
     this.root = this.add.container(-W / 2, 0);
     this.wrap.add(this.root);
-    this.root.add([this.sky, this.sun, ...this.clouds, hills, home, under, this.rockLayer, this.soil, this.popLayer]);
+    this.root.add([this.sky, this.sunRays, this.sun, ...this.clouds, this.ridgeFar, this.ridgeMid, this.ridgeNear, home, mine, under, this.rockLayer, this.soil, this.popLayer]);
     this.stamp = this.make.image({ key: 'hole0', add: false });
   }
 
@@ -313,7 +372,7 @@ export class DigScene extends Phaser.Scene {
     for (let i = 0; i < 3; i++) this.rings.push(this.add.image(0, 0, 'ring').setVisible(false).setTint(0xfff0d0));
     for (let i = 0; i < 4; i++) this.glints.push(this.add.image(0, 0, 'star').setVisible(false).setBlendMode(Phaser.BlendModes.ADD));
     this.pips = this.add.graphics().setAlpha(0);
-    this.tiredText = this.add.text(0, 0, 'Too tired! Rest a moment', outlinedStyle(26)).setOrigin(0.5).setVisible(false);
+    this.tiredText = this.add.image(0, 0, uiIcon('zzz')).setDisplaySize(64, 64).setVisible(false);
     this.popLayer.add([
       ...this.rings, ...this.dustFx, ...this.dirtFx, this.pebbleFx, this.sparkleFx, this.crystalFx, ...this.glints, this.pips,
     ]);
@@ -323,9 +382,26 @@ export class DigScene extends Phaser.Scene {
     const tool = state.tool;
     this.shovel = this.add.image(0, 0, tool.textureKey).setOrigin(0.5, SHOVEL.tipY / SHOVEL.height).setScale(SHOVEL_SCALE);
     this.rig = this.add.container(W / 2 + 60, SURFACE - 70, [this.shovel]).setAngle(14);
-    this.popLayer.add([this.rig, this.tiredText]);
+    // A soft shadow on the ground where the next swing will land.
+    this.aimMark = this.add.image(0, 0, 'soft').setTint(0x1a0f08).setScale(0.95, 0.24).setAlpha(0);
+    this.popLayer.add([this.aimMark, this.rig, this.tiredText]);
+    this.applyToolLook();
     // Gentle idle sway on the inner image so swings (on the rig) never fight it.
     this.tweens.add({ targets: this.shovel, angle: { from: -2.5, to: 2.5 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  /** A fresh deposit: fade out, rebuild the ground from scratch, fade back in. */
+  private onRelocated(): void {
+    const cam = this.cameras.main;
+    cam.fadeOut(380, 20, 12, 8);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart());
+  }
+
+  /** Better tools wash the shovel sprite with their colour (until they get their own art). */
+  private applyToolLook(): void {
+    const tint = state.tool.tint;
+    if (tint) this.shovel.setTint(tint);
+    else this.shovel.clearTint();
   }
 
   /** Small depth labels where each new layer begins, written into the dirt. */
@@ -334,7 +410,7 @@ export class DigScene extends Phaser.Scene {
       if (band.index === 0) continue;
       const meters = (band.top - SURFACE) / WORLD.unitsPerMeter;
       const label = this.add
-        .text(W / 2, band.top + 30, `${band.layer.name}  -  ${meters.toFixed(1)} m`, outlinedStyle(22, '#fff3dc'))
+        .text(W / 2, band.top + 30, `${Math.round(meters)} m`, outlinedStyle(22, '#fff3dc'))
         .setOrigin(0.5)
         .setAlpha(0.8);
       this.popLayer.add(label);
@@ -342,11 +418,10 @@ export class DigScene extends Phaser.Scene {
   }
 
   private buildHint(): void {
-    const text = this.add.text(0, 0, 'Tap to dig!', outlinedStyle(38)).setOrigin(0.5, 1);
     const arrow = this.add.graphics();
     arrow.fillStyle(0x3b2616).fillTriangle(-17, 4, 17, 4, 0, 30);
     arrow.fillStyle(0xffffff).fillTriangle(-12, 6, 12, 6, 0, 24);
-    this.hint = this.add.container(W / 2, SURFACE - 38, [text, arrow]);
+    this.hint = this.add.container(W / 2, SURFACE - 38, [arrow]);
     this.popLayer.add(this.hint);
     this.tweens.add({ targets: this.hint, y: this.hint.y - 12, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
@@ -448,7 +523,7 @@ export class DigScene extends Phaser.Scene {
 
   private buildReturnChip(): void {
     this.chipBg = this.add.graphics();
-    this.chipText = this.add.text(12, 0, 'Back to the hole', outlinedStyle(16, '#fff6e6')).setOrigin(0.5);
+    this.chipText = this.add.text(12, 0, '', outlinedStyle(16, '#fff6e6')).setOrigin(0.5);
     this.chip = this.add.container(0, 0, [this.chipBg, this.chipText]).setDepth(30).setVisible(false);
   }
 
@@ -468,7 +543,7 @@ export class DigScene extends Phaser.Scene {
     if (dir === 0) return;
     const L = this.L;
     const h = L.compact ? 30 : 34;
-    const w = this.chipText.width + 62;
+    const w = 58; // just an arrow, no words
     const x = L.w / 2;
     const y = dir < 0 ? L.play.y + 70 : L.play.y + L.play.h - 30;
     this.chip.setPosition(x, y);
@@ -477,7 +552,7 @@ export class DigScene extends Phaser.Scene {
     g.fillStyle(0x000000, 0.25).fillRoundedRect(-w / 2, -h / 2 + 3, w, h, h / 2);
     g.fillStyle(PALETTE.tray, 0.94).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
     g.lineStyle(2, PALETTE.gold, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-    const ax = -w / 2 + 22;
+    const ax = 0;
     g.fillStyle(0xffd23f);
     if (dir < 0) g.fillTriangle(ax - 8, 5, ax + 8, 5, ax, -7);
     else g.fillTriangle(ax - 8, -5, ax + 8, -5, ax, 7);
@@ -491,14 +566,24 @@ export class DigScene extends Phaser.Scene {
   private applyScroll(): void {
     // Snap to whole screen pixels so the terrain never shimmers while scrolling.
     this.root.y = -Math.round(this.scrollY * this.fieldScale) / this.fieldScale;
+    // Parallax: the distant ridges lag behind the ground as the view scrolls.
+    this.ridgeFar.y = SURFACE + 8 + this.scrollY * 0.5;
+    this.ridgeMid.y = SURFACE + 12 + this.scrollY * 0.25;
   }
 
   private applyTimeOfDay(p: number): void {
     this.skyProgress = p;
-    this.sky.setTint(skyTint(p));
-    this.sun
-      .setPosition(Phaser.Math.Linear(W * 0.12, W * 0.88, p), SURFACE - 80 - Math.sin(Math.PI * p) * 130)
-      .setTint(mixColor(0xfff3b0, 0xffa94d, Math.max(0, (p - 0.6) / 0.4)));
+    const tint = skyTint(p);
+    this.sky.setTint(tint);
+    const sunColor = mixColor(0xfff3b0, 0xffa94d, Math.max(0, (p - 0.6) / 0.4));
+    const sx = Phaser.Math.Linear(W * 0.12, W * 0.88, p);
+    const sy = SURFACE - 90 - Math.sin(Math.PI * p) * 150;
+    this.sun.setPosition(sx, sy).setTint(sunColor);
+    this.sunRays.setPosition(sx, sy).setTint(sunColor);
+    // The mountains and hills take the light too, the far ones most.
+    this.ridgeFar.setTint(mixColor(0xffffff, tint, 0.8));
+    this.ridgeMid.setTint(mixColor(0xffffff, tint, 0.55));
+    this.ridgeNear.setTint(mixColor(0xffffff, tint, 0.3));
   }
 
   private toFieldX(sx: number): number {
@@ -518,6 +603,20 @@ export class DigScene extends Phaser.Scene {
       this.returnToHole();
       return;
     }
+    this.flingV = 0;
+    if (pointer.wasTouch) {
+      // Touch: a press only starts a gesture. A quick tap digs on release, a steady press digs
+      // while held, and a drag scrolls - so scrolling never swings the shovel by accident.
+      if (this.gesturePointer?.isDown && this.gesturePointer !== pointer) return; // one finger at a time
+      this.gesturePointer = pointer;
+      this.panning = false;
+      this.touchHolding = false;
+      this.holdPointer = null;
+      this.touchDownAt = this.time.now;
+      this.panLastY = pointer.y;
+      this.panHistory = [];
+      return;
+    }
     this.gesturePointer = pointer;
     this.panning = false;
     this.holdPointer = pointer;
@@ -530,6 +629,25 @@ export class DigScene extends Phaser.Scene {
     // Mouse: the shovel follows the cursor every frame (see followCursor).
   }
 
+  private onPointerUp(pointer: Phaser.Input.Pointer): void {
+    if (!pointer.wasTouch || pointer !== this.gesturePointer) return;
+    const quick = this.time.now - this.touchDownAt < TAP_MAX_MS;
+    if (!this.panning && !this.touchHolding && quick) this.tryDig(this.toFieldX(pointer.x));
+    // Let a fast flick keep gliding. Speed comes from the last ~110 ms of the drag, never from one frame.
+    if (this.panning) {
+      const h = this.panHistory;
+      const first = h[0];
+      const last = h[h.length - 1];
+      const span = first && last ? last.t - first.t : 0;
+      if (span >= 30 && this.time.now - last.t < 90) {
+        const v = (first.y - last.y) / span;
+        if (Math.abs(v) > FLING_MIN) this.flingV = clamp(v, -FLING_MAX, FLING_MAX);
+      }
+    }
+    this.panning = false;
+    this.touchHolding = false;
+  }
+
   /**
    * With a mouse, the shovel's tip is glued to the cursor: it tracks the pointer
    * (smoothly, ~35 ms behind), leans into the direction of travel, and never goes
@@ -537,13 +655,24 @@ export class DigScene extends Phaser.Scene {
    * view or hold the button; only a swing in progress takes it over.
    */
   private followCursor(dt: number): void {
-    if (this.lastTouch || !state.canWork || this.time.now < this.swingEndsAt) return;
-    const pointer = this.input.activePointer;
+    if (!state.canWork || this.time.now < this.swingEndsAt) {
+      this.aimMark.setAlpha(0);
+      return;
+    }
+    // Touch: the shovel follows the finger sideways while it rests on the screen, and stays
+    // put (no tug-of-war) while the view scrolls. Mouse: it follows the cursor.
+    const touch = this.lastTouch;
+    const gp = this.gesturePointer;
+    if (touch && (!gp || !gp.isDown || this.panning)) {
+      this.aimMark.setAlpha(0);
+      return;
+    }
+    const pointer = touch && gp ? gp : this.input.activePointer;
     if (!this.inPlayArea(pointer.y)) return;
     const x = this.aim(this.toFieldX(pointer.x));
     if (x === null) return; // over the bare wall: stay where we are
     const floorY = state.dig.floorAt(x);
-    const cursorY = pointer.y / this.fieldScale + this.scrollY;
+    const cursorY = touch ? floorY - 70 : pointer.y / this.fieldScale + this.scrollY;
     // Tip at the cursor, but resting just above the ground and not floating too high.
     const targetY = clamp(cursorY, floorY - SHOVEL_HOVER_MAX, floorY - SHOVEL_HOVER_MIN);
     const k = 1 - Math.exp(-dt / SHOVEL_FOLLOW_MS);
@@ -551,18 +680,27 @@ export class DigScene extends Phaser.Scene {
     this.rig.x += dx;
     this.rig.y += (targetY - this.rig.y) * k;
     this.lastX = x;
+    this.aimMark.setPosition(x, floorY + 3).setAlpha(0.3);
     const lean = clamp(dx * 2.2, -14, 14);
     this.rig.angle += (SHOVEL_REST_ANGLE + lean - this.rig.angle) * k;
   }
 
   /** Dragging a finger scrolls the view: 1:1 with the finger, and it cancels the dig that touch started. */
   private touchPan(pointer: Phaser.Input.Pointer): void {
-    if (!pointer.isDown || pointer !== this.gesturePointer) return;
+    if (!pointer.isDown || pointer !== this.gesturePointer || this.touchHolding) return;
     if (!this.panning && Math.abs(pointer.y - pointer.downY) > TOUCH_PAN_THRESHOLD) {
       this.panning = true;
       this.holdPointer = null;
+      this.panLastY = pointer.y; // the view follows the finger from here, no jump
+      this.panHistory = [];
     }
-    if (this.panning) this.scrollBy(pointer.prevPosition.y - pointer.y, true);
+    if (!this.panning) return;
+    const now = this.time.now;
+    const dy = this.panLastY - pointer.y;
+    this.panLastY = pointer.y;
+    this.panHistory.push({ t: now, y: pointer.y });
+    while (this.panHistory.length > 2 && now - this.panHistory[0].t > 110) this.panHistory.shift();
+    this.scrollBy(dy, true);
   }
 
   private onWheel(pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number): void {
@@ -586,18 +724,23 @@ export class DigScene extends Phaser.Scene {
   /** A tap landed where there is nothing to dig (the wall of the shaft, ground that is out of view). */
   private missedAim(): void {
     const now = this.time.now;
-    if (now - this.lastMissWarning < 2500) return;
+    if (now - this.lastMissWarning < 900) return;
     this.lastMissWarning = now;
-    const messages = this.lastTouch ? MISS_MESSAGES_TOUCH : MISS_MESSAGES;
-    state.bus.emit(EVT.toast, messages[this.missCount++ % messages.length]);
-    sfx.denied();
+    sfx.denied(); // no sentence: the shovel simply does not bite
+  }
+
+  /** Touch is imprecise: a tap beside the hole still digs the hole, as long as its floor is on screen. */
+  private fallbackAim(): number | null {
+    if (!this.lastTouch) return null;
+    const x = clamp(this.lastX, this.visL, this.visR);
+    return this.floorInView(state.dig.floorAt(x)) ? x : null;
   }
 
   private tryDig(tapX: number): void {
     if (!state.canWork) return;
     const now = this.time.now;
     if (now < this.nextDigAt) return;
-    const x = this.aim(tapX);
+    const x = this.aim(tapX) ?? this.fallbackAim();
     if (x === null) {
       this.nextDigAt = now + 350;
       this.missedAim();
@@ -608,7 +751,7 @@ export class DigScene extends Phaser.Scene {
       this.nextDigAt = now + 500;
       if (now - this.lastBottomWarning > 2500) {
         this.lastBottomWarning = now;
-        state.bus.emit(EVT.toast, 'Solid bedrock! This deposit goes no deeper (for now).');
+        state.bus.emit(EVT.bedrock);
       }
       return;
     }
@@ -657,14 +800,20 @@ export class DigScene extends Phaser.Scene {
     if (res.dug) {
       this.paintCrater(res.cx, res.cy, res.rx, res.ry);
       this.followFloor(state.dig.floorAt(x));
-      const chunks = Math.max(3, Math.round(feel.chunks * (0.55 + 0.45 * res.efficiency)));
+      const lite = this.sys.game.device.input.touch ? 0.65 : 1; // phones: fewer particles
+      const chunks = Math.max(3, Math.round(feel.chunks * (0.55 + 0.45 * res.efficiency) * lite));
       this.dirtFx[res.layerIndex].explode(chunks, x, y);
       this.dustFx[res.layerIndex].explode(3, x, y - 6);
       if (Math.random() < GAME_CONFIG.dig.pebbleChance * (0.6 + feel.clang)) this.pebbleFx.explode(1, x, y);
       if (feel.sparks > 0 && Math.random() < 0.7) this.crystalFx.explode(feel.sparks, x, y - 4);
     }
     this.ring(x, y);
-    this.cameras.main.shake(100, feel.shake);
+    // The swing that reaches bedrock: offer a new deposit once the dust settles.
+    if (!this.bedrockAnnounced && state.dig.atBottom) {
+      this.bedrockAnnounced = true;
+      this.time.delayedCall(900, () => state.bus.emit(EVT.bedrock));
+    }
+    this.cameras.main.shake(100, feel.shake * (this.sys.game.device.input.touch ? 0.6 : 1));
     this.dismissHint();
 
     if (target && direct) {
@@ -672,7 +821,10 @@ export class DigScene extends Phaser.Scene {
     } else if (this.embedded.length >= GAME_CONFIG.dig.maxEmbeddedRocks) {
       state.discovery.skip();
     } else if (res.dug && state.discovery.roll(res.layer, Math.random)) {
-      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits);
+      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, (res.layer.discovery.valueMult ?? 1) * state.depositValueMult, res.layerIndex);
+    } else if (res.dug) {
+      const def = state.finds.roll(res.layerIndex, Math.random, (id) => state.findsInv.collectionCount(id) > 0);
+      if (def) this.embedFind(res.cx, def);
     }
   }
 
@@ -709,18 +861,21 @@ export class DigScene extends Phaser.Scene {
     nearX: number,
     rarityWeights: readonly number[],
     freeHits: { min: number; max: number },
+    valueMult = 1,
+    layerIndex = 0,
   ): void {
-    const rock = generateRock(Math.random, rarityWeights);
+    const rock = generateRock(Math.random, rarityWeights, valueMult, layerIndex);
     ensureRockTextures(this.textures, rock);
-    const r = GAME_CONFIG.rock.baseRadius * rock.size;
+    const k = GAME_CONFIG.rock.discoveryScale;
+    const r = GAME_CONFIG.rock.baseRadius * rock.size * k;
     const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
     const y = state.dig.floorAt(x) + r * GAME_CONFIG.dig.rockSinkFactor;
     const sprite = this.add.image(x, y + 24, rockKeys(rock).outside).setScale(0).setAngle(range(Math.random, -20, 20));
     this.rockLayer.add(sprite);
     const maxHp = intRange(Math.random, freeHits.min, freeHits.max);
-    const b: EmbeddedRock = { rock, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    const b: EmbeddedRock = { rock, find: null, mark: null, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
     this.embedded.push(b);
-    this.tweens.add({ targets: sprite, y, scale: 1 / ART_RES, duration: 280, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: sprite, y, scale: k / ART_RES, duration: 280, ease: 'Back.easeOut' });
     // Open a pocket around its top so the find is clearly visible, never just a sliver.
     this.paintCrater(x, y - r * 0.3, r * 0.8, r * 0.62);
     sfx.collect();
@@ -745,11 +900,11 @@ export class DigScene extends Phaser.Scene {
     this.tweens.add({ targets: b.sprite, angle: b.sprite.angle + Phaser.Math.Between(-9, 9), duration: 90, yoyo: true, ease: 'Sine.easeOut' });
     this.showPips(b);
     if (b.hp > 0.001) return;
-    if (state.inventory.isFull) {
+    if (b.rock && state.inventory.isFull) {
       b.hp = 0.01;
       if (this.time.now - this.lastFullWarning > 2500) {
         this.lastFullWarning = this.time.now;
-        state.bus.emit(EVT.toast, 'Bag full! Visit the workshop.');
+        sfx.denied();
       }
       return;
     }
@@ -789,7 +944,12 @@ export class DigScene extends Phaser.Scene {
   }
 
   private unearth(b: EmbeddedRock): void {
+    if (b.find) {
+      this.unearthFind(b);
+      return;
+    }
     const { rock, sprite } = b;
+    if (!rock) return;
     // Take it off the list first: adding to the bag fires inventoryChanged, which looks for stuck rocks.
     this.embedded = this.embedded.filter((o) => o !== b);
     if (state.inventory.add(rock) < 0) {
@@ -812,7 +972,7 @@ export class DigScene extends Phaser.Scene {
     // Pop out: squash, leap, land, then hand off to the HUD's flight to the bag.
     this.rockLayer.remove(sprite);
     this.popLayer.addAt(sprite, 0);
-    const base = 1 / ART_RES;
+    const base = GAME_CONFIG.rock.discoveryScale / ART_RES;
     const landY = b.y - b.r * 0.2;
     this.tweens.killTweensOf(sprite);
     this.tweens.chain({
@@ -831,6 +991,124 @@ export class DigScene extends Phaser.Scene {
       this.tweens.killTweensOf(sprite);
       sprite.destroy();
       state.endActivity();
+    });
+  }
+
+  /** A buried object: shows up as a dark silhouette with a "?" until it is dug free. */
+  private embedFind(nearX: number, def: FindDef): void {
+    const junk = def.category === 'junk';
+    const size = junk ? JUNK_SIZE : FIND_SIZE;
+    const r = size * 0.7;
+    const scale = size / FIND_TEXTURE;
+    const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
+    const y = state.dig.floorAt(x) + r * GAME_CONFIG.dig.rockSinkFactor;
+    const key = ensureFindTexture(this.textures, def);
+    const sprite = this.add.image(x, y + 24, key).setScale(0).setTintFill(0x120a06).setAngle(range(Math.random, -12, 12));
+    this.rockLayer.add(sprite);
+    const maxHp = junk ? 1 : intRange(Math.random, 1, 2);
+    // The colour of the "?" hints at the kind: gold artifact, teal collection item, grey rubbish.
+    const mark = this.add
+      .text(x, y - r - 30, '?', outlinedStyle(junk ? 30 : 40, CATEGORY_STYLE[def.category].css))
+      .setOrigin(0.5)
+      .setScale(0);
+    this.popLayer.add(mark);
+    const b: EmbeddedRock = { rock: null, find: def, mark, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    this.embedded.push(b);
+    this.tweens.add({ targets: sprite, y, scale, duration: 280, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: mark, scale: 1, duration: 300, delay: 120, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: mark, y: mark.y - 10, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 420 });
+    this.paintCrater(x, y - r * 0.3, r * 0.8, r * 0.62);
+    if (!junk) {
+      sfx.collect();
+      sfx.haptic(12);
+      this.sparkleFx.explode(8, x, y - r * 0.5);
+    }
+    this.showPips(b);
+  }
+
+  /**
+   * A find bursts out of the ground. Artifacts make the biggest fuss, collection items a smaller
+   * one, junk just flops. Nothing here pays money: the HUD card only names what it is, and
+   * artifacts are sold later from the Finds screen.
+   */
+  private unearthFind(b: EmbeddedRock): void {
+    const { find: def, sprite } = b;
+    if (!def) return;
+    this.embedded = this.embedded.filter((o) => o !== b);
+    if (b.mark) {
+      this.tweens.killTweensOf(b.mark);
+      b.mark.destroy();
+    }
+    state.beginActivity();
+    const cat = def.category;
+    const junk = cat === 'junk';
+    const artifact = cat === 'artifact';
+    const tier = def.tier;
+    const base = (junk ? JUNK_SIZE : FIND_SIZE) / FIND_TEXTURE;
+    const layerIndex = state.dig.layerIndexAtY(b.y);
+    this.paintCrater(b.x, b.y - b.r * 0.1, b.r * (junk ? 1.2 : 1.5), b.r * (junk ? 1.05 : 1.3));
+    this.dirtFx[layerIndex].explode(junk ? 14 : 28, b.x, b.y);
+    this.dustFx[layerIndex].explode(junk ? 5 : 9, b.x, b.y - b.r * 0.5);
+    if (!junk) {
+      this.sparkleFx.explode((artifact ? 14 : 8) + tier * (artifact ? 6 : 3), b.x, b.y - b.r * 0.4);
+      this.cameras.main.shake(artifact ? 170 + tier * 60 : 120, artifact ? 0.005 + tier * 0.0018 : 0.004);
+    }
+    if (artifact && tier >= 3) this.cameras.main.flash(280, 255, 244, 190);
+    sprite.clearTint();
+    this.rockLayer.remove(sprite);
+    this.popLayer.addAt(sprite, 0);
+
+    // The player's own reaction, shouted over the hole (not for rubbish).
+    if (!junk) {
+      const shout = this.add.text(b.x, b.y - 110, '!', outlinedStyle(artifact ? 64 : 48, CATEGORY_STYLE[cat].css)).setOrigin(0.5).setScale(0);
+      this.popLayer.add(shout);
+      this.tweens.add({ targets: shout, scale: 1.1, angle: { from: -8, to: 4 }, duration: 220, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: shout, y: shout.y - 50, alpha: 0, delay: 800, duration: 380, onComplete: () => shout.destroy() });
+    }
+
+    const landY = b.y - b.r * 0.2;
+    this.tweens.killTweensOf(sprite);
+    if (junk) {
+      // A dull flop: hop, land, lie there.
+      this.tweens.chain({
+        targets: sprite,
+        tweens: [
+          { y: landY - 50, scaleX: base * 1.1, scaleY: base * 0.9, angle: sprite.angle + 40, duration: 180, ease: 'Quad.easeOut' },
+          { y: landY, scale: base, angle: sprite.angle + 70, duration: 170, ease: 'Quad.easeIn' },
+        ],
+      });
+    } else {
+      this.tweens.chain({
+        targets: sprite,
+        tweens: [
+          { scaleX: base * 1.3, scaleY: base * 0.7, duration: 70, ease: 'Quad.easeOut' },
+          { y: landY - 190, scaleX: base * 1.15, scaleY: base * 1.2, angle: 360, duration: 360, ease: 'Quad.easeOut' },
+          { y: landY - 170, scale: base * (artifact ? 1.35 : 1.2), angle: 372, duration: 420, yoyo: true, ease: 'Sine.easeInOut' },
+        ],
+      });
+    }
+
+    // Record it right away (the HUD card shows at once). Never any cash here.
+    const item = state.finds.makeItem(def, Math.random, state.depositValueMult);
+    state.recordFindItem(def, item);
+    if (artifact) {
+      sfx.surprise(tier);
+      sfx.haptic(tier >= 3 ? [30, 40, 70] : 25);
+    } else if (cat === 'collection') {
+      sfx.surprise(Math.min(2, tier));
+      sfx.haptic(15);
+    } else {
+      sfx.collect();
+    }
+    this.time.delayedCall(junk ? 450 : artifact ? 900 : 700, () => {
+      this.tweens.killTweensOf(sprite);
+      this.tweens.add({
+        targets: sprite, scale: 0, alpha: 0, y: sprite.y - (junk ? 10 : 40), duration: 260, ease: 'Back.easeIn',
+        onComplete: () => {
+          sprite.destroy();
+          state.endActivity();
+        },
+      });
     });
   }
 
@@ -858,8 +1136,8 @@ export class DigScene extends Phaser.Scene {
     this.tweens.add({ targets: this.rig, x: { from: this.rig.x - 8, to: this.rig.x }, duration: 300, ease: 'Elastic.easeOut' });
     const t = this.tiredText;
     this.tweens.killTweensOf(t);
-    t.setPosition(clamp(x, this.visL + 180, this.visR - 180), state.dig.floorAt(x) - 100).setAlpha(1).setScale(0.7).setVisible(true);
-    this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.easeOut' });
+    t.setPosition(clamp(x, this.visL + 180, this.visR - 180), state.dig.floorAt(x) - 100).setAlpha(1).setScale(0.35).setVisible(true);
+    this.tweens.add({ targets: t, scale: 0.5, duration: 200, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, delay: 650, duration: 400, onComplete: () => t.setVisible(false) });
   }
 
@@ -876,6 +1154,8 @@ export class DigScene extends Phaser.Scene {
     this.holdPointer = null;
     this.gesturePointer = null;
     this.panning = false;
+    this.touchHolding = false;
+    this.flingV = 0;
     this.swingEndsAt = 0;
     this.input.keyboard?.resetKeys();
     this.snapCamera();

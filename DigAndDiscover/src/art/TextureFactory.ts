@@ -117,26 +117,30 @@ export function createSharedTextures(textures: Phaser.Textures.TextureManager): 
     ctx.restore();
   });
 
-  makeCanvasTexture(T, 'coin', 52, 52, (ctx) => {
-    ctx.fillStyle = '#c47d0e';
-    ellipse(ctx, 26, 28, 23, 23);
-    const g = ctx.createRadialGradient(20, 18, 2, 26, 26, 24);
-    g.addColorStop(0, '#fff2a8');
-    g.addColorStop(0.5, '#ffd23f');
-    g.addColorStop(1, '#f0a81c');
-    ctx.fillStyle = g;
-    ellipse(ctx, 26, 25, 23, 23);
-    ctx.strokeStyle = 'rgba(196,125,14,0.8)';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.arc(26, 25, 16, 0, TAU);
-    ctx.stroke();
-    ctx.fillStyle = '#b86d06';
-    ctx.font = `700 22px ${FONT_FAMILY}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('$', 26, 26);
-  });
+  // The supplied pickaxe coin PNG (src/assets/ui/coin.png) replaces the
+  // painted texture when it loads; the painted one stays as a fallback.
+  if (!T.exists('coin')) {
+    makeCanvasTexture(T, 'coin', 52, 52, (ctx) => {
+      ctx.fillStyle = '#c47d0e';
+      ellipse(ctx, 26, 28, 23, 23);
+      const g = ctx.createRadialGradient(20, 18, 2, 26, 26, 24);
+      g.addColorStop(0, '#fff2a8');
+      g.addColorStop(0.5, '#ffd23f');
+      g.addColorStop(1, '#f0a81c');
+      ctx.fillStyle = g;
+      ellipse(ctx, 26, 25, 23, 23);
+      ctx.strokeStyle = 'rgba(196,125,14,0.8)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(26, 25, 16, 0, TAU);
+      ctx.stroke();
+      ctx.fillStyle = '#b86d06';
+      ctx.font = `700 22px ${FONT_FAMILY}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', 26, 26);
+    });
+  }
 
   makeCanvasTexture(T, 'ray', 90, 420, (ctx) => {
     const g = ctx.createLinearGradient(0, 420, 0, 0);

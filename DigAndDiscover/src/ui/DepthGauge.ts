@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PALETTE, outlinedStyle, textStyle } from '../config/Theme';
+import { PALETTE, outlinedStyle } from '../config/Theme';
 import { state } from '../core/GameState';
 
 /**
@@ -13,7 +13,6 @@ export class DepthGauge extends Phaser.GameObjects.Container {
   private readonly bar: Phaser.GameObjects.Graphics;
   private readonly marker: Phaser.GameObjects.Graphics;
   private readonly depthText: Phaser.GameObjects.Text;
-  private readonly layerText: Phaser.GameObjects.Text;
   private gaugeW = 16;
   private gaugeH = 300;
   private shownUnits = 0;
@@ -21,16 +20,13 @@ export class DepthGauge extends Phaser.GameObjects.Container {
   private drawnDeepY = -1;
   private drawnReached = -1;
   private shownLabel = '';
-  private shownLayer = -1;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0);
     this.bar = scene.add.graphics();
     this.marker = scene.add.graphics();
     this.depthText = scene.add.text(0, 0, '0.0 m', outlinedStyle(14, '#fff6e6')).setOrigin(1, 0.5);
-    this.layerText = scene.add.text(0, 0, '', textStyle(11, '#ffe9b8')).setOrigin(1, 0);
-    this.layerText.setShadow(0, 1, 'rgba(0,0,0,0.6)', 2, false, true);
-    this.add([this.bar, this.marker, this.depthText, this.layerText]);
+    this.add([this.bar, this.marker, this.depthText]);
     scene.add.existing(this);
   }
 
@@ -40,7 +36,6 @@ export class DepthGauge extends Phaser.GameObjects.Container {
     this.setPosition(x, y + 8);
     const size = w < 18 ? 12 : 14;
     this.depthText.setFontSize(size);
-    this.layerText.setFontSize(size - 3);
     this.drawnReached = -1;
     this.drawnY = -1;
     this.shownUnits = state.dig.focusUnits;
@@ -59,13 +54,9 @@ export class DepthGauge extends Phaser.GameObjects.Container {
     if (dig.deepestLayerIndex !== this.drawnReached) this.drawBar(dig.deepestLayerIndex);
     if (y !== this.drawnY || deepY !== this.drawnDeepY) this.drawMarker(y, deepY);
 
-    const label = `${(this.shownUnits / dig.unitsPerMeter).toFixed(1)} m`;
+    // Whole metres: the number changes rarely, so the text is not redrawn every frame.
+    const label = `${Math.round(this.shownUnits / dig.unitsPerMeter)} m`;
     if (label !== this.shownLabel) this.depthText.setText((this.shownLabel = label));
-    const layer = dig.focusLayerIndex;
-    if (layer !== this.shownLayer) {
-      this.shownLayer = layer;
-      this.layerText.setText(state.layers[layer].name);
-    }
   }
 
   private drawBar(reached: number): void {
@@ -93,6 +84,5 @@ export class DepthGauge extends Phaser.GameObjects.Container {
     g.fillStyle(PALETTE.gold).fillTriangle(-4, y - 6, -4, y + 6, -12, y);
     const labelY = Phaser.Math.Clamp(y, 10, h - 30);
     this.depthText.setPosition(-17, labelY);
-    this.layerText.setPosition(-17, labelY + 9);
   }
 }

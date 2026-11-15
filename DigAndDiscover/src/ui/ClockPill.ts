@@ -27,6 +27,7 @@ export class ClockPill extends Phaser.GameObjects.Container {
   private pillW = 0;
   private centerX = 0;
   private minLeft = -Infinity;
+  private leftAlign = false;
   private lastBar = -1;
   private lastLabel = '';
   private lastDay = -1;
@@ -48,17 +49,28 @@ export class ClockPill extends Phaser.GameObjects.Container {
     return this.pillW;
   }
 
-  /** Centres the pill, but never lets its left edge go left of minLeft (keeps it clear of the money pill). */
-  layout(centerX: number, centerY: number, height: number, minLeft = -Infinity): void {
+  /**
+   * Centres the pill, but never lets its left edge go left of minLeft (keeps it clear of the money pill).
+   * With leftAlign the pill starts exactly at minLeft instead (used on narrow screens).
+   */
+  layout(centerX: number, centerY: number, height: number, minLeft = -Infinity, leftAlign = false): void {
     this.pillH = height;
     this.centerX = centerX;
     this.minLeft = minLeft;
+    this.leftAlign = leftAlign;
     this.setPosition(centerX, centerY);
     this.dayText.setFontSize(Math.round(height * 0.27));
     this.timeText.setFontSize(Math.round(height * 0.46));
     this.sun.setScale((height * 0.5) / 24);
     this.lastBar = -1;
     this.lastLabel = '';
+    this.relayout();
+  }
+
+  /** Moves the left limit (the money pill grows with the amount). Cheap when nothing changed. */
+  setMinLeft(minLeft: number): void {
+    if (this.leftAlign || Math.abs(minLeft - this.minLeft) < 1) return;
+    this.minLeft = minLeft;
     this.relayout();
   }
 
@@ -84,7 +96,7 @@ export class ClockPill extends Phaser.GameObjects.Container {
     const h = this.pillH;
     const textW = Math.max(this.dayText.width, this.timeText.width);
     const w = Math.max(h * 2.5, textW + h * 1.25);
-    this.x = Math.max(this.centerX, this.minLeft + w / 2);
+    this.x = this.leftAlign ? this.minLeft + w / 2 : Math.max(this.centerX, this.minLeft + w / 2);
     const left = -w / 2;
     // Sun on the left, the two text lines centred in the remaining space.
     this.sun.setPosition(left + h * 0.55, -h * 0.05);

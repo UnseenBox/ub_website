@@ -79,7 +79,14 @@ export const GAME_CONFIG = {
     baseRadius: 58,
     minSize: 0.82,
     maxSize: 1.22,
-    /** How much larger rocks are drawn on the workshop bench. */
+    /**
+     * Three separate visual scales (change one without touching the others):
+     * discoveryScale: how big a rock looks while it sits in the ground and pops out (1 = full size).
+     * inventoryScale: how much of a bag slot the rock icon fills (0..1).
+     * workshopScale: how much larger rocks are drawn on the workshop bench.
+     */
+    discoveryScale: 0.58,
+    inventoryScale: 0.74,
     workshopScale: 1.6,
   },
   cutting: {

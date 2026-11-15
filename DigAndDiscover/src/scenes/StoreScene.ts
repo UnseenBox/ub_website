@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { state } from '../core/GameState';
+import { portal } from '../ads/Portal';
+import { TOOL_DEFS } from '../data/tools';
 import {
   TOOL_SECTIONS,
   UPGRADE_SECTIONS,
@@ -10,10 +12,11 @@ import {
   type UpgradeItem,
 } from '../data/store';
 import { storeIconKey } from '../art/StoreArt';
+import { ICON_STAR } from '../art/IconArt';
+import { uiIcon } from '../art/UiIcons';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
-import { Toast } from '../ui/Toast';
 
 /** The card is laid out in this design space, then scaled to fit the screen. */
 const CARD_W = 520;
@@ -28,6 +31,10 @@ const HEADER_H = 46;
 const INK = '#3b2616';
 const SOFT_INK = '#7a5a3a';
 const GREEN_INK = '#2a8a3a';
+/** Looks greyed out but still answers a press (with a hint about what is missing). */
+const NOT_YET = BUTTON_COLORS.disabled;
+/** Cash from the "watch an ad" row, scaled to the player's level. */
+const adCash = (): number => 50 + 25 * state.progress.level;
 
 /**
  * The store: a paper card over the paused game with two tabs. DISPLAY ONLY -
@@ -38,10 +45,10 @@ export class StoreScene extends Phaser.Scene {
   private card!: Phaser.GameObjects.Container;
   private panel!: Phaser.GameObjects.Graphics;
   private list!: Phaser.GameObjects.Container;
-  private maskGfx!: Phaser.GameObjects.Graphics;
+  private listCam!: Phaser.Cameras.Scene2D.Camera;
   private scrollbar!: Phaser.GameObjects.Graphics;
-  private toast!: Toast;
   private moneyText!: Phaser.GameObjects.Text;
+  private levelText!: Phaser.GameObjects.Text;
   private tabButtons = new Map<StoreTab, Button>();
   private tab: StoreTab = 'tools';
   private cardH = MIN_H;
@@ -79,21 +86,21 @@ export class StoreScene extends Phaser.Scene {
 
     this.card = this.add.container(0, 0);
     this.panel = this.add.graphics();
-    this.list = this.add.container(PAD, VIEW_TOP);
+    // The scrolling list is drawn by its own camera whose viewport is the list window:
+    // a cheap hardware scissor instead of a stencil mask, and it clips taps too.
+    this.list = this.add.container(0, 0);
+    this.listCam = this.cameras.add(0, 0, 10, 10);
     this.scrollbar = this.add.graphics();
-    this.maskGfx = this.make.graphics({}, false);
-    this.list.setMask(new Phaser.Display.Masks.GeometryMask(this, this.maskGfx));
-    this.toast = new Toast(this);
-    this.card.add([this.panel, this.list, this.scrollbar]);
+    this.card.add([this.panel, this.scrollbar]);
     this.buildHeader();
-    this.card.add(this.toast);
+    this.listCam.ignore([this.dim, this.card]);
 
     this.buildList();
     this.fit();
 
-    const scale = this.card.scale;
-    this.card.setAlpha(0).setScale(scale * 0.9);
-    this.tweens.add({ targets: this.card, alpha: 1, scale, duration: 260, ease: 'Back.easeOut' });
+    this.card.setAlpha(0);
+    this.list.setAlpha(0);
+    this.tweens.add({ targets: [this.card, this.list], alpha: 1, duration: 220 });
 
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -124,7 +131,7 @@ export class StoreScene extends Phaser.Scene {
   // ---------- construction ----------
 
   private buildHeader(): void {
-    const title = this.add.text(CARD_W / 2, 36, 'STORE', outlinedStyle(34)).setOrigin(0.5);
+    const title = this.add.image(CARD_W / 2, 36, uiIcon('store')).setDisplaySize(44, 44).setOrigin(0.5);
     const ribbonW = title.width + 70;
     const ribbon = this.add.graphics();
     ribbon.fillStyle(0x000000, 0.25).fillRoundedRect(CARD_W / 2 - ribbonW / 2, 16, ribbonW, 52, 14);
@@ -134,8 +141,12 @@ export class StoreScene extends Phaser.Scene {
     title.setY(36);
 
     // Read-only money display.
-    const coin = this.add.image(PAD + 14, 36, 'coin').setScale(0.55);
-    this.moneyText = this.add.text(PAD + 32, 36, formatMoney(state.economy.money), outlinedStyle(20, PALETTE.money)).setOrigin(0, 0.5);
+    const coinBase = this.textures.get('coin').getSourceImage().width || 52;
+    const coin = this.add.image(PAD + 14, 30, 'coin').setScale(28.6 / coinBase);
+    this.moneyText = this.add.text(PAD + 32, 30, formatMoney(state.economy.money), outlinedStyle(20, PALETTE.money)).setOrigin(0, 0.5);
+    this.levelText = this.add.text(PAD + 30, 54, '', textStyle(16, SOFT_INK)).setOrigin(0, 0.5);
+    const levelStar = this.add.image(PAD + 14, 54, ICON_STAR).setDisplaySize(24, 24);
+    this.paintMoney();
 
     // Close button.
     const close = this.add.container(CARD_W - PAD - 18, 36);
@@ -149,21 +160,27 @@ export class StoreScene extends Phaser.Scene {
       if (!this.dragging) this.close();
     });
 
-    const tabs: Array<{ id: StoreTab; label: string }> = [
-      { id: 'tools', label: 'TOOLS' },
-      { id: 'upgrades', label: 'UPGRADES' },
+    const tabs: Array<{ id: StoreTab; icon: string }> = [
+      { id: 'tools', icon: uiIcon('pickaxe') },
+      { id: 'upgrades', icon: uiIcon('bolt') },
     ];
     tabs.forEach((t, i) => {
       const b = new Button(this, {
-        width: 224, height: 48, label: t.label, fontSize: 22, colors: BUTTON_COLORS.blue,
+        width: 224, height: 48, label: '', fontSize: 30, colors: BUTTON_COLORS.blue, icon: t.icon,
         onClick: () => this.selectTab(t.id),
       });
       b.setPosition(CARD_W / 2 + (i === 0 ? -118 : 118), 96);
       this.tabButtons.set(t.id, b);
       this.card.add(b);
     });
-    this.card.add([ribbon, title, coin, this.moneyText, close]);
+    this.card.add([ribbon, title, coin, this.moneyText, levelStar, this.levelText, close]);
     this.paintTabs();
+  }
+
+  private paintMoney(): void {
+    const p = state.progress.levelProgress;
+    this.moneyText.setText(formatMoney(state.economy.money));
+    this.levelText.setText(`${p.level}`);
   }
 
   private paintTabs(): void {
@@ -182,6 +199,7 @@ export class StoreScene extends Phaser.Scene {
   private buildList(): void {
     this.list.removeAll(true);
     let y = 0;
+    y = this.addAdRow(y);
     if (this.tab === 'tools') {
       for (const section of TOOL_SECTIONS) {
         y = this.addHeader(y, section.title, section.subtitle);
@@ -196,14 +214,40 @@ export class StoreScene extends Phaser.Scene {
       }
     }
     this.contentH = Math.max(0, y);
+    this.cameras.main.ignore(this.list); // new rows must not also draw on the main camera
   }
 
-  private addHeader(y: number, title: string, subtitle: string): number {
+  /** "Need cash? Watch an ad" - only where ads exist (CrazyGames build or local test). */
+  private addAdRow(y: number): number {
+    if (!portal.hasAds) return y;
+    const g = this.add.graphics();
+    g.fillStyle(0x4fb0ff, 0.18).fillRoundedRect(0, 0, LIST_W, 60, 16);
+    g.lineStyle(2, 0x2a74c4, 0.5).strokeRoundedRect(0, 0, LIST_W, 60, 16);
+    const cashIcon = this.add.image(14, 30, uiIcon('cash')).setDisplaySize(26, 26).setOrigin(0, 0.5);
+    const label = this.add.text(44, 30, `+${formatMoney(adCash())}`, textStyle(26, INK)).setOrigin(0, 0.5);
+    const row = this.add.container(0, y, [g, cashIcon, label]);
+    const b = new Button(this, { width: 100, height: 42, label: '', fontSize: 24, colors: BUTTON_COLORS.blue, icon: uiIcon('play'), onClick: () => this.watchForCash() });
+    b.setPosition(LIST_W - 12 - 50, 29);
+    row.add(b);
+    this.list.add(row);
+    return y + 60 + 10;
+  }
+
+  private watchForCash(): void {
+    if (this.dragging || !this.pointerInView()) return;
+    if (!portal.rewarded(() => {
+      const cash = adCash();
+      state.economy.grant(cash);
+      sfx.coin();
+      this.refreshAll();
+    })) sfx.denied();
+  }
+
+  private addHeader(y: number, title: string, _subtitle: string): number {
     const g = this.add.graphics();
     g.lineStyle(2, 0x7a5a3a, 0.25).lineBetween(0, y + HEADER_H - 8, LIST_W, y + HEADER_H - 8);
     const t = this.add.text(4, y + 14, title, textStyle(22, INK)).setOrigin(0, 0.5);
-    const s = this.add.text(LIST_W - 4, y + 16, subtitle, textStyle(14, SOFT_INK)).setOrigin(1, 0.5);
-    this.list.add([g, t, s]);
+    this.list.add([g, t]);
     return y + HEADER_H;
   }
 
@@ -224,8 +268,8 @@ export class StoreScene extends Phaser.Scene {
     return row;
   }
 
-  private buyButton(row: Phaser.GameObjects.Container, label: string, enabled: boolean, colors: typeof BUTTON_COLORS.green, onClick: () => void): void {
-    const b = new Button(this, { width: 124, height: 48, label, fontSize: 18, colors, onClick });
+  private buyButton(row: Phaser.GameObjects.Container, label: string, enabled: boolean, colors: typeof BUTTON_COLORS.green, onClick: () => void, icon?: string): void {
+    const b = new Button(this, { width: 124, height: 48, label, fontSize: 18, colors, onClick, icon });
     b.setPosition(LIST_W - 12 - 62, (ROW_H - 8) / 2).setEnabled(enabled);
     row.add(b);
   }
@@ -233,45 +277,89 @@ export class StoreScene extends Phaser.Scene {
   private addToolRow(y: number, item: ToolItem): number {
     const row = this.rowBase(y, item, !!item.placeholder);
     const textX = 92;
-    row.add(this.add.text(textX, 14, item.name, textStyle(20, INK)).setOrigin(0, 0));
-    row.add(
-      this.add.text(textX, 40, item.blurb, { ...textStyle(14, SOFT_INK), wordWrap: { width: LIST_W - textX - 150 }, lineSpacing: 2 }).setOrigin(0, 0),
-    );
-    if (item.owned) this.buyButton(row, 'OWNED', false, BUTTON_COLORS.green, () => undefined);
-    else if (item.placeholder) this.buyButton(row, 'SOON', false, BUTTON_COLORS.green, () => undefined);
-    else this.buyButton(row, formatMoney(item.price), true, BUTTON_COLORS.green, () => this.requestPurchase(item));
+    const owned = state.progress.owns(item.id);
+    const locked = !owned && !item.placeholder && state.progress.level < item.minLevel;
+    row.add(this.add.text(textX, 12, item.name, textStyle(20, INK)).setOrigin(0, 0));
+    
+    const def = TOOL_DEFS[item.id];
+    if (def && !item.placeholder) {
+      const pickaxeIcon = this.add.image(textX, 44, uiIcon('pickaxe')).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      const pickaxeText = this.add.text(textX + 24, 44, `${def.power}`, textStyle(16, GREEN_INK)).setOrigin(0, 0.5);
+      const stopwatchIcon = this.add.image(textX + 60, 44, uiIcon('stopwatch')).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      const stopwatchText = this.add.text(textX + 84, 44, `${(1000 / def.swingCooldownMs).toFixed(1)}`, textStyle(16, GREEN_INK)).setOrigin(0, 0.5);
+      row.add([pickaxeIcon, pickaxeText, stopwatchIcon, stopwatchText]);
+    }
+    if (item.id === 'tool-scanner') {
+      const magIcon = this.add.image(textX, 44, uiIcon('magnifier')).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      const magText = this.add.text(textX + 24, 44, '+25%', textStyle(16, GREEN_INK)).setOrigin(0, 0.5);
+      row.add([magIcon, magText]);
+    }
+    if (item.id === 'tool-deep-scanner') {
+      const magIcon = this.add.image(textX, 44, uiIcon('magnifier')).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      const magText = this.add.text(textX + 24, 44, '+50%', textStyle(16, GREEN_INK)).setOrigin(0, 0.5);
+      const starIcon = this.add.image(textX + 70, 44, ICON_STAR).setDisplaySize(20, 20).setOrigin(0, 0.5);
+      row.add([magIcon, magText, starIcon]);
+    }
+    
+    const weaker = !owned && item.kind === 'dig' && !item.placeholder && TOOL_DEFS[item.id].power <= TOOL_DEFS[state.progress.equippedToolId].power;
+    if (item.placeholder) this.buyButton(row, '...', false, BUTTON_COLORS.green, () => undefined);
+    else if (owned) this.buyButton(row, '', false, BUTTON_COLORS.green, () => undefined, uiIcon('check'));
+    else if (locked) this.buyButton(row, `${item.minLevel}`, true, NOT_YET, () => this.requestPurchase(item), uiIcon('lock'));
+    else if (weaker) this.buyButton(row, '', false, BUTTON_COLORS.green, () => undefined, uiIcon('cross'));
+    else this.buyButton(row, formatMoney(item.price), true, state.economy.money >= item.price ? BUTTON_COLORS.green : NOT_YET, () => this.requestPurchase(item));
     return y + ROW_H;
   }
 
   private addUpgradeRow(y: number, item: UpgradeItem): number {
     const row = this.rowBase(y, item, false);
     const textX = 92;
-    row.add(this.add.text(textX, 8, item.name, textStyle(20, INK)).setOrigin(0, 0));
-    row.add(this.add.text(textX, 32, item.perLevel, textStyle(15, GREEN_INK)).setOrigin(0, 0));
-    row.add(this.add.text(textX, 50, item.blurb, textStyle(13, SOFT_INK)).setOrigin(0, 0));
+    const level = state.progress.upgradeLevel(item.id);
+    row.add(this.add.text(textX, 16, item.name, textStyle(20, INK)).setOrigin(0, 0));
     // Level pips.
     const pips = this.add.graphics();
-    for (let i = 0; i < item.maxLevel; i++) {
-      const filled = i < item.level;
-      pips.fillStyle(filled ? PALETTE.gold : 0x3b2616, filled ? 1 : 0.18).fillCircle(textX + 6 + i * 17, 74, 6);
-      if (filled) pips.lineStyle(2, 0x3b2616, 0.8).strokeCircle(textX + 6 + i * 17, 74, 6);
+    // Endless upgrades (hundreds of levels) show just the number.
+    const endless = item.maxLevel > 12;
+    for (let i = 0; i < (endless ? 0 : item.maxLevel); i++) {
+      const filled = i < level;
+      pips.fillStyle(filled ? PALETTE.gold : 0x3b2616, filled ? 1 : 0.18).fillCircle(textX + 6 + i * 17, 56, 6);
+      if (filled) pips.lineStyle(2, 0x3b2616, 0.8).strokeCircle(textX + 6 + i * 17, 56, 6);
     }
     row.add(pips);
-    row.add(this.add.text(textX + item.maxLevel * 17 + 4, 74, `Lv ${item.level}/${item.maxLevel}`, textStyle(13, SOFT_INK)).setOrigin(0, 0.5));
-    if (item.level >= item.maxLevel) this.buyButton(row, 'MAX', false, BUTTON_COLORS.green, () => undefined);
-    else this.buyButton(row, formatMoney(upgradePrice(item, item.level)), true, BUTTON_COLORS.green, () => this.requestPurchase(item));
+    row.add(this.add.text(endless ? textX : textX + item.maxLevel * 17 + 4, 56, endless ? `${level}` : `${level}/${item.maxLevel}`, textStyle(15, SOFT_INK)).setOrigin(0, 0.5));
+    if (level >= item.maxLevel) this.buyButton(row, '', false, BUTTON_COLORS.green, () => undefined, ICON_STAR);
+    else {
+      const price = upgradePrice(item, level);
+      this.buyButton(row, formatMoney(price), true, state.economy.money >= price ? BUTTON_COLORS.green : NOT_YET, () => this.requestPurchase(item));
+    }
     return y + ROW_H;
   }
 
   // ---------- purchasing ----------
 
-  /**
-   * THE hook for connecting the store to the game. Called when the player
-   * presses a price button. Right now it only explains that nothing happens.
-   */
+  /** Presses on a price button: really buys (or explains what is missing). */
   private requestPurchase(item: ToolItem | UpgradeItem): void {
     if (this.dragging || !this.pointerInView()) return;
-    this.toast.show(`${item.name}: store isn't connected to the game yet`, 1600);
+    const isTool = 'kind' in item;
+    const result = isTool ? state.buyTool(item) : state.buyUpgrade(item);
+    switch (result) {
+      case 'ok':
+        sfx.sell();
+        this.refreshAll();
+        break;
+      case 'poor':
+      case 'locked':
+        sfx.denied(); // the greyed price already says why
+        break;
+      default:
+        sfx.denied();
+    }
+  }
+
+  /** Money, level and every row after something changed. */
+  private refreshAll(): void {
+    this.paintMoney();
+    this.buildList();
+    this.applyScroll();
   }
 
   // ---------- scrolling & layout ----------
@@ -287,7 +375,8 @@ export class StoreScene extends Phaser.Scene {
 
   private applyScroll(): void {
     this.scrollY = Phaser.Math.Clamp(this.scrollY, 0, this.maxScroll);
-    this.list.y = VIEW_TOP - this.scrollY;
+    const s = this.card.scaleX;
+    this.list.setPosition(this.card.x + PAD * s, this.card.y + (VIEW_TOP - this.scrollY) * s);
     const g = this.scrollbar;
     g.clear();
     if (this.maxScroll <= 0) return;
@@ -307,7 +396,7 @@ export class StoreScene extends Phaser.Scene {
       ch = MIN_H;
     }
     this.cardH = Math.min(ch, MAX_H);
-    this.viewH = this.cardH - VIEW_TOP - 24;
+    this.viewH = this.cardH - VIEW_TOP - 54;
     this.card.setScale(s);
     this.card.setPosition((w - CARD_W * s) / 2, (h - this.cardH * s) / 2);
 
@@ -318,13 +407,11 @@ export class StoreScene extends Phaser.Scene {
     p.lineStyle(4, 0x3b2616, 0.9).strokeRoundedRect(0, 4, CARD_W, this.cardH - 8, 24);
     p.lineStyle(2, PALETTE.gold, 0.5).strokeRoundedRect(8, 12, CARD_W - 16, this.cardH - 24, 18);
 
-    this.maskGfx.clear().fillStyle(0xffffff).fillRect(
-      this.card.x + PAD * s,
-      this.card.y + VIEW_TOP * s,
-      LIST_W * s,
-      this.viewH * s,
-    );
-    this.toast.place(CARD_W / 2, VIEW_TOP + this.viewH - 30, 16);
+    const vx = Math.round(this.card.x + PAD * s);
+    const vy = Math.round(this.card.y + VIEW_TOP * s);
+    this.listCam.setViewport(vx, vy, Math.round(LIST_W * s), Math.round(this.viewH * s));
+    this.listCam.setScroll(vx, vy);
+    this.list.setScale(s);
     this.applyScroll();
   }
 
@@ -354,7 +441,7 @@ export class StoreScene extends Phaser.Scene {
     if (this.closing) return;
     this.closing = true;
     sfx.click();
-    this.tweens.add({ targets: this.card, alpha: 0, scale: this.card.scale * 0.9, duration: 160, ease: 'Quad.easeIn' });
+    this.tweens.add({ targets: [this.card, this.list], alpha: 0, duration: 160, ease: 'Quad.easeIn' });
     this.tweens.add({ targets: this.dim, fillAlpha: 0, duration: 180, onComplete: () => this.scene.stop() });
   }
 
