@@ -14,12 +14,15 @@ export class MoneyCounter extends Phaser.GameObjects.Container {
   private countTween: Phaser.Tweens.Tween | null = null;
   private h = 44;
   private drawnWidth = 0;
+  /** Texture pixel width of the coin in use (painted 52, or the supplied PNG). */
+  private readonly coinBase: number;
 
   constructor(scene: Phaser.Scene, initial: number) {
     super(scene, 0, 0);
     this.counter.value = initial;
     this.bg = scene.add.graphics();
     this.coin = scene.add.image(0, 0, 'coin');
+    this.coinBase = Math.max(1, this.coin.width);
     this.text = scene.add.text(0, 0, formatMoney(initial), outlinedStyle(22, PALETTE.money)).setOrigin(0, 0.5);
     this.add([this.bg, this.coin, this.text]);
     scene.add.existing(this);
@@ -28,7 +31,7 @@ export class MoneyCounter extends Phaser.GameObjects.Container {
   layout(x: number, y: number, h: number): void {
     this.h = h;
     this.setPosition(x, y);
-    this.coin.setScale((h * 1.55) / 52).setPosition(h * 0.62, 0); // the coin is the star of the pill: bigger than the pill itself
+    this.coin.setScale((h * 1.55) / this.coinBase).setPosition(h * 0.62, 0); // the coin is the star of the pill: bigger than the pill itself
     this.text.setFontSize(Math.round(h * 0.56)).setPosition(h * 1.5, -1);
     this.drawnWidth = 0;
     this.redrawBg();
@@ -55,7 +58,7 @@ export class MoneyCounter extends Phaser.GameObjects.Container {
   }
 
   pulse(): void {
-    this.scene.tweens.add({ targets: this.coin, scale: { from: (this.h * 1.85) / 52, to: (this.h * 1.55) / 52 }, duration: 160 });
+    this.scene.tweens.add({ targets: this.coin, scale: { from: (this.h * 1.85) / this.coinBase, to: (this.h * 1.55) / this.coinBase }, duration: 160 });
     this.scene.tweens.add({ targets: this.text, scale: { from: 1.12, to: 1 }, duration: 160 });
   }
 

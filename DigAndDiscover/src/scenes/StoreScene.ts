@@ -140,7 +140,8 @@ export class StoreScene extends Phaser.Scene {
     title.setY(36);
 
     // Read-only money display.
-    const coin = this.add.image(PAD + 14, 30, 'coin').setScale(0.55);
+    const coinBase = this.textures.get('coin').getSourceImage().width || 52;
+    const coin = this.add.image(PAD + 14, 30, 'coin').setScale(28.6 / coinBase);
     this.moneyText = this.add.text(PAD + 32, 30, formatMoney(state.economy.money), outlinedStyle(20, PALETTE.money)).setOrigin(0, 0.5);
     this.levelText = this.add.text(PAD + 30, 54, '', textStyle(16, SOFT_INK)).setOrigin(0, 0.5);
     const levelStar = this.add.image(PAD + 14, 54, ICON_STAR).setDisplaySize(24, 24);

@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 
-export const FONT_FAMILY = '"Fredoka", "Trebuchet MS", "Segoe UI", sans-serif';
+export const FONT_FAMILY = '"Rye", "Georgia", "Times New Roman", serif';
 
 /** Text is rendered at device resolution so it stays crisp on high-DPI screens. */
 const TEXT_RESOLUTION = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);

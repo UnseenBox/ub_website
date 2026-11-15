@@ -178,7 +178,7 @@ function mockAd(type: string, done: () => void): void {
   const box = document.createElement('div');
   box.style.cssText =
     'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
-    'background:rgba(10,6,2,0.92);color:#fff;font:700 28px Fredoka,Trebuchet MS,sans-serif;text-align:center;gap:12px';
+    'background:rgba(10,6,2,0.92);color:#fff;font:400 28px Rye,Georgia,serif;text-align:center;gap:12px';
   const title = document.createElement('div');
   const sub = document.createElement('div');
   sub.style.cssText = 'font-size:16px;opacity:.7';

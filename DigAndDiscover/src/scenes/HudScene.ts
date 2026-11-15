@@ -457,6 +457,8 @@ export class HudScene extends Phaser.Scene {
     const target = this.money.coinTarget;
     const count = Math.min(COIN_POOL, 5 + tier * 2);
     const flight = 620;
+    // Display diameter in screen pixels: starts at ~39, shrinks to ~26 by the money pill.
+    const coinBase = this.textures.get('coin').getSourceImage().width || 52;
     for (let i = 0; i < count; i++) {
       const coin = this.coins[i];
       this.tweens.killTweensOf(coin);
@@ -470,12 +472,12 @@ export class HudScene extends Phaser.Scene {
         delay: 80 + i * 55,
         duration: flight,
         ease: 'Quad.easeIn',
-        onStart: () => coin.setScale(0.75),
+        onStart: () => coin.setScale(39 / coinBase),
         onUpdate: (tw) => {
           const t = tw.getValue() ?? 0;
           const u = 1 - t;
           coin.setPosition(u * u * sx + 2 * u * t * ctrl.x + t * t * target.x, u * u * sy + 2 * u * t * ctrl.y + t * t * target.y);
-          coin.setScale(0.75 - 0.25 * t);
+          coin.setScale((39 - 13 * t) / coinBase);
         },
         onComplete: () => {
           coin.setVisible(false);
