@@ -12,6 +12,7 @@ import {
   type UpgradeItem,
 } from '../data/store';
 import { storeIconKey } from '../art/StoreArt';
+import { ICON_STAR } from '../art/IconArt';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
@@ -141,7 +142,8 @@ export class StoreScene extends Phaser.Scene {
     // Read-only money display.
     const coin = this.add.image(PAD + 14, 30, 'coin').setScale(0.55);
     this.moneyText = this.add.text(PAD + 32, 30, formatMoney(state.economy.money), outlinedStyle(20, PALETTE.money)).setOrigin(0, 0.5);
-    this.levelText = this.add.text(PAD + 4, 54, '', textStyle(13, SOFT_INK)).setOrigin(0, 0.5);
+    this.levelText = this.add.text(PAD + 30, 54, '', textStyle(16, SOFT_INK)).setOrigin(0, 0.5);
+    const levelStar = this.add.image(PAD + 14, 54, ICON_STAR).setDisplaySize(24, 24);
     this.paintMoney();
 
     // Close button.
@@ -169,14 +171,14 @@ export class StoreScene extends Phaser.Scene {
       this.tabButtons.set(t.id, b);
       this.card.add(b);
     });
-    this.card.add([ribbon, title, coin, this.moneyText, this.levelText, close]);
+    this.card.add([ribbon, title, coin, this.moneyText, levelStar, this.levelText, close]);
     this.paintTabs();
   }
 
   private paintMoney(): void {
     const p = state.progress.levelProgress;
     this.moneyText.setText(formatMoney(state.economy.money));
-    this.levelText.setText(`\u2B50 ${p.level}`);
+    this.levelText.setText(`${p.level}`);
   }
 
   private paintTabs(): void {

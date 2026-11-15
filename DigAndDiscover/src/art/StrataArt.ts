@@ -168,8 +168,8 @@ function paintStone(ctx: CanvasRenderingContext2D, rng: Rng, look: LayerBand['la
   ellipse(ctx, x + r * 0.12, y + r * 0.55, r * 0.82, r * 0.32);
   ctx.restore();
 
-  ctx.strokeStyle = 'rgba(45,30,15,0.28)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(30,16,6,0.62)';
+  ctx.lineWidth = 1.8;
   ctx.stroke(shape);
 }
 
@@ -631,6 +631,18 @@ export function paintStrata(ctx: CanvasRenderingContext2D, spec: StrataSpec): vo
     ctx.lineWidth = 1.4;
     strokeCurve(ctx, curves[i]);
     ctx.restore();
+    // Short ticks hanging under the boundary, like the contacts on a geological map.
+    ctx.strokeStyle = 'rgba(28,16,6,0.34)';
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    for (let x = 14 + (i % 2) * 11; x < width; x += 34) {
+      const idx = Math.min(curves[i].x.length - 1, Math.round(x / WAVE_STEP));
+      const y = curves[i].y[idx];
+      ctx.beginPath();
+      ctx.moveTo(x, y + 5);
+      ctx.lineTo(x - 3, y + 13);
+      ctx.stroke();
+    }
   }
 
   // 3. Per layer decoration: mottling, grain, stones, layer specific detail.
@@ -647,6 +659,8 @@ export function paintStrata(ctx: CanvasRenderingContext2D, spec: StrataSpec): vo
       const rx = range(bandRng, 26, 95);
       ellipse(ctx, range(bandRng, -40, width + 40), range(bandRng, band.top, band.bottom), rx, rx * range(bandRng, 0.35, 0.7));
     }
+
+    paintBands(ctx, bandRng, band, width);
 
     // Grain specks, roughly one per 300 square pixels.
     const speckCount = Math.round((width * (band.bottom - band.top)) / 300);
@@ -669,6 +683,7 @@ export function paintStrata(ctx: CanvasRenderingContext2D, spec: StrataSpec): vo
     switch (look.detail) {
       case 'roots':
         paintRoots(ctx, bandRng, band, width, surfaceY);
+        paintTopsoilLife(ctx, bandRng, band, width);
         break;
       case 'clay':
         paintClay(ctx, bandRng, band, width);
@@ -693,6 +708,19 @@ export function paintStrata(ctx: CanvasRenderingContext2D, spec: StrataSpec): vo
         break;
     }
 
+    paintLithology(ctx, bandRng, band, width);
+    // Graphite hatching in the shaded lower part of every layer.
+    const hatchTop = band.bottom - (band.bottom - band.top) * 0.3;
+    ctx.strokeStyle = 'rgba(20,10,4,0.11)';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    for (let hx = -90; hx < width + 90; hx += 10) {
+      if (bandRng() < 0.18) continue;
+      ctx.moveTo(hx, band.bottom + 4);
+      ctx.lineTo(hx + (band.bottom - hatchTop) * 0.8, hatchTop + bandRng() * 18);
+    }
+    ctx.stroke();
+
     // A little extra shade toward the bottom of every layer.
     const shade = ctx.createLinearGradient(0, band.bottom - (band.bottom - band.top) * 0.35, 0, band.bottom);
     shade.addColorStop(0, 'rgba(20,10,4,0)');
@@ -703,11 +731,12 @@ export function paintStrata(ctx: CanvasRenderingContext2D, spec: StrataSpec): vo
   });
 
   // 4. Darker topsoil strip right below the grass line.
-  const topsoil = ctx.createLinearGradient(0, surfaceY - 4, 0, surfaceY + 22);
-  topsoil.addColorStop(0, 'rgba(58,32,12,0.5)');
-  topsoil.addColorStop(1, 'rgba(58,32,12,0)');
+  const topsoil = ctx.createLinearGradient(0, surfaceY - 4, 0, surfaceY + 70);
+  topsoil.addColorStop(0, 'rgba(48,24,8,0.6)');
+  topsoil.addColorStop(0.35, 'rgba(48,24,8,0.28)');
+  topsoil.addColorStop(1, 'rgba(48,24,8,0)');
   ctx.fillStyle = topsoil;
-  ctx.fillRect(0, surfaceY - 4, width, 28);
+  ctx.fillRect(0, surfaceY - 4, width, 74);
 
   // 5. Bedrock below the last layer.
   const rockTop = lastBand.bottom;
@@ -763,8 +792,164 @@ export function paintStrata(ctx: CanvasRenderingContext2D, spec: StrataSpec): vo
   ctx.fillStyle = depth;
   ctx.fillRect(0, surfaceY, width, height - surfaceY);
 
+  // Paper grain: a fine, even sprinkle of light and dark flecks over everything underground.
+  const grainRng = mulberry32(99);
+  const grains = Math.round((width * (height - surfaceY)) / 130);
+  for (let g = 0; g < grains; g++) {
+    ctx.fillStyle = grainRng() < 0.5 ? 'rgba(255,248,230,0.05)' : 'rgba(20,10,0,0.06)';
+    ctx.fillRect(grainRng() * width, surfaceY + grainRng() * (height - surfaceY), 1.4, 1.4);
+  }
+  // The walls on either side of the pit fall into shadow.
+  const sides = ctx.createLinearGradient(0, 0, width, 0);
+  sides.addColorStop(0, 'rgba(10,5,0,0.36)');
+  sides.addColorStop(0.07, 'rgba(10,5,0,0)');
+  sides.addColorStop(0.93, 'rgba(10,5,0,0)');
+  sides.addColorStop(1, 'rgba(10,5,0,0.36)');
+  ctx.fillStyle = sides;
+  ctx.fillRect(0, surfaceY, width, height - surfaceY);
+
   // 7. The grass fringe above the surface line.
   paintGrass(ctx, rng, curves[0], width);
+}
+
+/**
+ * Lithology marks, as on a geological map: each kind of ground gets its own little symbol,
+ * scattered lightly over the layer. Pure decoration, but it makes the cross-section read as
+ * a drawn plate instead of a gradient with blobs.
+ */
+function paintLithology(ctx: CanvasRenderingContext2D, rng: Rng, band: LayerBand, width: number): void {
+  const look = band.layer.look;
+  const marks = Math.round((width * (band.bottom - band.top)) / 5200);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1.4;
+  const color = look.detail === 'magma' ? 'rgba(255,170,70,0.5)' : look.speckLight;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  for (let i = 0; i < marks; i++) {
+    const x = range(rng, 8, width - 8);
+    const y = range(rng, band.top + 8, band.bottom - 8);
+    ctx.globalAlpha = range(rng, 0.45, 0.9);
+    switch (look.detail) {
+      case 'roots':
+        for (let k = 0; k < 3; k++) ellipse(ctx, x + range(rng, -6, 6), y + range(rng, -4, 4), 1.1, 1.1);
+        break;
+      case 'clay':
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(x + 7, y - 2, x + range(rng, 12, 20), y);
+        ctx.stroke();
+        break;
+      case 'cracks':
+        ctx.beginPath();
+        ctx.moveTo(x - 4, y);
+        ctx.lineTo(x + 4, y);
+        ctx.moveTo(x, y - 4);
+        ctx.lineTo(x, y + 4);
+        ctx.stroke();
+        break;
+      case 'boulders':
+        ctx.beginPath();
+        ctx.moveTo(x - 5, y - 3);
+        ctx.lineTo(x, y + 3);
+        ctx.lineTo(x + 5, y - 3);
+        ctx.stroke();
+        break;
+      case 'crystals':
+        ctx.beginPath();
+        ctx.moveTo(x, y - 5);
+        ctx.lineTo(x + 3.5, y);
+        ctx.lineTo(x, y + 5);
+        ctx.lineTo(x - 3.5, y);
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      case 'bones':
+        ellipse(ctx, x - 5, y, 1.6, 1.6);
+        ellipse(ctx, x + 5, y, 1.6, 1.6);
+        ctx.beginPath();
+        ctx.moveTo(x - 4, y);
+        ctx.lineTo(x + 4, y);
+        ctx.stroke();
+        break;
+      case 'bricks':
+        ctx.strokeRect(x - 6, y - 3, 12, 6);
+        break;
+      case 'magma':
+        ctx.beginPath();
+        ctx.moveTo(x - 8, y);
+        ctx.quadraticCurveTo(x - 4, y - 4, x, y);
+        ctx.quadraticCurveTo(x + 4, y + 4, x + 8, y);
+        ctx.stroke();
+        break;
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Thin, wavy sediment bands running through a layer, like the beds in a cliff face. */
+function paintBands(ctx: CanvasRenderingContext2D, rng: Rng, band: LayerBand, width: number): void {
+  const h = band.bottom - band.top;
+  const count = Math.max(3, Math.round(h / 34));
+  for (let k = 0; k < count; k++) {
+    const y = band.top + ((k + 0.3 + rng() * 0.5) / count) * h;
+    const thick = range(rng, 5, 14);
+    const amp = range(rng, 3, 8);
+    const phase = rng() * TAU;
+    const freq = range(rng, 0.004, 0.009);
+    const wave = (x: number): number => y + Math.sin(x * freq + phase) * amp;
+    ctx.beginPath();
+    for (let x = -10; x <= width + 10; x += 12) (x === -10 ? ctx.moveTo(x, wave(x)) : ctx.lineTo(x, wave(x)));
+    for (let x = width + 10; x >= -10; x -= 12) ctx.lineTo(x, wave(x) + thick);
+    ctx.closePath();
+    ctx.fillStyle = rng() < 0.55 ? 'rgba(255,236,200,0.10)' : 'rgba(40,20,6,0.11)';
+    ctx.fill();
+    ctx.beginPath();
+    for (let x = -10; x <= width + 10; x += 12) (x === -10 ? ctx.moveTo(x, wave(x)) : ctx.lineTo(x, wave(x)));
+    ctx.strokeStyle = 'rgba(30,16,6,0.16)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+}
+
+/** Life in the topsoil: fat pink worms and the thin dashed tunnels of ants. */
+function paintTopsoilLife(ctx: CanvasRenderingContext2D, rng: Rng, band: LayerBand, width: number): void {
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < 8; i++) {
+    const x = range(rng, 40, width - 90);
+    const y = range(rng, band.top + 36, band.top + (band.bottom - band.top) * 0.8);
+    const len = range(rng, 36, 70);
+    const path = (): void => {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x + len * 0.3, y - 10, x + len * 0.65, y + 10, x + len, y - 3);
+    };
+    path();
+    ctx.strokeStyle = 'rgba(50,20,12,0.6)';
+    ctx.lineWidth = 6.4;
+    ctx.stroke();
+    path();
+    ctx.strokeStyle = '#eba7a2';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    path();
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(40,20,6,0.3)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([3, 6]);
+  for (let i = 0; i < 6; i++) {
+    const x = range(rng, 20, width - 160);
+    const y = range(rng, band.top + 24, band.bottom - 40);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.bezierCurveTo(x + 50, y + 30, x + 90, y - 20, x + 140, y + 12);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
 }
 
 /** Lush grass tufts and flowers along the grass line (drawn on transparency). */
@@ -835,4 +1020,37 @@ function paintGrass(ctx: CanvasRenderingContext2D, rng: Rng, curve: Curve, width
       ellipse(ctx, fx, fy, 1.5, 1.5);
     }
   }
+
+  // Mushrooms: little red-capped clusters in the grass.
+  for (let i = 0; i < 6; i++) {
+    const x = range(rng, 30, width - 30);
+    const idx = Math.min(curve.x.length - 1, Math.round(x / WAVE_STEP));
+    const baseY = curve.y[idx] + 2;
+    for (let m = 0; m < 2 + (i % 2); m++) {
+      const mx = x + m * 9 - 4;
+      const s = range(rng, 0.8, 1.25);
+      ctx.fillStyle = '#f3ead2';
+      ctx.fillRect(mx - 1.6 * s, baseY - 7 * s, 3.2 * s, 7 * s);
+      ctx.fillStyle = m === 1 ? '#d6452f' : '#e8664a';
+      ctx.beginPath();
+      ctx.ellipse(mx, baseY - 7 * s, 6 * s, 4.2 * s, 0, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(60,20,10,0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ellipse(ctx, mx - 2 * s, baseY - 9 * s, 1, 1);
+      ellipse(ctx, mx + 2 * s, baseY - 8 * s, 0.9, 0.9);
+    }
+  }
+
+  // Sunlit highlight and a dark inked edge where the turf meets the soil.
+  ctx.beginPath();
+  ctx.moveTo(curve.x[0], curve.y[0] + 7);
+  for (let i = 1; i < curve.x.length; i++) ctx.lineTo(curve.x[i], curve.y[i] + 7);
+  ctx.strokeStyle = 'rgba(30,18,6,0.65)';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
 }

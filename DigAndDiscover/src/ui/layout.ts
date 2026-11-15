@@ -18,7 +18,6 @@ export interface Layout {
   tray: Rect;
   stamina: Rect;
   bag: { x: number; y: number };
-  tool: Rect;
   depth: Rect;
   slotSize: number;
   slotGap: number;
@@ -40,7 +39,6 @@ export function computeLayout(w: number, h: number): Layout {
   const topH = Math.round(clamp(h * 0.085, 54, 74));
   const bottomPad = 14;
   const staminaH = compact ? 22 : 24;
-  const toolH = compact ? 24 : 28;
 
   if (compact) {
     const gap = 8;
@@ -52,17 +50,13 @@ export function computeLayout(w: number, h: number): Layout {
     const slotY = btnY - 10 - slot;
     const staminaY = slotY - 12 - staminaH;
     const trayY = staminaY - 12;
-    const toolX = x0;
-    const toolY = staminaY + staminaH / 2;
-    const toolW = 52;
     const depthW = compact ? 14 : 20;
     return {
       w, h, compact, topH,
       play: { x: 0, y: topH, w, h: trayY - topH },
       tray: { x: 6, y: trayY, w: w - 12, h: h - trayY + 30 },
-      stamina: { x: x0 + toolW + 14, y: staminaY, w: rowW - toolW - 14, h: staminaH },
+      stamina: { x: x0, y: staminaY, w: rowW, h: staminaH },
       bag: { x: x0 + rowW, y: staminaY + staminaH / 2 },
-      tool: { x: toolX, y: toolY, w: toolW, h: toolH },
       depth: { x: w - depthW, y: topH, w: depthW, h: trayY - topH },
       slotSize: slot, slotGap: gap, slotX0: x0, slotY,
       button: { x: x0, y: btnY, w: rowW, h: btnH },
@@ -79,17 +73,13 @@ export function computeLayout(w: number, h: number): Layout {
   const slotY = h - bottomPad - slot;
   const staminaY = slotY - 12 - staminaH;
   const trayY = staminaY - 12;
-  const toolX = x0;
-  const toolY = staminaY + staminaH / 2;
-  const toolW = 58;
   const depthW = compact ? 14 : 20;
   return {
     w, h, compact, topH,
     play: { x: 0, y: topH, w, h: trayY - topH },
     tray: { x: x0 - 16, y: trayY, w: total + 32, h: h - trayY + 30 },
-    stamina: { x: x0 + toolW + 14, y: staminaY, w: rowW - toolW - 14, h: staminaH },
+    stamina: { x: x0, y: staminaY, w: rowW, h: staminaH },
     bag: { x: x0 + rowW, y: staminaY + staminaH / 2 },
-    tool: { x: toolX, y: toolY, w: toolW, h: toolH },
     depth: { x: w - depthW, y: topH, w: depthW, h: trayY - topH },
     slotSize: slot, slotGap: gap, slotX0: x0, slotY,
     button: { x: x0 + rowW + 18, y: slotY + (slot - btnH) / 2 - 2, w: btnW, h: btnH },

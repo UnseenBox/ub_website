@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { state } from '../core/GameState';
 import { goalIcon } from '../data/goals';
+import { ICON_STAR } from '../art/IconArt';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
@@ -76,7 +77,8 @@ export class GoalsScene extends Phaser.Scene {
 
     // Level + XP.
     const lp = state.progress.levelProgress;
-    content.add(this.add.text(PAD, y + 12, `\u2B50 ${lp.level}`, textStyle(28, INK)).setOrigin(0, 0.5));
+    content.add(this.add.image(PAD + 18, y + 12, ICON_STAR).setDisplaySize(40, 40));
+    content.add(this.add.text(PAD + 46, y + 12, `${lp.level}`, textStyle(28, INK)).setOrigin(0, 0.5));
     content.add(this.add.text(CARD_W - PAD, y + 12, `${lp.into} / ${lp.need}`, textStyle(16, SOFT_INK)).setOrigin(1, 0.5));
     const xp = this.add.graphics();
     xp.fillStyle(0x3b2616, 0.18).fillRoundedRect(PAD, y + 30, CARD_W - PAD * 2, 14, 7);

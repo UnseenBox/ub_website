@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { CURIO_CATEGORIES, type CurioDef } from '../data/curios';
-import { RARITIES } from '../data/rarities';
+import { ICON_STAR } from './../art/IconArt';
 import { curioKey } from '../art/CurioArt';
 import { formatMoney } from './MoneyCounter';
 
@@ -48,9 +48,10 @@ export class CurioCard extends Phaser.GameObjects.Container {
     inner.add(g);
 
     // Rarity as stars on the frame - no words.
-    const stars = this.scene.add.text(w / 2 - 18, 22, '\u2605'.repeat(curio.tier + 1), outlinedStyle(18, '#ffffff'));
-    stars.setOrigin(1, 0.5).setStroke(RARITIES[Math.min(curio.tier, 4)].css, 4);
-    inner.add(stars);
+    const n = curio.tier + 1;
+    for (let i = 0; i < n; i++) {
+      inner.add(this.scene.add.image(w / 2 - 22 - (n - 1 - i) * 21, 24, ICON_STAR).setDisplaySize(26, 26));
+    }
 
     // Sticker.
     const icon = this.scene.add.image(-w / 2 + 62, CARD_H / 2 + 4, curioKey(curio.id));

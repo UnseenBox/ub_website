@@ -28,8 +28,8 @@ export class MoneyCounter extends Phaser.GameObjects.Container {
   layout(x: number, y: number, h: number): void {
     this.h = h;
     this.setPosition(x, y);
-    this.coin.setScale((h * 0.9) / 52).setPosition(h * 0.5, 0);
-    this.text.setFontSize(Math.round(h * 0.52)).setPosition(h * 0.98, -1);
+    this.coin.setScale((h * 1.55) / 52).setPosition(h * 0.62, 0); // the coin is the star of the pill: bigger than the pill itself
+    this.text.setFontSize(Math.round(h * 0.56)).setPosition(h * 1.5, -1);
     this.drawnWidth = 0;
     this.redrawBg();
   }
@@ -55,7 +55,7 @@ export class MoneyCounter extends Phaser.GameObjects.Container {
   }
 
   pulse(): void {
-    this.scene.tweens.add({ targets: this.coin, scale: { from: (this.h * 1.15) / 52, to: (this.h * 0.9) / 52 }, duration: 160 });
+    this.scene.tweens.add({ targets: this.coin, scale: { from: (this.h * 1.85) / 52, to: (this.h * 1.55) / 52 }, duration: 160 });
     this.scene.tweens.add({ targets: this.text, scale: { from: 1.12, to: 1 }, duration: 160 });
   }
 

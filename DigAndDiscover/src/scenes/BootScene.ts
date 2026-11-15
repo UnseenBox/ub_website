@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { createSharedTextures } from '../art/TextureFactory';
 import { createStoreTextures, loadStoreOverrides } from '../art/StoreArt';
+import { createIconTextures } from '../art/IconArt';
 import { createCurioTextures, loadCurioOverrides } from '../art/CurioArt';
 
 /** Paints every shared texture once, then drops straight into gameplay. */
@@ -17,6 +18,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     createSharedTextures(this.textures);
+    createIconTextures(this.textures);
     createStoreTextures(this.textures);
     createCurioTextures(this.textures);
     this.scene.start('Dig');

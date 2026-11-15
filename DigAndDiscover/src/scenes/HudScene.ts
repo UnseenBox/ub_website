@@ -8,9 +8,8 @@ import { iconScale, rockKeys } from '../art/RockArt';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
 import { InventorySlot } from '../ui/InventorySlot';
-import { ClockPill } from '../ui/ClockPill';
 import { DepthGauge } from '../ui/DepthGauge';
-import { ToolChip } from '../ui/ToolChip';
+import { ICON_SAW, ICON_STAR } from '../art/IconArt';
 import { GoalPill } from '../ui/GoalPill';
 import { CurioCard } from '../ui/CurioCard';
 import type { CurioDef } from '../data/curios';
@@ -52,9 +51,7 @@ export class HudScene extends Phaser.Scene {
   private banner: Phaser.GameObjects.Container | null = null;
   private muteIcon!: Phaser.GameObjects.Graphics;
   private toast!: Toast;
-  private clockPill!: ClockPill;
   private depthGauge!: DepthGauge;
-  private toolChip!: ToolChip;
   private coins: Phaser.GameObjects.Image[] = [];
   private floats: Phaser.GameObjects.Text[] = [];
   private floatIndex = 0;
@@ -90,10 +87,7 @@ export class HudScene extends Phaser.Scene {
     this.curioCard = new CurioCard(this);
     this.toast = new Toast(this);
 
-    ClockPill.createSunTexture(this.textures);
-    this.clockPill = new ClockPill(this);
     this.depthGauge = new DepthGauge(this);
-    this.toolChip = new ToolChip(this);
     this.goalPill = new GoalPill(this, () => this.openGoals());
     this.refillBtn = new Button(this, {
       width: 120, height: 48, label: '\u26A1  \u25B6', fontSize: 22, colors: BUTTON_COLORS.blue,
@@ -148,7 +142,6 @@ export class HudScene extends Phaser.Scene {
       this.goalPill.bump();
       sfx.coin();
     });
-    subscribe(this, EVT.toolChanged, () => this.toolChip.refresh());
     this.input.once('pointerdown', () => (this.userActed = true));
     this.input.keyboard?.once('keydown', () => (this.userActed = true));
 
@@ -205,7 +198,6 @@ export class HudScene extends Phaser.Scene {
     const s = state.stamina;
     this.stamina.setValue(s.value, s.max, s.isRegenerating, dt);
 
-    this.clockPill.setTime(state.day.clock.progress, state.day.clock.label, state.day.day);
     this.depthGauge.tick(dt);
     this.forceWorkshopTrip();
   }
@@ -232,8 +224,7 @@ export class HudScene extends Phaser.Scene {
     this.tray.lineStyle(2, 0xffffff, 0.08).strokeRoundedRect(t.x, t.y, t.w, t.h, 24);
 
     this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h);
-    this.toolChip.layout(L.tool.x, L.tool.y, L.tool.w, L.tool.h);
-    const pillW = L.compact ? Math.min(L.w * 0.5, 220) : 300;
+    const pillW = L.compact ? Math.min(L.w * 0.62, 270) : 300;
     const goalH = L.compact ? 44 : 50;
     this.goalPill.layout(14 + pillW / 2, L.topH + 8 + goalH / 2, pillW, goalH);
     this.refillBtn.setPosition(L.w / 2, L.tray.y - 30);
@@ -247,18 +238,14 @@ export class HudScene extends Phaser.Scene {
 
     const pillH = Math.round(L.topH * 0.62);
     this.money.layout(14, L.topH / 2, pillH);
-    this.clockPill.layout(L.w / 2, L.topH / 2, pillH, 14 + pillH * 3.4 + 8);
     const muteR = pillH / 2;
     this.mute.setPosition(L.w - 14 - muteR, L.topH / 2);
-    // Phones: the clock pill leaves no room in the top bar, so the store sits beside the goal pill.
-    if (L.compact) this.storeBtn.setPosition(14 + pillW + 12 + muteR, L.topH + 8 + goalH / 2);
-    else this.storeBtn.setPosition(L.w - 14 - muteR * 2 - 10 - muteR, L.topH / 2);
+    this.storeBtn.setPosition(L.w - 14 - muteR * 2 - 10 - muteR, L.topH / 2);
     this.storeBtn.setSize(pillH, pillH);
     (this.storeBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.iconR = muteR;
     this.drawStoreIcon(muteR);
-    if (L.compact) this.collectBtn.setPosition(this.storeBtn.x + muteR * 2 + 8, this.storeBtn.y);
-    else this.collectBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
+    this.collectBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
     this.collectBtn.setSize(pillH, pillH);
     (this.collectBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawCollectionButton(muteR);
@@ -276,32 +263,32 @@ export class HudScene extends Phaser.Scene {
   private refresh(): void {
     this.refreshSlots();
     const inv = state.inventory;
-    this.toolChip.refresh();
 
     if (state.mode === 'dig') {
       const ready = state.workshopReady && state.canWork;
       if (!state.canWork) {
-        this.action.setLabel('\u{1F319}').setColors(BUTTON_COLORS.blue).setEnabled(false).setPulse(false);
+        this.action.setIcon(null).setLabel('\u{1F319}').setColors(BUTTON_COLORS.blue).setEnabled(false).setPulse(false);
       } else if (ready) {
-        this.action.setLabel(`\u2699\uFE0F ${inv.uncutCount}  >`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
+        this.action.setIcon(ICON_SAW).setLabel(`${inv.uncutCount}  >`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
       } else if (state.workshopAvailable) {
         // Any rock can be cut right away; the button only starts pulsing once a trip is worth it.
-        this.action.setLabel(`\u2699\uFE0F ${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
+        this.action.setIcon(ICON_SAW).setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
       } else {
         const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
-        this.action.setLabel(`\u26CF\uFE0F ${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
+        this.action.setIcon(null).setLabel(`\u26CF\uFE0F ${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
       }
     } else if (!state.canWork) {
       // Closing time: no way back to the dig site. The bag has to be emptied first.
       const n = state.rocksLeft;
       this.action
-        .setLabel(n > 0 ? `\u2702\uFE0F ${n}` : '\u{1F319}')
+        .setIcon(n > 0 ? ICON_SAW : null)
+        .setLabel(n > 0 ? `${n}` : '\u{1F319}')
         .setColors(BUTTON_COLORS.blue)
         .setEnabled(false)
         .setPulse(false);
     } else {
       const nothingLeft = inv.uncutCount === 0 && !state.busy;
-      this.action.setLabel('<  \u26CF\uFE0F').setColors(BUTTON_COLORS.blue).setEnabled(!state.busy).setPulse(nothingLeft);
+      this.action.setIcon(null).setLabel('<  \u26CF\uFE0F').setColors(BUTTON_COLORS.blue).setEnabled(!state.busy).setPulse(nothingLeft);
     }
   }
 
@@ -644,21 +631,27 @@ export class HudScene extends Phaser.Scene {
     sfx.newDay();
     this.goalPill.refresh();
     this.goalPill.bump();
-    this.showCenterBanner(`\u2B50 ${level}`, `+${formatMoney(bonus)}`);
+    this.showCenterBanner(`${level}`, `+${formatMoney(bonus)}`, ICON_STAR);
   }
 
-  private showCenterBanner(titleText: string, subText = ''): void {
+  private showCenterBanner(titleText: string, subText = '', iconKey?: string): void {
     this.banner?.destroy();
     const banner = this.add.container(this.scale.width / 2, this.scale.height / 2 - 70);
     const bg = this.add.graphics();
     const title = this.add.text(0, subText ? -18 : 0, titleText, outlinedStyle(44, '#ffd34d')).setOrigin(0.5);
     const sub = subText ? this.add.text(0, 26, subText, outlinedStyle(22, '#8dff9a')).setOrigin(0.5) : null;
-    const w = Math.max(title.width, sub?.width ?? 0) + 64;
-    const h = subText ? 96 : 76;
+    const icon = iconKey ? this.add.image(0, subText ? -18 : 0, iconKey).setDisplaySize(72, 72) : null;
+    const rowW = (icon ? 82 : 0) + title.width;
+    if (icon) {
+      icon.x = -rowW / 2 + 36;
+      title.x = rowW / 2 - title.width / 2;
+    }
+    const w = Math.max(rowW, sub?.width ?? 0) + 64;
+    const h = subText ? 108 : 84;
     bg.fillStyle(0x000000, 0.5).fillRoundedRect(-w / 2, -h / 2 + 4, w, h, 18);
     bg.fillStyle(PALETTE.tray, 0.95).fillRoundedRect(-w / 2, -h / 2, w, h, 18);
     bg.lineStyle(3, PALETTE.gold, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, 18);
-    banner.add(sub ? [bg, title, sub] : [bg, title]).setAlpha(0).setScale(0.7).setDepth(60);
+    banner.add([bg, title, ...(icon ? [icon] : []), ...(sub ? [sub] : [])]).setAlpha(0).setScale(0.7).setDepth(60);
     this.banner = banner;
     this.tweens.add({
       targets: banner, alpha: 1, scale: 1, duration: 300, ease: 'Back.easeOut',

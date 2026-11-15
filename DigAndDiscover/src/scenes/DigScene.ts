@@ -6,7 +6,10 @@ import { intRange, range } from '../core/Random';
 import type { Rock } from '../core/types';
 import { ART_RES, ensureRockTextures, rockKeys } from '../art/RockArt';
 import { paintStrata } from '../art/StrataArt';
-import { paintHome } from '../art/SurfaceArt';
+import { paintHome, paintMine } from '../art/SurfaceArt';
+import {
+  CLOUDS, RIDGE_FAR, RIDGE_MID, RIDGE_NEAR, RIDGE_W, SKY, SUN_DISC, SUN_RAYS, createScenicTextures,
+} from '../art/ScenicArt';
 import { HOLE_RADIUS, HOLE_VARIANTS, SHOVEL } from '../art/TextureFactory';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
@@ -49,8 +52,6 @@ const SHOVEL_HOVER_MAX = 130;
 const SHOVEL_REST_ANGLE = 18;
 /** A curio sprite is a 160px sticker; this makes it about 112 field units wide. */
 const CURIO_SCALE = 0.7;
-/** Swings in a row (each within this much of the last cooldown) build a streak. */
-const STREAK_GRACE_MS = 520;
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -107,6 +108,10 @@ export class DigScene extends Phaser.Scene {
   private L!: Layout;
   private sky!: Phaser.GameObjects.Image;
   private sun!: Phaser.GameObjects.Image;
+  private sunRays!: Phaser.GameObjects.Image;
+  private ridgeFar!: Phaser.GameObjects.Image;
+  private ridgeMid!: Phaser.GameObjects.Image;
+  private ridgeNear!: Phaser.GameObjects.Image;
   private clouds: Phaser.GameObjects.Image[] = [];
   private wrap!: Phaser.GameObjects.Container;
   private root!: Phaser.GameObjects.Container;
@@ -134,9 +139,7 @@ export class DigScene extends Phaser.Scene {
   private crystalFx!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private embedded: EmbeddedRock[] = [];
-  private streak = 0;
   private bedrockAnnounced = false;
-  private lastSwingAt = 0;
   private aimMark!: Phaser.GameObjects.Image;
   private fieldScale = 1;
   private visL = 0;
@@ -180,7 +183,6 @@ export class DigScene extends Phaser.Scene {
 
   create(): void {
     this.embedded = [];
-    this.streak = 0;
     this.bedrockAnnounced = false;
     this.clouds = [];
     this.rings = [];
@@ -229,6 +231,7 @@ export class DigScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
+    this.sunRays.rotation += dt * 0.00005;
     for (const cloud of this.clouds) {
       cloud.x += cloud.getData('speed') * dt;
       if (cloud.x - cloud.displayWidth / 2 > W + 400) cloud.x = -400 - cloud.displayWidth / 2;
@@ -264,19 +267,26 @@ export class DigScene extends Phaser.Scene {
     makeCanvasTexture(this.textures, 'strata', W, TOTAL_H, (ctx) =>
       paintStrata(ctx, { width: W, height: TOTAL_H, surfaceY: SURFACE, bands: state.dig.bands }),
     );
+    createScenicTextures(this.textures);
     makeCanvasTexture(this.textures, 'home', HOME_W, HOME_H, (ctx, w, h) => paintHome(ctx, w, h));
+    makeCanvasTexture(this.textures, 'mine', HOME_W, HOME_H, (ctx, w, h) => paintMine(ctx, w, h));
 
-    this.sky = this.add.image(-1500, -SKY_HEIGHT, 'sky').setOrigin(0, 0).setDisplaySize(W + 3000, SKY_HEIGHT + SURFACE + 2);
-    this.sun = this.add.image(0, 0, 'soft').setTint(0xfff3b0).setAlpha(0.9).setScale(2.6);
-    for (let i = 0; i < 3; i++) {
-      const cloud = this.add.image(W * (0.1 + i * 0.36), SURFACE - 190 - i * 34, 'cloud').setAlpha(0.9).setScale(1 - i * 0.16);
-      cloud.setData('speed', 0.006 + i * 0.004);
+    this.sky = this.add.image(-1500, -SKY_HEIGHT, SKY).setOrigin(0, 0).setDisplaySize(W + 3000, SKY_HEIGHT + SURFACE + 2);
+    this.sunRays = this.add.image(0, 0, SUN_RAYS).setAlpha(0.5).setScale(1.5);
+    this.sun = this.add.image(0, 0, SUN_DISC).setScale(1.55);
+    for (let i = 0; i < 4; i++) {
+      const cloud = this.add.image(W * (0.06 + i * 0.28), SURFACE - 230 - (i % 2) * 70 - i * 12, CLOUDS[i % CLOUDS.length]);
+      cloud.setAlpha(0.96).setScale(1.15 - i * 0.1);
+      cloud.setData('speed', 0.005 + i * 0.0035);
       this.clouds.push(cloud);
     }
-    const hills = this.add.graphics();
-    hills.fillStyle(0x9dd37a).fillEllipse(W * 0.15, SURFACE + 20, W * 0.7, 150);
-    hills.fillStyle(0x86c463).fillEllipse(W * 0.78, SURFACE + 24, W * 0.85, 170);
-    const home = this.add.image(W / 2 - 320, SURFACE + 4, 'home').setOrigin(0.5, 1).setScale(0.8);
+    // Three ridges, far to near, like cut-paper stage flats; the far ones drift slower as the view scrolls.
+    const ridgeX = -(RIDGE_W - W) / 2;
+    this.ridgeFar = this.add.image(ridgeX, SURFACE + 8, RIDGE_FAR).setOrigin(0, 1);
+    this.ridgeMid = this.add.image(ridgeX, SURFACE + 12, RIDGE_MID).setOrigin(0, 1);
+    this.ridgeNear = this.add.image(ridgeX, SURFACE + 18, RIDGE_NEAR).setOrigin(0, 1);
+    const home = this.add.image(W / 2 - 215, SURFACE + 6, 'home').setOrigin(0.5, 1).setScale(0.8);
+    const mine = this.add.image(W / 2 + 215, SURFACE + 6, 'mine').setOrigin(0.5, 1).setScale(0.8);
 
     // The back wall of the shaft: the same strata, darkened. Cropped so the grass is not repeated.
     const under = this.add.image(0, 0, 'strata').setOrigin(0, 0).setTint(0x5d5a6c);
@@ -291,7 +301,7 @@ export class DigScene extends Phaser.Scene {
     this.wrap = this.add.container(0, 0);
     this.root = this.add.container(-W / 2, 0);
     this.wrap.add(this.root);
-    this.root.add([this.sky, this.sun, ...this.clouds, hills, home, under, this.rockLayer, this.soil, this.popLayer]);
+    this.root.add([this.sky, this.sunRays, this.sun, ...this.clouds, this.ridgeFar, this.ridgeMid, this.ridgeNear, home, mine, under, this.rockLayer, this.soil, this.popLayer]);
     this.stamp = this.make.image({ key: 'hole0', add: false });
   }
 
@@ -550,14 +560,24 @@ export class DigScene extends Phaser.Scene {
   private applyScroll(): void {
     // Snap to whole screen pixels so the terrain never shimmers while scrolling.
     this.root.y = -Math.round(this.scrollY * this.fieldScale) / this.fieldScale;
+    // Parallax: the distant ridges lag behind the ground as the view scrolls.
+    this.ridgeFar.y = SURFACE + 8 + this.scrollY * 0.5;
+    this.ridgeMid.y = SURFACE + 12 + this.scrollY * 0.25;
   }
 
   private applyTimeOfDay(p: number): void {
     this.skyProgress = p;
-    this.sky.setTint(skyTint(p));
-    this.sun
-      .setPosition(Phaser.Math.Linear(W * 0.12, W * 0.88, p), SURFACE - 80 - Math.sin(Math.PI * p) * 130)
-      .setTint(mixColor(0xfff3b0, 0xffa94d, Math.max(0, (p - 0.6) / 0.4)));
+    const tint = skyTint(p);
+    this.sky.setTint(tint);
+    const sunColor = mixColor(0xfff3b0, 0xffa94d, Math.max(0, (p - 0.6) / 0.4));
+    const sx = Phaser.Math.Linear(W * 0.12, W * 0.88, p);
+    const sy = SURFACE - 90 - Math.sin(Math.PI * p) * 150;
+    this.sun.setPosition(sx, sy).setTint(sunColor);
+    this.sunRays.setPosition(sx, sy).setTint(sunColor);
+    // The mountains and hills take the light too, the far ones most.
+    this.ridgeFar.setTint(mixColor(0xffffff, tint, 0.8));
+    this.ridgeMid.setTint(mixColor(0xffffff, tint, 0.55));
+    this.ridgeNear.setTint(mixColor(0xffffff, tint, 0.3));
   }
 
   private toFieldX(sx: number): number {
@@ -734,14 +754,6 @@ export class DigScene extends Phaser.Scene {
       this.nextDigAt = now + 450;
       this.showTired(x);
       return;
-    }
-    // Keep swinging and the streak grows: every tenth swing gives a little energy back.
-    const nowT = this.time.now;
-    this.streak = nowT - this.lastSwingAt < state.tool.swingCooldownMs + STREAK_GRACE_MS ? this.streak + 1 : 1;
-    this.lastSwingAt = nowT;
-    if (this.streak % 10 === 0) {
-      state.stamina.restore(state.stamina.max * 0.06);
-      this.floatText(`x${this.streak}`, clamp(x, this.visL + 140, this.visR - 140), state.dig.floorAt(x) - 150);
     }
     // Hard ground makes the swing heavier and slower, not just less effective.
     this.nextDigAt = now + state.tool.swingCooldownMs * (1 + 0.5 * layer.feel.clang);
@@ -1051,14 +1063,6 @@ export class DigScene extends Phaser.Scene {
         },
       });
     });
-  }
-
-  /** A short pop-up line over the dig ("STREAK x10!"). */
-  private floatText(text: string, x: number, y: number, color = '#ffd34d'): void {
-    const t = this.add.text(x, y, text, outlinedStyle(30, color)).setOrigin(0.5).setScale(0.6);
-    this.popLayer.add(t);
-    this.tweens.add({ targets: t, scale: 1, duration: 180, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: t, y: y - 60, alpha: 0, delay: 500, duration: 450, onComplete: () => t.destroy() });
   }
 
   /** After selling frees a slot, rocks that were dug out but blocked by a full bag pop right away. */

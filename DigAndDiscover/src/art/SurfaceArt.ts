@@ -1,294 +1,665 @@
-import { ellipse, roundRect } from './paint';
+import { mulberry32 } from '../core/Random';
+import { TAU, ellipse, roundRect } from './paint';
 
 /**
- * The little family home standing on its grass patch - used for the
- * "back home" panel and the end-of-day summary.
- *
- * The art is drawn in a fixed 520 x 300 design space and scaled to whatever
- * canvas the caller provides.
+ * The surface scenery, painted in code: a timber-framed cottage with a scalloped tile roof,
+ * a storybook tree, and (separately) the mine head-frame with its ore cart. Everything is
+ * drawn in a 520 x 300 design space and scaled to the canvas it is given. Thick warm-brown
+ * ink outlines, flat colour with a lit side and a shaded side, little details everywhere -
+ * the look of an old illustrated field guide rather than clip art.
  */
 
 const INK = '#3b2616';
 const DESIGN_W = 520;
 const DESIGN_H = 300;
-/** Y of the ground line (bottom of the grass patch). */
 const BASE_Y = DESIGN_H - 6;
 
-function stroke(ctx: CanvasRenderingContext2D, width = 3): void {
-  ctx.strokeStyle = INK;
+type Ctx = CanvasRenderingContext2D;
+
+function ink(ctx: Ctx, width = 3, color = INK): void {
+  ctx.strokeStyle = color;
   ctx.lineWidth = width;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.stroke();
 }
 
-/**
- * Paints a cosy cottage, a tree and a mailbox onto a transparent canvas.
- *
- * The canvas must be w x h; everything is scaled to fit it.
- */
-export function paintHome(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  ctx.save();
-  ctx.scale(w / DESIGN_W, h / DESIGN_H);
-
-  paintGrassPatch(ctx);
-  paintTree(ctx);
-  paintMailbox(ctx);
-  paintHouse(ctx);
-
-  ctx.restore();
+function poly(ctx: Ctx, pts: Array<[number, number]>): void {
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+  ctx.closePath();
 }
 
-/** Soft green mound the house and the tree stand on. */
-function paintGrassPatch(ctx: CanvasRenderingContext2D): void {
-  ctx.beginPath();
-  ctx.moveTo(24, BASE_Y);
-  ctx.quadraticCurveTo(120, BASE_Y - 14, 250, BASE_Y - 8);
-  ctx.quadraticCurveTo(390, BASE_Y - 15, 500, BASE_Y);
-  ctx.lineTo(500, DESIGN_H);
-  ctx.lineTo(24, DESIGN_H);
-  ctx.closePath();
-  const g = ctx.createLinearGradient(0, BASE_Y - 16, 0, DESIGN_H);
-  g.addColorStop(0, '#7cc455');
-  g.addColorStop(1, '#4c9438');
-  ctx.fillStyle = g;
-  ctx.fill();
-  stroke(ctx, 3);
+function grad(ctx: Ctx, y0: number, y1: number, a: string, b: string): CanvasGradient {
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, a);
+  g.addColorStop(1, b);
+  return g;
+}
 
-  // A few tufts of grass on the patch.
-  ctx.strokeStyle = '#3f7f36';
-  ctx.lineWidth = 2;
+/** Fills the current path, then outlines it. */
+function paintShape(ctx: Ctx, fill: string | CanvasGradient, lw = 3): void {
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ink(ctx, lw);
+}
+
+/** A meadow bank the scenery stands on: lit rim, turf lip, flowers and tufts. */
+function paintBank(ctx: Ctx, from: number, to: number, seed: number): void {
+  const rng = mulberry32(seed);
+  ctx.beginPath();
+  ctx.moveTo(from, BASE_Y + 2);
+  ctx.bezierCurveTo(from + 70, BASE_Y - 22, to - 120, BASE_Y - 26, to, BASE_Y + 2);
+  ctx.lineTo(to, DESIGN_H);
+  ctx.lineTo(from, DESIGN_H);
+  ctx.closePath();
+  paintShape(ctx, grad(ctx, BASE_Y - 26, DESIGN_H, '#98d35f', '#3f8a38'), 3);
+  // Warm rim light along the top.
+  ctx.beginPath();
+  ctx.moveTo(from + 6, BASE_Y - 1);
+  ctx.bezierCurveTo(from + 74, BASE_Y - 22, to - 118, BASE_Y - 26, to - 6, BASE_Y - 1);
+  ctx.strokeStyle = 'rgba(230,255,170,0.7)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // Tufts.
   ctx.lineCap = 'round';
-  for (const [x, y] of [[60, BASE_Y - 6], [150, BASE_Y - 10], [340, BASE_Y - 9], [455, BASE_Y - 5]] as const) {
+  for (let i = 0; i < 26; i++) {
+    const x = from + 14 + rng() * (to - from - 28);
+    const y = BASE_Y - 6 + rng() * 9;
+    ctx.strokeStyle = rng() < 0.5 ? '#2f7a33' : '#b8e86a';
+    ctx.lineWidth = 2;
+    for (let b = 0; b < 3; b++) {
+      ctx.beginPath();
+      ctx.moveTo(x + b * 3, y);
+      ctx.quadraticCurveTo(x + b * 3 + (b - 1) * 4, y - 6, x + b * 3 + (b - 1) * 7, y - 11 - rng() * 4);
+      ctx.stroke();
+    }
+  }
+  // Wildflowers: poppies, daisies and violets.
+  for (let i = 0; i < 16; i++) {
+    const x = from + 18 + rng() * (to - from - 36);
+    const y = BASE_Y - 3 + rng() * 6;
+    const kind = rng();
+    ctx.strokeStyle = '#2f7a33';
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + 3, y - 9, x + 7, y - 13);
+    ctx.lineTo(x, y - 11);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x + 4, y);
-    ctx.quadraticCurveTo(x + 8, y - 7, x + 13, y - 10);
-    ctx.stroke();
+    if (kind < 0.4) {
+      ctx.fillStyle = '#e8503a';
+      ellipse(ctx, x, y - 13, 4.2, 3.6);
+      ctx.fillStyle = '#3b1a10';
+      ellipse(ctx, x, y - 13, 1.4, 1.4);
+    } else if (kind < 0.75) {
+      ctx.fillStyle = '#fffaf0';
+      for (let p = 0; p < 6; p++) ellipse(ctx, x + Math.cos((p / 6) * TAU) * 3, y - 13 + Math.sin((p / 6) * TAU) * 3, 2, 2);
+      ctx.fillStyle = '#ffc83d';
+      ellipse(ctx, x, y - 13, 1.8, 1.8);
+    } else {
+      ctx.fillStyle = '#9a7be0';
+      for (let p = 0; p < 4; p++) ellipse(ctx, x + Math.cos((p / 4) * TAU) * 2.6, y - 13 + Math.sin((p / 4) * TAU) * 2.6, 2, 2);
+      ctx.fillStyle = '#ffe27a';
+      ellipse(ctx, x, y - 13, 1.2, 1.2);
+    }
   }
 }
 
-/** Round leafy tree beside the cottage. */
-function paintTree(ctx: CanvasRenderingContext2D): void {
-  // Trunk.
+/** Round storybook tree: ink silhouette, three tones of leaf clumps, blossoms. */
+function paintTree(ctx: Ctx): void {
+  // Trunk with roots and bark lines.
   ctx.beginPath();
-  ctx.moveTo(58, BASE_Y - 2);
-  ctx.quadraticCurveTo(63, BASE_Y - 60, 62, BASE_Y - 118);
-  ctx.lineTo(92, BASE_Y - 118);
-  ctx.quadraticCurveTo(89, BASE_Y - 58, 94, BASE_Y - 2);
+  ctx.moveTo(60, BASE_Y + 1);
+  ctx.quadraticCurveTo(76, BASE_Y - 14, 79, BASE_Y - 40);
+  ctx.quadraticCurveTo(80, BASE_Y - 90, 74, BASE_Y - 124);
+  ctx.lineTo(106, BASE_Y - 124);
+  ctx.quadraticCurveTo(100, BASE_Y - 88, 102, BASE_Y - 40);
+  ctx.quadraticCurveTo(105, BASE_Y - 14, 122, BASE_Y + 1);
+  ctx.quadraticCurveTo(90, BASE_Y - 8, 60, BASE_Y + 1);
   ctx.closePath();
-  const trunk = ctx.createLinearGradient(58, 0, 94, 0);
-  trunk.addColorStop(0, '#a9713d');
-  trunk.addColorStop(1, '#7d4f27');
-  ctx.fillStyle = trunk;
-  ctx.fill();
-  stroke(ctx, 3);
+  const trunk = ctx.createLinearGradient(66, 0, 120, 0);
+  trunk.addColorStop(0, '#c98a4c');
+  trunk.addColorStop(0.55, '#9a6234');
+  trunk.addColorStop(1, '#6e4222');
+  paintShape(ctx, trunk, 3.4);
+  ctx.strokeStyle = 'rgba(59,38,22,0.5)';
+  ctx.lineWidth = 2;
+  for (const [x, y, h] of [[86, 214, 30], [96, 188, 24], [88, 160, 28]] as const) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + 4, y - h * 0.5, x - 1, y - h);
+    ctx.stroke();
+  }
 
-  // Canopy: overlapping soft blobs with a darker rim instead of hard lines.
-  const puffs: [number, number, number][] = [
-    [75, 118, 42], [42, 146, 30], [110, 148, 31], [66, 84, 30], [104, 96, 28],
+  const clumps: Array<[number, number, number]> = [
+    [92, 108, 40], [54, 134, 30], [132, 136, 31], [70, 76, 29], [112, 80, 28], [92, 150, 30], [40, 110, 22],
   ];
-  ctx.fillStyle = '#336f2b';
-  for (const [x, y, r] of puffs) ellipse(ctx, x, y, r + 3, (r + 3) * 0.92);
-  ctx.fillStyle = '#5fae43';
-  for (const [x, y, r] of puffs) ellipse(ctx, x, y, r, r * 0.92);
-  ctx.fillStyle = 'rgba(150,212,118,0.55)';
-  for (const [x, y, r] of puffs) ellipse(ctx, x - r * 0.25, y - r * 0.3, r * 0.48, r * 0.4);
-
-  // A couple of apples.
-  for (const [x, y] of [[58, 134], [96, 106]] as const) {
-    ctx.fillStyle = '#e0523f';
-    ellipse(ctx, x, y, 7, 7);
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ellipse(ctx, x - 2, y - 2.5, 2.4, 1.8);
-  }
-}
-
-/** Little roadside mailbox. */
-function paintMailbox(ctx: CanvasRenderingContext2D): void {
-  // Post.
-  ctx.fillStyle = '#8a5a30';
-  roundRect(ctx, 434, BASE_Y - 74, 9, 74, 3);
-  ctx.fill();
-  stroke(ctx, 2.5);
-
-  // Box.
-  ctx.beginPath();
-  ctx.moveTo(420, BASE_Y - 74);
-  ctx.quadraticCurveTo(420, BASE_Y - 96, 438, BASE_Y - 96);
-  ctx.quadraticCurveTo(457, BASE_Y - 96, 457, BASE_Y - 74);
-  ctx.closePath();
-  const box = ctx.createLinearGradient(0, BASE_Y - 96, 0, BASE_Y - 74);
-  box.addColorStop(0, '#f07f6a');
-  box.addColorStop(1, '#c04a3c');
-  ctx.fillStyle = box;
-  ctx.fill();
-  stroke(ctx, 3);
-  // Flag.
+  // Silhouette outline first, so the ink only shows on the outside of the canopy.
+  ctx.fillStyle = INK;
   ctx.strokeStyle = INK;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(457, BASE_Y - 84);
-  ctx.lineTo(468, BASE_Y - 84);
-  ctx.stroke();
-  ctx.fillStyle = '#ffd34d';
-  roundRect(ctx, 463, BASE_Y - 96, 6, 12, 2);
-  ctx.fill();
-  stroke(ctx, 2);
+  ctx.lineWidth = 9;
+  ctx.lineJoin = 'round';
+  for (const [x, y, r] of clumps) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, TAU);
+    ctx.stroke();
+    ctx.fill();
+  }
+  ctx.fillStyle = '#2c6a46';
+  for (const [x, y, r] of clumps) ellipse(ctx, x, y, r, r);
+  ctx.fillStyle = '#48a057';
+  for (const [x, y, r] of clumps) ellipse(ctx, x - r * 0.1, y - r * 0.14, r * 0.86, r * 0.84);
+  ctx.fillStyle = '#8fd86e';
+  for (const [x, y, r] of clumps) ellipse(ctx, x - r * 0.3, y - r * 0.38, r * 0.46, r * 0.34);
+  // Leaf flecks and blossoms.
+  const rng = mulberry32(77);
+  for (let i = 0; i < 34; i++) {
+    const [x, y, r] = clumps[Math.floor(rng() * clumps.length)];
+    const a = rng() * TAU;
+    const d = rng() * r * 0.8;
+    ctx.fillStyle = rng() < 0.5 ? '#2c6a46' : '#b4ee8a';
+    ellipse(ctx, x + Math.cos(a) * d, y + Math.sin(a) * d, 2.6, 1.4, a);
+  }
+  for (const [x, y] of [[66, 132], [118, 112], [98, 150], [78, 92]] as const) {
+    ctx.fillStyle = '#ffb3c8';
+    for (let p = 0; p < 5; p++) ellipse(ctx, x + Math.cos((p / 5) * TAU) * 3.4, y + Math.sin((p / 5) * TAU) * 3.4, 2.6, 2.6);
+    ctx.fillStyle = '#ffe27a';
+    ellipse(ctx, x, y, 1.6, 1.6);
+  }
 }
 
-/** The cottage itself. */
-function paintHouse(ctx: CanvasRenderingContext2D): void {
-  const left = 148;
-  const right = 348;
-  const wallTop = 156;
-
-  // Chimney behind the roof.
-  ctx.fillStyle = '#8d5c46';
-  roundRect(ctx, 296, 62, 30, 62, 4);
-  ctx.fill();
-  stroke(ctx, 3);
-  ctx.fillStyle = '#a06b52';
-  roundRect(ctx, 292, 56, 38, 12, 4);
-  ctx.fill();
-  stroke(ctx, 3);
-
-  // Smoke puffs.
-  ctx.fillStyle = 'rgba(238,240,244,0.85)';
-  for (const [x, y, r] of [[311, 44, 9], [322, 30, 7], [308, 18, 5]] as const) {
-    ellipse(ctx, x, y, r, r);
+/** A window that glows from inside, with a flower box beneath it. */
+function paintWindow(ctx: Ctx, x: number, y: number, w: number, h: number): void {
+  // Shutters.
+  for (const sx of [x - 11, x + w + 1]) {
+    roundRect(ctx, sx, y + 1, 10, h - 2, 2);
+    paintShape(ctx, '#4d8590', 2.4);
+    ctx.strokeStyle = 'rgba(20,50,60,0.5)';
+    ctx.lineWidth = 1.4;
+    for (let k = 1; k < 5; k++) {
+      ctx.beginPath();
+      ctx.moveTo(sx + 2, y + (k * h) / 5);
+      ctx.lineTo(sx + 8, y + (k * h) / 5 - 2);
+      ctx.stroke();
+    }
   }
-
-  // Walls.
-  const wall = ctx.createLinearGradient(0, wallTop, 0, BASE_Y);
-  wall.addColorStop(0, '#e0a86a');
-  wall.addColorStop(1, '#b97b42');
-  ctx.fillStyle = wall;
-  roundRect(ctx, left, wallTop, right - left, BASE_Y - wallTop, 6);
+  roundRect(ctx, x, y, w, h, 3);
+  paintShape(ctx, '#6b4226', 3);
+  const gx = x + 4;
+  const gy = y + 4;
+  const gw = w - 8;
+  const gh = h - 8;
+  ctx.fillStyle = grad(ctx, gy, gy + gh, '#fff0b4', '#ffbd4a');
+  ctx.fillRect(gx, gy, gw, gh);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  poly(ctx, [[gx + 2, gy + 2], [gx + gw * 0.55, gy + 2], [gx + 2, gy + gh * 0.55]]);
   ctx.fill();
-  stroke(ctx, 3.5);
+  ctx.strokeStyle = '#6b4226';
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(gx + gw / 2, gy);
+  ctx.lineTo(gx + gw / 2, gy + gh);
+  ctx.moveTo(gx, gy + gh / 2);
+  ctx.lineTo(gx + gw, gy + gh / 2);
+  ctx.stroke();
+  // Curtain tie-backs.
+  ctx.fillStyle = 'rgba(214,96,86,0.85)';
+  poly(ctx, [[gx, gy], [gx + 7, gy], [gx + 2, gy + gh * 0.5], [gx, gy + gh * 0.5]]);
+  ctx.fill();
+  poly(ctx, [[gx + gw, gy], [gx + gw - 7, gy], [gx + gw - 2, gy + gh * 0.5], [gx + gw, gy + gh * 0.5]]);
+  ctx.fill();
+  // Flower box.
+  roundRect(ctx, x - 4, y + h - 2, w + 8, 10, 2);
+  paintShape(ctx, '#8a5a30', 2.4);
+  const colors = ['#ff6f91', '#ffd34d', '#ffffff', '#b58cff'];
+  for (let i = 0; i < 6; i++) {
+    const fx = x + 2 + (i * (w - 4)) / 5;
+    ctx.fillStyle = '#3f9a3d';
+    ellipse(ctx, fx, y + h - 3, 3.4, 2.6);
+    ctx.fillStyle = colors[i % colors.length];
+    ellipse(ctx, fx + (i % 2 ? 2 : -2), y + h - 7, 2.8, 2.8);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ellipse(ctx, fx + (i % 2 ? 2 : -2), y + h - 6.5, 1, 1);
+  }
+}
 
-  // Planks.
-  ctx.strokeStyle = 'rgba(90,50,20,0.28)';
-  ctx.lineWidth = 2;
-  for (let x = left + 22; x < right - 6; x += 22) {
+/** The cottage: stone foundation, timber-framed plaster, scalloped tile roof, warm glow. */
+function paintHouse(ctx: Ctx): void {
+  const left = 176;
+  const right = 384;
+  const wallTop = 164;
+  const stoneTop = 252;
+
+  // Chimney (behind the roof).
+  roundRect(ctx, 322, 66, 32, 76, 3);
+  paintShape(ctx, grad(ctx, 66, 142, '#a9755c', '#80513f'), 3.4);
+  ctx.strokeStyle = 'rgba(59,38,22,0.5)';
+  ctx.lineWidth = 1.6;
+  for (let r = 0; r < 6; r++) {
+    const y = 78 + r * 12;
     ctx.beginPath();
-    ctx.moveTo(x, wallTop + 4);
-    ctx.lineTo(x, BASE_Y - 4);
+    ctx.moveTo(322, y);
+    ctx.lineTo(354, y);
     ctx.stroke();
+    for (let c = 0; c < 2; c++) {
+      ctx.beginPath();
+      ctx.moveTo(332 + c * 14 + (r % 2) * 5, y);
+      ctx.lineTo(332 + c * 14 + (r % 2) * 5, y + 12);
+      ctx.stroke();
+    }
+  }
+  roundRect(ctx, 317, 58, 42, 12, 3);
+  paintShape(ctx, '#6e4533', 3);
+  // Smoke curls.
+  for (const [x, y, r, a] of [[338, 44, 9, 0.9], [346, 30, 11, 0.75], [336, 14, 13, 0.55]] as const) {
+    ctx.fillStyle = `rgba(250,248,242,${a})`;
+    ellipse(ctx, x, y, r, r * 0.86);
+    ctx.fillStyle = `rgba(190,200,215,${a * 0.5})`;
+    ellipse(ctx, x + 2, y + 3, r * 0.7, r * 0.5);
   }
 
-  // Roof.
-  const roofPath = new Path2D();
-  roofPath.moveTo(left - 24, wallTop + 6);
-  roofPath.lineTo(248, 76);
-  roofPath.lineTo(right + 24, wallTop + 6);
-  roofPath.closePath();
-  const roof = ctx.createLinearGradient(0, 76, 0, wallTop + 6);
-  roof.addColorStop(0, '#e2694a');
-  roof.addColorStop(1, '#b83f2c');
-  ctx.fillStyle = roof;
-  ctx.fill(roofPath);
-
-  // Roof shingle lines, clipped to the roof.
+  // Stone foundation.
   ctx.save();
-  ctx.clip(roofPath);
-  ctx.strokeStyle = 'rgba(120,40,26,0.35)';
-  ctx.lineWidth = 2;
-  for (let i = 1; i <= 3; i++) {
-    const t = i / 4;
-    const y = wallTop + 6 - (wallTop + 6 - 76) * t;
-    ctx.beginPath();
-    ctx.moveTo(left - 40, y);
-    ctx.lineTo(right + 40, y);
-    ctx.stroke();
+  roundRect(ctx, left - 4, stoneTop - 2, right - left + 8, BASE_Y - stoneTop + 4, 3);
+  ctx.clip();
+  ctx.fillStyle = '#8c8a8e';
+  ctx.fillRect(left - 4, stoneTop - 2, right - left + 8, BASE_Y - stoneTop + 4);
+  const rng = mulberry32(5);
+  for (let row = 0; row < 3; row++) {
+    for (let x = left - 10 + (row % 2) * 10; x < right + 6; x += 20 + rng() * 8) {
+      const w = 16 + rng() * 10;
+      roundRect(ctx, x, stoneTop + row * 14, w, 12, 4);
+      ctx.fillStyle = ['#a5a3a8', '#8f8d93', '#b8b4b0', '#7d7b82'][Math.floor(rng() * 4)];
+      ctx.fill();
+      ink(ctx, 1.6, 'rgba(40,28,20,0.75)');
+    }
   }
   ctx.restore();
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 3.5;
-  ctx.lineJoin = 'round';
-  ctx.stroke(roofPath);
+  roundRect(ctx, left - 4, stoneTop - 2, right - left + 8, BASE_Y - stoneTop + 4, 3);
+  ink(ctx, 3.4);
 
-  // Door.
-  ctx.fillStyle = '#8a5a30';
-  roundRect(ctx, 238, 218, 54, BASE_Y - 218, 8);
-  ctx.fill();
-  stroke(ctx, 3);
-  ctx.fillStyle = 'rgba(255,255,255,0.16)';
-  roundRect(ctx, 244, 224, 20, 54, 5);
-  ctx.fill();
+  // Plaster walls.
+  ctx.beginPath();
+  ctx.rect(left, wallTop, right - left, stoneTop - wallTop);
+  paintShape(ctx, grad(ctx, wallTop, stoneTop, '#fbefcf', '#e6c996'), 3.4);
+  // Shade under the eaves.
+  ctx.fillStyle = 'rgba(120,70,30,0.22)';
+  ctx.fillRect(left + 2, wallTop + 2, right - left - 4, 14);
+  // Timber frame.
+  ctx.fillStyle = '#6b4226';
+  for (const x of [left, left + 56, right - 66, right - 10]) ctx.fillRect(x, wallTop, 10, stoneTop - wallTop);
+  ctx.fillRect(left, wallTop + 40, right - left, 8);
+  ctx.fillRect(left, stoneTop - 8, right - left, 8);
+  ctx.strokeStyle = '#6b4226';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(left + 10, wallTop + 48);
+  ctx.lineTo(left + 56, wallTop + 8);
+  ctx.moveTo(right - 10, wallTop + 48);
+  ctx.lineTo(right - 66 + 10, wallTop + 8);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(30,16,8,0.7)';
+  ctx.lineWidth = 1.6;
+  for (const x of [left, left + 56, right - 66, right - 10]) ctx.strokeRect(x, wallTop, 10, stoneTop - wallTop);
+  ctx.strokeRect(left, wallTop + 40, right - left, 8);
+  ctx.strokeRect(left, stoneTop - 8, right - left, 8);
+
+  paintWindow(ctx, left + 20, wallTop + 60, 32, 40);
+  paintWindow(ctx, right - 54, wallTop + 60, 32, 40);
+
+  // Arched door with iron straps.
+  const dx = 262;
+  const dw = 52;
+  const dTop = 198;
+  ctx.beginPath();
+  ctx.moveTo(dx, stoneTop);
+  ctx.lineTo(dx, dTop + dw / 2);
+  ctx.arc(dx + dw / 2, dTop + dw / 2, dw / 2, Math.PI, 0);
+  ctx.lineTo(dx + dw, stoneTop);
+  ctx.closePath();
+  const wood = ctx.createLinearGradient(dx, 0, dx + dw, 0);
+  wood.addColorStop(0, '#a9703a');
+  wood.addColorStop(1, '#7b4a24');
+  paintShape(ctx, wood, 3.4);
+  ctx.strokeStyle = 'rgba(59,38,22,0.55)';
+  ctx.lineWidth = 1.6;
+  for (let k = 1; k < 4; k++) {
+    ctx.beginPath();
+    ctx.moveTo(dx + (k * dw) / 4, dTop + 4 + Math.abs(k - 2) * 4);
+    ctx.lineTo(dx + (k * dw) / 4, stoneTop);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#3a3a44';
+  for (const y of [dTop + 22, dTop + 42]) {
+    ctx.fillRect(dx, y, dw, 4);
+    ellipse(ctx, dx + 4, y + 2, 2.4, 2.4);
+  }
   ctx.fillStyle = '#ffd34d';
-  ellipse(ctx, 282, 256, 4, 4);
-  ctx.fill();
-  stroke(ctx, 1.6);
+  ellipse(ctx, dx + dw - 9, dTop + 34, 2.8, 2.8);
+  // Doorstep.
+  roundRect(ctx, dx - 8, stoneTop - 2, dw + 16, 9, 3);
+  paintShape(ctx, '#a5a3a8', 2.6);
 
-  // Glowing window.
-  const winX = 176;
-  const winY = 184;
-  const winW = 54;
-  const winH = 44;
-  const glow = ctx.createRadialGradient(winX + winW / 2, winY + winH / 2, 4, winX + winW / 2, winY + winH / 2, 62);
-  glow.addColorStop(0, 'rgba(255,214,120,0.75)');
-  glow.addColorStop(1, 'rgba(255,214,120,0)');
-  ctx.fillStyle = glow;
-  ellipse(ctx, winX + winW / 2, winY + winH / 2, 62, 62);
-  ctx.fillStyle = '#ffdf8c';
-  roundRect(ctx, winX, winY, winW, winH, 5);
-  ctx.fill();
-  stroke(ctx, 3);
+  // Hanging lantern.
   ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(336, wallTop + 4);
+  ctx.lineTo(336, wallTop + 22);
+  ctx.stroke();
+  const glow = ctx.createRadialGradient(336, wallTop + 34, 2, 336, wallTop + 34, 22);
+  glow.addColorStop(0, 'rgba(255,224,130,0.8)');
+  glow.addColorStop(1, 'rgba(255,224,130,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(310, wallTop + 8, 52, 52);
+  roundRect(ctx, 330, wallTop + 22, 12, 16, 3);
+  paintShape(ctx, '#ffd96a', 2.2);
+
+  // Roof: overhanging gable covered in scalloped tiles.
+  const apexX = (left + right) / 2;
+  const apexY = 66;
+  const eaveY = wallTop + 2;
+  const overhang = 22;
+  const roof: Array<[number, number]> = [[left - overhang, eaveY], [apexX, apexY], [right + overhang, eaveY]];
+  poly(ctx, roof);
+  ctx.fillStyle = '#a63a29';
+  ctx.fill();
+  ctx.save();
+  poly(ctx, roof);
+  ctx.clip();
+  for (let row = 0; row < 8; row++) {
+    const y = apexY + 12 + row * 12.5;
+    for (let x = left - overhang - 20 + (row % 2) * 9; x < right + overhang + 20; x += 18) {
+      ctx.beginPath();
+      ctx.arc(x, y, 9.4, 0, Math.PI);
+      ctx.fillStyle = (row + Math.floor(x / 18)) % 3 === 0 ? '#e0724a' : '#cf5538';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(70,20,12,0.7)';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,200,150,0.45)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(x, y - 1.5, 6.5, Math.PI * 0.15, Math.PI * 0.5);
+      ctx.stroke();
+    }
+  }
+  // Sun-side lighting on the left slope.
+  ctx.fillStyle = 'rgba(255,230,170,0.16)';
+  poly(ctx, [[left - overhang, eaveY], [apexX, apexY], [apexX, eaveY]]);
+  ctx.fill();
+  ctx.restore();
+  poly(ctx, roof);
+  ink(ctx, 3.6);
+  // Ridge cap and eave board.
+  ctx.strokeStyle = '#6b4226';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(left - overhang, eaveY + 1);
+  ctx.lineTo(right + overhang, eaveY + 1);
+  ctx.stroke();
+  ink(ctx, 1.4, 'rgba(30,16,8,0.6)');
+
+  // Round attic window under the apex.
+  ctx.beginPath();
+  ctx.arc(apexX, 118, 17, 0, TAU);
+  paintShape(ctx, '#6b4226', 3.4);
+  ctx.beginPath();
+  ctx.arc(apexX, 118, 12, 0, TAU);
+  ctx.fillStyle = grad(ctx, 106, 130, '#fff0b4', '#ffbd4a');
+  ctx.fill();
+  ctx.strokeStyle = '#6b4226';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(apexX - 12, 118);
+  ctx.lineTo(apexX + 12, 118);
+  ctx.moveTo(apexX, 106);
+  ctx.lineTo(apexX, 130);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ellipse(ctx, apexX - 5, 112, 3, 2);
+
+  // Ivy climbing the left corner.
+  const rngI = mulberry32(31);
+  ctx.strokeStyle = '#2f7a33';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(left + 3, stoneTop);
+  ctx.bezierCurveTo(left - 4, stoneTop - 40, left + 10, wallTop + 50, left + 2, wallTop + 14);
+  ctx.stroke();
+  for (let i = 0; i < 20; i++) {
+    const t = i / 19;
+    const x = left + 3 + Math.sin(t * 6) * 6;
+    const y = stoneTop - t * (stoneTop - wallTop - 14);
+    ctx.fillStyle = rngI() < 0.5 ? '#3f9a3d' : '#68c250';
+    ellipse(ctx, x + (rngI() - 0.5) * 8, y, 4.4, 2.8, rngI() * 3);
+  }
+}
+
+/** A woodpile, a barrel and a signpost pointing to the mine. */
+function paintYardProps(ctx: Ctx): void {
+  // Woodpile against the wall.
+  for (let row = 0; row < 3; row++) {
+    for (let i = 0; i < 4 - row; i++) {
+      const x = 144 + i * 11 + row * 5.5;
+      const y = BASE_Y - 6 - row * 10;
+      ctx.beginPath();
+      ctx.arc(x, y, 6.2, 0, TAU);
+      paintShape(ctx, '#d6a566', 2.2);
+      ctx.strokeStyle = 'rgba(120,70,30,0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.4, 0, TAU);
+      ctx.stroke();
+    }
+  }
+  // Rain barrel.
+  ctx.beginPath();
+  ctx.moveTo(396, BASE_Y - 4);
+  ctx.quadraticCurveTo(388, BASE_Y - 26, 396, BASE_Y - 50);
+  ctx.lineTo(424, BASE_Y - 50);
+  ctx.quadraticCurveTo(432, BASE_Y - 26, 424, BASE_Y - 4);
+  ctx.closePath();
+  const barrel = ctx.createLinearGradient(392, 0, 428, 0);
+  barrel.addColorStop(0, '#b27a42');
+  barrel.addColorStop(1, '#774a25');
+  paintShape(ctx, barrel, 3);
+  ctx.fillStyle = '#3a3a44';
+  for (const y of [BASE_Y - 40, BASE_Y - 12]) ctx.fillRect(391, y, 38, 4);
+  ctx.beginPath();
+  ctx.ellipse(410, BASE_Y - 50, 14, 4, 0, 0, TAU);
+  paintShape(ctx, '#5f8fa0', 2.4);
+  // Signpost with an arrow-shaped board (no words needed).
+  roundRect(ctx, 458, BASE_Y - 78, 7, 80, 2);
+  paintShape(ctx, '#7b4a24', 2.6);
+  poly(ctx, [[440, BASE_Y - 74], [482, BASE_Y - 74], [496, BASE_Y - 64], [482, BASE_Y - 54], [440, BASE_Y - 54]]);
+  paintShape(ctx, '#d1a05a', 2.8);
+  ctx.strokeStyle = 'rgba(90,50,20,0.5)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(446, BASE_Y - 66);
+  ctx.lineTo(480, BASE_Y - 66);
+  ctx.moveTo(446, BASE_Y - 60);
+  ctx.lineTo(474, BASE_Y - 60);
+  ctx.stroke();
+}
+
+/** The home panel: cottage, tree and yard on a flowery bank. */
+export function paintHome(ctx: Ctx, w: number, h: number): void {
+  ctx.save();
+  ctx.scale(w / DESIGN_W, h / DESIGN_H);
+  paintBank(ctx, 6, 514, 1234);
+  paintTree(ctx);
+  paintYardProps(ctx);
+  paintHouse(ctx);
+  ctx.restore();
+}
+
+/**
+ * The mine: a timber head-frame with a pulley and bucket, a glowing lantern, a crate with a
+ * pickaxe, and an ore cart on rails heaped with gems.
+ */
+export function paintMine(ctx: Ctx, w: number, h: number): void {
+  ctx.save();
+  ctx.scale(w / DESIGN_W, h / DESIGN_H);
+  paintBank(ctx, 6, 514, 4321);
+
+  // Rails and sleepers.
+  ctx.fillStyle = '#6b4226';
+  for (let x = 340; x < 500; x += 22) ctx.fillRect(x, BASE_Y - 4, 12, 5);
+  ctx.strokeStyle = '#4a4e58';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(winX + winW / 2, winY);
-  ctx.lineTo(winX + winW / 2, winY + winH);
-  ctx.moveTo(winX, winY + winH / 2);
-  ctx.lineTo(winX + winW, winY + winH / 2);
+  ctx.moveTo(336, BASE_Y - 6);
+  ctx.lineTo(506, BASE_Y - 6);
   ctx.stroke();
 
-  // Flower box under the window.
-  ctx.fillStyle = '#9a6134';
-  roundRect(ctx, winX - 6, winY + winH + 4, winW + 12, 16, 3);
-  ctx.fill();
-  stroke(ctx, 2.5);
-  const blooms: [number, string][] = [
-    [winX + 2, '#e0523f'], [winX + 16, '#ffd94d'], [winX + 30, '#f28fb1'], [winX + 44, '#c39bff'], [winX + 56, '#e0523f'],
-  ];
-  for (const [bx, color] of blooms) {
-    ctx.fillStyle = color;
-    ellipse(ctx, bx, winY + winH + 3, 5, 5);
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ellipse(ctx, bx - 1.4, winY + winH + 1.6, 1.8, 1.4);
+  // Head-frame legs and braces.
+  const legs = (x0: number, x1: number): void => {
+    ctx.fillStyle = '#8a5a30';
+    poly(ctx, [[x0, BASE_Y], [x0 + 14, BASE_Y], [x1 + 8, 96], [x1 - 8, 96]]);
+    ctx.fill();
+    ink(ctx, 3);
+  };
+  legs(120, 220);
+  legs(330, 236);
+  // Cross beams.
+  for (const [y, inset] of [[176, 36], [230, 12]] as const) {
+    const xl = 120 + inset * 0.9;
+    const xr = 344 - inset * 0.9;
+    roundRect(ctx, xl, y, xr - xl, 12, 2);
+    paintShape(ctx, '#a06a38', 2.8);
   }
+  ctx.strokeStyle = '#8a5a30';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(150, 232);
+  ctx.lineTo(300, 178);
+  ctx.moveTo(300, 232);
+  ctx.lineTo(160, 178);
+  ctx.stroke();
+  ink(ctx, 1.4, 'rgba(30,16,8,0.7)');
+  // Nails.
+  ctx.fillStyle = '#2b2b34';
+  for (const [x, y] of [[158, 182], [286, 182], [140, 236], [304, 236], [228, 104], [236, 104]] as const) ellipse(ctx, x, y, 2, 2);
 
-  // Porch light.
-  const lampX = 318;
-  const lampY = 176;
-  const lampGlow = ctx.createRadialGradient(lampX, lampY, 2, lampX, lampY, 34);
-  lampGlow.addColorStop(0, 'rgba(255,226,150,0.8)');
-  lampGlow.addColorStop(1, 'rgba(255,226,150,0)');
-  ctx.fillStyle = lampGlow;
-  ellipse(ctx, lampX, lampY, 34, 34);
-  ctx.fill();
-  ctx.fillStyle = '#4a4a52';
-  roundRect(ctx, lampX - 7, lampY - 9, 14, 16, 3);
-  ctx.fill();
-  stroke(ctx, 2.5);
-  ctx.fillStyle = '#ffe9a8';
-  roundRect(ctx, lampX - 4.5, lampY - 6.5, 9, 11, 2);
-  ctx.fill();
+  // Pulley wheel at the apex.
+  ctx.beginPath();
+  ctx.arc(228, 88, 26, 0, TAU);
+  paintShape(ctx, '#5b6270', 3.4);
+  ctx.beginPath();
+  ctx.arc(228, 88, 17, 0, TAU);
+  paintShape(ctx, '#3e434d', 2.4);
+  ctx.strokeStyle = '#8a93a2';
+  ctx.lineWidth = 2.4;
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * TAU;
+    ctx.beginPath();
+    ctx.moveTo(228, 88);
+    ctx.lineTo(228 + Math.cos(a) * 17, 88 + Math.sin(a) * 17);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#ffd34d';
+  ellipse(ctx, 228, 88, 4, 4);
+  // Rope and bucket.
+  ctx.strokeStyle = '#c9a15e';
+  ctx.lineWidth = 3.4;
+  ctx.beginPath();
+  ctx.moveTo(206, 90);
+  ctx.lineTo(204, 214);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(80,50,20,0.7)';
+  ctx.lineWidth = 1;
+  for (let y = 100; y < 212; y += 8) {
+    ctx.beginPath();
+    ctx.moveTo(202, y);
+    ctx.lineTo(207, y + 4);
+    ctx.stroke();
+  }
+  poly(ctx, [[188, 214], [220, 214], [216, 244], [192, 244]]);
+  paintShape(ctx, grad(ctx, 214, 244, '#7c8696', '#4a4f5a'), 3);
+  ctx.fillStyle = '#2b2b34';
+  ctx.fillRect(189, 224, 30, 3);
+
+  // Lantern on a hook.
+  const lg = ctx.createRadialGradient(292, 150, 2, 292, 150, 34);
+  lg.addColorStop(0, 'rgba(255,224,130,0.85)');
+  lg.addColorStop(1, 'rgba(255,224,130,0)');
+  ctx.fillStyle = lg;
+  ctx.fillRect(250, 110, 84, 84);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(292, 126);
+  ctx.lineTo(292, 138);
+  ctx.stroke();
+  roundRect(ctx, 284, 138, 16, 20, 4);
+  paintShape(ctx, '#ffd96a', 2.4);
+
+  // Crate and pickaxe.
+  roundRect(ctx, 56, BASE_Y - 40, 44, 40, 3);
+  paintShape(ctx, '#b97e44', 3);
+  ctx.strokeStyle = '#7b4a24';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(60, BASE_Y - 36);
+  ctx.lineTo(96, BASE_Y - 4);
+  ctx.moveTo(96, BASE_Y - 36);
+  ctx.lineTo(60, BASE_Y - 4);
+  ctx.stroke();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1.6;
+  ctx.strokeRect(60, BASE_Y - 36, 36, 32);
+  ctx.strokeStyle = '#8a5a30';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(98, BASE_Y - 6);
+  ctx.lineTo(128, BASE_Y - 78);
+  ctx.stroke();
+  ink(ctx, 1.6);
+  ctx.strokeStyle = '#5b6270';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(110, BASE_Y - 88);
+  ctx.quadraticCurveTo(128, BASE_Y - 96, 148, BASE_Y - 72);
+  ctx.stroke();
+  ink(ctx, 1.6);
+
+  // Ore cart with gems.
+  for (const wx of [372, 440]) {
+    ctx.beginPath();
+    ctx.arc(wx, BASE_Y - 12, 9, 0, TAU);
+    paintShape(ctx, '#3e434d', 2.6);
+    ctx.fillStyle = '#8a93a2';
+    ellipse(ctx, wx, BASE_Y - 12, 2.6, 2.6);
+  }
+  poly(ctx, [[352, BASE_Y - 56], [464, BASE_Y - 56], [452, BASE_Y - 20], [364, BASE_Y - 20]]);
+  paintShape(ctx, grad(ctx, BASE_Y - 56, BASE_Y - 20, '#8a95a6', '#58606e'), 3.2);
+  ctx.fillStyle = '#c4a063';
+  ctx.fillRect(350, BASE_Y - 62, 116, 8);
   ctx.strokeStyle = INK;
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(lampX, lampY - 9);
-  ctx.lineTo(lampX, lampY - 15);
-  ctx.stroke();
-
-  // Small doorstep stone.
-  ctx.fillStyle = '#9c968b';
-  roundRect(ctx, 232, BASE_Y - 12, 66, 14, 4);
-  ctx.fill();
-  stroke(ctx, 2.5);
+  ctx.strokeRect(350, BASE_Y - 62, 116, 8);
+  ctx.fillStyle = '#e8eef5';
+  for (const x of [364, 390, 416, 442]) ellipse(ctx, x, BASE_Y - 38, 2.2, 2.2);
+  ctx.fillStyle = 'rgba(176,96,52,0.45)';
+  ellipse(ctx, 400, BASE_Y - 28, 22, 6);
+  // Heap of ore and gems.
+  const heap: Array<[number, number, number, string]> = [
+    [374, 68, 14, '#8f959e'], [398, 74, 17, '#a7adb6'], [424, 68, 15, '#8f959e'], [448, 72, 11, '#a7adb6'],
+  ];
+  for (const [x, up, r, c] of heap) {
+    ctx.beginPath();
+    ctx.ellipse(x, BASE_Y - up, r, r * 0.8, 0, 0, TAU);
+    paintShape(ctx, c, 2.4);
+  }
+  const gems: Array<[number, number, string]> = [[386, 82, '#5cc8ff'], [410, 88, '#ff5a7a'], [432, 80, '#5fe08a'], [398, 70, '#ffd34d']];
+  for (const [x, up, c] of gems) {
+    poly(ctx, [[x, BASE_Y - up - 10], [x + 8, BASE_Y - up], [x, BASE_Y - up + 8], [x - 8, BASE_Y - up]]);
+    paintShape(ctx, c, 2.2);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    poly(ctx, [[x, BASE_Y - up - 8], [x + 3, BASE_Y - up - 2], [x - 2, BASE_Y - up - 3]]);
+    ctx.fill();
+  }
+  ctx.restore();
 }

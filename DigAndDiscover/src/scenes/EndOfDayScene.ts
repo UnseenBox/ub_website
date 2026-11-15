@@ -5,6 +5,7 @@ import { paintFamilyPhoto } from '../art/FamilyPhoto';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { portal } from '../ads/Portal';
+import { ICON_SAW } from '../art/IconArt';
 import { Button } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
 
@@ -97,14 +98,16 @@ export class EndOfDayScene extends Phaser.Scene {
     // Three numbers, each with its own picture.
     const rows: StatRow[] = [
       { icon: '\u26CF\uFE0F', value: s.rocksDiscovered, format: (v) => `${Math.round(v)}`, color: INK },
-      { icon: '\u2702\uFE0F', value: s.rocksProcessed, format: (v) => `${Math.round(v)}`, color: INK },
+      { icon: ICON_SAW, value: s.rocksProcessed, format: (v) => `${Math.round(v)}`, color: INK },
       { icon: '\u{1F4B0}', value: s.moneyEarned, format: (v) => `+${formatMoney(Math.round(v))}`, color: '#1f9a3b' },
     ];
     const rowTexts: Array<{ items: FadeItem[]; value: Phaser.GameObjects.Text; row: StatRow }> = [];
     rows.forEach((row) => {
       const line = this.add.graphics();
       line.lineStyle(2, 0x7a5a3a, 0.14).lineBetween(PAD, y + 40, CARD_W - PAD, y + 40);
-      const icon = this.add.text(PAD + 4, y + 19, row.icon, outlinedStyle(26, '#ffffff', { strokeThickness: 0 })).setOrigin(0, 0.5);
+      const icon: FadeItem = row.icon === ICON_SAW
+        ? this.add.image(PAD + 20, y + 19, ICON_SAW).setDisplaySize(36, 36)
+        : this.add.text(PAD + 4, y + 19, row.icon, outlinedStyle(26, '#ffffff', { strokeThickness: 0 })).setOrigin(0, 0.5);
       const value = this.add.text(CARD_W - PAD, y + 19, row.format(0), outlinedStyle(26, row.color === INK ? '#ffffff' : '#8dff9a')).setOrigin(1, 0.5);
       value.setStroke('#3b2616', 4);
       content.add([line, icon, value]);
