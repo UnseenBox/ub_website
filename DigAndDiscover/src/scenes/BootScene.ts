@@ -19,6 +19,7 @@ import returnIconUrl from '../assets/ui/icons/return.png';
 import crossIconUrl from '../assets/ui/icons/cross.png';
 import collectIconUrl from '../assets/ui/icons/collect.png';
 import workshopBgUrl from '../assets/world/workshop-bg.jpg';
+import upgradePanelUrl from '../assets/ui/upgrade-panel.png';
 import trayUrl from '../assets/ui/rocks-tray.png';
 import machineUrl from '../assets/workshop/machine.png';
 import sawUrl from '../assets/workshop/saw.png';
@@ -51,6 +52,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('workshop-bg', workshopBgUrl);
     // The bag panel: stamina bar, five slots and the plank that holds the rock count.
     this.load.image('rocks-tray', trayUrl);
+    // The wooden upgrade board of the store.
+    this.load.image('upgrade-panel', upgradePanelUrl);
     // The saw machine: the wooden frame and the circular blade are separate pictures.
     this.load.image('machine-art', machineUrl);
     this.load.image('saw-art', sawUrl);

@@ -34,8 +34,14 @@ const NOT_YET = BUTTON_COLORS.disabled;
 const WOOD_DARK = 0x4a2a14;
 const GOLD = 0xffc83d;
 const INK = '#3b2616';
-const SOFT_INK = '#7a5a3a';
 const GREEN_INK = '#2a8a3a';
+/** The upgrade panel picture (assets/ui/upgrade-panel.png) measured in its own pixels. */
+const UPGRADE_ART = {
+  w: 512, h: 680, left: 210, right: 150,
+  trackX0: 135.6, trackX1: 463.5, trackH: 37.5, rowH: 84,
+  rowY: [152.4, 241.7, 331.1, 421.9, 512.8, 603.8],
+  titleY: 61.1, titleH: 57.1, iconX: 80.6, iconR: 37.5,
+} as const;
 const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v));
 /** Cash from the "watch an ad" chip, scaled to the player's level. */
 const adCash = (): number => 50 + 25 * state.progress.level;
@@ -73,7 +79,6 @@ export class StoreScene extends Phaser.Scene {
   private burstFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private confettiFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private counterTop = 0;
-  private upIcons = new Map<string, Phaser.GameObjects.Image>();
   private bubble: Phaser.GameObjects.Container | null = null;
 
   constructor() {
@@ -86,7 +91,6 @@ export class StoreScene extends Phaser.Scene {
     this.swipeStart = null;
     this.holder = null;
     this.bubble = null;
-    this.upIcons = new Map();
     // Start where the shopping is: the next tool worth buying, else the one in hand.
     const power = TOOL_DEFS[state.progress.equippedToolId].power;
     const next = CATALOGUE.findIndex(
@@ -152,7 +156,7 @@ export class StoreScene extends Phaser.Scene {
     const gap = 10;
     this.portrait = R.w / R.h < 1.1;
     if (this.portrait) {
-      const ph = clamp(R.h * 0.4, 196, 250);
+      const ph = clamp(R.h * 0.45, 232, 300);
       this.P = { x: R.x + gap, y: R.y + R.h - ph - gap, w: R.w - gap * 2, h: ph };
       this.S = { x: R.x, y: top, w: R.w, h: this.P.y - gap - top };
     } else {
@@ -176,7 +180,6 @@ export class StoreScene extends Phaser.Scene {
   private build(intro: boolean): void {
     for (const layer of [this.showL, this.panelL, this.topL]) layer.removeAll(true);
     this.bubble = null;
-    this.upIcons.clear();
     this.buildShowcase();
     this.buildUpgrades();
     this.buildClose();
@@ -187,13 +190,13 @@ export class StoreScene extends Phaser.Scene {
   private buildShowcase(): void {
     const S = this.S;
     const f = clamp(S.w / 520, 0.72, 1.15);
-    const infoH = clamp(S.h * 0.34, 104, 150);
+    const infoH = clamp(S.h * 0.32, 96, 150);
     this.counterTop = S.y + S.h - infoH;
     const cx = S.x + S.w / 2;
     const L = this.showL;
     this.toolCx = cx;
     // Leave room above the tool for the ad chip when there is one.
-    const topPad = portal.hasAds ? 56 * f : 8;
+    const topPad = portal.hasAds ? 46 * f : 8;
     const zoneH = this.counterTop - S.y - topPad;
     this.toolCy = S.y + topPad + zoneH * 0.46;
     this.toolSize = Math.min(zoneH * 0.7, S.w * 0.58);
@@ -489,93 +492,111 @@ export class StoreScene extends Phaser.Scene {
 
   // ---------- upgrades board ----------
 
-  private buildUpgrades(): void {
+  /**
+   * The wooden upgrade panel picture (its six rows already carry the icons): a title, and in each row
+   * a bar that fills as the upgrade levels up, with the price at the right end. The picture is
+   * stretched sideways in the middle (a three-part slice), so it fits a tall panel or a wide one.
+   */
+  private buildUpgrades(popId?: string): void {
     const P = this.P;
     const L = this.panelL;
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.35).fillRoundedRect(P.x + 3, P.y + 8, P.w, P.h, 22);
-    g.fillStyle(0xfff3dc).fillRoundedRect(P.x, P.y, P.w, P.h, 22);
-    g.lineStyle(4, 0x3b2616, 0.9).strokeRoundedRect(P.x, P.y, P.w, P.h, 22);
-    g.lineStyle(2, GOLD, 0.5).strokeRoundedRect(P.x + 7, P.y + 7, P.w - 14, P.h - 14, 16);
-    // Two nails where the board hangs.
-    for (const nx of [P.x + 22, P.x + P.w - 22]) g.fillStyle(0x6f655b).fillCircle(nx, P.y + 14, 5).fillStyle(0xffffff, 0.4).fillCircle(nx - 1.5, P.y + 12.5, 1.8);
-    L.add(g);
-
-    // Header ribbon with the bolt.
-    const hh = this.portrait ? 30 : 42;
-    const rw = Math.min(P.w - 70, 150);
-    const hg = this.add.graphics();
-    hg.fillStyle(0x000000, 0.25).fillRoundedRect(P.x + P.w / 2 - rw / 2, P.y - 8 + 4, rw, hh, 12);
-    hg.fillStyle(0x4fb0ff).fillRoundedRect(P.x + P.w / 2 - rw / 2, P.y - 8, rw, hh, 12);
-    hg.fillStyle(0xffffff, 0.25).fillRoundedRect(P.x + P.w / 2 - rw / 2 + 6, P.y - 5, rw - 12, hh * 0.3, 8);
-    hg.lineStyle(3, 0x3b2616, 0.9).strokeRoundedRect(P.x + P.w / 2 - rw / 2, P.y - 8, rw, hh, 12);
-    const bolt = this.add.image(P.x + P.w / 2, P.y - 8 + hh / 2, uiIcon('bolt')).setDisplaySize(hh * 0.8, hh * 0.8);
-    L.add([hg, bolt]);
-
-    const top = P.y - 8 + hh + 8;
-    const items = ALL_UPGRADES;
-    if (this.portrait) {
-      const cols = 3;
-      const gap = 6;
-      const cw = (P.w - 20 - gap * (cols - 1)) / cols;
-      const chh = (P.y + P.h - 10 - top - gap) / 2;
-      items.forEach((it, i) => this.upgradeCell(it, P.x + 10 + (i % cols) * (cw + gap), top + Math.floor(i / cols) * (chh + gap), cw, chh, true));
-    } else {
-      const rows = items.length;
-      const gap = 6;
-      const rh = Math.min(72, (P.y + P.h - 12 - top - gap * (rows - 1)) / rows);
-      items.forEach((it, i) => this.upgradeCell(it, P.x + 12, top + i * (rh + gap), P.w - 24, rh, false));
+    const T = UPGRADE_ART;
+    let s = P.h / T.h;
+    let wTex = P.w / s;
+    if (wTex < T.w) {
+      s = P.w / T.w;
+      wTex = T.w;
     }
-  }
+    const extra = wTex - T.w;
+    const px = P.x + (P.w - wTex * s) / 2;
+    const py = P.y + (P.h - T.h * s) / 2;
+    const panel = this.add.nineslice(px, py, 'upgrade-panel', undefined, wTex, T.h, T.left, T.right, 0, 0).setOrigin(0, 0).setScale(s);
+    L.add(panel);
 
-  /** One upgrade: icon, pips, price button. Tap the icon for what it does. */
-  private upgradeCell(item: UpgradeItem, x: number, y: number, w: number, h: number, tile: boolean): void {
-    const L = this.panelL;
-    const level = state.progress.upgradeLevel(item.id);
-    const maxed = level >= item.maxLevel;
-    const price = upgradePrice(item, level);
-    const afford = state.economy.money >= price;
-    const bg = this.add.graphics();
-    bg.fillStyle(0xf1dcb8).fillRoundedRect(x, y, w, h, 14);
-    bg.lineStyle(2, 0x3b2616, 0.2).strokeRoundedRect(x, y, w, h, 14);
-    // Tapping anywhere on the card says what it is.
-    bg.setInteractive(new Phaser.Geom.Rectangle(x, y, w, h), Phaser.Geom.Rectangle.Contains);
-    bg.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.showBubble(item, x + w / 2, y));
-    L.add(bg);
+    // Title in the empty plaque at the top.
+    const title = this.add.text(px + ((T.w + extra) / 2) * s, py + T.titleY * s, 'Upgrades', outlinedStyle(Math.max(14, Math.round(T.titleH * s * 0.66)), '#ffe9b0')).setOrigin(0.5);
+    L.add(title);
 
-    const endless = item.maxLevel > 12;
-    const isz = tile ? Math.min(38, h * 0.36) : Math.min(46, h - 14);
-    const ix = tile ? x + 8 + isz / 2 : x + 10 + isz / 2;
-    const iy = tile ? y + 8 + isz / 2 : y + h / 2;
-    const icon = this.add.image(ix, iy, storeIconKey(item.id)).setDisplaySize(isz, isz);
-    icon.setInteractive({ useHandCursor: true });
-    icon.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.showBubble(item, x + w / 2, y));
-    this.upIcons.set(item.id, icon);
-    L.add(icon);
+    ALL_UPGRADES.forEach((item, i) => {
+      const level = state.progress.upgradeLevel(item.id);
+      const maxed = level >= item.maxLevel;
+      const price = upgradePrice(item, level);
+      const afford = state.economy.money >= price;
+      const ry = py + T.rowY[i] * s;
+      const tx0 = px + T.trackX0 * s;
+      const tx1 = px + (T.trackX1 + extra) * s;
+      const th = T.trackH * s;
+      const pad = Math.max(2, th * 0.14);
+      const color = item.icon.kind === 'glyph' ? item.icon.color : GOLD;
 
-    // Pips (or just the level for the endless one).
-    const pips = this.add.graphics();
-    const pr = tile ? 3.6 : 5;
-    const pgap = tile ? 9.4 : 14;
-    const pipsX = tile ? x + 8 : x + 10 + isz + 10;
-    const pipsY = tile ? y + h * 0.54 : y + h / 2;
-    if (endless) {
-      const t = this.add.text(tile ? x + w - 8 : pipsX, tile ? iy : pipsY, `${level}`, textStyle(tile ? 15 : 16, SOFT_INK)).setOrigin(tile ? 1 : 0, 0.5);
-      L.add(t);
-    } else {
-      for (let i = 0; i < item.maxLevel; i++) {
-        const on = i < level;
-        pips.fillStyle(on ? GOLD : 0x3b2616, on ? 1 : 0.2).fillCircle(pipsX + pr + i * pgap, pipsY, pr);
-        if (on) pips.lineStyle(1.5, 0x3b2616, 0.8).strokeCircle(pipsX + pr + i * pgap, pipsY, pr);
+      // Price (or a star when there is nothing more to buy) at the right end of the bar.
+      const priceW = clamp((tx1 - tx0) * 0.3, 40, 100);
+      if (maxed) {
+        L.add(this.add.image(tx1 - pad - th * 0.5, ry, ICON_STAR).setDisplaySize(th * 0.8, th * 0.8));
+      } else {
+        L.add(this.add.text(tx1 - pad - 4, ry, formatMoney(price), outlinedStyle(Math.max(11, Math.round(th * 0.7)), afford ? PALETTE.money : '#a89b8a', { strokeThickness: 3 })).setOrigin(1, 0.5));
       }
-      L.add(pips);
-    }
-    // Price button.
-    const bw = tile ? w - 12 : Math.min(88, w * 0.32);
-    const bh = tile ? Math.min(34, h * 0.36) : Math.min(40, h - 16);
-    const b = new Button(this, { width: bw, height: bh, label: maxed ? '' : formatMoney(price), icon: maxed ? ICON_STAR : undefined, fontSize: tile ? 15 : 17, colors: maxed || afford ? BUTTON_COLORS.green : NOT_YET, onClick: () => this.buyUpgrade(item) });
-    b.setPosition(tile ? x + w / 2 : x + w - 10 - bw / 2, tile ? y + h - 6 - bh / 2 : y + h / 2).setEnabled(!maxed);
-    L.add(b);
+
+      // The bar: one segment per level (or a looping bar for the endless upgrade).
+      const fx0 = tx0 + pad;
+      const fillW = tx1 - tx0 - priceW - pad * 2;
+      const segH = th - pad * 2;
+      const g = this.add.graphics();
+      L.add(g);
+      const endless = item.maxLevel > 12;
+      if (endless) {
+        const frac = (level % 10) / 10;
+        g.fillStyle(0xffffff, 0.1).fillRoundedRect(fx0, ry - segH / 2, fillW, segH, segH / 2);
+        if (frac > 0) {
+          g.fillStyle(color).fillRoundedRect(fx0, ry - segH / 2, Math.max(segH, fillW * frac), segH, segH / 2);
+          g.fillStyle(0xffffff, 0.3).fillRoundedRect(fx0 + 2, ry - segH / 2 + 2, Math.max(0, fillW * frac - 4), segH * 0.3, segH * 0.15);
+        }
+        L.add(this.add.text(fx0 + fillW / 2, ry, `${level}`, outlinedStyle(Math.max(11, Math.round(th * 0.62)), '#ffffff', { strokeThickness: 3 })).setOrigin(0.5));
+      } else {
+        const n = item.maxLevel;
+        const gap = Math.max(2, segH * 0.18);
+        const sw = (fillW - gap * (n - 1)) / n;
+        for (let k = 0; k < n; k++) {
+          const sx = fx0 + k * (sw + gap);
+          if (k >= level) {
+            g.fillStyle(0xffffff, 0.1).fillRoundedRect(sx, ry - segH / 2, sw, segH, Math.min(segH / 2, sw / 2));
+            continue;
+          }
+          const draw = (gg: Phaser.GameObjects.Graphics, ox: number, oy: number): void => {
+            gg.fillStyle(color).fillRoundedRect(ox, oy, sw, segH, Math.min(segH / 2, sw / 2));
+            gg.fillStyle(0xffffff, 0.35).fillRoundedRect(ox + 1, oy + 1, Math.max(0, sw - 2), segH * 0.34, Math.min(segH * 0.17, sw / 2));
+          };
+          if (popId === item.id && k === level - 1) {
+            const seg = this.add.graphics();
+            draw(seg, -sw / 2, -segH / 2);
+            const c = this.add.container(sx + sw / 2, ry, [seg]);
+            L.add(c);
+            c.setScale(0, 1.6);
+            this.tweens.add({ targets: c, scaleX: 1, scaleY: 1, duration: 420, ease: 'Back.easeOut' });
+            this.burstFx.explode(12, sx + sw / 2, ry);
+          } else draw(g, sx, ry - segH / 2);
+        }
+      }
+
+      // Tap the round icon for its name and what a level gives; tap the bar or the price to buy.
+      const ir = T.iconR * s;
+      const iconZone = this.add.zone(px + T.iconX * s, ry, ir * 2.2, ir * 2.2).setInteractive({ useHandCursor: true });
+      iconZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.showBubble(item, px + T.iconX * s, ry - ir));
+      const buyZone = this.add.zone((tx0 + tx1) / 2, ry, tx1 - tx0, Math.max(th, T.rowH * s * 0.8)).setInteractive({ useHandCursor: true });
+      buyZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+        if (maxed) {
+          sfx.denied();
+          return;
+        }
+        if (!afford) {
+          sfx.denied();
+          this.tweens.add({ targets: g, x: { from: -5, to: 0 }, duration: 240, ease: 'Elastic.easeOut' });
+          return;
+        }
+        this.buyUpgrade(item);
+      });
+      L.add([iconZone, buyZone]);
+    });
   }
 
   private buyUpgrade(item: UpgradeItem): void {
@@ -615,16 +636,7 @@ export class StoreScene extends Phaser.Scene {
   private refreshAll(popUpgrade: boolean, upgradeId?: string): void {
     this.refreshInfo(false);
     this.panelL.removeAll(true);
-    this.upIcons.clear();
-    this.buildUpgrades();
-    if (popUpgrade && upgradeId) {
-      const icon = this.upIcons.get(upgradeId);
-      if (icon) {
-        const base = icon.scaleX;
-        this.tweens.add({ targets: icon, scale: { from: base * 1.6, to: base }, angle: { from: -14, to: 0 }, duration: 420, ease: 'Back.easeOut' });
-        this.burstFx.explode(12, icon.x, icon.y);
-      }
-    }
+    this.buildUpgrades(popUpgrade ? upgradeId : undefined);
   }
 
   // ---------- close, intro ----------
