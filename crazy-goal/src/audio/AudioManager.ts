@@ -1,3 +1,5 @@
+import { clamp01 } from '../core/math';
+
 export interface ToneOptions {
   freq: number;
   type?: OscillatorType;
@@ -34,6 +36,17 @@ export type SoundIndex = Readonly<Record<string, readonly (readonly number[])[]>
 /** Global level trims so the mix isn't harsh. */
 const MUSIC_LEVEL = 0.3;
 const SFX_LEVEL = 0.45;
+/**
+ * A volume slider's position feels wrong read straight as gain: ears hear loudness roughly in
+ * decibels, so a linear slider leaves most of its felt range jammed into the last few percent
+ * near zero, and everything above that still sounds close to full volume. This spreads the
+ * slider evenly in decibels instead, over a `TAPER_RANGE_DB` span down from the top, so turning
+ * it down a little actually sounds a little quieter, and near the bottom it is genuinely quiet.
+ * Only how the two volume sliders map to their bus gain goes through this; the game's own sound
+ * balance (one effect against another) is untouched.
+ */
+const TAPER_RANGE_DB = 40;
+const volumeTaper = (position: number): number => (position <= 0 ? 0 : 10 ** ((clamp01(position) - 1) * (TAPER_RANGE_DB / 20)));
 
 /**
  * Loudness trims for the standalone recordings, measured (EBU R128) so the set plays at one level: the goal
@@ -369,9 +382,9 @@ export class AudioManager {
       if (!this.ctx) {
         const ctx = new AudioContext();
         const master = ctx.createGain();
-        master.gain.value = this.muted ? 0 : this.soundVolume;
+        master.gain.value = this.muted ? 0 : volumeTaper(this.soundVolume);
         const musicBus = ctx.createGain();
-        musicBus.gain.value = this.muted ? 0 : this.musicVolume * MUSIC_LEVEL;
+        musicBus.gain.value = this.muted ? 0 : volumeTaper(this.musicVolume) * MUSIC_LEVEL;
         // A gentle limiter so stacked impacts never clip.
         const limiter = ctx.createDynamicsCompressor();
         limiter.threshold.value = -14;
@@ -408,8 +421,8 @@ export class AudioManager {
     this.musicVolume = music;
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    this.master?.gain.setTargetAtTime(this.muted ? 0 : sound, now, 0.02);
-    this.musicBus?.gain.setTargetAtTime(this.muted ? 0 : music * MUSIC_LEVEL, now, 0.02);
+    this.master?.gain.setTargetAtTime(this.muted ? 0 : volumeTaper(sound), now, 0.02);
+    this.musicBus?.gain.setTargetAtTime(this.muted ? 0 : volumeTaper(music) * MUSIC_LEVEL, now, 0.02);
   }
 
   /** The audio clock in seconds, or -1 while sound cannot play. */
