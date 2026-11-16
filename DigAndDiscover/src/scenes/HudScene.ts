@@ -702,7 +702,7 @@ export class HudScene extends Phaser.Scene {
 
   /** The run was reset: every scene starts over from day one. */
   private onRunReset(): void {
-    for (const key of ['EndOfDay', 'Store', 'Goals', 'Collection', 'Relocate', 'Ledger', 'GameOver', 'Workshop']) {
+    for (const key of ['EndOfDay', 'Store', 'Goals', 'Collection', 'Relocate', 'Ledger', 'GameOver', 'Reset', 'Workshop']) {
       if (this.scene.isActive(key) || this.scene.isPaused(key) || this.scene.isSleeping(key)) this.scene.stop(key);
     }
     this.time.delayedCall(0, () => this.scene.restart());

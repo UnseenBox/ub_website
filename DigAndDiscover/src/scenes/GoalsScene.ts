@@ -5,13 +5,14 @@ import { goalIcon } from '../data/goals';
 import { ICON_STAR } from '../art/IconArt';
 import { uiIcon } from '../art/UiIcons';
 import { sfx } from '../audio/Sfx';
-import { Button } from '../ui/Button';
+import { Button, type ButtonColors } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
 
 const CARD_W = 480;
 const PAD = 22;
 const INK = '#3b2616';
 const SOFT_INK = '#7a5a3a';
+const START_OVER_COLORS: ButtonColors = { face: 0xd9453a, lip: 0x9a2a22, text: '#ffffff' };
 
 /**
  * Goals card: your level and XP, the three active goals with their rewards and
@@ -127,6 +128,12 @@ export class GoalsScene extends Phaser.Scene {
     content.add(ok);
     y += 72;
 
+    // "Start over" is deliberately small and red; it only opens a confirmation card.
+    const startOver = new Button(this, { width: 190, height: 40, label: 'Start over', fontSize: 18, colors: START_OVER_COLORS, onClick: () => this.openReset() });
+    startOver.setPosition(CARD_W / 2, y + 18);
+    content.add(startOver);
+    y += 50;
+
     this.cardH = y + 10;
     const ph = this.cardH - 8;
     panel.fillStyle(0x000000, 0.3).fillRoundedRect(4, 12, CARD_W, ph, 24);
@@ -153,6 +160,12 @@ export class GoalsScene extends Phaser.Scene {
   private insideCard(p: Phaser.Input.Pointer): boolean {
     const s = this.card.scaleX;
     return p.x >= this.card.x && p.x <= this.card.x + CARD_W * s && p.y >= this.card.y && p.y <= this.card.y + this.cardH * s;
+  }
+
+  private openReset(): void {
+    if (this.closing || this.scene.isActive('Reset')) return;
+    sfx.click();
+    this.scene.launch('Reset');
   }
 
   private close(): void {

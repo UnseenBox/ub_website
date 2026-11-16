@@ -280,6 +280,30 @@ export function readSave(): SaveData | null {
   }
 }
 
+/** Every localStorage key this game has ever used starts with one of these (all save slots, the sound setting). */
+const OWN_KEY_PREFIXES = ['dig-and-discover', 'dig-discover'];
+/** Set by wipeAllData: from then on nothing is written until the page is reloaded. */
+let wiped = false;
+
+/**
+ * Erases EVERYTHING the game keeps in this browser: the current save, the saves of every earlier version and
+ * the sound setting. Nothing is written again afterwards (an autosave must not bring the old game back), so
+ * the caller reloads the page; the next start is a brand new game (Old Shovel, no money).
+ */
+export function wipeAllData(): void {
+  wiped = true;
+  try {
+    const own: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && OWN_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) own.push(key);
+    }
+    for (const key of own) localStorage.removeItem(key);
+  } catch {
+    /* storage unavailable: there is nothing to erase */
+  }
+}
+
 /** Removes the save file (used when a run is restarted from scratch). */
 export function clearSave(): void {
   try {
@@ -290,6 +314,7 @@ export function clearSave(): void {
 }
 
 export function writeSave(data: SaveData): void {
+  if (wiped) return;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch {
