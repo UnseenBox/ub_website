@@ -28,6 +28,8 @@ function previewRock(mineral: MineralDef, index: number): Rock {
     value: mineral.value[0],
     sparkly: false,
     cut: false,
+    layer: 0,
+    valueMult: 1,
   };
 }
 

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FEATURES, GAME_CONFIG } from '../config/GameConfig';
+import { GAME_CONFIG } from '../config/GameConfig';
 import { BUTTON_COLORS, PALETTE, outlinedStyle } from '../config/Theme';
 import { EVT, state, subscribe } from '../core/GameState';
 import type { DaySummary } from '../core/GameState';
@@ -7,13 +7,17 @@ import type { GameMode, Rock } from '../core/types';
 import { iconScale, rockKeys } from '../art/RockArt';
 import { sfx } from '../audio/Sfx';
 import { Button } from '../ui/Button';
-import type { StoreScene } from './StoreScene';
 import { InventorySlot } from '../ui/InventorySlot';
 import { DepthGauge } from '../ui/DepthGauge';
-import { ICON_STAR } from '../art/IconArt';
+import { ICON_SAW, ICON_STAR } from '../art/IconArt';
 import { uiIcon } from '../art/UiIcons';
+import { GoalPill } from '../ui/GoalPill';
+import { ClockPill } from '../ui/ClockPill';
+import { FindCard } from '../ui/FindCard';
+import type { FindDef } from '../data/finds';
+import type { FindItem } from '../systems/FindSystem';
 import { portal } from '../ads/Portal';
-import { TRAY_ART, computeLayout, slotCenter, type Layout } from '../ui/layout';
+import { computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { MoneyCounter, formatMoney } from '../ui/MoneyCounter';
 import { StaminaBar } from '../ui/StaminaBar';
 import { Toast } from '../ui/Toast';
@@ -26,53 +30,31 @@ const CLOSING_BANNER_DURATION = 1100;
  * Always-on overlay: money, stats, mute, stamina, bag and the main action
  * button. Also owns scene switching between the dig site and the workshop.
  */
-/** Scales a picture so its longer side is `size` field/screen pixels. */
-function fitIcon(img: Phaser.GameObjects.Image, size: number): void {
-  img.setScale(size / Math.max(img.width, img.height, 1));
-}
-
 export class HudScene extends Phaser.Scene {
   private L!: Layout;
-  private tray!: Phaser.GameObjects.Image;
-  private trayBadge!: Phaser.GameObjects.Image;
-  private trayBolt!: Phaser.GameObjects.Graphics;
-  private lastStamina = -1;
-  private timeBar!: Phaser.GameObjects.Image;
-  private timeText!: Phaser.GameObjects.Text;
-  private timeSlot = { cx: 0, cy: 0, w: 60 };
-  private timeLabel = '';
-  /** Craft medallion: glow while a trip is worth it, dark disc while locked, cover with a picture in other modes. */
-  private craftGlow!: Phaser.GameObjects.Image;
-  private craftDim!: Phaser.GameObjects.Graphics;
-  private craftCover!: Phaser.GameObjects.Graphics;
-  private craftCount!: Phaser.GameObjects.Container;
-  private craftCountBg!: Phaser.GameObjects.Graphics;
-  private craftCountText!: Phaser.GameObjects.Text;
-  private craftTween: Phaser.Tweens.Tween | null = null;
+  private tray!: Phaser.GameObjects.Graphics;
   private stamina!: StaminaBar;
   private slots: InventorySlot[] = [];
   private action!: Button;
   private money!: MoneyCounter;
   private mute!: Phaser.GameObjects.Container;
   private storeBtn!: Phaser.GameObjects.Container;
-  private workshopBtn!: Phaser.GameObjects.Container;
-  private workshopImg!: Phaser.GameObjects.Image;
-  private workshopRing!: Phaser.GameObjects.Graphics;
   private storeIcon!: Phaser.GameObjects.Graphics;
-  private storeImg!: Phaser.GameObjects.Image;
-  private pauseImg!: Phaser.GameObjects.Image;
   private storeDeal = false;
   private iconR = 20;
-  private goalsBtn!: Phaser.GameObjects.Container;
-  private goalsBg!: Phaser.GameObjects.Graphics;
-  private goalsIcon!: Phaser.GameObjects.Image;
-  private goalsLevel!: Phaser.GameObjects.Text;
+  private goalPill!: GoalPill;
+  private clockPill!: ClockPill;
+  private clockStacked = false;
   private ledgerBtn!: Phaser.GameObjects.Container;
   private ledgerBg!: Phaser.GameObjects.Graphics;
   private ledgerIcon!: Phaser.GameObjects.Image;
   private ledgerBadge!: Phaser.GameObjects.Graphics;
   private ledgerSize = 44;
-  private refillBtn!: Button;
+  private findCard!: FindCard;
+  private collectBtn!: Phaser.GameObjects.Container;
+  private collectBg!: Phaser.GameObjects.Graphics;
+  private collectIcon!: Phaser.GameObjects.Image;
+  private collectCount!: Phaser.GameObjects.Text;
   private userActed = false;
   private lastRelocateCard = -1e9;
   private banner: Phaser.GameObjects.Container | null = null;
@@ -98,48 +80,26 @@ export class HudScene extends Phaser.Scene {
     this.floats = [];
     this.incoming.clear();
 
-    this.tray = this.add.image(0, 0, 'rocks-tray').setOrigin(0, 0);
-    // The craft medallion's states, drawn over the picture: a glow, a dark "locked" disc, a cover for other modes.
-    this.craftGlow = this.add.image(0, 0, 'soft').setTint(0xffc060).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setVisible(false);
-    this.craftDim = this.add.graphics().setVisible(false);
-    this.craftCover = this.add.graphics().setVisible(false);
+    this.tray = this.add.graphics();
     this.stamina = new StaminaBar(this);
-    // The round socket is drawn again above the fill, so the bar appears to run in underneath it.
-    const bc = TRAY_ART.badgeCrop;
-    this.trayBadge = this.add.image(0, 0, 'rocks-tray').setOrigin(0, 0).setCrop(bc.x, bc.y, bc.w, bc.h);
-    this.trayBolt = this.add.graphics();
-    for (let i = 0; i < GAME_CONFIG.inventory.slots; i++) {
-      this.slots.push(new InventorySlot(this, () => this.onSlotPressed(i)));
-    }
+    this.growSlots();
     this.action = new Button(this, {
-      width: 220, height: 56, label: '', fontSize: 22, colors: BUTTON_COLORS.orange, ghost: true,
+      width: 220, height: 56, label: '', fontSize: 22, colors: BUTTON_COLORS.orange,
       onClick: () => this.onAction(),
     });
-    // Rock count on the lower edge of the medallion.
-    this.craftCountBg = this.add.graphics();
-    this.craftCountText = this.add.text(0, 0, '', outlinedStyle(16)).setOrigin(0.5);
-    this.craftCount = this.add.container(0, 0, [this.craftCountBg, this.craftCountText]).setVisible(false);
     this.money = new MoneyCounter(this, state.economy.money);
-    // The day and the time of day, on the clock-and-calendar plaque at the top middle.
-    this.timeBar = this.add.image(0, 0, 'time-bar').setOrigin(0, 0);
-    this.timeText = this.add.text(0, 0, '', outlinedStyle(14, '#fff3dc')).setOrigin(0.5);
+    ClockPill.createSunTexture(this.textures);
+    this.clockPill = new ClockPill(this);
     this.buildMuteButton();
     this.buildStoreButton();
-    this.buildWorkshopButton();
+    this.buildCollectionButton();
+    this.findCard = new FindCard(this);
     this.toast = new Toast(this);
     this.switching = false;
     this.buildLedgerButton();
 
     this.depthGauge = new DepthGauge(this);
-    this.buildGoalsButton();
-    // The daily objectives are switched off for the moment (see FEATURES in GameConfig).
-    this.goalsBtn.setVisible(FEATURES.goals);
-    if (!FEATURES.goals) this.goalsBtn.disableInteractive();
-    this.refillBtn = new Button(this, {
-      width: 84, height: 70, label: '', icon: uiIcon('refill'), ghost: true, iconScale: 1, fontSize: 22, colors: BUTTON_COLORS.blue,
-      onClick: () => this.watchRefill(),
-    });
-    this.refillBtn.setVisible(false).setDepth(30);
+    this.goalPill = new GoalPill(this, () => this.openGoals());
 
     for (let i = 0; i < COIN_POOL; i++) this.coins.push(this.add.image(0, 0, 'coin').setVisible(false).setDepth(20));
     for (let i = 0; i < FLOAT_POOL; i++) {
@@ -147,10 +107,8 @@ export class HudScene extends Phaser.Scene {
     }
 
     subscribe(this, EVT.inventoryChanged, () => this.refresh());
-    subscribe(this, EVT.modeChanged, () => {
-      this.refresh();
-      if (this.L) this.drawWorkshopButton(this.iconR);
-    });
+    subscribe(this, EVT.capacityChanged, () => this.onBagGrew());
+    subscribe(this, EVT.modeChanged, () => this.refresh());
     subscribe(this, EVT.busyChanged, () => this.refresh());
     subscribe(this, EVT.rockCollected, (rock: Rock, x: number, y: number, scale: number) => this.flyRockToBag(rock, x, y, scale));
     subscribe(this, EVT.placedChanged, (id: string | null) => {
@@ -165,7 +123,7 @@ export class HudScene extends Phaser.Scene {
     subscribe(this, EVT.dayStarted, (day: number) => this.onDayStarted(day));
     subscribe(this, EVT.layerEntered, (layerIndex: number) => this.onLayerEntered(layerIndex));
     subscribe(this, EVT.progressChanged, () => {
-      this.drawGoalsButton(this.iconR);
+      this.goalPill.refresh();
       this.updateStoreDeal();
     });
     subscribe(this, EVT.moneyChanged, (money: number, _delta: number, earned: boolean) => {
@@ -173,9 +131,13 @@ export class HudScene extends Phaser.Scene {
       if (!earned) this.money.countTo(money, 0, 450);
       this.updateStoreDeal();
     });
+    subscribe(this, EVT.findFound, (def: FindDef, item: FindItem, first: boolean) => {
+      this.findCard.show(def, item, first, this.L.w - 24);
+      this.drawCollectionButton(this.iconR);
+    });
     subscribe(this, EVT.bedrock, () => this.offerRelocation());
     subscribe(this, EVT.relocated, (deposit: number) => {
-      this.drawGoalsButton(this.iconR);
+      this.goalPill.refresh();
       this.time.delayedCall(1000, () => {
         sfx.newDay();
         this.showCenterBanner(`${deposit}`, '', uiIcon('flag'));
@@ -184,7 +146,7 @@ export class HudScene extends Phaser.Scene {
     subscribe(this, EVT.levelUp, (level: number, bonus: number) => this.onLevelUp(level, bonus));
     subscribe(this, EVT.goalDone, (goal: { cash: number; xp: number }) => {
       this.toast.show(goal.cash > 0 ? `+${formatMoney(goal.cash)}` : `+${goal.xp}`, 1800, goal.cash > 0 ? uiIcon('cash') : uiIcon('sparkle'));
-      this.tweens.add({ targets: this.goalsBtn, scale: { from: 1.25, to: 1 }, duration: 380, ease: 'Back.easeOut' });
+      this.goalPill.bump();
       sfx.coin();
     });
     subscribe(this, EVT.financeChanged, () => this.drawLedgerButton());
@@ -199,11 +161,10 @@ export class HudScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     if (kb) {
       kb.on('keydown-ENTER', () => this.handleEnterKey());
-      kb.on('keydown-ESC', () => this.handleEscKey());
       kb.on('keydown-M', () => this.toggleMute());
-      kb.on('keydown-P', () => this.openPause());
       kb.on('keydown-S', () => this.openStore());
-      if (FEATURES.goals) kb.on('keydown-G', () => this.openGoals());
+      kb.on('keydown-G', () => this.openGoals());
+      kb.on('keydown-C', () => this.openCollection());
       kb.on('keydown-L', () => this.openLedger());
       kb.on('keydown', (e: KeyboardEvent) => {
         if (this.storeOpen) return;
@@ -221,24 +182,15 @@ export class HudScene extends Phaser.Scene {
   /** The store or goals card is up: the world and the day clock hold still. */
   private get storeOpen(): boolean {
     return (
-      this.scene.isActive('Store') || this.scene.isActive('Goals') ||
-      this.scene.isActive('Relocate') || this.scene.isActive('Ledger') || this.scene.isActive('GameOver') || this.scene.isActive('Pause')
+      this.scene.isActive('Store') || this.scene.isActive('Goals') || this.scene.isActive('Collection') ||
+      this.scene.isActive('Relocate') || this.scene.isActive('Ledger') || this.scene.isActive('GameOver')
     );
   }
 
   private handleEnterKey(): void {
     if (this.storeOpen) return;
-    if (state.mode === 'dig' && state.canWork) {
+    if ((state.mode === 'dig' && state.canWork) || (state.mode === 'workshop' && !state.busy)) {
       this.action.trigger();
-    }
-  }
-
-  private handleEscKey(): void {
-    if (this.storeOpen) return;
-    if (state.mode === 'workshop' && !state.busy) {
-      this.action.trigger();
-    } else if (state.mode === 'dig') {
-      this.openPause();
     }
   }
 
@@ -248,12 +200,10 @@ export class HudScene extends Phaser.Scene {
     const frozen = this.storeOpen || portal.adOpen; // shopping and ads are free time
     if (!frozen) state.tick(dt);
     portal.setPlaying(this.userActed && state.canWork && !frozen && !this.scene.isActive('EndOfDay'));
-    this.updateRefillOffer();
+    this.clockPill.setTime(state.day.clock.progress, state.day.clock.label, state.day.day);
+    if (!this.clockStacked) this.clockPill.setMinLeft(this.money.rightEdge + 10);
     const s = state.stamina;
     this.stamina.setValue(s.value, s.max, s.isRegenerating, dt);
-    if (this.lastStamina >= 0 && s.value < this.lastStamina - 0.01) this.punchBolt();
-    this.lastStamina = s.value;
-    this.updateTime();
 
     this.depthGauge.tick(dt);
     this.forceWorkshopTrip();
@@ -272,39 +222,53 @@ export class HudScene extends Phaser.Scene {
 
   // ---------- layout ----------
 
-  private onResize(): void {
-    const L = (this.L = computeLayout(this.scale.width, this.scale.height));
-    const t = L.tray;
-    this.tray.setPosition(t.x, t.y).setDisplaySize(t.w, t.h);
-    this.trayBadge.setPosition(t.x, t.y).setScale(this.tray.scaleX, this.tray.scaleY);
-    this.drawBolt(L.badge);
+  /** One slot object per bag slot; the bag can grow with the Bigger Bag upgrade. */
+  private growSlots(): void {
+    for (let i = this.slots.length; i < state.inventory.capacity; i++) {
+      this.slots.push(new InventorySlot(this, () => this.onSlotPressed(i)));
+    }
+  }
 
-    this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h, TRAY_ART.trackCover);
-    this.refillBtn.setPosition(L.w / 2, L.tray.y - 30);
+  private onBagGrew(): void {
+    this.growSlots();
+    this.onResize();
+    this.refreshSlots();
+  }
+
+  private onResize(): void {
+    const L = (this.L = computeLayout(this.scale.width, this.scale.height, state.inventory.capacity));
+    const t = L.tray;
+    this.tray.clear();
+    this.tray.fillStyle(0x000000, 0.18).fillRoundedRect(t.x, t.y - 4, t.w, t.h, 24);
+    this.tray.fillStyle(PALETTE.tray, 0.88).fillRoundedRect(t.x, t.y, t.w, t.h, 24);
+    this.tray.lineStyle(2, 0xffffff, 0.08).strokeRoundedRect(t.x, t.y, t.w, t.h, 24);
+
+    this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h);
+    const pillW = L.compact ? Math.min(L.w * 0.62, 270) : 300;
+    const goalH = L.compact ? 44 : 50;
+    this.goalPill.layout(14 + pillW / 2, L.topH + 8 + goalH / 2, pillW, goalH);
     this.slots.forEach((slot, i) => {
       const c = slotCenter(L, i);
       slot.setPosition(c.x, c.y);
       slot.resizeSlot(L.slotSize);
     });
-    const c = L.craft;
-    this.action.setPosition(c.x, c.y).resize(c.r * 2, c.r * 2, Math.round(c.r * 0.8));
-    this.drawCraft();
+    const b = L.button;
+    this.action.setPosition(b.x + b.w / 2, b.y + b.h / 2).resize(b.w, b.h, Math.round(b.h * 0.4));
 
     const pillH = Math.round(L.topH * 0.62);
-    // The money pill may grow until it meets the first of the round buttons.
-    const topButtons = FEATURES.goals ? 5 : 4;
-    this.money.maxWidth = L.w - 14 - pillH * topButtons - (topButtons - 1) * 10 - 8 - 14;
+    // The money pill may grow until it meets the first of the three round buttons.
+    this.money.maxWidth = L.w - 14 - pillH * 3 - 20 - 8 - 14;
     this.money.layout(14, L.topH / 2, pillH);
-    // The day and time plaque sits at the top middle, just under the top bar.
-    const th = Math.round(Math.max(28, Math.min(40, L.topH * 0.52)));
-    const tw = (th * 720) / 146;
-    const tx = Math.round((L.w - tw) / 2);
-    const ty = L.topH + 4;
-    this.timeBar.setPosition(tx, ty).setDisplaySize(tw, th);
-    this.timeSlot = { cx: tx + (369 / 720) * tw, cy: ty + (73 / 146) * th, w: ((596 - 142) / 720) * tw };
-    this.timeText.setPosition(this.timeSlot.cx, this.timeSlot.cy).setFontSize(Math.max(11, Math.round(th * 0.4)));
-    this.timeLabel = '';
-    this.updateTime();
+    // A small clock. Wide screens: top centre, pushed right when the money pill grows (see update()).
+    // Narrow screens (the money pill and three buttons leave no gap): its own row under the goal pill.
+    this.clockStacked = L.w < 520;
+    if (this.clockStacked) {
+      const clockH = Math.round(pillH * 0.9);
+      const goalBottom = L.topH + 8 + (L.compact ? 44 : 50);
+      this.clockPill.layout(0, goalBottom + 6 + clockH / 2, clockH, 14, true);
+    } else {
+      this.clockPill.layout(L.w / 2, L.topH / 2, Math.round(pillH * 0.86), this.money.rightEdge + 10);
+    }
     const muteR = pillH / 2;
     this.mute.setPosition(L.w - 14 - muteR, L.topH / 2);
     this.storeBtn.setPosition(L.w - 14 - muteR * 2 - 10 - muteR, L.topH / 2);
@@ -312,107 +276,23 @@ export class HudScene extends Phaser.Scene {
     (this.storeBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.iconR = muteR;
     this.drawStoreIcon(muteR);
-    // The workshop icon sits next to the store.
-    this.workshopBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
-    this.workshopBtn.setSize(pillH, pillH);
-    (this.workshopBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
-    this.drawWorkshopButton(muteR);
-    this.goalsBtn.setPosition(this.workshopBtn.x - muteR * 2 - 10, this.storeBtn.y);
-    // The debt book joins the other round buttons at the top.
-    // (With the objectives off, the book takes the goals button's place.)
-    this.ledgerBtn.setPosition((FEATURES.goals ? this.goalsBtn.x : this.workshopBtn.x) - muteR * 2 - 10, this.storeBtn.y);
-    this.goalsBtn.setSize(pillH, pillH);
-    (this.goalsBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
-    this.drawGoalsButton(muteR);
+    this.collectBtn.setPosition(this.storeBtn.x - muteR * 2 - 10, this.storeBtn.y);
+    this.collectBtn.setSize(pillH, pillH);
+    (this.collectBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
+    this.drawCollectionButton(muteR);
+    this.findCard.place(L.w / 2, L.topH + 120);
     this.mute.setSize(pillH, pillH);
     (this.mute.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
     this.drawMuteIcon(muteR);
 
-    this.toast.place(L.w / 2, L.topH + 108, L.compact ? 16 : 20);
+    this.toast.place(L.w / 2, L.topH + 108 + (this.clockStacked ? 28 : 0), L.compact ? 16 : 20);
     // The debt chip sits in the row under the top bar, at the right, clear of the depth label.
-    this.ledgerBtn.setSize(pillH, pillH);
-    (this.ledgerBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, pillH, pillH);
-    this.ledgerSize = pillH;
+    this.ledgerBtn.setPosition(L.w - 14 - L.depth.w - 46 - goalH / 2, L.topH + 8 + goalH / 2);
+    this.ledgerBtn.setSize(goalH, goalH);
+    (this.ledgerBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, goalH, goalH);
+    this.ledgerSize = goalH;
     this.drawLedgerButton();
     this.depthGauge.layout(L.depth.x, L.depth.y, L.depth.w, L.depth.h);
-  }
-
-  /** A lightning bolt in the round socket at the left end of the stamina bar. */
-  private drawBolt(b: { x: number; y: number; r: number }): void {
-    const g = this.trayBolt;
-    g.clear().setPosition(b.x, b.y);
-    const s = b.r * 0.95;
-    const pts = [
-      { x: 0.25, y: -1 }, { x: -0.55, y: 0.15 }, { x: -0.02, y: 0.15 },
-      { x: -0.25, y: 1 }, { x: 0.55, y: -0.15 }, { x: 0.02, y: -0.15 },
-    ].map((p) => ({ x: p.x * s, y: p.y * s }));
-    g.fillStyle(0x2a1405).fillPoints(pts.map((p) => ({ x: p.x + s * 0.07, y: p.y + s * 0.09 })) as Phaser.Types.Math.Vector2Like[], true);
-    g.fillStyle(0xffd23f).fillPoints(pts as Phaser.Types.Math.Vector2Like[], true);
-  }
-
-  /** The bolt in the stamina socket jolts whenever stamina is spent. */
-  private punchBolt(): void {
-    this.tweens.killTweensOf(this.trayBolt);
-    this.trayBolt.setScale(1.45).setAngle(-12);
-    this.tweens.add({ targets: this.trayBolt, scale: 1, angle: 0, duration: 340, ease: 'Back.easeOut' });
-  }
-
-  /** "Day 3  2:30 PM" on the plaque; only touched when the label changes. */
-  private updateTime(): void {
-    const label = `Day ${state.day.day}  ${state.day.clock.label}`;
-    if (label === this.timeLabel) return;
-    this.timeLabel = label;
-    const t = this.timeText;
-    t.setText(label).setScale(1);
-    t.setScale(Math.min(1, (this.timeSlot.w * 0.94) / Math.max(1, t.width)));
-  }
-
-  /** How the craft medallion looks: 'locked' (dark, off), 'open', 'ready' (glowing), or a picture on a cover. */
-  private craftLook: { kind: 'locked' | 'open' | 'ready' | 'cover'; count: string } = { kind: 'locked', count: '' };
-
-  private setCraft(kind: 'locked' | 'open' | 'ready' | 'cover', count: string): void {
-    this.craftLook = { kind, count };
-    this.drawCraft();
-  }
-
-  private drawCraft(): void {
-    if (!this.L) return;
-    const c = this.L.craft;
-    const { kind, count } = this.craftLook;
-    // Locked: the anvil stays visible but dark and quiet.
-    this.craftDim.setVisible(kind === 'locked').clear();
-    if (kind === 'locked') this.craftDim.fillStyle(0x1a0c04, 0.62).fillCircle(c.x, c.y, c.r * 0.93);
-    // Cover: a medallion disc that carries another picture (back to the dig site, the moon).
-    this.craftCover.setVisible(kind === 'cover').clear();
-    if (kind === 'cover') {
-      this.craftCover.fillStyle(0x3a1c08).fillCircle(c.x, c.y, c.r * 0.93);
-      this.craftCover.lineStyle(Math.max(2, c.r * 0.09), 0xf0a020, 0.9).strokeCircle(c.x, c.y, c.r * 0.84);
-    }
-    // Ready: a soft glow that breathes.
-    this.craftGlow.setPosition(c.x, c.y).setDisplaySize(c.r * 3.4, c.r * 3.4);
-    if (kind === 'ready') {
-      this.craftGlow.setVisible(true);
-      if (!this.craftTween) {
-        this.craftTween = this.tweens.add({ targets: this.craftGlow, alpha: { from: 0.2, to: 0.75 }, duration: 620, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      }
-    } else {
-      this.craftTween?.remove();
-      this.craftTween = null;
-      this.craftGlow.setVisible(false).setAlpha(0);
-    }
-    // The count rides on the lower rim of the medallion.
-    this.craftCount.setVisible(count !== '' && kind !== 'cover');
-    if (count !== '') {
-      const t = this.craftCountText.setFontSize(Math.max(12, Math.round(c.r * 0.5))).setText(count);
-      const w = Math.max(c.r * 0.7, t.width + c.r * 0.35);
-      const h = c.r * 0.62;
-      const g = this.craftCountBg;
-      g.clear();
-      g.fillStyle(0x000000, 0.3).fillRoundedRect(-w / 2, -h / 2 + 2, w, h, h / 2);
-      g.fillStyle(0x3a1c08).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-      g.lineStyle(2, kind === 'locked' ? 0x8a6a46 : 0xf0a020, 1).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-      this.craftCount.setPosition(c.x, c.y + c.r * 0.92);
-    }
   }
 
   // ---------- state -> UI ----------
@@ -421,31 +301,31 @@ export class HudScene extends Phaser.Scene {
     this.refreshSlots();
     const inv = state.inventory;
 
-    // The craft medallion is a picture: the button itself only carries a picture on a cover when the
-    // medallion's own anvil is not what should be shown.
-    this.action.setLabel('');
     if (state.mode === 'dig') {
-      const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
+      const ready = state.workshopReady && state.canWork;
       if (!state.canWork) {
-        this.action.setIcon(uiIcon('moon')).setEnabled(false);
-        this.setCraft('cover', '');
-      } else if (state.workshopReady) {
-        // Enough rocks collected: the craft button wakes up and glows.
-        this.action.setIcon(null).setEnabled(true);
-        this.setCraft('ready', `${inv.uncutCount}`);
+        this.action.setIcon(uiIcon('moon')).setLabel('').setColors(BUTTON_COLORS.blue).setEnabled(false).setPulse(false);
+      } else if (ready) {
+        this.action.setIcon(ICON_SAW).setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(true);
+      } else if (state.workshopAvailable) {
+        // Any rock can be cut right away; the button only starts pulsing once a trip is worth it.
+        this.action.setIcon(ICON_SAW).setLabel(`${inv.uncutCount}`).setColors(BUTTON_COLORS.orange).setEnabled(true).setPulse(false);
       } else {
-        // Still collecting: the craft button stays off and shows how far along the bag is.
-        this.action.setIcon(null).setEnabled(false);
-        this.setCraft('locked', `${inv.uncutCount}/${need}`);
+        const need = GAME_CONFIG.inventory.rocksToUnlockWorkshop;
+        this.action.setIcon(uiIcon('pickaxe')).setLabel(`${inv.uncutCount}/${need}`).setColors(BUTTON_COLORS.orange).setEnabled(false).setPulse(false);
       }
     } else if (!state.canWork) {
       // Closing time: no way back to the dig site. The bag has to be emptied first.
       const n = state.rocksLeft;
-      this.action.setIcon(n > 0 ? 'ui-workshop' : uiIcon('moon')).setEnabled(false);
-      this.setCraft('cover', '');
+      this.action
+        .setIcon(n > 0 ? ICON_SAW : uiIcon('moon'))
+        .setLabel(n > 0 ? `${n}` : '')
+        .setColors(BUTTON_COLORS.blue)
+        .setEnabled(false)
+        .setPulse(false);
     } else {
-      this.action.setIcon('ui-return').setEnabled(!state.busy);
-      this.setCraft('cover', '');
+      const nothingLeft = inv.uncutCount === 0 && !state.busy;
+      this.action.setIcon(uiIcon('back')).setLabel('').setColors(BUTTON_COLORS.blue).setEnabled(!state.busy).setPulse(nothingLeft);
     }
   }
 
@@ -466,7 +346,7 @@ export class HudScene extends Phaser.Scene {
   private onAction(): void {
     if (this.switching) return;
     if (state.mode === 'dig') {
-      if (state.workshopReady && state.canWork) this.switchMode('workshop');
+      if (state.workshopAvailable && state.canWork) this.switchMode('workshop');
     } else if (!state.busy && state.canWork) {
       this.switchMode('dig');
     }
@@ -659,75 +539,61 @@ export class HudScene extends Phaser.Scene {
 
   private buildMuteButton(): void {
     this.muteIcon = this.add.graphics();
-    this.pauseImg = this.add.image(0, 0, 'ui-pause');
-    this.mute = this.add.container(0, 0, [this.muteIcon, this.pauseImg]);
+    this.mute = this.add.container(0, 0, [this.muteIcon]);
     this.mute.setSize(40, 40);
     this.mute.setInteractive({ useHandCursor: true });
-    this.mute.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openPause());
+    this.mute.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => this.toggleMute());
   }
 
   private buildStoreButton(): void {
-    this.storeImg = this.add.image(0, 0, 'ui-store');
     this.storeIcon = this.add.graphics();
-    this.storeBtn = this.add.container(0, 0, [this.storeImg, this.storeIcon]);
+    this.storeBtn = this.add.container(0, 0, [this.storeIcon]);
     this.storeBtn.setSize(40, 40);
     this.storeBtn.setInteractive({ useHandCursor: true });
     this.storeBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openStore());
   }
 
-  /** The workshop icon: a trip to the workshop (and back to the dig site from there). */
-  private buildWorkshopButton(): void {
-    this.workshopImg = this.add.image(0, 0, 'ui-workshop');
-    this.workshopRing = this.add.graphics();
-    this.workshopBtn = this.add.container(0, 0, [this.workshopRing, this.workshopImg]);
-    this.workshopBtn.setSize(40, 40);
-    this.workshopBtn.setInteractive({ useHandCursor: true });
-    this.workshopBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.toggleWorkshop());
-  }
-
-  private drawWorkshopButton(r: number): void {
-    fitIcon(this.workshopImg, r * 2.3);
-    this.workshopRing.clear();
-    // A gold ring while you are in the workshop.
-    if (state.mode === 'workshop') this.workshopRing.lineStyle(Math.max(3, r * 0.14), PALETTE.gold, 1).strokeCircle(0, 0, r * 1.02);
-  }
-
-  /** Top-bar workshop icon: dig site -> workshop, workshop -> dig site. */
-  private toggleWorkshop(): void {
-    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay') || state.isGameOver) return;
-    if (!state.canWork || (state.mode === 'workshop' && state.busy)) {
-      sfx.denied();
-      return;
-    }
-    sfx.click();
-    this.tweens.add({ targets: this.workshopBtn, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
-    this.switchMode(state.mode === 'dig' ? 'workshop' : 'dig');
-  }
-
-  /** The pause menu's workshop shortcut: only ever heads for the workshop. */
-  gotoWorkshop(): void {
-    if (state.mode !== 'dig' || this.switching || !state.canWork || this.scene.isActive('EndOfDay') || state.isGameOver) return;
-    this.switchMode('workshop');
-  }
-
   /** Opens the store overlay. It pauses the world while open (see StoreScene). */
   private openStore(): void {
-    // The stall is open: the same icon closes it again.
-    if (this.scene.isActive('Store')) {
-      (this.scene.get('Store') as StoreScene).requestClose();
-      return;
-    }
     if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
     sfx.click();
     this.tweens.add({ targets: this.storeBtn, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
     this.scene.launch('Store');
   }
 
-  /** The market stall picture, with a red "!" badge when something worth buying is affordable. */
+  /** A little shop front: striped awning over a window and door. */
   private drawStoreIcon(r: number): void {
     const g = this.storeIcon;
     g.clear();
-    fitIcon(this.storeImg, r * 2.5);
+    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
+    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
+    g.lineStyle(Math.max(2, r * 0.07), PALETTE.gold, 0.9).strokeCircle(0, 0, r - 1);
+    const s = r * 0.5;
+    // Shop body.
+    g.fillStyle(0xfff3dc).fillRect(-s * 0.85, -s * 0.15, s * 1.7, s * 1.05);
+    g.fillStyle(0x4fb0ff).fillRect(-s * 0.62, s * 0.1, s * 0.6, s * 0.5);
+    g.fillStyle(0x8a5a2c).fillRect(s * 0.15, s * 0.1, s * 0.45, s * 0.8);
+    // Awning stripes.
+    const stripes = 4;
+    const top = -s * 0.95;
+    const bottom = -s * 0.15;
+    const topW = s * 1.5;
+    const botW = s * 1.15;
+    for (let i = 0; i < stripes; i++) {
+      const t0 = i / stripes;
+      const t1 = (i + 1) / stripes;
+      g.fillStyle(i % 2 === 0 ? 0xff6b4a : 0xffffff);
+      g.fillPoints(
+        [
+          new Phaser.Geom.Point(-topW + 2 * topW * t0, top),
+          new Phaser.Geom.Point(-topW + 2 * topW * t1, top),
+          new Phaser.Geom.Point(-botW + 2 * botW * t1, bottom),
+          new Phaser.Geom.Point(-botW + 2 * botW * t0, bottom),
+        ],
+        true,
+      );
+    }
+    g.lineStyle(Math.max(1.5, r * 0.06), PALETTE.inkHex, 0.7).strokeRect(-s * 0.85, -s * 0.15, s * 1.7, s * 1.05);
     if (this.storeDeal) {
       // Red "!" badge: something worth buying is affordable right now.
       const bx = r * 0.72;
@@ -738,23 +604,26 @@ export class HudScene extends Phaser.Scene {
     }
   }
 
-  private buildGoalsButton(): void {
-    this.goalsBg = this.add.graphics();
-    this.goalsIcon = this.add.image(0, 0, uiIcon('target'));
-    this.goalsLevel = this.add.text(0, 0, '', outlinedStyle(11)).setOrigin(0.5);
-    this.goalsBtn = this.add.container(0, 0, [this.goalsBg, this.goalsIcon, this.goalsLevel]);
-    this.goalsBtn.setSize(40, 40);
-    this.goalsBtn.setInteractive({ useHandCursor: true });
-    this.goalsBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openGoals());
+  private buildCollectionButton(): void {
+    this.collectBg = this.add.graphics();
+    this.collectIcon = this.add.image(0, 0, uiIcon('album'));
+    this.collectCount = this.add.text(0, 0, '', outlinedStyle(11)).setOrigin(0.5);
+    this.collectBtn = this.add.container(0, 0, [this.collectBg, this.collectIcon, this.collectCount]);
+    this.collectBtn.setSize(40, 40);
+    this.collectBtn.setInteractive({ useHandCursor: true });
+    this.collectBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openCollection());
   }
 
-  /** The goals button: a target, with the prospector level in the corner. */
-  private drawGoalsButton(r: number): void {
-    const g = this.goalsBg;
+  /** The album button: the number of different collection items found so far. */
+  private drawCollectionButton(r: number): void {
+    const g = this.collectBg;
     g.clear();
-    fitIcon(this.goalsIcon, r * 2.5);
-    this.goalsIcon.setPosition(0, -r * 0.05);
-    this.goalsLevel.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.progress.level}`);
+    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
+    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
+    g.lineStyle(Math.max(2, r * 0.07), 0xb98cff, 0.9).strokeCircle(0, 0, r - 1);
+    this.collectIcon.setDisplaySize(r * 1.3, r * 1.3).setPosition(0, -r * 0.05);
+    this.collectCount.setFontSize(Math.max(10, Math.round(r * 0.52))).setPosition(r * 0.62, r * 0.66).setText(`${state.collectionFound}`);
+    this.collectCount.setVisible(state.collectionFound > 0);
   }
 
   /** Bedrock reached: offer a fresh deposit (never over another card or mid-trip). */
@@ -768,6 +637,12 @@ export class HudScene extends Phaser.Scene {
     }
     this.lastRelocateCard = this.time.now;
     this.scene.launch('Relocate');
+  }
+
+  private openCollection(): void {
+    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
+    sfx.click();
+    this.scene.launch('Collection');
   }
 
   // ---------- household ledger (debt) ----------
@@ -797,10 +672,10 @@ export class HudScene extends Phaser.Scene {
     const ring = mood === 'late' ? 0xe5533d : mood === 'soon' ? 0xffb627 : PALETTE.gold;
     const g = this.ledgerBg;
     g.clear();
-    // The book stands on its own; a ring only appears when a payment is near or overdue.
-    if (mood !== 'ok') g.lineStyle(Math.max(2, r * 0.1), ring, 1).strokeCircle(0, 0, r * 1.08);
-    fitIcon(this.ledgerIcon, r * 2.1);
-    this.ledgerIcon.setPosition(0, -r * 0.04);
+    g.fillStyle(0x000000, 0.22).fillCircle(0, 3, r);
+    g.fillStyle(PALETTE.tray, 0.88).fillCircle(0, 0, r);
+    g.lineStyle(Math.max(2, r * 0.08), ring, mood === 'ok' ? 0.55 : 1).strokeCircle(0, 0, r - 1);
+    this.ledgerIcon.setDisplaySize(r * 1.35, r * 1.35).setPosition(0, -r * 0.04);
     const b = this.ledgerBadge;
     b.clear();
     if (mood !== 'ok') {
@@ -827,7 +702,7 @@ export class HudScene extends Phaser.Scene {
 
   /** The run was reset: every scene starts over from day one. */
   private onRunReset(): void {
-    for (const key of ['EndOfDay', 'Store', 'Goals', 'Relocate', 'Ledger', 'GameOver', 'Workshop']) {
+    for (const key of ['EndOfDay', 'Store', 'Goals', 'Collection', 'Relocate', 'Ledger', 'GameOver', 'Workshop']) {
       if (this.scene.isActive(key) || this.scene.isPaused(key) || this.scene.isSleeping(key)) this.scene.stop(key);
     }
     this.time.delayedCall(0, () => this.scene.restart());
@@ -849,24 +724,10 @@ export class HudScene extends Phaser.Scene {
     this.tweens.add({ targets: this.storeBtn, scale: { from: 1.25, to: 1 }, duration: 420, ease: 'Back.easeOut' });
   }
 
-  /** "Out of stamina? Watch an ad" - appears only when the tank is nearly empty. */
-  private updateRefillOffer(): void {
-    const show = state.mode === 'dig' && state.canWork && !this.storeOpen && portal.rewardedReady && state.stamina.fraction < 0.2;
-    if (this.refillBtn.visible === show) return;
-    this.refillBtn.setVisible(show).setPulse(show);
-  }
-
-  private watchRefill(): void {
-    portal.rewarded(() => {
-      state.stamina.refill();
-      sfx.coin();
-    });
-  }
-
   private onLevelUp(level: number, bonus: number): void {
     sfx.newDay();
-    this.drawGoalsButton(this.iconR);
-    this.tweens.add({ targets: this.goalsBtn, scale: { from: 1.25, to: 1 }, duration: 380, ease: 'Back.easeOut' });
+    this.goalPill.refresh();
+    this.goalPill.bump();
     this.showCenterBanner(`${level}`, `+${formatMoney(bonus)}`, ICON_STAR);
   }
 
@@ -898,20 +759,34 @@ export class HudScene extends Phaser.Scene {
   }
 
   private toggleMute(): void {
+    if (portal.muteForced) return; // the portal's mute setting wins
     sfx.setMuted(!sfx.muted);
+    this.drawMuteIcon(this.mute.width / 2);
     this.tweens.add({ targets: this.mute, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
   }
 
-  /** The pause badge (this button used to be the mute toggle; sound now lives in the pause menu). */
   private drawMuteIcon(r: number): void {
-    this.muteIcon.clear();
-    fitIcon(this.pauseImg, r * 2.3);
-  }
-
-  private openPause(): void {
-    if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay') || state.isGameOver) return;
-    sfx.click();
-    this.tweens.add({ targets: this.mute, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
-    this.scene.launch('Pause');
+    const g = this.muteIcon;
+    g.clear();
+    g.fillStyle(0x000000, 0.25).fillCircle(0, 3, r);
+    g.fillStyle(PALETTE.tray, 0.85).fillCircle(0, 0, r);
+    const s = r * 0.42;
+    g.fillStyle(0xffffff);
+    g.fillRect(-s * 1.1, -s * 0.4, s * 0.6, s * 0.8);
+    g.fillTriangle(-s * 0.6, -s * 0.4, s * 0.15, -s * 1.05, s * 0.15, s * 1.05);
+    g.fillTriangle(-s * 0.6, -s * 0.4, s * 0.15, s * 1.05, -s * 0.6, s * 0.4);
+    if (sfx.muted) {
+      g.lineStyle(Math.max(2, r * 0.12), 0xff6b4a);
+      g.lineBetween(s * 0.45, -s * 0.5, s * 1.25, s * 0.5);
+      g.lineBetween(s * 0.45, s * 0.5, s * 1.25, -s * 0.5);
+    } else {
+      g.lineStyle(Math.max(2, r * 0.1), 0xffffff);
+      g.beginPath();
+      g.arc(s * 0.2, 0, s * 0.6, -0.8, 0.8);
+      g.strokePath();
+      g.beginPath();
+      g.arc(s * 0.2, 0, s * 1.05, -0.8, 0.8);
+      g.strokePath();
+    }
   }
 }

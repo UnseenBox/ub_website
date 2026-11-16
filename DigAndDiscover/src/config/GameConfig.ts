@@ -43,6 +43,11 @@ export const GAME_CONFIG = {
     aimAssist: 80,
     /** Extra reach (field units) around an embedded rock that still counts as a direct hit. */
     nearHitPadding: 110,
+    /**
+     * A swing also strikes an embedded rock that sits this far (field units) above the floor, as long as it is beside the
+     * swing. A deep shaft (big holes, ghost swings, a drill) leaves rocks high in its wall; they must not become unreachable.
+     */
+    strikeRise: 700,
     /** Embedded rocks that may be waiting to be freed at the same time. */
     maxEmbeddedRocks: 2,
     pebbleChance: 0.3,
@@ -68,7 +73,7 @@ export const GAME_CONFIG = {
     /** The camera tries to keep the digging point this far down the view (0..1). */
     cameraFocus: 0.46,
     /** The grass line sits this far down the view at the very start (0..1). */
-    startSurfaceFraction: 0.5,
+    startSurfaceFraction: 0.4,
     /** Comfortable view height in field units; the scale is derived from it. */
     viewHeight: 540,
     minVisibleWidth: 480,
@@ -95,13 +100,4 @@ export const GAME_CONFIG = {
   economy: {
     startingMoney: 0,
   },
-} as const;
-
-/**
- * Features that are built but switched off for now. Flip one to `true` to bring it back
- * (the code and the scene stay in the project).
- */
-export const FEATURES = {
-  /** The daily objectives: the target icon at the top, its pause-menu shortcut and the G key. */
-  goals: false,
 } as const;

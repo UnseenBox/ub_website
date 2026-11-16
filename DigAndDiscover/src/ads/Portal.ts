@@ -2,13 +2,18 @@ import { sfx } from '../audio/Sfx';
 
 /**
  * The CrazyGames SDK, kept at arm's length. Build for the portal with
- * `npm run build:crazygames` (vite mode "crazygames"); every other build never
- * downloads the SDK and shows no ad offers at all.
+ * `npm run build:crazygames` (vite mode "crazygames", Full Launch, ads on) or
+ * `npm run build:crazygames-basic` (mode "crazygames-basic", Basic Launch: the SDK still reports
+ * loading and gameplay, but CrazyGames disables ads there, so no ad offers are shown at all).
+ * Every other build never downloads the SDK and shows no ad offers.
  *
  * While developing (`npm run dev`, or any build opened with ?mockads) a fake
  * 3-second "ad" stands in so the whole reward flow can be tested.
  */
-export const isCrazyGames = import.meta.env.MODE === 'crazygames';
+const MODE = import.meta.env.MODE;
+export const isCrazyGames = MODE === 'crazygames' || MODE === 'crazygames-basic';
+/** Basic Launch build: no ad offers, whatever the SDK says. */
+const ADS_OFF = MODE === 'crazygames-basic';
 
 const SDK_URL = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
 const SDK_TIMEOUT = 3000;
@@ -31,8 +36,13 @@ interface CrazySdk {
     loadingStop(): void;
     gameplayStart(): void;
     gameplayStop(): void;
+    readonly settings?: { muteAudio?: boolean; disableChat?: boolean };
+    addSettingsChangeListener(listener: (settings: { muteAudio?: boolean; disableChat?: boolean }) => void): void;
   };
-  readonly ad: { requestAd(type: 'midgame' | 'rewarded', callbacks?: AdCallbacks): void };
+  readonly ad: {
+    requestAd(type: 'midgame' | 'rewarded', callbacks?: AdCallbacks): void;
+    hasAdblock?(): Promise<boolean>;
+  };
 }
 
 declare global {
@@ -72,6 +82,11 @@ class Portal {
   private lastRewardedAt = 0;
   private lastMidgameAt = Date.now() / 1000;
   private readonly mock = mockEnabled();
+  private forcedMute = false;
+  private muteListeners: Array<(muted: boolean) => void> = [];
+  private loading = false;
+  /** The SDK said ads are off for this session (Basic Launch, kids mode) or an ad blocker is running. */
+  private noAds = false;
 
   /** Boots the SDK in the background; never blocks the game. */
   async init(): Promise<void> {
@@ -83,10 +98,68 @@ class Portal {
       await sdk.init();
       if (sdk.environment !== 'local' && sdk.environment !== 'crazygames') return;
       this.sdk = sdk;
+      this.applySdkSettings(sdk.game.settings);
+      try {
+        sdk.game.addSettingsChangeListener((s) => this.applySdkSettings(s));
+      } catch {
+        /* older SDK without settings updates */
+      }
+      if (this.loading) sdk.game.loadingStart();
       if (this.playing) sdk.game.gameplayStart();
+      void this.checkAdblock(sdk);
     } catch {
       this.sdk = null;
     }
+  }
+
+  /** Players with an ad blocker play normally; only the ad offers go away (an offer that does nothing is not allowed). */
+  private async checkAdblock(sdk: CrazySdk): Promise<void> {
+    try {
+      if (await sdk.ad.hasAdblock?.()) this.noAds = true;
+    } catch {
+      /* unknown: keep offering, a failed request is handled when it happens */
+    }
+  }
+
+  /** `adError` carries a code: adsDisabled and adblock mean no offer will ever work this session. */
+  private noteAdError(error: unknown): void {
+    const code = (error as { code?: string } | null | undefined)?.code;
+    if (code === 'adsDisabled' || code === 'adblock') this.noAds = true;
+  }
+
+  /** Loading progress for the portal, while the game boots. */
+  loadingStart(): void {
+    this.loading = true;
+    try {
+      this.sdk?.game.loadingStart();
+    } catch {
+      /* reporting must never break the game */
+    }
+  }
+
+  loadingStop(): void {
+    this.loading = false;
+    try {
+      this.sdk?.game.loadingStop();
+    } catch {
+      /* reporting must never break the game */
+    }
+  }
+
+  /** The portal's own mute setting; it overrides the in-game sound toggle. */
+  get muteForced(): boolean {
+    return this.forcedMute;
+  }
+
+  onMuteForced(listener: (muted: boolean) => void): void {
+    this.muteListeners.push(listener);
+  }
+
+  private applySdkSettings(settings?: { muteAudio?: boolean }): void {
+    const muted = !!settings?.muteAudio;
+    if (muted === this.forcedMute) return;
+    this.forcedMute = muted;
+    for (const listener of this.muteListeners) listener(muted);
   }
 
   /** A video ad is on screen right now: the game should hold still. */
@@ -96,7 +169,7 @@ class Portal {
 
   /** Whether any kind of ad (real or test) can be shown at all in this build. */
   get hasAds(): boolean {
-    return this.sdk !== null || this.mock;
+    return !ADS_OFF && !this.noAds && (this.sdk !== null || this.mock);
   }
 
   /** Seconds until another rewarded ad may be offered. */
@@ -150,24 +223,39 @@ class Portal {
   }
 
   private run(type: 'midgame' | 'rewarded', finished: (paid: boolean) => void): void {
+    // The game holds still from the request until adFinished or adError (the player cannot progress meanwhile).
     this.open = true;
-    const wasMuted = sfx.muted;
-    sfx.setMuted(true);
+    // Sound goes quiet only when the ad really starts (not on the request: it may never come), and only for
+    // the ad: the player's own sound setting is never touched.
+    let muted = false;
+    const mute = (): void => {
+      if (muted) return;
+      muted = true;
+      sfx.holdForAd(true);
+    };
     let settled = false;
     const finish = (paid: boolean): void => {
       if (settled) return;
       settled = true;
       this.open = false;
-      sfx.setMuted(wasMuted);
+      if (muted) sfx.holdForAd(false);
       finished(paid);
     };
     if (this.sdk) {
       try {
-        this.sdk.ad.requestAd(type, { adFinished: () => finish(true), adError: () => finish(false) });
+        this.sdk.ad.requestAd(type, {
+          adStarted: mute,
+          adFinished: () => finish(true),
+          adError: (error) => {
+            this.noteAdError(error);
+            finish(false);
+          },
+        });
       } catch {
         finish(false);
       }
     } else {
+      mute();
       mockAd(type, () => finish(true));
     }
   }

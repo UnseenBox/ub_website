@@ -3,10 +3,11 @@ import { GAME_CONFIG } from '../config/GameConfig';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { EVT, state, subscribe } from '../core/GameState';
 import type { Rock } from '../core/types';
-import { ART_RES, iconScale, releaseRockTextures, rockKeys } from '../art/RockArt';
+import { ART_RES, ensureRockTextures, iconScale, releaseRockTextures, rockKeys } from '../art/RockArt';
+import { MACHINE, SAW_RADIUS } from '../art/TextureFactory';
 import { sfx, type SawHandle } from '../audio/Sfx';
 import { portal } from '../ads/Portal';
-import { ICON_STAR } from '../art/IconArt';
+import { ICON_SAW, ICON_STAR } from '../art/IconArt';
 import { uiIcon } from '../art/UiIcons';
 import { Button } from '../ui/Button';
 import { computeLayout, slotCenter, type Layout } from '../ui/layout';
@@ -18,35 +19,20 @@ interface StageLayout {
   w: number;
   h: number;
   machineX: number;
-  /** Width the machine picture is drawn at. */
-  machineW: number;
   bedY: number;
   cardX: number;
   cardY: number;
   cardW: number;
   cardH: number;
-  /** Scale of the card picture (its bottom part, with the two button slots, keeps this size). */
-  cardScale: number;
-  /** The two station tabs (saw, crusher): where they are and which way they line up. */
-  tabsX: number;
-  tabsY: number;
-  tabsRow: boolean;
 }
 
-const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 300, machineW: 500, bedY: 430, cardX: 770, cardY: 300, cardW: 300, cardH: 400, cardScale: 0.714, tabsX: 770, tabsY: 46, tabsRow: true };
-const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, machineW: 480, bedY: 400, cardX: 320, cardY: 706, cardW: 360, cardH: 300, cardScale: 0.68, tabsX: 34, tabsY: 70, tabsRow: false };
-
-/** The supplied saw table (assets/workshop/machine2.png), measured in its own pixels. */
-const MACHINE_ART = { w: 700, h: 803, bed: 602, beam: 88, playX: 532, playY: 738, playD: 100 };
-/** The supplied card (assets/workshop/card.png): its frame, and where the bottom part with the two slots starts. */
-const CARD_ART = { w: 420, h: 565, edge: 45, bottom: 213, bigBottom: 208, slot1: 165, slot2: 92, slotH1: 60, slotH2: 68 };
-/** Drawn radius of the circular blade, in stage pixels. */
-const SAW_R = 80;
+const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 340, bedY: 430, cardX: 770, cardY: 300, cardW: 340, cardH: 390 };
+const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, bedY: 440, cardX: 320, cardY: 708, cardW: 590, cardH: 270 };
 
 /** Rocks worth at least this much offer a "sell for double" ad. */
 const AD_SELL_MIN_VALUE = 30;
-const BLADE_REST = -300;
-const BLADE_END = -62;
+const BLADE_REST = -290;
+const BLADE_END = -60;
 const RAY_COUNT = 12;
 
 /**
@@ -57,7 +43,7 @@ const RAY_COUNT = 12;
 export class WorkshopScene extends Phaser.Scene {
   private S: StageLayout = WIDE_STAGE;
   private L!: Layout;
-  private backdrop!: Phaser.GameObjects.Image;
+  private backdrop!: Phaser.GameObjects.Graphics;
   private lamp!: Phaser.GameObjects.Image;
   private stage!: Phaser.GameObjects.Container;
   private machine!: Phaser.GameObjects.Image;
@@ -65,24 +51,10 @@ export class WorkshopScene extends Phaser.Scene {
   private rays!: Phaser.GameObjects.Container;
   private rod!: Phaser.GameObjects.Rectangle;
   private blade!: Phaser.GameObjects.Image;
-  private lampTime = 0;
   private rockImg!: Phaser.GameObjects.Image;
   private cutLine!: Phaser.GameObjects.Rectangle;
   private halves: Phaser.GameObjects.Image[] = [];
-  /** Everything that belongs to the saw table (machine, rock, blade, effects, result card). */
-  private sawGroup!: Phaser.GameObjects.Container;
-  /** The rock crusher: shown dimmed and locked, with a "coming soon" label. */
-  private crusherGroup!: Phaser.GameObjects.Container;
-  private crusher!: Phaser.GameObjects.Image;
-  private crusherLock!: Phaser.GameObjects.Image;
-  private crusherRibbon!: Phaser.GameObjects.Graphics;
-  private crusherLabel!: Phaser.GameObjects.Text;
-  private ribbonBox!: Phaser.GameObjects.Container;
-  private tabs: { id: 'saw' | 'crusher'; c: Phaser.GameObjects.Container; ring: Phaser.GameObjects.Graphics }[] = [];
-  private station: 'saw' | 'crusher' = 'saw';
-  private card!: Phaser.GameObjects.NineSlice;
-  private titleSize = 34;
-  private bigSize = 56;
+  private card!: Phaser.GameObjects.Graphics;
   private chip!: Phaser.GameObjects.Container;
   private chipBg!: Phaser.GameObjects.Graphics;
   private chipText!: Phaser.GameObjects.Text;
@@ -91,11 +63,7 @@ export class WorkshopScene extends Phaser.Scene {
   private sub!: Phaser.GameObjects.Text;
   private big!: Phaser.GameObjects.Text;
   private bigIcon!: Phaser.GameObjects.Image;
-  private playGlow!: Phaser.GameObjects.Image;
-  private playIcon!: Phaser.GameObjects.Image;
-  private playZone!: Phaser.GameObjects.Zone;
-  /** The rock is on the bench and the saw may start. */
-  private playReady = false;
+  private cutBtn!: Button;
   private sellBtn!: Button;
   private adBtn!: Button;
   private sparkFx!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -123,27 +91,30 @@ export class WorkshopScene extends Phaser.Scene {
     this.halves = [];
     this.bench = 'empty';
     this.current = null;
-    this.backdrop = this.add.image(0, 0, 'workshop-bg').setOrigin(0, 0);
+    this.backdrop = this.add.graphics();
     this.lamp = this.add.image(0, 0, 'soft').setTint(0xffd9a0).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD);
     this.stage = this.add.container(0, 0);
-    this.sawGroup = this.add.container(0, 0);
-    this.crusherGroup = this.add.container(0, 0).setVisible(false);
-    this.station = 'saw';
-    this.stage.add([this.sawGroup, this.crusherGroup]);
     this.buildStage();
     this.buildCard();
     this.buildEffects();
-    this.buildCrusher();
 
     subscribe(this, EVT.slotSelected, (id: string) => this.onSlotSelected(id));
+    subscribe(this, EVT.capacityChanged, () => this.onResize());
     subscribe(this, EVT.dayPhaseChanged, () => this.refreshCard());
     this.input.keyboard?.on('keydown-SPACE', () => {
-      if (this.bench === 'ready') this.pressPlay();
+      if (this.bench === 'ready') this.cutBtn.trigger();
       else if (this.bench === 'revealed') this.sellBtn.trigger();
     });
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
     this.events.on(Phaser.Scenes.Events.WAKE, this.onEnter, this);
+    const stopSaw = (): void => {
+      this.saw?.stop();
+      this.saw = null;
+    };
+    this.events.on(Phaser.Scenes.Events.SLEEP, stopSaw);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      stopSaw();
+      this.events.off(Phaser.Scenes.Events.SLEEP, stopSaw);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
       this.events.off(Phaser.Scenes.Events.WAKE, this.onEnter, this);
     });
@@ -156,12 +127,11 @@ export class WorkshopScene extends Phaser.Scene {
     this.updateAdButton();
     this.bladeSpeed += (this.bladeTarget - this.bladeSpeed) * Math.min(1, dt / 220);
     if (this.bladeSpeed > 0.001) this.blade.rotation += this.bladeSpeed * dt * 0.03;
-    this.rod.height = Math.max(0, this.blade.y - this.rodTop());
-    this.animateMachine(dt);
+    this.rod.height = Math.max(0, this.blade.y - (this.S.bedY + BLADE_REST));
     if (this.cutting && this.current) {
       const rx = this.S.machineX;
       this.rockImg.x = rx + Phaser.Math.FloatBetween(-1.6, 1.6);
-      const contact = Math.min(this.blade.y + SAW_R, this.S.bedY - 4);
+      const contact = Math.min(this.blade.y + SAW_RADIUS, this.S.bedY - 4);
       const top = this.rockTop();
       if (contact > top) {
         this.cutLine.setPosition(rx, top).setSize(5, contact - top).setVisible(true);
@@ -177,64 +147,11 @@ export class WorkshopScene extends Phaser.Scene {
     }
   }
 
-  /** The machine's start key (blue button, or SPACE). */
-  private pressPlay(): void {
-    if (this.bench !== 'ready' || !state.canCut) {
-      if (this.bench === 'ready') sfx.denied();
-      return;
-    }
-    sfx.click();
-    void this.cut();
-  }
-
-  /** Where the saw's rod hangs from: the middle of the machine's top beam. */
-  private rodTop(): number {
-    return this.S.bedY - (MACHINE_ART.bed - MACHINE_ART.beam) * (this.S.machineW / MACHINE_ART.w);
-  }
-
-  /**
-   * Life in the machine: the play button on the base (lit and breathing while a rock waits), a
-   * tremble through the frame and the blade while it cuts, and a slight sway when it parks.
-   */
-  private animateMachine(dt: number): void {
-    this.lampTime += dt;
-    const S = this.S;
-    const k = this.machine.scaleX;
-    const shake = this.cutting ? Phaser.Math.FloatBetween(-1.3, 1.3) : 0;
-    this.machine.x = S.machineX + shake * 0.6;
-    this.blade.x = S.machineX + shake;
-    this.rod.x = S.machineX + shake;
-    const pulse = 0.5 + 0.5 * Math.sin(this.lampTime / 520);
-    // The play button on the base: a glow and a gentle pulse while a rock waits on the bench.
-    const bx = this.machine.x + (MACHINE_ART.playX - MACHINE_ART.w / 2) * k;
-    const by = this.machine.y + (MACHINE_ART.playY - MACHINE_ART.bed) * k;
-    const d = MACHINE_ART.playD * k;
-    this.playGlow.setPosition(bx, by).setDisplaySize(d * 2.4, d * 2.4);
-    this.playGlow.setAlpha(this.playReady ? 0.3 + 0.45 * Math.sin(this.lampTime / 260) ** 2 : 0);
-    const size = d * (this.playReady ? 1 + 0.07 * pulse : 1);
-    if (!this.tweens.isTweening(this.playIcon)) this.playIcon.setDisplaySize(size, size);
-    this.playIcon.setPosition(bx, by).setAlpha(this.playReady ? 1 : 0.4);
-    this.playZone.setPosition(bx, by).setSize(d * 1.5, d * 1.5);
-    (this.playZone.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, this.playZone.width, this.playZone.height);
-    if (!this.cutting && this.bladeSpeed < 0.05 && this.bench !== 'cutting') {
-      // Parked: the blade rocks gently on its rod.
-      this.blade.y = S.bedY + BLADE_REST + Math.sin(this.lampTime / 700) * 2;
-    }
-  }
-
   // ---------- construction ----------
 
   private buildStage(): void {
-    this.machineShadow = this.add.image(0, 0, 'shadow').setScale(5.4, 1.4);
-    this.machine = this.add.image(0, 0, 'machine-art').setOrigin(0.5, MACHINE_ART.bed / MACHINE_ART.h);
-    // The play button on the table's base is the start button: a glow, the play picture and a big tap zone.
-    this.playGlow = this.add.image(0, 0, 'soft').setTint(0xffd27a).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
-    this.playIcon = this.add.image(0, 0, uiIcon('play')).setAlpha(0.35);
-    this.playZone = this.add.zone(0, 0, 10, 10).setInteractive({ useHandCursor: true });
-    this.playZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => {
-      if (this.bench === 'ready' && state.canCut) this.tweens.add({ targets: this.playIcon, scale: this.playIcon.scale * 0.8, duration: 70, yoyo: true });
-    });
-    this.playZone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.pressPlay());
+    this.machineShadow = this.add.image(0, 0, 'shadow').setScale(3.6, 1.4);
+    this.machine = this.add.image(0, 0, 'machine').setScale(1 / ART_RES).setOrigin(0.5, MACHINE.bedY / MACHINE.height);
     this.rays = this.add.container(0, 0).setVisible(false);
     for (let i = 0; i < RAY_COUNT; i++) {
       this.rays.add(this.add.image(0, 0, 'ray').setOrigin(0.5, 1).setRotation((i / RAY_COUNT) * Math.PI * 2).setBlendMode(Phaser.BlendModes.ADD));
@@ -243,13 +160,12 @@ export class WorkshopScene extends Phaser.Scene {
     this.cutLine = this.add.rectangle(0, 0, 5, 10, 0xfff3c4).setOrigin(0.5, 0).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     for (let i = 0; i < 2; i++) this.halves.push(this.add.image(0, 0, '__DEFAULT').setVisible(false));
     this.rod = this.add.rectangle(0, 0, 14, 0, 0x8d99a6).setOrigin(0.5, 0).setStrokeStyle(2, 0x4f5763);
-    this.blade = this.add.image(0, 0, 'saw-art');
-    this.blade.setScale((SAW_R * 2) / this.blade.width);
-    this.sawGroup.add([this.machineShadow, this.machine, this.playGlow, this.playIcon, this.playZone, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
+    this.blade = this.add.image(0, 0, 'saw').setScale(1 / ART_RES);
+    this.stage.add([this.machineShadow, this.machine, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
   }
 
   private buildCard(): void {
-    this.card = this.add.nineslice(0, 0, 'workshop-card', undefined, CARD_ART.w, CARD_ART.h, CARD_ART.edge, CARD_ART.edge, CARD_ART.edge, CARD_ART.bottom).setOrigin(0, 0);
+    this.card = this.add.graphics();
     this.chipBg = this.add.graphics();
     this.chipText = this.add.text(0, 0, '', outlinedStyle(22)).setOrigin(0.5);
     this.chipStars = Array.from({ length: 5 }, () => this.add.image(0, 0, ICON_STAR).setVisible(false));
@@ -257,10 +173,15 @@ export class WorkshopScene extends Phaser.Scene {
     this.title = this.add.text(0, 0, '', textStyle(34, PALETTE.ink)).setOrigin(0.5);
     this.sub = this.add.text(0, 0, '', textStyle(19, '#8a6a4a', { fontStyle: '500', align: 'center' })).setOrigin(0.5);
     this.big = this.add.text(0, 0, '', outlinedStyle(56, PALETTE.money)).setOrigin(0.5);
+    this.cutBtn = new Button(this, {
+      width: 280, height: 74, label: '', icon: ICON_SAW, fontSize: 40, colors: BUTTON_COLORS.orange,
+      onClick: () => void this.cut(),
+    });
     this.sellBtn = new Button(this, {
-      width: 280, height: 74, label: '', icon: 'ui-collect', ghost: true, iconScale: 1.35, fontSize: 40, colors: BUTTON_COLORS.green,
+      width: 280, height: 74, label: '', icon: uiIcon('cash'), fontSize: 40, colors: BUTTON_COLORS.green,
       onClick: () => this.sell(1),
     });
+    this.cutBtn.setVisible(false);
     this.sellBtn.setVisible(false);
     this.adBtn = new Button(this, {
       width: 280, height: 50, label: '2x', icon: uiIcon('watch'), fontSize: 24, colors: BUTTON_COLORS.blue,
@@ -269,7 +190,7 @@ export class WorkshopScene extends Phaser.Scene {
     this.adBtn.setVisible(false);
     // A picture where the big number goes while no rock is on the bench (all done / pick a rock).
     this.bigIcon = this.add.image(0, 0, uiIcon('bag')).setVisible(false);
-    this.sawGroup.add([this.card, this.chip, this.title, this.sub, this.big, this.bigIcon, this.sellBtn, this.adBtn]);
+    this.stage.add([this.card, this.chip, this.title, this.sub, this.big, this.bigIcon, this.cutBtn, this.sellBtn, this.adBtn]);
   }
 
   private buildEffects(): void {
@@ -322,88 +243,37 @@ export class WorkshopScene extends Phaser.Scene {
       blendMode: Phaser.BlendModes.ADD,
     });
     // Particles render just below the blade so sparks fly in front of the rock.
-    this.sawGroup.addAt([this.dustFx, this.burstFx, this.glitterFx, this.sparkFx], this.sawGroup.getIndex(this.rod));
-    this.sawGroup.add(this.confettiFx);
-  }
-
-  // ---------- the rock crusher (locked for now) ----------
-
-  /** The crusher picture, dimmed, with a lock over it and a "coming soon" ribbon; plus the two station tabs. */
-  private buildCrusher(): void {
-    this.crusher = this.add.image(0, 0, 'crusher-art').setOrigin(0.5, 1).setTint(0x7c7c8c);
-    this.crusherLock = this.add.image(0, 0, uiIcon('lock'));
-    this.crusherRibbon = this.add.graphics();
-    this.crusherLabel = this.add.text(0, 0, 'Coming soon', outlinedStyle(30, '#fff3dc')).setOrigin(0.5);
-    this.ribbonBox = this.add.container(0, 0, [this.crusherRibbon, this.crusherLabel]);
-    this.crusherGroup.add([this.crusher, this.crusherLock, this.ribbonBox]);
-    // The lock sways a little, the ribbon bobs: it is waiting, not broken.
-    this.tweens.add({ targets: this.crusherLock, angle: { from: -6, to: 6 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.tweens.add({ targets: this.ribbonBox, y: 5, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-
-    // Tabs: the saw table (open) and the crusher (locked).
-    this.tabs = (['saw', 'crusher'] as const).map((id) => {
-      const ring = this.add.graphics();
-      const pic = this.add.image(0, 0, id === 'saw' ? 'saw-art' : 'crusher-art');
-      const fit = id === 'saw' ? 40 : 46;
-      pic.setScale(fit / Math.max(pic.width, pic.height));
-      if (id === 'crusher') pic.setTint(0x8a8a98);
-      const parts: Phaser.GameObjects.GameObject[] = [ring, pic];
-      if (id === 'crusher') parts.push(this.add.image(17, 17, uiIcon('lock')).setDisplaySize(24, 24));
-      const c = this.add.container(0, 0, parts);
-      c.setSize(60, 60).setInteractive({ useHandCursor: true });
-      c.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.setStation(id));
-      this.stage.add(c);
-      return { id, c, ring };
-    });
-    this.paintTabs();
-  }
-
-  private paintTabs(): void {
-    for (const t of this.tabs) {
-      const on = t.id === this.station;
-      const g = t.ring;
-      g.clear();
-      g.fillStyle(0x000000, 0.3).fillCircle(0, 3, 29);
-      g.fillStyle(0x3a2412, 0.95).fillCircle(0, 0, 29);
-      g.lineStyle(on ? 4 : 3, on ? 0xffc83d : 0x8a6a46, 1).strokeCircle(0, 0, 28);
-      t.c.setScale(on ? 1.08 : 1);
-    }
-  }
-
-  /** The shop opens over the workshop's background only: the table, card and tabs step aside while it is up. */
-  setStageHidden(hidden: boolean): void {
-    this.stage?.setVisible(!hidden);
-    this.lamp?.setVisible(!hidden);
-  }
-
-  /** Switches between the saw table and the (locked) crusher. Not while a cut or a placing is running. */
-  private setStation(next: 'saw' | 'crusher'): void {
-    if (next === this.station || state.busy || this.bench === 'cutting' || this.bench === 'placing' || this.bench === 'selling') return;
-    this.station = next;
-    sfx.click();
-    this.sawGroup.setVisible(next === 'saw');
-    this.crusherGroup.setVisible(next === 'crusher');
-    const shown = next === 'saw' ? this.sawGroup : this.crusherGroup;
-    shown.setAlpha(0).setY(14);
-    this.tweens.add({ targets: shown, alpha: 1, y: 0, duration: 240, ease: 'Cubic.easeOut' });
-    this.paintTabs();
+    this.stage.addAt([this.dustFx, this.burstFx, this.glitterFx, this.sparkFx], this.stage.getIndex(this.rod));
+    this.stage.add(this.confettiFx);
   }
 
   // ---------- layout ----------
 
   private onResize(): void {
     const { width: w, height: h } = this.scale;
-    const L = (this.L = computeLayout(w, h));
+    const L = (this.L = computeLayout(w, h, state.inventory.capacity));
     const prev = this.S;
     this.S = L.play.w / L.play.h < 1.05 ? TALL_STAGE : WIDE_STAGE;
     const S = this.S;
     const scale = Math.min(L.play.w / S.w, L.play.h / S.h);
     this.stage.setScale(scale).setPosition(L.play.x + (L.play.w - S.w * scale) / 2, L.play.y + (L.play.h - S.h * scale) / 2);
 
-    // The supplied workshop picture, covering the screen with its floor edge near the bench.
-    const benchY = this.stage.y + (S.bedY + 110) * scale;
-    const cover = Math.max(w / this.backdrop.width, h / this.backdrop.height);
-    this.backdrop.setScale(cover).setPosition((w - this.backdrop.width * cover) / 2, Math.min(0, Math.max(h - this.backdrop.height * cover, benchY - 560 * cover)));
+    // Full-screen workshop wall and bench.
+    const benchY = this.stage.y + (S.bedY + 85) * scale;
+    const g = this.backdrop;
+    g.clear();
+    g.fillStyle(0x2f5d62).fillRect(0, 0, w, h);
+    const plank = Math.max(48, 90 * scale);
+    for (let x = -((w / 2) % plank); x < w; x += plank) {
+      g.fillStyle(0x2a5459).fillRect(x, 0, 4, benchY);
+      g.fillStyle(0x386c71).fillRect(x + 4, 0, 3, benchY);
+    }
+    g.fillStyle(0x264b50).fillRect(0, benchY - 40 * scale, w, 10 * scale);
+    g.fillStyle(0x000000, 0.18).fillRect(0, benchY - 8, w, 14);
+    g.fillStyle(0xc4844e).fillRect(0, benchY, w, 26 * scale);
+    g.fillStyle(0xe0a46a).fillRect(0, benchY, w, 6 * scale);
+    g.fillStyle(0x8c5532).fillRect(0, benchY + 26 * scale, w, h - benchY);
+    for (let y = benchY + 60 * scale; y < h; y += 46 * scale) g.fillStyle(0x7a4a2b).fillRect(0, y, w, 4 * scale);
     this.lamp.setPosition(this.stage.x + S.machineX * scale, this.stage.y + (S.bedY - 150) * scale).setScale((520 * scale) / 64);
 
     this.layoutStage(prev !== S);
@@ -411,58 +281,29 @@ export class WorkshopScene extends Phaser.Scene {
 
   private layoutStage(recenterRock: boolean): void {
     const S = this.S;
-    this.machine.setScale(S.machineW / MACHINE_ART.w);
-    this.machineShadow.setPosition(S.machineX, S.bedY + (MACHINE_ART.h - MACHINE_ART.bed) * this.machine.scaleX - 8);
+    this.machineShadow.setPosition(S.machineX, S.bedY + 120);
     this.machine.setPosition(S.machineX, S.bedY);
     this.rays.setPosition(S.machineX, this.rockCenterY());
-    this.rod.setPosition(S.machineX, this.rodTop());
+    this.rod.setPosition(S.machineX, S.bedY + BLADE_REST);
     if (!this.cutting) this.blade.setPosition(S.machineX, S.bedY + BLADE_REST);
     if (recenterRock && this.current && this.bench !== 'placing') this.rockImg.setPosition(S.machineX, this.rockCenterY());
     if (this.bench === 'revealed' || this.bench === 'selling') this.placeHalves(false);
 
-    // The crusher stands where the saw table does; the tabs sit above the card (wide) or at the left (phone).
-    const kMachine = this.machine.scaleX;
-    const baseY = S.bedY + (MACHINE_ART.h - MACHINE_ART.bed) * kMachine;
-    this.crusher.setPosition(S.machineX, baseY).setScale((S.machineW * 1.04) / this.crusher.width);
-    const ch0 = this.crusher.displayHeight;
-    this.crusherLock.setPosition(S.machineX, baseY - ch0 * 0.5).setDisplaySize(ch0 * 0.34, ch0 * 0.34);
-    const ry = baseY - ch0 * 0.16;
-    const rw = Math.min(S.machineW * 0.78, 300);
-    this.crusherRibbon.setPosition(0, 0).clear();
-    this.crusherRibbon.fillStyle(0x000000, 0.35).fillRoundedRect(S.machineX - rw / 2, ry - 20 + 5, rw, 46, 14);
-    this.crusherRibbon.fillStyle(0xff8a3d).fillRoundedRect(S.machineX - rw / 2, ry - 20, rw, 46, 14);
-    this.crusherRibbon.fillStyle(0xffffff, 0.25).fillRoundedRect(S.machineX - rw / 2 + 8, ry - 16, rw - 16, 14, 7);
-    this.crusherRibbon.lineStyle(3, 0x3b2616, 0.9).strokeRoundedRect(S.machineX - rw / 2, ry - 20, rw, 46, 14);
-    this.crusherLabel.setPosition(S.machineX, ry + 3);
-    this.tabs.forEach((t, i) => {
-      if (S.tabsRow) t.c.setPosition(S.tabsX + (i === 0 ? -36 : 36), S.tabsY);
-      else t.c.setPosition(S.tabsX, S.tabsY + i * 66);
-    });
-
-    // The card picture: frame, a big cream area for the rock, and two slots at the bottom for the buttons.
-    const { cardX: x, cardY: y, cardW: w, cardH: h, cardScale: cs } = S;
-    this.card.setSize(w / cs, h / cs).setScale(cs).setPosition(x - w / 2, y - h / 2);
-    const top0 = y - h / 2 + CARD_ART.edge * cs;
-    const bottom0 = y + h / 2 - CARD_ART.bigBottom * cs;
-    const hz = bottom0 - top0;
-    this.titleSize = Math.round(Math.max(22, Math.min(36, hz * 0.16)));
-    this.bigSize = Math.round(Math.max(34, Math.min(58, hz * 0.26)));
-    this.chip.setPosition(x, top0 + hz * 0.17);
-    this.title.setPosition(x, top0 + hz * 0.45).setWordWrapWidth(9999).setFontSize(this.titleSize);
-    this.sub.setPosition(x, top0 + hz * 0.6).setWordWrapWidth(w - 70 * cs);
-    this.big.setPosition(x, top0 + hz * 0.78).setFontSize(this.bigSize);
-    const isz = Math.min(84, hz * 0.45);
-    this.bigIcon.setPosition(x, top0 + hz * 0.62).setDisplaySize(isz, isz);
-    this.placeButtons();
-  }
-
-  /** The sell button sits in the card's upper slot and the "2x" ad button in the lower one. */
-  private placeButtons(): void {
-    const { cardX: x, cardY: y, cardW: w, cardH: h, cardScale: cs } = this.S;
-    const bottom = y + h / 2;
-    const slotW = w - CARD_ART.edge * 2 * cs - 12 * cs;
-    this.sellBtn.resize(slotW, CARD_ART.slotH1 * cs, Math.round(30 * cs + 10)).setPosition(x, bottom - CARD_ART.slot1 * cs);
-    this.adBtn.resize(slotW - 8, CARD_ART.slotH2 * cs - 8, Math.round(24 * cs + 6)).setPosition(x, bottom - CARD_ART.slot2 * cs);
+    const { cardX: x, cardY: y, cardW: w, cardH: h } = S;
+    const g = this.card;
+    g.clear();
+    g.fillStyle(0x000000, 0.25).fillRoundedRect(x - w / 2, y - h / 2 + 8, w, h, 28);
+    g.fillStyle(PALETTE.cream).fillRoundedRect(x - w / 2, y - h / 2, w, h, 28);
+    g.fillStyle(PALETTE.creamShade).fillRoundedRect(x - w / 2 + 10, y + h * 0.12, w - 20, h * 0.38 - 10, 20);
+    g.lineStyle(4, 0xe2c497).strokeRoundedRect(x - w / 2, y - h / 2, w, h, 28);
+    this.chip.setPosition(x, y - h * 0.37);
+    this.title.setPosition(x, y - h * 0.21).setWordWrapWidth(w - 40);
+    this.sub.setPosition(x, y - h * 0.07).setWordWrapWidth(w - 40);
+    this.big.setPosition(x, y + h * 0.1);
+    this.bigIcon.setPosition(x, y + h * 0.1).setDisplaySize(84, 84);
+    this.cutBtn.setPosition(x, y + h * 0.33);
+    this.sellBtn.setPosition(x, y + h * 0.33);
+    this.adBtn.setPosition(x, y + h * 0.33 + 64);
   }
 
   private rockScale(): number {
@@ -509,8 +350,6 @@ export class WorkshopScene extends Phaser.Scene {
   }
 
   private onSlotSelected(id: string): void {
-    // Picking a rock goes to the saw table, wherever the player was looking.
-    if (this.station !== 'saw') this.setStation('saw');
     if (!state.canCut || (this.bench !== 'empty' && this.bench !== 'ready')) return;
     if (this.current?.id === id) return;
     const index = state.inventory.indexOf(id);
@@ -591,7 +430,7 @@ export class WorkshopScene extends Phaser.Scene {
     const S = this.S;
     this.saw = sfx.startSaw();
     this.bladeTarget = 1;
-    await this.tween({ targets: this.blade, y: this.rockTop() - SAW_R + 6, duration: 320, ease: 'Sine.easeIn' });
+    await this.tween({ targets: this.blade, y: this.rockTop() - SAW_RADIUS + 6, duration: 320, ease: 'Sine.easeIn' });
     this.saw.grind(true);
     this.cutting = true;
     await this.tween({ targets: this.blade, y: S.bedY + BLADE_END, duration: GAME_CONFIG.cutting.cutDurationMs, ease: 'Linear' });
@@ -603,6 +442,13 @@ export class WorkshopScene extends Phaser.Scene {
     this.saw.stop();
     this.saw = null;
 
+    // Master Cutter: the cut may turn out better than the rock looked. The cross-section is repainted first.
+    if (state.rollLuckyCut(rock)) {
+      this.textures.remove(rockKeys(rock).inside);
+      ensureRockTextures(this.textures, rock);
+      this.flashLuckyCut();
+    }
+
     // Anticipation: a little wobble (plus a dramatic pause for the good stuff).
     const tier = rock.rarity.tier;
     await this.tween({ targets: this.rockImg, angle: { from: -4, to: 4 }, duration: 70, yoyo: true, repeat: 1 });
@@ -612,6 +458,14 @@ export class WorkshopScene extends Phaser.Scene {
       await this.wait(280);
     }
     this.reveal(rock);
+  }
+
+  /** A short "LUCKY CUT!" over the machine when Master Cutter pays off. */
+  private flashLuckyCut(): void {
+    const t = this.add.text(this.S.machineX, this.rockCenterY() - 100, 'LUCKY CUT!', outlinedStyle(36, '#ffe27a')).setOrigin(0.5).setScale(0.4).setDepth(40);
+    this.tweens.add({ targets: t, scale: 1.1, duration: 240, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, y: t.y - 44, alpha: 0, delay: 900, duration: 400, onComplete: () => t.destroy() });
+    this.cameras.main.flash(140, 255, 236, 150);
   }
 
   private reveal(rock: Rock): void {
@@ -722,15 +576,15 @@ export class WorkshopScene extends Phaser.Scene {
   private updateAdButton(): void {
     const rock = this.current;
     const show = this.bench === 'revealed' && !!rock && rock.value >= AD_SELL_MIN_VALUE && portal.rewardedReady && this.sellBtn.visible;
-    if (this.adBtn.visible !== show) {
-      this.adBtn.setVisible(show);
-      this.placeButtons();
-    }
+    if (this.adBtn.visible !== show) this.adBtn.setVisible(show);
   }
 
   private sellDoubled(): void {
     if (this.bench !== 'revealed') return;
-    portal.rewarded(() => this.sell(2));
+    // No reward when the ad did not play; the button hides itself when ads are off or blocked (updateAdButton).
+    portal.rewarded(() => this.sell(2), (granted) => {
+      if (!granted) sfx.denied();
+    });
   }
 
   private sell(multiplier = 1): void {
@@ -738,7 +592,9 @@ export class WorkshopScene extends Phaser.Scene {
     if (this.bench !== 'revealed' || !rock) return;
     this.bench = 'selling';
     this.adBtn.setVisible(false);
-    const amount = state.economy.sell(rock, multiplier);
+    const amount = state.economy.sell(rock, multiplier * state.sellMult);
+    // Throwing a worthless rock away loads the shovel (Scrap Shot).
+    if (amount <= 0 && state.traits.onWorthlessThrown()) state.bus.emit(EVT.toast, 'Shovel loaded!');
     const p = this.stageToScreen(this.big.x, this.big.y);
     state.bus.emit(EVT.sale, amount, p.x, p.y, rock.rarity.tier);
     state.inventory.remove(rock.id);
@@ -777,11 +633,11 @@ export class WorkshopScene extends Phaser.Scene {
     const rock = this.current;
     const showChip = (this.bench === 'revealed' || this.bench === 'selling') && rock;
     this.chip.setVisible(!!showChip);
-    this.playReady = this.bench === 'ready' && state.canCut;
+    this.cutBtn.setVisible(this.bench === 'ready').setEnabled(state.canCut);
     if (this.bench !== 'revealed' && this.bench !== 'selling') this.sellBtn.setVisible(false);
-    this.big.setScale(1).setFontSize(this.bigSize);
+    this.big.setScale(1).setFontSize(56);
     // No words here: a picture says what to do next.
-    this.title.setText('').setScale(1);
+    this.title.setText('');
     this.sub.setText('');
     this.bigIcon.setVisible(!rock);
 
@@ -793,15 +649,13 @@ export class WorkshopScene extends Phaser.Scene {
       return;
     }
     // A worthless rock cannot be "sold": the same button throws it away.
-    this.sellBtn.setIcon(rock.value > 0 ? 'ui-collect' : uiIcon('junk'));
+    this.sellBtn.setIcon(rock.value > 0 ? uiIcon('cash') : uiIcon('junk'));
     if (this.bench === 'placing' || this.bench === 'ready' || this.bench === 'cutting') {
       this.big.setText('?').setColor(PALETTE.money);
       return;
     }
     const tier = rock.rarity.tier;
     this.title.setText(rock.mineral.name);
-    // The name stays on one line: shrink it to fit the card.
-    this.title.setScale(Math.min(1, (this.S.cardW - 70 * this.S.cardScale) / Math.max(1, this.title.width)));
     this.big.setColor(rock.mineral.dud || rock.value <= 0 ? '#d8d0c4' : PALETTE.money);
     // Rarity is a row of gold stars on the chip - no words. A worthless rock has no stars at all.
     const n = rock.rarity.id === 'worthless' ? 0 : tier + 1;

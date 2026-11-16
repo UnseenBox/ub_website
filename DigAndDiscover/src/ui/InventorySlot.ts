@@ -86,7 +86,9 @@ export class InventorySlot extends Phaser.GameObjects.Container {
     this.icon.setAngle(0);
 
     if (!rock) {
-      // The empty socket is part of the bag panel picture.
+      g.fillStyle(0x000000, 0.28).fillRoundedRect(-s / 2, -s / 2, s, s, r);
+      g.lineStyle(2, 0xffffff, 0.16).strokeRoundedRect(-s / 2, -s / 2, s, s, r);
+      g.fillStyle(0xffffff, 0.08).fillCircle(0, 0, s * 0.16);
       this.icon.setVisible(false).setTexture('__DEFAULT');
       this.badge.setVisible(false);
       this.tag.setVisible(false);

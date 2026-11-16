@@ -4,8 +4,30 @@ import type { Rock } from '../core/types';
 export class InventorySystem {
   private readonly slots: (Rock | null)[];
 
-  constructor(readonly capacity: number, private readonly onChange: () => void) {
-    this.slots = new Array<Rock | null>(capacity).fill(null);
+  constructor(private size: number, private readonly onChange: () => void) {
+    this.slots = new Array<Rock | null>(size).fill(null);
+  }
+
+  /** Number of slots in the bag. */
+  get capacity(): number {
+    return this.size;
+  }
+
+  /** Grows or shrinks the bag. Slots that still hold a rock are never dropped. Returns true when the size changed. */
+  setCapacity(next: number): boolean {
+    const target = Math.max(1, Math.round(next));
+    const before = this.size;
+    while (this.size > target && this.slots[this.size - 1] === null) {
+      this.slots.pop();
+      this.size--;
+    }
+    while (this.size < target) {
+      this.slots.push(null);
+      this.size++;
+    }
+    if (this.size === before) return false;
+    this.onChange();
+    return true;
   }
 
   get(index: number): Rock | null {

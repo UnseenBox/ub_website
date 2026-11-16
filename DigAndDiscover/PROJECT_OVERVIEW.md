@@ -1,8 +1,24 @@
 # Dig & Discover: Project Overview
 
+> **CrazyGames version (2026-11-16):** the previous rock-first version with the CrazyGames fixes. Escape is no longer a game key, no ad is offered on the dig screen (the stamina refill moved to a store row), the portal's mute setting is honoured, and loading start and stop are reported to the portal. Build it with `npm run build:crazygames`. The friend's newest version stays in `D:\WebGames\DigAndDiscover`. The shop has four painted tool icons (hand axe, pickaxe, jackhammer, power drill). Rock scanners and placeholder shovels are marked Coming soon and cannot be bought. The cottage on the dig screen is the MiniMax painting (`src/art/HouseMiniMax.ts`). Each tool has its own digging sprite (`drawToolSprites` in `src/art/TextureFactory.ts`). Upgrade prices follow how much each one helps; the numbers are in `dev/upgrade-test-results.md`.
+
+
 > **Which version is this?** This is the **friend's version** (git author `Imad`), imported from GitHub on 2026-11-15 and now the **main project** we keep working on. It is built on top of our own earlier version (working day, vertical mining, forced cutting, camera scrolling) and adds a store, levels, goals, ten layers, deposits, ads, sampled audio and a hand-illustrated world. Our pre-import version is saved untouched at `D:\WebGames\DigAndDiscover_BACKUP_pre-friend-version_2026-11-15`.
 > **Since the import (2026-11-15) the game went through the "rock-first update"**: rocks are the only reliable income, the old cash-paying curios were replaced by a **finds** system (artifacts that pay only when sold, collection items, junk), the clock is back, the UI uses painted icons instead of emoji, there are 43 minerals including worthless ones, and a **finance layer** (daily household bills, weekly debt instalments, a 30-day deadline and a game over with restart) was added. Where an older paragraph below still says "curio", read it as the finds system described in section 11.
 > Jump to **section 9** for the status and handoff, **section 10** for a commit-by-commit list of everything the friend added, and **section 11** for the rock-first update.
+
+## Current status (2026-11-16)
+
+- **Working copy:** `D:\WebGames\DigAndDiscover_CrazyGames` is the previous (rock-first) version with the CrazyGames fixes. See `git log` for the last commit. Nothing is published.
+- **Main project:** `D:\WebGames\DigAndDiscover` is the friend's newest version (website commit `a5c8c90`), unchanged this session. The rock-first version is backed up at `D:\WebGames\DigAndDiscover_BACKUP_rockfirst_2026-11-16` and tag `backup-rockfirst-2026-11-16`.
+- **CrazyGames:** rejected for "overall quality". The fixes are in: Escape is no longer a game key, the refill ad is a Store row (never on the dig screen), the portal's mute setting is honoured, and loading start and stop are reported. Not resubmitted.
+- **Art:** each tool has its own digging sprite and store icon, and the cottage is MiniMax's painting with the roof fixed. `AUDIO_CREDITS.md` lists the 14 sound files as "source unknown, licence not verified".
+- **Balance:** tool prices already follow usefulness (`dev/upgrade-test-results.md`), so they are unchanged. Upgrade base prices now follow how much each one helps; Swing Speed was lowered because it saved about 1%. Master Digger is 99 levels, but reaching 99 costs about 4.1 trillion, so a steady player gets roughly to level 25 to 30 by month 4.
+- **Sound bug (fixed):** sounds repeated because the 3 s "exhausted" clip restarted every ~2.8 s while the button was held with an empty tank, and the 18 s "reveal" clip held several bursts. `Sfx.ts` now gives every cue a rule (a minimum gap, a maximum length with a fade; see `CUE_RULES`), caps the voices sounding at once, silences everything while the tab is hidden, shuts a stray saw loop off after 6 s, and the ad silence no longer overwrites the player's saved mute setting (`holdForAd`). "Exhausted" now plays at most once per 10 s.
+- **One hole shape per tool:** each tool digs its own outline (`src/data/digShapes.ts`: round bowl, wide scoop, shouldered scoop, chop wedge, terraced pit, spike and cracks, rubble shaft, triple scoop, clean bore). A swing is a few parts, each with a profile; the ground and the painted hole share the numbers. The main bite always takes the full swing depth, so tool balance did not change (`dev/upgrade-sim.ts` gives the same days to bedrock).
+- **New upgrades and a Skills tab:** five prospecting upgrades (Keen Eye, Quick Crack, Bigger Bag, Double Find, Master Cutter) and seven skills in the store's third tab (Big Hole, Angry Shoveler, After Image, Hot Rock, Scrap Shot, Second Wind, Haggler). Numbers are in `src/data/traits.ts`, logic in `src/systems/TraitSystem.ts`, balance in `dev/skills-sim.ts` (results in `dev/upgrade-test-results.md`). Verified in the browser: every upgrade and skill was bought through the real store buttons; a bot then played whole stretches (digging, cutting, selling, switching to the workshop) with Keen Eye, Quick Crack, Bigger Bag, Double Find, Master Cutter and all seven skills active. Seen working: double find, quick crack, lucky cut (common to uncommon, uncommon to rare), Haggler (+12% at level 3), hot rock (3 of 6 worthless rocks at level 3), scrap shot loading and firing, second wind, rage by a held mouse button, a bag of 7, 8 and 10 slots on a wide and a phone layout. Not verified: how the sounds feel, and play by a human on a phone.
+- **Play-test fixes:** (1) a rock popping out while the workshop opens used to stay on screen with a deleted texture once it was sold, which threw on the next frame and froze the game loop (an old race; `DigScene.finishPops` now hands such rocks to the bag when the scene sleeps); (2) narrow shapes (spike, bore) leave a needle-thin shaft, so new rocks were placed on the high ground beside it and could not be reached (rocks now sit on the floor of the shaft that was just dug, and a double find's second rock sits 84 units beside the first); (3) a swing now also strikes a rock that sits up to 700 units above the floor if it is beside the swing, so a deep shaft no longer leaves rocks stranded in its wall and blocking new finds (`strikeTarget`, `GAME_CONFIG.dig.strikeRise`); (4) two skill blurbs were three lines long and ran into the level pips.
+- **Open:** a real play-test; the Iron, Steel, Gold and Diamond shovels were not bought in the browser; the Hand Axe and Pickaxe sprites look small; the day plaque covers the top of the cottage on phone-sized screens; and the audio origin is unverified.
 
 ## 1. The game in brief
 
@@ -66,7 +82,7 @@ You start at the top of an underground deposit and dig **down** through **ten** 
 - Base tank **100**, one swing costs **7** at the surface times the layer's stamina multiplier (1.0 up to 3.8 in the deepest layer) times the tool's stamina multiplier. After you stop digging for 0.8 seconds, stamina refills at **7 per second**.
 - Store upgrades raise the tank (+20 per level), the refill (+1.5 per second per level) and cut the swing cost (-6% per level). All base numbers are in `GameConfig.ts`.
 - The bar changes color as it drains and flashes when empty. Each new day starts rested.
-- When stamina is under 20% and ads are available, a **watch-an-ad refill** button appears.
+- The store shows a **Refill stamina** row (watch an ad) while stamina is below full, when ads are available. Stamina also refills on its own. Nothing is offered on the dig screen (CrazyGames rule).
 
 ### Phase B: Collecting
 - The bag has **5 slots**. Uncut rocks show a `?` badge (owners of the Deep Scanner see the rarity on the badge instead).
@@ -103,31 +119,47 @@ You start at the top of an underground deposit and dig **down** through **ten** 
 ### The store
 - Open it with the store button (a "!" badge shows when something unlocked, useful and affordable is waiting) or the `S` key. The game holds still while it is open.
 - **Tools tab:** shovels, digging tools and scanners (table below). Tools unlock by prospector level. The **tool in your hands is always the owned digging tool with the most power**; buying a weaker one is refused. Six "Placeholder Shovel" slots can be seen but not bought (empty slots for the friend's own designs).
-- **Upgrades tab:** five upgrades with up to 8 levels each plus the endless **Master Digger** (+5% tool power per level, up to level 99).
+- **Upgrades tab:** the five stamina and digging upgrades (up to 8 levels each), five **Prospecting** upgrades (table below) and the endless **Master Digger** (+5% tool power per level, up to level 99).
+- **Skills tab:** seven skills with up to 5 levels (Second Wind 3), each needing a prospector level before the first purchase (table below). A locked row shows the level and a lock.
 - A **"watch an ad for cash"** row (worth `$50 + $25 x level`) appears in the store when ads are available.
 
 | Tool | Power | Price | Unlocks at level | Other effects |
 | --- | --- | --- | --- | --- |
-| Old Shovel | 1 | free | 1 | starter |
-| Iron Shovel | 2.2 | $180 | 2 | |
-| Steel Shovel | 3.6 | $1,200 | 3 | |
-| Hand Axe | 4.8 | $2,800 | 4 | faster swings |
-| Golden Shovel | 6 | $5,500 | 5 | |
-| Pickaxe | 7.5 | $9,000 | 6 | |
-| Jackhammer | 10 | $26,000 | 8 | very fast, shallow swings |
-| Diamond Shovel | 11 | $34,000 | 9 | |
-| Power Drill | 15 | $75,000 | 11 | fastest swings, lowest stamina cost |
+| Old Shovel | 1 | free | 1 | starter; round bowl |
+| Iron Shovel | 2.2 | $180 | 2 | wide scoop |
+| Steel Shovel | 3.6 | $1,200 | 3 | shouldered scoop |
+| Hand Axe | 4.8 | $2,800 | 4 | faster swings; chop wedge |
+| Golden Shovel | 6 | $5,500 | 5 | terraced pit |
+| Pickaxe | 7.5 | $9,000 | 6 | spike and cracks |
+| Jackhammer | 10 | $26,000 | 8 | very fast, shallow swings; rubble shaft |
+| Diamond Shovel | 11 | $34,000 | 9 | triple scoop |
+| Power Drill | 15 | $75,000 | 11 | fastest swings, lowest stamina cost; clean bore |
 | Rock Scanner | - | $6,000 | 4 | +25% chance to find a rock |
 | Deep Scanner | - | $45,000 | 9 | +50% find chance, shows rarity on uncut rocks |
 
 | Upgrade | Per level | Base price (levels cost more: x growth) | Max level |
 | --- | --- | --- | --- |
-| Bigger Tank | +20 max stamina | $200 (x1.55) | 8 |
-| Quick Recovery | +1.5 stamina per second | $260 (x1.55) | 8 |
-| Efficient Swings | -6% stamina per swing | $340 (x1.6) | 8 |
-| Digging Damage | +10% depth per swing | $300 (x1.6) | 8 |
-| Swing Speed | -6% time between swings | $380 (x1.6) | 8 |
+| Bigger Tank | +20 max stamina | $240 (x1.55) | 8 |
+| Quick Recovery | +1.5 stamina per second | $400 (x1.55) | 8 |
+| Efficient Swings | -6% stamina per swing | $330 (x1.6) | 8 |
+| Digging Damage | +10% depth per swing | $370 (x1.6) | 8 |
+| Swing Speed | -6% time between swings | $180 (x1.6) | 8 |
 | Master Digger | +5% tool power | $12,000 (x1.2) | 99 |
+| Keen Eye | +10% chance to find a rock per swing | $700 (x1.75) | 8 |
+| Quick Crack | +6% chance a hit frees a rock at once | $1,500 (x2) | 5 |
+| Bigger Bag | +1 bag slot (the bag starts with 5; the 6th to 10th slots wrap to a second row) | $800 (x3.6) | 5 |
+| Double Find | +8% chance a find is two rocks | $4,500 (x2.1) | 5 |
+| Master Cutter | +5% chance a cut reveals a rock one rarity better | $4,500 (x2.1) | 5 |
+
+| Skill | Needs level | Per level | Base price | Max |
+| --- | --- | --- | --- | --- |
+| Big Hole | 3 | +5% chance a swing digs a hole 2.2x deeper and 1.8x wider | $4,000 (x2.05) | 5 |
+| Second Wind | 4 | once a day, when the tank is empty, +40 / 55 / 70% stamina | $7,500 (x2.5) | 3 |
+| Angry Shoveler | 5 | +6% chance per swing at the same spot (after 3 in a row) to rage for 5 s: swings 2.5x faster, 1.5x deeper, 35% cheaper; 6 s rest after | $8,500 (x2.1) | 5 |
+| Hot Rock | 6 | +20% chance a worthless rock you dig up turns red hot and blasts a hole 5 swings deep (it never enters the bag) | $1,200 (x1.8) | 5 |
+| Haggler | 6 | +4% rock sale price | $4,000 (x2.2) | 5 |
+| After Image | 7 | +5% chance a ghost tool digs the same spot a moment later, free | $9,000 (x2.2) | 5 |
+| Scrap Shot | 8 | throwing a worthless rock away loads 18 swings; each fires one projectile per level that digs a small hole in the bottom of the hole | $1,800 (x1.9) | 5 |
 
 ### Finds (artifacts, collection items, junk)
 Replaced the friend's 57 emoji "curios", which paid cash at once. Rocks stay the business; finds only add variety and surprise, and **no find ever pays money when it is dug up**.
@@ -153,7 +185,7 @@ Replaced the friend's 57 emoji "curios", which paid cash at once. Rocks stay the
 
 ### Rewarded ads (CrazyGames)
 - Ads exist only in the portal build (`npm run build:crazygames`, mode `crazygames`) or in a local test (dev server, or `?mockads` in the URL, which shows a fake 3-second "ad"). A normal build never loads the SDK and never shows an offer.
-- Offers: refill stamina (when under 20%), sell a rock for double (rock worth $30+), double the day's earnings (summary), free cash (store row), and a midgame break between days. A rewarded offer has a 20-second cooldown, midgame breaks are at least 3 minutes apart, and all sound is muted while an ad plays. The game reports `gameplayStart` / `gameplayStop` to the SDK.
+- Offers: refill stamina (store row), sell a rock for double (rock worth $30+), double the day's earnings (summary), free cash (store row), and a midgame break between days. A rewarded offer has a 20-second cooldown, midgame breaks are at least 3 minutes apart, and all sound is muted while an ad plays. The game reports `gameplayStart` / `gameplayStop` to the SDK.
 
 ### Saving
 - Saved to `localStorage` under `dig-and-discover-save-v2` (older v1 saves are ignored): money, day number, rocks found and cut, XP, owned tools, upgrade levels, active goals, best depth, the finds inventory (artifacts held, collection and junk counts), the finance state (debt, instalments, carried bills, month and day in month, game over), the current deposit and the deepest layer already paid out. A run that ended in Game Over stays ended after a reload until Restart is pressed.
@@ -170,11 +202,11 @@ Replaced the friend's 57 emoji "curios", which paid cash at once. Rocks stay the
 | Go to the workshop | Workshop button | `Enter` |
 | Choose a rock | Tap a bag slot | `1`-`5` |
 | Cut / Sell | Card buttons | `Space` |
-| Back to digging | Back to Dig button | `Esc` |
+| Back to digging | Back to Dig button | (button only) |
 | Store | Store button | `S` |
 | Goals | Goal pill under the top bar | `G` |
 | Collection | Album button | `C` |
-| Close a card | Close button | `Esc` |
+| Close a card | Close button | (button only) |
 | Start the next day | START NEXT DAY button | `Enter` or `Space` |
 | Mute | Speaker button | `M` |
 
@@ -201,7 +233,7 @@ Layers 1-5 are as in our earlier version except that hardness is about 1.8x high
 
 **How a swing works.** `efficiency = max(minEfficiency, min(1, toolPower / (layerHardness x depositHardness)) ^ 1.4)`, and the swing lowers the floor by `digDepth x efficiency` (crater width also shrinks a little when weak). So a tool with power below the layer's hardness loses depth steeply (the floor is 5% of full), and each layer wants a better tool instead of being ground out.
 
-**Tools** are data in `src/data/tools.ts` (`TOOL_DEFS`: power, depth per swing, crater size, swing speed, stamina multiplier, tint) and the store catalogue is in `src/data/store.ts`. The in-world sprite is still the shovel, washed with the tool's tint, until real art exists. Upgrade effects are in `UPGRADE_EFFECTS`. The game's current tool is the store's best owned digging tool, with the Master Digger bonus and the deposit's 4% power bonus applied.
+**Tools** are data in `src/data/tools.ts` (`TOOL_DEFS`: power, depth per swing, crater size, swing speed, stamina multiplier, sprite key, motion) and the store catalogue is in `src/data/store.ts`. Each tool has its own in-world sprite (`drawToolSprites` in `TextureFactory.ts`, painted in `ToolSpritesNew.ts` and `ToolSpritesShovels.ts`). The sprite changes with the equipped tool, and the jackhammer and drill jitter while they bite. The shared upgrade maths is `src/systems/ToolStats.ts`, used by the game and by `dev/upgrade-sim.ts`. Upgrade effects are in `UPGRADE_EFFECTS`. The game's current tool is the store's best owned digging tool, with the Master Digger bonus and the deposit's 4% power bonus applied.
 
 ### How the terrain works (efficiently)
 - The ground is **one big texture** (a `RenderTexture`), not thousands of objects. Each swing erases an ellipse from it, revealing a darker copy of the same strata behind it (the wall of the shaft).
@@ -277,7 +309,7 @@ Larger rocks get a value bonus of up to about +15% (smaller rocks lose up to abo
 | --- | --- |
 | `Play Dig and Discover.bat` | One click: checks for Node.js, installs dependencies on the first run, builds the game, then starts a local server and opens the browser. |
 | `index.html` | Page shell: viewport and touch settings, full-screen game container, loading text (in Rye). |
-| `package.json` | Dependencies (Phaser, the Rye font, TypeScript, Vite) and scripts: `dev`, `build`, `build:crazygames` (portal build into `dist-crazygames/`), `preview`, `typecheck`. |
+| `package.json` | Dependencies (Phaser, the Rye font, TypeScript, Vite) and scripts: `dev`, `build`, `build:crazygames` (portal build into `dist-crazygames/`), `build:crazygames-basic` (Basic Launch build without ad offers, into `dist-crazygames-basic/`), `preview`, `typecheck`. |
 | `vite.config.ts` | Build settings: relative paths, dev and preview ports, Phaser split into its own bundle file. |
 | `postcss.config.mjs` | Empty PostCSS config so this game does not inherit the website's Tailwind/PostCSS setup when it lives inside the `ub_website` repo. |
 | `tsconfig.json` | Strict TypeScript settings. |
@@ -296,8 +328,10 @@ Entry point. Starts the ad SDK in the background (never blocks), waits for the R
 | File | Purpose |
 | --- | --- |
 | `layers.ts` | The ten geological layers: thickness, hardness, stamina multiplier, value multiplier, look (colors, stones, detail), dig feel (debris tints, clang, shake, sparks) and discovery odds (chance, rarity weights, hits to free a rock). |
-| `tools.ts` | `TOOL_DEFS` (every buyable digging tool), `SCANNERS` (find bonus, shows rarity) and `UPGRADE_EFFECTS`. Also the Old Shovel / starter tool. |
-| `store.ts` | The store catalogue: tool sections, upgrade sections, prices, growth, max levels, level requirements, icon styles; `upgradePrice()`. |
+| `tools.ts` | `TOOL_DEFS` (every buyable digging tool, each with its hole `shape`), `SCANNERS` (find bonus, shows rarity) and `UPGRADE_EFFECTS`. Also the Old Shovel / starter tool. |
+| `digShapes.ts` | The hole each tool digs: profiles (round, scoop, vee, tube, ragged), `profileHalf()` and the nine `SHAPES` made of parts. Used by the ground simulation and the painted hole stamps. |
+| `traits.ts` | `PROSPECT_EFFECTS` and `TRAIT_EFFECTS`: every number behind the prospecting upgrades and the skills. |
+| `store.ts` | The store catalogue: tool sections, upgrade sections, the Skills sections (`SKILL_SECTIONS`), prices, growth, max levels, level requirements, icon styles; `upgradePrice()`. |
 | `goals.ts` | Goal types, the six-goal onboarding, reward formulas, `rollGoal()`, goal icons and text. |
 | `finds.ts` | The 71 finds (29 artifacts, 26 collection items, 16 junk): tier, first layer, history, value range, `CONDITIONS`, `CATEGORY_STYLE` and `FIND_CONFIG` (chances per swing, per-layer multipliers, XP). |
 | `economy.ts` | `ECONOMY`: the household bill items, the debt, instalment size and interval, the 30-day month and the monthly growth; helpers `expenseItemsForMonth`, `installmentForMonth`. |
@@ -312,33 +346,35 @@ Entry point. Starts the ad SDK in the background (never blocks), waits for the R
 | --- | --- |
 | `GameState.ts` | Shared state holding every system, the equipped tool (with store upgrades applied), stats, current mode, workshop-busy flag, an activity counter and the **event bus**. `EVT` lists every event name (including `findFound`, `financeChanged`, `gameOver`, `runReset`, `bedrock`, `relocated`, `levelUp`, `goalDone`, `toolChanged`, `progressChanged`). `buyTool()` / `buyUpgrade()` return a `BuyResult`; `relocate()` starts the next deposit; `recordCut()` / `recordFindItem()` pay XP and notify goals (finds never pay cash); `sellArtifact()` / `sellAllArtifacts()` turn artifacts into money; the finance API is `settleFinance` (when the day summary opens), `payDebt` / `payDebtDue`, `ledger`, `startNextDay` (month check, game over) and `resetRun()` (full restart); `tick()` advances time-based systems each frame and opens the summary at closing time; `subscribe()` registers a scene listener that is removed automatically when the scene shuts down. |
 | `Random.ts` | Seeded random generator (mulberry32) plus helpers. |
-| `types.ts` | The `Rock` type and `GameMode`. |
+| `types.ts` | The `Rock` type (now also remembers its layer and deposit value multiplier, so a lucky cut stays inside the layer's minerals) and `GameMode`. |
 
 ### `src/systems/` (pure logic)
 | File | Purpose |
 | --- | --- |
 | `ClockSystem.ts` | The 7 AM - 5 PM clock, advanced by real milliseconds. |
 | `DayCycleSystem.ts` | Day counter, the `working -> closing -> summary` phase machine (with `canWork` and `canCut`), today's tallies and the `DaySummary` type. |
-| `ExcavationSystem.ts` | The heightmap excavation. `dig()` applies one swing (efficiency from tool power, layer hardness and the deposit multiplier) and returns the carved ellipse. Depth in metres, current layer, bedrock (`atBottom`), `reset()` for a new deposit, layer-entered events. |
+| `ExcavationSystem.ts` | The heightmap excavation. `dig()` applies one swing (efficiency from tool power, layer hardness and the deposit multiplier, an optional depth and width boost) and carves the tool's whole shape, returning every part (`parts`); `carve()` takes a profile and `miniHole()` digs a projectile's hole. Depth in metres, current layer, bedrock (`atBottom`), `reset()` for a new deposit, layer-entered events. |
 | `DiscoverySystem.ts` | Per-swing chance to turn up a rock, with the pity ramp and the scanners' find bonus. |
 | `FindSystem.ts` | `FindSystem` (per-swing find roll by category and layer, item making with condition and value) and `FindsInventory` (artifacts held, collection and junk counts, sell, save and restore). No money is created here. |
 | `FinanceSystem.ts` | Pure finance logic: itemised household bill, carried bills, weekly instalments, overdue, month check, `pay`, `payBills`, `payInstallment`, `view()` for the UI, save and restore. |
 | `ProgressSystem.ts` | Level and XP, owned tools, upgrade levels, the three goals, deposit number and the **save and load** to `localStorage` (save key `dig-and-discover-save-v2`). |
 | `RockGenerator.ts` | `generateRock()`: rarity (the layer's weights), mineral, independent exterior, size and value with the layer/deposit multiplier. |
 | `StaminaSystem.ts` | Spending stamina (with cost multiplier), the rest delay, regeneration, store upgrades and `reset()` / `refill()`. |
-| `InventorySystem.ts` | Fixed-slot bag: add, remove, `markCut`, `firstUncut`, counts, `isFull`. |
+| `InventorySystem.ts` | Bag with a growable number of slots (`setCapacity`, set by Bigger Bag): add, remove, `markCut`, `firstUncut`, counts, `isFull`. |
+| `TraitSystem.ts` | The skills as pure logic: rolls per swing (`rollSwing`: big hole, rage, ghost, projectiles), the same-spot streak and rage timer, hot rock, scrap shot charges, second wind (once a day), haggling, and the upgrade rolls (double find, quick crack, lucky cut). Draws and plays nothing; `DigScene` turns the result into holes, ghosts and sounds. |
 | `EconomySystem.ts` | Money balance, `earn`, `grant` (rewards that do not count as sales), `spend`, `sell(rock)`. |
 
 ### `src/art/` (procedural graphics)
 | File | Purpose |
 | --- | --- |
 | `paint.ts` | Canvas helpers: color math, blobs, ellipses, stars, rounded rectangles, polygons, `makeCanvasTexture()`. |
-| `TextureFactory.ts` | Paints every shared texture at startup: craters, particles, ring, shadow, light ray, saw blade, cutting machine, the old shovel and the tinted tool sprites. |
+| `TextureFactory.ts` | Paints every shared texture at startup: craters, particles, ring, shadow, light ray, saw blade, cutting machine, the old shovel and the per-tool sprites from `drawToolSprites`. |
 | `StrataArt.ts` | Paints the whole underground cross-section once: ten layers with wavy boundaries, grain, stones and layer-specific details, the grass line and bedrock. |
 | `ScenicArt.ts` | The hand-illustrated backdrop: washed sky, sun with beams, flat-bottomed clouds, cut-paper ridges, and the soil's paper-grain and geology marks. |
-| `SurfaceArt.ts` | Surface scenery: timber-framed cottage with a scalloped tile roof, storybook tree, woodpile, barrel, signpost and a mine head-frame with pulley, lantern and an ore cart of gems. |
+| `HouseMiniMax.ts` | The cottage on the dig screen (MiniMax's painting): timber-framed walls, a scalloped tile roof with a shaded right slope, two windows, an arched door and a stone base. |
+| `SurfaceArt.ts` | Surface scenery: storybook tree, woodpile, barrel, signpost and a mine head-frame with pulley, lantern and an ore cart of gems. |
 | `IconArt.ts` | Custom painted star (level, rarity) and circular saw-blade icons. |
-| `StoreArt.ts` | Painted store icons (shovel icons, upgrade glyphs, placeholders) and the `assets/store` PNG override. |
+| `StoreArt.ts` | Painted store icons (shovel icons, the new tool icons, upgrade glyphs, placeholder slots) and the `assets/store` PNG override. |
 | `FindArt.ts` | Procedural pictures for all 71 finds (`ensureFindTexture`, `paintFind`, `paintSilhouette`). |
 | `UiIcons.ts` | The 41 painted UI icons (`uiIcon('cash')` gives the texture key; contact sheet in `dev/icons-sheet.html`). |
 | `FamilyPhoto.ts` | The framed family photo on the end-of-day card. |
@@ -432,13 +468,13 @@ Family expenses, rent and tax payments, debt, equipment durability, complex geol
 ### Known gaps and stale text
 - The dug shaft, bag contents and time of day are not saved (section 2, "Saving").
 - Comments in `StoreScene.ts` and `data/store.ts` still say the store is "DISPLAY ONLY", and `data/tools.ts` says "only the starter shovel exists". The store is live; the comments are out of date. The original `README.md` also still says the game downloads no images or audio.
-- Six "Placeholder Shovel" slots and the hand axe, pickaxe, jackhammer, drill and scanner icons are still placeholders waiting for real art.
+- The six placeholder shovel slots and the two scanners show a COMING SOON label and cannot be bought. The new tool icons and sprites are MiniMax's painted art and have not been checked against the platform's originality rules.
 - 15 source files differ from our backup only by line endings (the friend's copy uses Windows CRLF, ours used LF). The other 25 changed files have real content changes.
 
 ### Suggested next steps
 1. Play through several days with the real `.bat` and fix anything the numbers did not predict.
 2. Decide whether the dug shaft should be saved between visits.
-3. Replace placeholder icons and the six placeholder shovels (PNG drop-in, no code).
+3. Decide how reachable Master Digger should be (see the status above), and whether the upgrade prices are right after a real play-test.
 4. Test on a real phone, and try `npm run build:crazygames` if the portal is a goal.
 5. After any change, rebuild and copy `dist/` to `public/arcade/dig-and-discover/` so the live site updates.
 

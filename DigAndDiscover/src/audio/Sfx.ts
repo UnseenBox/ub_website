@@ -1,3 +1,4 @@
+import { portal } from '../ads/Portal';
 /**
  * Game sound effects. Fourteen cues play MP3 samples from `./samples`; the
  * rest (clock stings, the workshop bench thud) are still synthesized with
@@ -36,7 +37,7 @@ type SampleKey = keyof typeof SAMPLE_URLS;
 /** Samples are peak-normalised; this is the mix, not a volume correction. */
 const SAMPLE_GAIN: Record<SampleKey, number> = {
   dig: 0.9,
-  click: 1,
+  click: 0.45,
   coin: 0.35,
   denied: 0.4,
   exhausted: 0.65,
@@ -51,6 +52,39 @@ const SAMPLE_GAIN: Record<SampleKey, number> = {
   // Unused through play(); the background loop mixes itself via MUSIC_GAIN.
   music: 1,
 };
+
+/**
+ * Keeps any one cue from repeating or ringing on. `gapMs` ignores a cue that fires again too soon,
+ * `maxSec` cuts the clip short with a fade (some source clips are long and contain several bursts).
+ */
+interface CueRule {
+  gapMs?: number;
+  maxSec?: number;
+  fade?: number;
+}
+
+const CUE_RULES: Partial<Record<SampleKey, CueRule>> = {
+  click: { gapMs: 40, maxSec: 0.5, fade: 0.1 },
+  coin: { gapMs: 70, maxSec: 0.5, fade: 0.1 },
+  denied: { gapMs: 350, maxSec: 0.7, fade: 0.2 },
+  // The source clip is 3 s with two separate huffs: only the first one is kept.
+  exhausted: { maxSec: 1.2, fade: 0.3 },
+  layerEnter: { gapMs: 600, maxSec: 1.4, fade: 0.2 },
+  collect: { gapMs: 110, maxSec: 0.4, fade: 0.08 },
+  rockFound: { gapMs: 110, maxSec: 0.45, fade: 0.08 },
+  sell: { gapMs: 150, maxSec: 0.4, fade: 0.08 },
+  toolHit: { maxSec: 0.8, fade: 0.25 },
+  // The source clip is 18 s and holds several bursts: keep the opening fanfare only.
+  reveal: { maxSec: 3.2, fade: 0.8 },
+  rockUnder15: { maxSec: 1.6, fade: 0.25 },
+};
+
+/** Most one-shot sounds that may sound at once; beyond it the oldest is cut. */
+const MAX_VOICES = 10;
+/** After an "exhausted" cue, the next one waits at least this long. */
+const TIRED_REPEAT_MS = 10000;
+/** A saw that was never stopped (a scene closed mid-cut) shuts itself off after this long. */
+const SAW_WATCHDOG_MS = 6000;
 
 /** The blade under load: louder and a touch slower. */
 const SAW_GRIND_GAIN = 0.9;
@@ -107,7 +141,7 @@ class SoundFx {
   private buffers = new Map<SampleKey, AudioBuffer>();
   private mutedFlag = readMuted();
   private lastDig = 0;
-  private lastTired = 0;
+  private lastTired = Number.NEGATIVE_INFINITY;
   private digVoice: AudioBufferSourceNode | null = null;
   private rockVoice: AudioBufferSourceNode | null = null;
   private revealVoice: AudioBufferSourceNode | null = null;
@@ -116,7 +150,13 @@ class SoundFx {
   private deniedVoice: AudioBufferSourceNode | null = null;
   private coinVoices: AudioBufferSourceNode[] = [];
   private musicSource: AudioBufferSourceNode | null = null;
+  /** Every one-shot sample currently sounding, oldest first (see MAX_VOICES). */
+  private readonly active = new Set<AudioBufferSourceNode>();
+  private readonly lastPlayed = new Map<SampleKey, number>();
+  /** True while an ad is on screen: silent, but never written to the player's saved setting. */
+  private adHold = false;
   private readonly unlockHandler = () => this.unlock();
+  private readonly resumeHandler = () => this.resumeIfStopped();
 
   constructor() {
     // Decode through an OfflineAudioContext: it is not blocked by autoplay
@@ -125,15 +165,52 @@ class SoundFx {
     if (decoder) void this.preload(decoder);
     window.addEventListener('pointerdown', this.unlockHandler);
     window.addEventListener('keydown', this.unlockHandler);
+    // iOS "interrupts" the audio context (phone call, app switch) and only a real touch or click can wake it
+    // again; a visibility change is not enough. These listeners stay for the whole session.
+    for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'] as const) {
+      window.addEventListener(type, this.resumeHandler, { passive: true });
+    }
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
-      if (document.hidden) this.ctx.suspend().catch(() => undefined);
-      else this.ctx.resume().catch(() => undefined);
+      if (document.hidden) {
+        // Nothing may be left ringing (or queued) while the tab is away.
+        this.stopCues();
+        this.ctx.suspend().catch(() => undefined);
+      } else {
+        this.ctx.resume().catch(() => undefined);
+      }
     });
   }
 
+  /** What the mute button shows: the player's choice or the portal's setting. */
   get muted(): boolean {
-    return this.mutedFlag;
+    return this.mutedFlag || portal.muteForced;
+  }
+
+  /** Nothing should sound: the player's toggle, the portal's mute setting, or an ad. */
+  private get silenced(): boolean {
+    return this.mutedFlag || portal.muteForced || this.adHold;
+  }
+
+  /** Sets the master gain from the player's toggle, the portal's mute setting or an ad. */
+  applyMasterGain(): void {
+    if (this.ctx && this.master) {
+      this.master.gain.setTargetAtTime(this.silenced ? 0 : MASTER_VOLUME, this.ctx.currentTime, 0.02);
+    }
+  }
+
+  /** Silences the game while an ad plays. Unlike setMuted it never touches the saved setting. */
+  holdForAd(on: boolean): void {
+    this.adHold = on;
+    if (on) this.stopCues();
+    this.applyMasterGain();
+  }
+
+  /** Cuts every one-shot sound that is still sounding (scene changes, hidden tab, ads). Music and the saw stay. */
+  stopCues(): void {
+    for (const voice of this.active) this.stopVoice(voice);
+    this.active.clear();
+    this.coinVoices = [];
   }
 
   setMuted(muted: boolean): void {
@@ -143,9 +220,7 @@ class SoundFx {
     } catch {
       /* storage unavailable: keep the in-memory setting */
     }
-    if (this.ctx && this.master) {
-      this.master.gain.setTargetAtTime(muted ? 0 : MASTER_VOLUME, this.ctx.currentTime, 0.02);
-    }
+    this.applyMasterGain();
   }
 
   /** The offline decoder keeps the live context absent until a gesture. */
@@ -175,7 +250,7 @@ class SoundFx {
       return null;
     }
     this.master = this.ctx.createGain();
-    this.master.gain.value = this.mutedFlag ? 0 : MASTER_VOLUME;
+    this.master.gain.value = this.silenced ? 0 : MASTER_VOLUME;
     this.master.connect(this.ctx.destination);
     const len = Math.floor(this.ctx.sampleRate * 1);
     this.noiseBuffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -200,6 +275,13 @@ class SoundFx {
     // A first tap may have happened before the music buffer finished decoding;
     // this retries the loop once everything is ready.
     this.ensureMusic();
+  }
+
+  /** Wakes the context from a user gesture when it is not running (suspended, or iOS "interrupted"). */
+  private resumeIfStopped(): void {
+    const ctx = this.ctx;
+    if (!ctx || document.hidden || ctx.state === 'running' || ctx.state === 'closed') return;
+    ctx.resume().catch(() => undefined);
   }
 
   private unlock(): void {
@@ -244,10 +326,12 @@ class SoundFx {
   }
 
   private ready(): AudioContext | null {
-    if (!this.ctx || !this.master || this.mutedFlag || this.ctx.state === 'closed') return null;
+    if (!this.ctx || !this.master || this.silenced || this.ctx.state === 'closed') return null;
+    // A hidden tab is suspended on purpose: cues fired meanwhile would queue up and burst out together on return.
+    if (document.hidden) return null;
     // A cue fired on the very first gesture may arrive before resume() has
     // resolved; scheduling it now is fine, it starts as the context wakes.
-    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => undefined);
+    if (this.ctx.state !== 'running') this.ctx.resume().catch(() => undefined);
     return this.ctx;
   }
 
@@ -294,14 +378,41 @@ class SoundFx {
     const ctx = this.ready();
     const buffer = this.buffers.get(key);
     if (!ctx || !buffer || !this.master) return null;
+    const rule = CUE_RULES[key];
+    const nowMs = performance.now();
+    if (rule?.gapMs && nowMs - (this.lastPlayed.get(key) ?? -Infinity) < rule.gapMs) return null;
+    this.lastPlayed.set(key, nowMs);
+    const loop = options.loop ?? false;
     const src = ctx.createBufferSource();
     src.buffer = buffer;
-    src.loop = options.loop ?? false;
+    src.loop = loop;
     src.playbackRate.setValueAtTime(options.rate ?? 1, ctx.currentTime);
     const gain = ctx.createGain();
-    gain.gain.value = options.gain ?? SAMPLE_GAIN[key];
+    const level = options.gain ?? SAMPLE_GAIN[key];
+    gain.gain.value = level;
     src.connect(gain).connect(this.master);
-    src.start(ctx.currentTime + (options.when ?? 0), options.offset ?? 0);
+    const startAt = ctx.currentTime + (options.when ?? 0);
+    src.start(startAt, options.offset ?? 0);
+    if (rule?.maxSec && !loop) {
+      // Fade out, then stop: a long source clip never rings on or repeats its second half.
+      const fade = Math.min(rule.fade ?? 0.12, rule.maxSec);
+      const end = startAt + rule.maxSec;
+      gain.gain.setValueAtTime(level, end - fade);
+      gain.gain.linearRampToValueAtTime(0.0001, end);
+      src.stop(end + 0.02);
+    }
+    if (!loop) {
+      // Too many at once turns into a wash: cut the oldest instead of stacking.
+      if (this.active.size >= MAX_VOICES) {
+        const oldest = this.active.values().next().value;
+        if (oldest) {
+          this.stopVoice(oldest);
+          this.active.delete(oldest);
+        }
+      }
+      this.active.add(src);
+      src.onended = () => this.active.delete(src);
+    }
     return src;
   }
 
@@ -359,8 +470,10 @@ class SoundFx {
   }
 
   tired(): void {
+    // Holding the button with an empty tank must not loop the sigh. Regeneration lets a swing through
+    // every second or two, so "once per exhaustion" cannot be told from the swings alone: a plain gap it is.
     const now = performance.now();
-    if (now - this.lastTired < 2500) return;
+    if (now - this.lastTired < TIRED_REPEAT_MS) return;
     this.lastTired = now;
     this.stopVoice(this.tiredVoice);
     this.tiredVoice = this.play('exhausted');
@@ -401,6 +514,31 @@ class SoundFx {
     this.noise({ dur: 0.09, vol: 0.2, filter: 'lowpass', f: 700 });
   }
 
+  /** A blast: a low thump and a burst of rubble. `power` scales the weight (0..1). */
+  blast(power = 1): void {
+    this.tone({ f: 110, f2: 38, dur: 0.38, vol: 0.5 * power });
+    this.noise({ dur: 0.42, vol: 0.4 * power, filter: 'lowpass', f: 1100, f2: 140 });
+    this.noise({ dur: 0.18, vol: 0.18 * power, filter: 'highpass', f: 2400, at: 0.02 });
+  }
+
+  /** Angry Shoveler: a short growl. */
+  rage(): void {
+    this.tone({ f: 130, f2: 70, type: 'sawtooth', dur: 0.45, vol: 0.2 });
+    this.tone({ f: 95, f2: 60, type: 'square', dur: 0.4, vol: 0.12, at: 0.05 });
+  }
+
+  /** After Image: a thin, airy shimmer. */
+  ghost(): void {
+    this.tone({ f: 660, f2: 1320, type: 'sine', dur: 0.28, vol: 0.1 });
+    this.tone({ f: 990, f2: 1980, type: 'sine', dur: 0.22, vol: 0.06, at: 0.06 });
+  }
+
+  /** Second Wind: a rising breath. */
+  wind(): void {
+    this.noise({ dur: 0.5, vol: 0.14, filter: 'bandpass', f: 500, f2: 1800, q: 0.7 });
+    this.tone({ f: 392, f2: 784, type: 'triangle', dur: 0.4, vol: 0.12 });
+  }
+
   click(): void {
     this.play('click');
   }
@@ -425,6 +563,20 @@ class SoundFx {
     src.connect(out).connect(this.master);
     src.start(t0);
     let stopped = false;
+    const stop = (): void => {
+      if (stopped) return;
+      stopped = true;
+      window.clearTimeout(watchdog);
+      const t = ctx.currentTime;
+      out.gain.setTargetAtTime(0.0001, t, 0.08);
+      try {
+        src.stop(t + 0.45);
+      } catch {
+        /* already ended */
+      }
+    };
+    // A cut takes about two seconds; if the scene closes mid-cut the loop would never end.
+    const watchdog = window.setTimeout(stop, SAW_WATCHDOG_MS);
     return {
       grind: (on: boolean) => {
         if (stopped) return;
@@ -432,13 +584,7 @@ class SoundFx {
         out.gain.setTargetAtTime(on ? SAW_GRIND_GAIN : SAMPLE_GAIN.saw, t, 0.06);
         src.playbackRate.setTargetAtTime(on ? 0.92 : 1, t, 0.08);
       },
-      stop: () => {
-        if (stopped) return;
-        stopped = true;
-        const t = ctx.currentTime;
-        out.gain.setTargetAtTime(0.0001, t, 0.08);
-        src.stop(t + 0.45);
-      },
+      stop,
     };
   }
 
@@ -462,13 +608,10 @@ class SoundFx {
   coin(): void {
     // A sale can spawn a dozen coins a few frames apart; keep the tail from
     // stacking into a wash.
+    this.coinVoices = this.coinVoices.filter((entry) => this.active.has(entry));
     if (this.coinVoices.length >= 4) this.stopVoice(this.coinVoices.shift() ?? null);
     const voice = this.play('coin', { rate: 0.94 + Math.random() * 0.12 });
-    if (!voice) return;
-    this.coinVoices.push(voice);
-    voice.onended = () => {
-      this.coinVoices = this.coinVoices.filter((entry) => entry !== voice);
-    };
+    if (voice) this.coinVoices.push(voice);
   }
 }
 

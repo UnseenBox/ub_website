@@ -1,30 +1,15 @@
 import Phaser from 'phaser';
 
-/**
- * The stamina fill that runs inside the dark track of the bag panel picture (the bolt badge and the
- * frame are part of the picture).
- *
- * The fill never jumps: it eases toward the real value (quickly when stamina is spent, gently when it
- * comes back), a pale "lost" chunk lingers where the bar just was and then drains away, a white
- * flash runs along the edge of every hit, and below a fifth of the tank the bar breathes red.
- */
+/** Rounded stamina bar with a bolt badge. Redraws only when the value changes. */
 export class StaminaBar extends Phaser.GameObjects.Container {
   private readonly g: Phaser.GameObjects.Graphics;
   private bw = 200;
   private bh = 22;
-  private cover = 0;
-  private target = 1;
-  /** What is drawn now (eases toward `target`). */
-  private shown = -1;
-  /** Where the bar was before the latest hits; drains down to `shown` after a short hold. */
-  private ghost = 1;
-  private hold = 0;
-  private hit = 0;
+  private shownFraction = -1;
+  private shownRegen = false;
+  private shownShimmer = -1;
   private flash = 0;
   private shimmer = 0;
-  private breath = 0;
-  private dirty = true;
-  private lastRegen = false;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0);
@@ -33,56 +18,26 @@ export class StaminaBar extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
-  /** `cover` is the share of the width that hides under the badge, so the visible part still reads 0..100%. */
-  layout(x: number, y: number, w: number, h: number, cover = 0): void {
+  layout(x: number, y: number, w: number, h: number): void {
     this.setPosition(x, y);
     this.bw = w;
     this.bh = h;
-    this.cover = cover;
-    this.dirty = true;
+    this.shownFraction = -1;
   }
 
-  /** Called every frame; redraws only while something is moving. */
+  /** Called every frame; cheap unless something visibly changed. */
   setValue(value: number, max: number, regenerating: boolean, deltaMs: number): void {
-    const target = Phaser.Math.Clamp(value / max, 0, 1);
-    if (this.shown < 0) {
-      this.shown = this.ghost = this.target = target;
-      this.dirty = true;
-    }
-    if (target < this.target - 0.0005) {
-      // Spent: remember where the bar was, hold it a moment, kick the flash.
-      this.ghost = Math.max(this.ghost, this.shown);
-      this.hold = 320;
-      this.hit = 1;
-    }
-    this.target = target;
-    const dt = Math.min(deltaMs, 100);
-
-    // The fill: fast when draining, softer when refilling.
-    const rate = target < this.shown ? 1 - Math.exp(-dt / 50) : 1 - Math.exp(-dt / 150);
-    const prev = this.shown;
-    this.shown += (target - this.shown) * rate;
-    if (Math.abs(target - this.shown) < 0.0004) this.shown = target;
-
-    // The lost chunk trails after a hold.
-    if (this.hold > 0) this.hold -= dt;
-    else if (this.ghost > this.shown) {
-      this.ghost += (this.shown - this.ghost) * (1 - Math.exp(-dt / 260));
-      if (this.ghost - this.shown < 0.0006) this.ghost = this.shown;
-    }
-    if (this.ghost < this.shown) this.ghost = this.shown;
-
-    if (this.hit > 0) this.hit = Math.max(0, this.hit - dt / 360);
-    if (this.flash > 0) this.flash = Math.max(0, this.flash - dt / 400);
-    if (regenerating) this.shimmer = (this.shimmer + dt / 900) % 1;
-    const low = this.shown < 0.22 && target < 0.22;
-    if (low) this.breath = (this.breath + dt / 420) % (Math.PI * 2);
-
-    const moving = this.shown !== prev || this.ghost > this.shown || this.hit > 0 || this.flash > 0;
-    if (!(moving || this.dirty || low || regenerating || regenerating !== this.lastRegen)) return;
-    this.lastRegen = regenerating;
-    this.dirty = false;
-    this.draw(regenerating, low);
+    const fraction = value / max;
+    if (this.flash > 0) this.flash = Math.max(0, this.flash - deltaMs / 400);
+    if (regenerating) this.shimmer = (this.shimmer + deltaMs / 900) % 1;
+    // The shimmer only needs ~16 steps per sweep, so phones are not redrawing the bar every frame.
+    const step = Math.floor(this.shimmer * 16);
+    const changed = Math.abs(fraction - this.shownFraction) > 0.002 || regenerating !== this.shownRegen || (regenerating && step !== this.shownShimmer);
+    if (!changed && this.flash <= 0) return;
+    this.shownFraction = fraction;
+    this.shownRegen = regenerating;
+    this.shownShimmer = step;
+    this.draw(fraction, regenerating);
   }
 
   denied(): void {
@@ -90,45 +45,43 @@ export class StaminaBar extends Phaser.GameObjects.Container {
     this.scene.tweens.add({ targets: this, x: { from: this.x - 7, to: this.x }, duration: 260, ease: 'Elastic.easeOut' });
   }
 
-  private draw(regenerating: boolean, low: boolean): void {
+  private draw(fraction: number, regenerating: boolean): void {
     const { bw: w, bh: h } = this;
     const g = this.g;
+    const r = h / 2;
+    const iconR = h * 0.78;
+    const barX = iconR + 4;
+    const barW = w - barX;
     g.clear();
-    const pad = Math.max(1.5, h * 0.1);
-    const fh = h - pad * 2;
-    const hidden = w * this.cover;
-    const span = w - hidden - pad;
-    const xAt = (f: number): number => (f > 0.001 ? hidden + span * f : 0);
-    const endX = xAt(this.shown);
-    const ghostX = xAt(this.ghost);
-    const color = this.shown > 0.5 ? 0x7ee05a : this.shown > 0.22 ? 0xffd23f : 0xff6b4a;
-
-    // The lost chunk: pale, with a warm edge, between the fill and where it was.
-    if (ghostX > endX + 1) {
-      const r = Math.min(fh / 2, (ghostX - endX) / 2);
-      g.fillStyle(this.shown > 0.22 ? 0xfff0c0 : 0xffb0a0, 0.85).fillRoundedRect(Math.max(0, endX - r), pad, ghostX - Math.max(0, endX - r), fh, { tl: 0, bl: 0, tr: Math.min(fh / 2, r), br: Math.min(fh / 2, r) });
-    }
-
-    if (endX > 2) {
-      const r = Math.min(fh / 2, endX / 2);
-      g.fillStyle(color).fillRoundedRect(0, pad, endX, fh, { tl: 0, bl: 0, tr: r, br: r });
-      g.fillStyle(0xffffff, 0.3).fillRoundedRect(hidden, pad + fh * 0.1, Math.max(0, endX - hidden - r * 0.5), fh * 0.3, { tl: 0, bl: 0, tr: fh * 0.15, br: fh * 0.15 });
+    g.fillStyle(0x000000, 0.4).fillRoundedRect(barX, 0, barW, h, r);
+    const color = fraction > 0.5 ? 0x7ee05a : fraction > 0.22 ? 0xffd23f : 0xff6b4a;
+    const fillW = Math.max(0, (barW - 6) * fraction);
+    if (fillW > 2) {
+      const fr = Math.min((h - 6) / 2, fillW / 2);
+      g.fillStyle(color).fillRoundedRect(barX + 3, 3, fillW, h - 6, fr);
+      g.fillStyle(0xffffff, 0.3).fillRoundedRect(barX + 6, 5, Math.max(0, fillW - 6), (h - 6) * 0.35, Math.min(fr, (h - 6) * 0.17));
       if (regenerating) {
-        const sx = hidden + (endX - hidden) * this.shimmer;
-        g.fillStyle(0xffffff, 0.35).fillRect(sx, pad, Math.min(10, endX - r - sx), fh);
-      }
-      // A hit: white wash over the fill and a bright edge that fades.
-      if (this.hit > 0) {
-        g.fillStyle(0xffffff, 0.35 * this.hit).fillRoundedRect(0, pad, endX, fh, { tl: 0, bl: 0, tr: r, br: r });
-        g.fillStyle(0xffffff, 0.9 * this.hit).fillRect(Math.max(0, endX - 3), pad, 3, fh);
+        const sx = barX + 3 + fillW * this.shimmer;
+        g.fillStyle(0xffffff, 0.35).fillRect(sx, 3, Math.min(10, barX + 3 + fillW - sx), h - 6);
       }
     }
-
-    // Running low: the whole track breathes red.
-    if (low) {
-      const a = 0.1 + 0.16 * (0.5 + 0.5 * Math.sin(this.breath));
-      g.fillStyle(0xff3b30, a).fillRoundedRect(0, pad, w, fh, { tl: 0, bl: 0, tr: fh / 2, br: fh / 2 });
-    }
-    if (this.flash > 0) g.fillStyle(0xff3b30, 0.45 * this.flash).fillRoundedRect(0, pad, w, fh, { tl: 0, bl: 0, tr: fh / 2, br: fh / 2 });
+    if (this.flash > 0) g.fillStyle(0xff3b30, 0.45 * this.flash).fillRoundedRect(barX, 0, barW, h, r);
+    // Bolt badge.
+    const cx = iconR * 0.9;
+    const cy = h / 2;
+    g.fillStyle(0x3b2616).fillCircle(cx, cy + 2, iconR);
+    g.fillStyle(regenerating ? 0x9ef07a : 0xffd23f).fillCircle(cx, cy, iconR);
+    const s = iconR * 0.62;
+    g.fillStyle(0x3b2616).fillPoints(
+      [
+        { x: cx + s * 0.25, y: cy - s },
+        { x: cx - s * 0.55, y: cy + s * 0.15 },
+        { x: cx - s * 0.02, y: cy + s * 0.15 },
+        { x: cx - s * 0.25, y: cy + s },
+        { x: cx + s * 0.55, y: cy - s * 0.15 },
+        { x: cx + s * 0.02, y: cy - s * 0.15 },
+      ] as Phaser.Types.Math.Vector2Like[],
+      true,
+    );
   }
 }

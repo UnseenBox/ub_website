@@ -14,6 +14,10 @@ export interface Rock {
   value: number;
   sparkly: boolean;
   cut: boolean;
+  /** Layer the rock was found in (a better cut stays inside the layer's minerals). */
+  layer: number;
+  /** The deposit's value multiplier when it was found. */
+  valueMult: number;
 }
 
 export type GameMode = 'dig' | 'workshop';

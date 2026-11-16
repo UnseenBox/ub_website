@@ -3,10 +3,12 @@ import { GAME_CONFIG } from '../config/GameConfig';
 import { mulberry32 } from '../core/Random';
 import type { Rock } from '../core/types';
 import { INTERIOR_PAINTERS } from './InteriorArt';
-import { TAU, css, darken, makeCanvasTexture, mix, star } from './paint';
+import { TAU, blobPath, blobPoints, css, darken, ellipse, makeCanvasTexture, mix, star } from './paint';
 
 /** Rock textures are painted at 2x so they stay crisp when scaled up. */
 export const ART_RES = 2;
+
+const OUTLINE = 'rgba(45,28,16,0.6)';
 
 export interface RockTextureKeys {
   outside: string;
@@ -27,82 +29,121 @@ export function iconScale(diameter: number): number {
   return diameter / (2 * GAME_CONFIG.rock.baseRadius * ART_RES * 1.12);
 }
 
-type RockPicture = HTMLImageElement | HTMLCanvasElement;
-
-/** Where the rock's picture goes on its square texture: as wide as the old rock, centred. */
-function pictureBox(rock: Rock, img: RockPicture, size: number): { x: number; y: number; w: number; h: number; R: number; c: number } {
-  const R = rockRadiusPx(rock);
-  const w = 2 * R * 1.06;
-  const h = (w * img.height) / img.width;
-  return { x: (size - w) / 2, y: (size - h) / 2, w, h, R, c: size / 2 };
+function rockShape(rock: Rock) {
+  const rng = mulberry32(rock.seed);
+  const pts = blobPoints(rng, 11, rock.exterior.bumpiness + 0.05, rock.exterior.squash);
+  return { rng, pts };
 }
 
-/** The outside of a rock: its painted picture, with glitter on top when it is a sparkly one. */
-export function drawOutside(ctx: CanvasRenderingContext2D, rock: Rock, size: number, img: RockPicture): void {
-  const { x, y, w, h, c } = pictureBox(rock, img, size);
-  ctx.drawImage(img, x, y, w, h);
+export function drawOutside(ctx: CanvasRenderingContext2D, rock: Rock, size: number): void {
+  const R = rockRadiusPx(rock);
+  const c = size / 2;
+  const ex = rock.exterior;
+  const { rng, pts } = rockShape(rock);
+  const path = blobPath(pts, c, c, R);
+
+  const body = ctx.createRadialGradient(c - R * 0.35, c - R * 0.45, R * 0.05, c, c, R * 1.1);
+  body.addColorStop(0, css(ex.light));
+  body.addColorStop(0.5, css(ex.base));
+  body.addColorStop(1, css(ex.shade));
+  ctx.fillStyle = body;
+  ctx.fill(path);
+
+  ctx.save();
+  ctx.clip(path);
+  // Soft shade along the bottom for a rounded, weighty look.
+  ctx.fillStyle = css(darken(ex.shade, 0.2), 0.35);
+  ellipse(ctx, c + R * 0.15, c + R * 0.95, R * 1.15, R * 0.55);
+  // Lumps.
+  for (let i = 0; i < 4; i++) {
+    const a = rng() * TAU;
+    const d = rng() * 0.55 * R;
+    ctx.fillStyle = css(ex.light, 0.16);
+    ellipse(ctx, c + Math.cos(a) * d, c + Math.sin(a) * d, R * (0.2 + rng() * 0.2), R * (0.12 + rng() * 0.12), rng() * TAU);
+  }
+  // Pits with a lit lower lip.
+  for (let i = 0; i < 5; i++) {
+    const a = rng() * TAU;
+    const d = rng() * 0.65 * R;
+    const x = c + Math.cos(a) * d;
+    const y = c + Math.sin(a) * d;
+    const pr = R * (0.04 + rng() * 0.07);
+    ctx.fillStyle = css(darken(ex.shade, 0.15), 0.5);
+    ellipse(ctx, x, y, pr, pr * 0.75);
+    ctx.fillStyle = css(ex.light, 0.45);
+    ellipse(ctx, x + pr * 0.2, y + pr * 0.5, pr * 0.7, pr * 0.28);
+  }
+  // Speckles.
+  for (let i = 0; i < 34; i++) {
+    const a = rng() * TAU;
+    const d = Math.sqrt(rng()) * 0.9 * R;
+    ctx.fillStyle = css(ex.speckle, 0.35 + rng() * 0.35);
+    ellipse(ctx, c + Math.cos(a) * d, c + Math.sin(a) * d, R * (0.012 + rng() * 0.02), R * (0.01 + rng() * 0.015));
+  }
+  // Highlight.
+  ctx.fillStyle = 'rgba(255,255,255,0.32)';
+  ellipse(ctx, c - R * 0.36, c - R * 0.42, R * 0.32, R * 0.16, -0.6);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ellipse(ctx, c - R * 0.5, c - R * 0.5, R * 0.07, R * 0.045, -0.6);
   if (rock.sparkly) {
-    const rng = mulberry32(rock.seed);
     for (let i = 0; i < 5; i++) {
       const a = rng() * TAU;
-      const d = Math.sqrt(rng()) * 0.7;
-      star(ctx, c + Math.cos(a) * d * (w / 2), c + Math.sin(a) * d * (h / 2), (w / 2) * (0.05 + rng() * 0.06), 'rgba(255,255,255,0.95)');
+      const d = Math.sqrt(rng()) * 0.7 * R;
+      star(ctx, c + Math.cos(a) * d, c + Math.sin(a) * d, R * (0.05 + rng() * 0.06), 'rgba(255,255,255,0.95)');
     }
   }
+  ctx.restore();
+
+  ctx.lineWidth = 2.4 * ART_RES;
+  ctx.strokeStyle = OUTLINE;
+  ctx.stroke(path);
 }
 
-/**
- * The cut face of a rock: the picture's own silhouette filled with a rind, and the mineral's
- * painting inside it. (The mineral painters draw a disc; the silhouette trims it to the rock.)
- */
-export function drawInside(ctx: CanvasRenderingContext2D, rock: Rock, size: number, img: RockPicture): void {
-  const { w, h, R, c } = pictureBox(rock, img, size);
+export function drawInside(ctx: CanvasRenderingContext2D, rock: Rock, size: number): void {
+  const R = rockRadiusPx(rock);
+  const c = size / 2;
   const ex = rock.exterior;
-  const rng = mulberry32(rock.seed);
-  const silhouette = (scale: number, fill: string): HTMLCanvasElement => {
-    const cv = document.createElement('canvas');
-    cv.width = size;
-    cv.height = size;
-    const g = cv.getContext('2d')!;
-    g.drawImage(img, c - (w * scale) / 2, c - (h * scale) / 2, w * scale, h * scale);
-    g.globalCompositeOperation = 'source-in';
-    g.fillStyle = fill;
-    g.fillRect(0, 0, size, size);
-    return cv;
-  };
+  const { rng, pts } = rockShape(rock);
 
-  ctx.drawImage(silhouette(1.035, 'rgb(45,28,16)'), 0, 0);
-  ctx.drawImage(silhouette(1, css(darken(ex.shade, 0.1))), 0, 0);
-  ctx.drawImage(silhouette(0.93, css(mix(ex.base, ex.light, 0.35))), 0, 0);
+  const outer = blobPath(pts, c, c, R);
+  ctx.fillStyle = css(darken(ex.shade, 0.1));
+  ctx.fill(outer);
+  const rind = blobPath(pts, c, c, R * 0.9);
+  ctx.fillStyle = css(mix(ex.base, ex.light, 0.35));
+  ctx.fill(rind);
 
-  // The mineral's painting, trimmed to the inner part of the silhouette.
-  const inner = document.createElement('canvas');
-  inner.width = size;
-  inner.height = size;
-  const ig = inner.getContext('2d')!;
-  INTERIOR_PAINTERS[rock.mineral.style](ig, rng, c, c, R * 0.92, rock.mineral);
-  ig.globalCompositeOperation = 'destination-in';
-  ig.drawImage(silhouette(0.84, '#000'), 0, 0);
-  ctx.drawImage(inner, 0, 0);
-
-  // Polished-face sheen, only where there is rock.
+  const innerR = R * 0.8;
+  const inner = blobPath(pts, c, c, innerR);
   ctx.save();
-  ctx.globalCompositeOperation = 'source-atop';
+  ctx.clip(inner);
+  INTERIOR_PAINTERS[rock.mineral.style](ctx, rng, c, c, innerR, rock.mineral);
+  ctx.restore();
+
+  ctx.lineWidth = R * 0.04;
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.stroke(inner);
+
+  // Polished-face sheen.
+  ctx.save();
+  ctx.clip(rind);
   const sheen = ctx.createLinearGradient(c - R, c - R, c + R, c + R);
   sheen.addColorStop(0, 'rgba(255,255,255,0.28)');
   sheen.addColorStop(0.45, 'rgba(255,255,255,0)');
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
+
+  ctx.lineWidth = 2.4 * ART_RES;
+  ctx.strokeStyle = OUTLINE;
+  ctx.stroke(outer);
 }
 
 /** Paints the rock's outside and cross-section textures if they don't exist yet. */
 export function ensureRockTextures(textures: Phaser.Textures.TextureManager, rock: Rock): RockTextureKeys {
   const keys = rockKeys(rock);
   const size = Math.ceil(rockRadiusPx(rock) * 2.25);
-  const img = textures.get(rock.exterior.sprite).getSourceImage() as RockPicture;
-  if (!textures.exists(keys.outside)) makeCanvasTexture(textures, keys.outside, size, size, (ctx) => drawOutside(ctx, rock, size, img));
-  if (!textures.exists(keys.inside)) makeCanvasTexture(textures, keys.inside, size, size, (ctx) => drawInside(ctx, rock, size, img));
+  if (!textures.exists(keys.outside)) makeCanvasTexture(textures, keys.outside, size, size, (ctx) => drawOutside(ctx, rock, size));
+  if (!textures.exists(keys.inside)) makeCanvasTexture(textures, keys.inside, size, size, (ctx) => drawInside(ctx, rock, size));
   return keys;
 }
 

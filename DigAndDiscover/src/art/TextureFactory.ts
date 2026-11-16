@@ -1,7 +1,10 @@
 import type Phaser from 'phaser';
 import { mulberry32 } from '../core/Random';
 import { ART_RES } from './RockArt';
+import { paintNewToolSprite, type NewToolSprite } from './ToolSpritesNew';
+import { paintShovelSprite, type ShovelMetal } from './ToolSpritesShovels';
 import { FONT_FAMILY } from '../config/Theme';
+import { profileHalf, type Profile } from '../data/digShapes';
 import { TAU, blobPath, blobPoints, ellipse, makeCanvasTexture, roundRect, star } from './paint';
 
 export const HOLE_VARIANTS = 4;
@@ -12,6 +15,27 @@ export const HOLE_RADIUS = 60;
 export const MACHINE = { width: 440, height: 420, bedY: 300, crossbarY: 10, crossbarH: 46 } as const;
 export const SAW_RADIUS = 80;
 export const SHOVEL = { width: 60, height: 232, tipY: 228 } as const;
+
+/** A white hole stamp whose top and bottom follow the profile (the same curve the ground simulation uses), with a rough edge. */
+function paintProfileStamp(ctx: CanvasRenderingContext2D, profile: Profile, rng: () => number): void {
+  const steps = 30;
+  const jitter = (): number => (rng() - 0.5) * 2.4;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const dx = -1 + (2 * i) / steps;
+    const x = 64 + dx * HOLE_RADIUS;
+    const y = 64 - profileHalf(profile, dx) * HOLE_RADIUS + jitter();
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  for (let i = steps; i >= 0; i--) {
+    const dx = -1 + (2 * i) / steps;
+    ctx.lineTo(64 + dx * HOLE_RADIUS, 64 + profileHalf(profile, dx) * HOLE_RADIUS + jitter());
+  }
+  ctx.closePath();
+  ctx.fill();
+}
 
 /**
  * All shared artwork is painted procedurally at boot: zero image downloads,
@@ -41,6 +65,18 @@ export function createSharedTextures(textures: Phaser.Textures.TextureManager): 
       g.addColorStop(1, 'rgba(48,26,12,0)');
       ctx.fillStyle = g;
       ctx.fill(blobPath(pts, 88, 88, HOLE_RADIUS * 1.42));
+    });
+  }
+
+  // One stamp per hole outline (see data/digShapes.ts): the soil is erased with the same shape the ground simulation carved.
+  for (const profile of ['scoop', 'vee', 'tube'] as const) {
+    makeCanvasTexture(T, 'hole-' + profile, 128, 128, (ctx) => paintProfileStamp(ctx, profile, mulberry32(500 + profile.length)));
+  }
+  for (let i = 0; i < 2; i++) {
+    const pts = blobPoints(mulberry32(300 + i), 13, 0.42, 0.8);
+    makeCanvasTexture(T, 'hole-ragged' + i, 128, 128, (ctx) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fill(blobPath(pts, 64, 64, HOLE_RADIUS));
     });
   }
 
@@ -180,8 +216,35 @@ export function createSharedTextures(textures: Phaser.Textures.TextureManager): 
   });
 
   drawShovel(T);
+  drawToolSprites(T);
   drawSaw(T);
   drawMachine(T);
+}
+
+/** In-world digging sprites: the four new tools and the three metal shovels. Same 60 x 232 frame as the old shovel. */
+const NEW_TOOL_KEYS: Record<NewToolSprite, string> = {
+  'hand-axe': 'sprite-hand-axe',
+  pickaxe: 'sprite-pickaxe',
+  jackhammer: 'sprite-jackhammer',
+  drill: 'sprite-drill',
+};
+const METAL_KEYS: Record<ShovelMetal, string> = {
+  iron: 'sprite-iron-shovel',
+  steel: 'sprite-steel-shovel',
+  gold: 'sprite-gold-shovel',
+  diamond: 'sprite-diamond-shovel',
+};
+
+function drawToolSprites(T: Phaser.Textures.TextureManager): void {
+  const S = ART_RES;
+  const frame = (key: string, paint: (ctx: CanvasRenderingContext2D) => void): void => {
+    makeCanvasTexture(T, key, SHOVEL.width * S, SHOVEL.height * S, (ctx) => {
+      ctx.scale(S, S);
+      paint(ctx);
+    });
+  };
+  for (const kind of Object.keys(NEW_TOOL_KEYS) as NewToolSprite[]) frame(NEW_TOOL_KEYS[kind], (ctx) => paintNewToolSprite(ctx, kind));
+  for (const metal of Object.keys(METAL_KEYS) as ShovelMetal[]) frame(METAL_KEYS[metal], (ctx) => paintShovelSprite(ctx, metal));
 }
 
 function drawShovel(T: Phaser.Textures.TextureManager): void {

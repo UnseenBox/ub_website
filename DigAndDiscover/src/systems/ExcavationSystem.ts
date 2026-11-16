@@ -1,3 +1,4 @@
+import { profileHalf, type Profile } from '../data/digShapes';
 import type { LayerDef } from '../data/layers';
 import type { ToolDef } from '../data/tools';
 
@@ -20,6 +21,23 @@ export interface LayerBand {
   bottom: number;
 }
 
+/** One ellipse-like piece of a swing's hole (a tool's shape is made of one to four of them). */
+export interface CraterPart {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  profile: Profile;
+}
+
+/** Temporary multipliers on a single swing (a lucky big hole, a blast): 1 means normal. */
+export interface DigBoost {
+  depth: number;
+  width: number;
+}
+
+const NO_BOOST: DigBoost = { depth: 1, width: 1 };
+
 export interface DigResult {
   /** The swing hit solid ground and carved a crater. */
   dug: boolean;
@@ -29,11 +47,13 @@ export interface DigResult {
   efficiency: number;
   floorBefore: number;
   floorAfter: number;
-  /** The carved ellipse, for the scene to paint with the same numbers. */
+  /** The main bite (the first part), for the scene to aim rocks and effects with. */
   cx: number;
   cy: number;
   rx: number;
   ry: number;
+  /** Every carved part, for the scene to paint with the same numbers. */
+  parts: CraterPart[];
 }
 
 /**
@@ -60,6 +80,7 @@ export class ExcavationSystem {
   private deepest: number;
   private focus: number;
   private deepestLayer = 0;
+  private swings = 0;
 
   constructor(
     world: WorldConfig,
@@ -110,6 +131,7 @@ export class ExcavationSystem {
     this.deepest = this.surfaceY;
     this.focus = this.surfaceY;
     this.deepestLayer = 0;
+    this.swings = 0;
   }
 
   isBottom(x: number): boolean {
@@ -163,43 +185,81 @@ export class ExcavationSystem {
 
   // ---------- digging ----------
 
-  /** One swing of a tool at column x: removes a lens of ground from the exposed floor. */
-  dig(x: number, tool: ToolDef): DigResult {
-    const cx = Math.max(0, Math.min(this.width, x));
+  /**
+   * One swing of a tool at column x: removes the tool's own shape of ground from the exposed floor.
+   * The first part of the shape is the main bite and always reaches the full swing depth in the aimed
+   * column, so a different shape changes how the hole looks and how wide it is, never how fast the shaft goes down.
+   */
+  dig(x: number, tool: ToolDef, boost: DigBoost = NO_BOOST): DigResult {
+    const cw = this.columnWidth;
+    // The main bite sits on a column centre, so a narrow tool still takes its full depth in that column.
+    const cx = Math.max(0, Math.min(this.width, Math.round(x / cw) * cw));
     const floorBefore = this.floorAt(cx);
     const layerIndex = this.layerIndexAtY(floorBefore + 1);
     const layer = this.layers[layerIndex];
     // A tool that is too weak for the ground falls off steeply (a soft wall), so each layer wants a better tool.
     const efficiency = Math.max(tool.minEfficiency, Math.pow(Math.min(1, tool.power / (layer.hardness * this.hardnessMult)), EFFICIENCY_CURVE));
-    const step = Math.min(tool.digDepth * efficiency, this.floorLimit - floorBefore);
-    const rx = tool.craterRadius * (0.78 + 0.22 * efficiency);
-    const ry = Math.max(step * 1.45, rx * 0.5);
-    const cy = floorBefore + step - ry;
+    const step = Math.min(tool.digDepth * boost.depth * efficiency, this.floorLimit - floorBefore);
+    const radius = tool.craterRadius * boost.width * (0.78 + 0.22 * efficiency);
+    const side = this.swings++ % 2 === 0 ? 1 : -1;
     this.focus = floorBefore;
-    if (step > 0.05) this.carveEllipse(cx, cy, rx, ry);
+    const parts: CraterPart[] = [];
+    tool.shape.parts.forEach((p, i) => {
+      const sway = p.wobble ? (Math.random() * 2 - 1) * p.wobble * radius : 0;
+      const px = Math.max(0, Math.min(this.width, cx + p.dx * radius * (p.alt ? side : 1) + sway));
+      const local = i === 0 ? floorBefore : this.floorAt(px);
+      const bottom = Math.min(local + step * p.depth, this.floorLimit);
+      const rx = Math.max(6, radius * p.rx);
+      const ry = Math.max((bottom - local) * 1.45, rx * 0.5);
+      parts.push({ cx: px, cy: bottom - ry, rx, ry, profile: p.profile });
+    });
+    const dug = step > 0.05;
+    // Every part is measured against the ground as it was before the swing, then all are carved.
+    if (dug) for (const p of parts) this.carve(p.cx, p.cy, p.rx, p.ry, p.profile);
+    const main = parts[0];
     return {
-      dug: step > 0.05,
+      dug,
       layerIndex,
       layer,
       efficiency,
       floorBefore,
       floorAfter: this.floorAt(cx),
-      cx, cy, rx, ry,
+      cx: main.cx, cy: main.cy, rx: main.rx, ry: main.ry,
+      parts,
     };
   }
 
   /**
-   * Removes an elliptical pocket. A column's floor drops only where the pocket
+   * A projectile's hole (Scrap Shot): a small round pocket dug into the bottom of the hole at aimX, `offset` field
+   * units to the side. It reaches `depth` below the bottom of the main hole, so every shot helps the shaft down.
+   */
+  miniHole(aimX: number, offset: number, depth: number, width: number): CraterPart {
+    const cx = Math.max(0, Math.min(this.width, aimX + offset));
+    const bottom = Math.min(this.floorAt(aimX) + depth, this.floorLimit);
+    const rx = Math.max(8, width);
+    const ry = Math.max((bottom - this.floorAt(aimX)) * 1.45, rx * 0.5);
+    const part: CraterPart = { cx, cy: bottom - ry, rx, ry, profile: 'round' };
+    this.carve(part.cx, part.cy, part.rx, part.ry, part.profile);
+    return part;
+  }
+
+  /** A pocket around a rock or a find: always round. */
+  carveEllipse(cx: number, cy: number, rx: number, ry: number): void {
+    this.carve(cx, cy, rx, ry, 'round');
+  }
+
+  /**
+   * Removes a pocket of the given outline. A column's floor drops only where the pocket
    * reaches the exposed surface; pockets cut into a wall stay purely visual.
    */
-  carveEllipse(cx: number, cy: number, rx: number, ry: number): void {
+  carve(cx: number, cy: number, rx: number, ry: number, profile: Profile): void {
     const cw = this.columnWidth;
     const first = Math.max(0, Math.floor((cx - rx) / cw));
     const last = Math.min(this.floors.length - 1, Math.ceil((cx + rx) / cw));
     for (let c = first; c <= last; c++) {
       const dx = (c * cw - cx) / rx;
       if (dx < -1 || dx > 1) continue;
-      const half = ry * Math.sqrt(1 - dx * dx);
+      const half = ry * profileHalf(profile, dx);
       const bottom = Math.min(cy + half, this.floorLimit);
       if (this.floors[c] >= cy - half - 1 && bottom > this.floors[c]) {
         this.floors[c] = bottom;

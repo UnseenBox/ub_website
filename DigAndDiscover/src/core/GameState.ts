@@ -1,9 +1,15 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config/GameConfig';
 import { LAYERS } from '../data/layers';
-import { SCANNERS, TOOL_DEFS, UPGRADE_EFFECTS, type ToolDef } from '../data/tools';
+import { SCANNERS, TOOL_DEFS, type ToolDef } from '../data/tools';
 import { ALL_TOOLS, ALL_UPGRADES, upgradePrice, type ToolItem, type UpgradeItem } from '../data/store';
-import { hardnessMult, powerMult, relocationBonus, valueMult } from '../data/deposits';
+import { FindSystem, FindsInventory, type FindItem } from '../systems/FindSystem';
+import { FIND_BY_ID, FIND_CONFIG, type FindDef } from '../data/finds';
+import { hardnessMult, relocationBonus, valueMult } from '../data/deposits';
+import { PROSPECT_EFFECTS } from '../data/traits';
+import { staminaUpgrades, toolWithUpgrades } from '../systems/ToolStats';
+import { TraitSystem } from '../systems/TraitSystem';
+import { upgradeRock } from '../systems/RockGenerator';
 import { ProgressSystem, ROCK_XP, clearSave, readSave, writeSave, type Goal } from '../systems/ProgressSystem';
 import { FinanceSystem, type DaySettlement, type FinanceDaySummary, type LedgerView } from '../systems/FinanceSystem';
 import type { ClockConfig } from '../systems/ClockSystem';
@@ -49,6 +55,8 @@ export const EVT = {
   goalDone: 'goal-done',
   /** The tool in the player's hands changed. */
   toolChanged: 'tool-changed',
+  /** (def: FindDef, item: FindItem, first: boolean) a find was dug up. */
+  findFound: 'find-found',
   /** The digger struck bedrock: time to offer a new deposit. */
   bedrock: 'bedrock',
   /** (newDepositNumber, bonusCash) the digger moved to a fresh deposit. */
@@ -59,6 +67,8 @@ export const EVT = {
   gameOver: 'game-over',
   /** The whole run was restarted from scratch. */
   runReset: 'run-reset',
+  /** (slots) the bag grew: the bag row and the play area are laid out again. */
+  capacityChanged: 'capacity-changed',
 } as const;
 
 export type BuyResult = 'ok' | 'poor' | 'locked' | 'owned' | 'maxed' | 'weaker' | 'unavailable';
@@ -96,6 +106,10 @@ export class GameState {
     if (index > 0 && this.progress.claimLayer(index)) this.progress.addXp(25 * index);
   });
   readonly discovery = new DiscoverySystem();
+  /** The store's skills: big hole, rage, ghost swings, junk skills, second wind, haggling. */
+  readonly traits = new TraitSystem((id) => this.progress.upgradeLevel(id));
+  readonly finds = new FindSystem();
+  readonly findsInv = new FindsInventory();
   readonly finance = new FinanceSystem();
   readonly day = new DayCycleSystem(clockConfig(), GAME_CONFIG.day, {
     onPhase: (phase) => this.bus.emit(EVT.dayPhaseChanged, phase),
@@ -121,6 +135,7 @@ export class GameState {
       this.stats.cut = save.cut | 0;
       this.finance.restore(save.finance);
       if (!this.finance.gameOver && typeof save.gameOver === 'string') this.finance.gameOver = save.gameOver;
+      this.findsInv.restore(save.finds);
     }
     this.progress.ensureGoals();
     this.applyUpgrades();
@@ -130,16 +145,11 @@ export class GameState {
   /** The tool in the player's hands, with the store's digging upgrades applied. */
   get tool(): ToolDef {
     if (!this.toolCache) {
-      const base = TOOL_DEFS[this.progress.equippedToolId];
-      const experience = powerMult(this.progress.deposit) * (1 + UPGRADE_EFFECTS.masteryPerLevel * this.progress.upgradeLevel('up-mastery'));
-      const dmg = this.progress.upgradeLevel('up-dig-damage');
-      const spd = this.progress.upgradeLevel('up-dig-speed');
-      this.toolCache = {
-        ...base,
-        power: base.power * experience,
-        digDepth: base.digDepth * (1 + UPGRADE_EFFECTS.digDepthPerLevel * dmg),
-        swingCooldownMs: base.swingCooldownMs * (1 - UPGRADE_EFFECTS.cooldownReductionPerLevel * spd),
-      };
+      this.toolCache = toolWithUpgrades(
+        TOOL_DEFS[this.progress.equippedToolId],
+        (id) => this.progress.upgradeLevel(id),
+        this.progress.deposit,
+      );
     }
     return this.toolCache;
   }
@@ -151,14 +161,13 @@ export class GameState {
 
   /** Pushes store upgrades and gadgets into the systems they affect. */
   private applyUpgrades(): void {
-    const lv = (id: string) => this.progress.upgradeLevel(id);
-    this.stamina.setUpgrades(
-      lv('up-stamina-tank') * UPGRADE_EFFECTS.staminaPerLevel,
-      lv('up-stamina-regen') * UPGRADE_EFFECTS.regenPerLevel,
-      1 - lv('up-stamina-efficiency') * UPGRADE_EFFECTS.costReductionPerLevel,
-    );
+    const st = staminaUpgrades((id) => this.progress.upgradeLevel(id));
+    this.stamina.setUpgrades(st.maxBonus, st.regenBonus, st.costMult);
     this.dig.hardnessMult = hardnessMult(this.progress.deposit);
-    this.discovery.findBonus = this.progress.scanners.reduce((sum, id) => sum + (SCANNERS[id]?.findBonus ?? 0), 0);
+    const scannerBonus = this.progress.scanners.reduce((sum, id) => sum + (SCANNERS[id]?.findBonus ?? 0), 0);
+    this.discovery.findBonus = scannerBonus + this.progress.upgradeLevel('up-find-chance') * PROSPECT_EFFECTS.findChancePerLevel;
+    const slots = GAME_CONFIG.inventory.slots + this.progress.upgradeLevel('up-bag') * PROSPECT_EFFECTS.bagSlotsPerLevel;
+    if (this.inventory.setCapacity(slots)) this.bus.emit(EVT.capacityChanged, slots);
     this.toolCache = null;
     const equipped = this.progress.equippedToolId;
     if (equipped !== this.lastToolId) {
@@ -169,7 +178,7 @@ export class GameState {
 
   // ---------- deposits ----------
 
-  /** Rocks are worth more in later deposits. */
+  /** Rocks and artifacts are worth more in later deposits. */
   get depositValueMult(): number {
     return valueMult(this.progress.deposit);
   }
@@ -210,6 +219,7 @@ export class GameState {
 
   buyUpgrade(item: UpgradeItem): BuyResult {
     const level = this.progress.upgradeLevel(item.id);
+    if (item.minLevel !== undefined && this.progress.level < item.minLevel) return 'locked';
     if (level >= item.maxLevel) return 'maxed';
     if (!this.economy.spend(upgradePrice(item, level))) return 'poor';
     this.progress.setUpgradeLevel(item.id, level + 1);
@@ -222,6 +232,7 @@ export class GameState {
     const money = this.economy.money;
     for (const up of ALL_UPGRADES) {
       const lv = this.progress.upgradeLevel(up.id);
+      if (up.minLevel !== undefined && this.progress.level < up.minLevel) continue;
       if (lv < up.maxLevel && upgradePrice(up, lv) <= money) return true;
     }
     const power = TOOL_DEFS[this.progress.equippedToolId].power;
@@ -244,6 +255,7 @@ export class GameState {
         cut: this.stats.cut,
         finance: this.finance.toSave(),
         gameOver: this.finance.gameOver,
+        finds: this.findsInv.toSave(),
       }),
     );
   }
@@ -317,6 +329,94 @@ export class GameState {
     this.day.today.found++;
     this.progress.note('find');
     this.bus.emit(EVT.statsChanged);
+  }
+
+  /**
+   * A find was dug up: it is stored or recorded, pays XP, but NEVER cash.
+   * Rocks (cut open and sold) are the business; finds only add variety and surprise.
+   */
+  recordFindItem(def: FindDef, item: FindItem): { first: boolean } {
+    let first = false;
+    if (def.category === 'artifact') {
+      this.findsInv.addArtifact(item);
+    } else if (def.category === 'collection') {
+      const result = this.findsInv.recordCollection(def.id);
+      first = result.first;
+      this.progress.note('curio');
+    } else if (def.category === 'junk') {
+      this.findsInv.recordJunk(def.id);
+    }
+    const table = FIND_CONFIG.xpByTier[def.category];
+    const xp = (table[Math.min(def.tier, table.length - 1)] ?? 0) * (first && def.category === 'collection' ? 2 : 1);
+    if (xp > 0) this.progress.addXp(xp);
+    this.bus.emit(EVT.findFound, def, item, first);
+    this.bus.emit(EVT.statsChanged);
+    this.save();
+    return { first };
+  }
+
+  /**
+   * Sells a single artifact by its item id: the ONLY way an artifact turns into money.
+   * (x, y) is where the coins start flying from, in screen pixels. Returns the amount received.
+   */
+  sellArtifact(id: string, x = 0, y = 0): number {
+    const held = this.findsInv.artifacts.find((a) => a.id === id);
+    const tier = held ? (FIND_BY_ID[held.defId]?.tier ?? 0) : 0;
+    const amount = this.findsInv.sellArtifact(id);
+    if (amount > 0) {
+      this.economy.earn(amount);
+      this.bus.emit(EVT.sale, amount, x, y, tier);
+      this.bus.emit(EVT.statsChanged);
+      this.save();
+    }
+    return amount;
+  }
+
+  /** Sells every artifact at once. Returns the total amount received. */
+  sellAllArtifacts(x = 0, y = 0): number {
+    const amount = this.findsInv.sellAllArtifacts();
+    if (amount > 0) {
+      this.economy.earn(amount);
+      this.bus.emit(EVT.sale, amount, x, y, 3);
+      this.bus.emit(EVT.statsChanged);
+      this.save();
+    }
+    return amount;
+  }
+
+  /** Number of different collection items found. */
+  get collectionFound(): number {
+    return this.findsInv.collectionUnique;
+  }
+
+  /** Total number of collection items in the catalogue. */
+  get collectionTotal(): number {
+    return this.findsInv.collectionTotal;
+  }
+
+  /** Number of artifacts currently held. */
+  get artifactCount(): number {
+    return this.findsInv.artifacts.length;
+  }
+
+  /** Total value of artifacts currently held. */
+  get artifactValue(): number {
+    return this.findsInv.artifactValue;
+  }
+
+  /**
+   * Master Cutter: just before a cut is revealed, the rock may turn out one rarity better. Returns true when
+   * it did (the scene rebuilds the cross-section picture and shows it off).
+   */
+  rollLuckyCut(rock: Rock): boolean {
+    if (!this.traits.rollLuckyCut(rock)) return false;
+    upgradeRock(rock);
+    return true;
+  }
+
+  /** Price multiplier for selling a rock (Haggler). */
+  get sellMult(): number {
+    return this.traits.sellMult;
   }
 
   recordCut(rock: Rock): void {
@@ -498,7 +598,7 @@ export class GameState {
     this.stats.cut = 0;
     this.stats.best = null;
 
-    for (let i = 0; i < GAME_CONFIG.inventory.slots; i++) {
+    for (let i = 0; i < this.inventory.capacity; i++) {
       const rock = this.inventory.get(i);
       if (rock) this.inventory.remove(rock.id);
     }
@@ -506,12 +606,16 @@ export class GameState {
     this.dig.reset();
     this.dig.hardnessMult = 1;
     this.discovery.findBonus = 0;
+    this.traits.reset();
 
     this.progress.reset();
     this.progress.ensureGoals();
     this.applyUpgrades();
     this.toolCache = null;
     this.lastToolId = this.progress.equippedToolId;
+
+    this.findsInv.reset();
+    this.finds.reset();
 
     this.currentMode = 'dig';
     this.setMode('dig');

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finds Preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #1b1a18;
+        color: #e8e4dd;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 14px;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 24px;
+        letter-spacing: 2px;
+      }
+      h2 {
+        margin: 32px 0 12px;
+        font-size: 18px;
+        letter-spacing: 2px;
+        border-bottom: 1px solid #3a3733;
+        padding-bottom: 6px;
+      }
+      #header {
+        color: #a49c8e;
+        line-height: 1.7;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: #24221f;
+        border: 1px solid #35322d;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+      }
+      .card canvas {
+        display: block;
+        margin: 0 auto 8px;
+        image-rendering: auto;
+      }
+      .name {
+        font-weight: bold;
+        margin-bottom: 4px;
+        word-break: break-word;
+      }
+      .meta {
+        color: #8e877b;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+      .artifact h2 {
+        color: #ffc63f;
+      }
+      .collection h2 {
+        color: #35d6c0;
+      }
+      .junk h2 {
+        color: #9a8f7a;
+      }
+      #sim {
+        background: #24221f;
+        border: 1px solid #35322d;
+        border-radius: 8px;
+        padding: 14px;
+        max-width: 760px;
+      }
+      button {
+        background: #3d6ea8;
+        color: #fff;
+        border: 0;
+        border-radius: 6px;
+        padding: 9px 16px;
+        font-family: inherit;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #4b82c4;
+      }
+      select {
+        background: #33302b;
+        color: #e8e4dd;
+        border: 1px solid #45413b;
+        border-radius: 6px;
+        padding: 8px;
+        font-family: inherit;
+        font-size: 14px;
+      }
+      #sim-out {
+        margin-top: 12px;
+        white-space: pre-wrap;
+        line-height: 1.6;
+        color: #cfc8bb;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>FINDS PREVIEW</h1>
+    <div id="header"></div>
+    <div id="sections"></div>
+
+    <h2>SIMULATOR</h2>
+    <div id="sim">
+      <div>
+        <select id="layer"></select>
+        <button id="roll" type="button">Roll 1000 swings at layer N</button>
+      </div>
+      <div id="sim-out">Pick a layer and roll.</div>
+    </div>
+
+    <script type="module" src="/dev/finds-preview.ts"></script>
+  </body>
+</html>

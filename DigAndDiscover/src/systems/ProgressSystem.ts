@@ -2,6 +2,7 @@ import { ALL_TOOLS } from '../data/store';
 import { ONBOARDING, rollGoal, type GoalContext, type GoalDef, type GoalMetric } from '../data/goals';
 import { TOOL_DEFS } from '../data/tools';
 import type { FinanceSave } from './FinanceSystem';
+import type { FindsSave } from './FindSystem';
 
 export interface Goal extends GoalDef {
   progress: number;
@@ -19,6 +20,8 @@ export interface SaveData {
   goals: Goal[];
   goalSeq: number;
   bestDepth: number;
+  /** Finds inventory save data. */
+  finds?: FindsSave;
   /** Which deposit the digger is working (1 = the first). */
   deposit?: number;
   /** Deepest layer already paid out with XP in this deposit. */
@@ -211,6 +214,7 @@ export class ProgressSystem {
     day: number;
     found: number;
     cut: number;
+    finds?: FindsSave;
     finance?: FinanceSave;
     gameOver?: string | null;
   }): SaveData {
@@ -251,8 +255,7 @@ export class ProgressSystem {
     this.deposit = Math.max(1, (data.deposit ?? 1) | 0);
     this.bestLayer = Math.max(0, (data.bestLayer ?? 0) | 0);
     this.goalSeq = Math.max(0, data.goalSeq | 0);
-    // Goals about collectibles (an old save) are dropped: collectibles are gone.
-    this.goals = (data.goals ?? []).filter((g) => (g.metric as string) !== 'curio').slice(0, GOAL_SLOTS).map((g) => ({ ...g }));
+    this.goals = (data.goals ?? []).slice(0, GOAL_SLOTS).map((g) => ({ ...g }));
   }
 }
 

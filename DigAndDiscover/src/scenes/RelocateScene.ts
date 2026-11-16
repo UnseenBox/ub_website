@@ -13,7 +13,7 @@ const PAD = 24;
 /**
  * Bedrock! The deposit is dug out. This card offers a fresh one: the ground starts over,
  * a little harder and a lot richer, tools hit harder, and a cash bonus comes along.
- * Everything the digger owns - money, tools, upgrades - stays with him.
+ * Everything the digger owns - money, tools, upgrades, collection - stays with him.
  */
 export class RelocateScene extends Phaser.Scene {
   private dim!: Phaser.GameObjects.Rectangle;
@@ -54,7 +54,6 @@ export class RelocateScene extends Phaser.Scene {
       if (this.pausedKey && this.scene.isPaused(this.pausedKey)) this.scene.resume(this.pausedKey);
       this.pausedKey = null;
     });
-    this.input.keyboard?.on('keydown-ESC', () => this.close(false));
   }
 
   private buildCard(): void {
@@ -95,11 +94,11 @@ export class RelocateScene extends Phaser.Scene {
     }
     y += 14;
 
-    const go = new Button(this, { width: 380, height: 66, label: '', fontSize: 34, colors: BUTTON_COLORS.green, icon: uiIcon('play'), ghost: true, iconScale: 1.25, onClick: () => this.close(true) });
+    const go = new Button(this, { width: 380, height: 66, label: '', fontSize: 34, colors: BUTTON_COLORS.green, icon: uiIcon('play'), onClick: () => this.close(true) });
     go.setPosition(CARD_W / 2, y + 36).setPulse(true);
     content.add(go);
     y += 82;
-    const stay = new Button(this, { width: 120, height: 46, label: '', fontSize: 24, colors: BUTTON_COLORS.blue, icon: uiIcon('cross'), ghost: true, iconScale: 1.2, onClick: () => this.close(false) });
+    const stay = new Button(this, { width: 120, height: 46, label: '', fontSize: 24, colors: BUTTON_COLORS.blue, icon: uiIcon('cross'), onClick: () => this.close(false) });
     stay.setPosition(CARD_W / 2, y + 26);
     content.add(stay);
     y += 56;

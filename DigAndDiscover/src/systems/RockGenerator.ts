@@ -1,8 +1,8 @@
 import { GAME_CONFIG } from '../config/GameConfig';
-import { pickExterior } from '../data/exteriors';
-import { MINERALS, type MineralDef } from '../data/minerals';
+import { EXTERIORS } from '../data/exteriors';
+import { EXTERIOR_HINT_CHANCE, MINERALS, type MineralDef } from '../data/minerals';
 import { RARITIES, type RarityId } from '../data/rarities';
-import { range, weightedPick, type Rng } from '../core/Random';
+import { pick, range, weightedPick, type Rng } from '../core/Random';
 import type { Rock } from '../core/types';
 
 const mineralsByRarity = new Map<RarityId, MineralDef[]>();
@@ -48,8 +48,9 @@ function poolFor(rarity: RarityId, layerIndex: number): MineralDef[] {
 
 /**
  * Rolls a new rock. Rarity is rolled first (weighted), then a mineral of that
- * rarity that fits the layer. The outside leans toward the rarity (see pickExterior)
- * but never reliably reveals the inside. Sparkly exteriors are only a weak, rarity-skewed hint.
+ * rarity that fits the layer. The exterior is picked independently, so the
+ * outside never reliably reveals the inside; a mineral's own exteriors are
+ * used as a weak hint. Sparkly exteriors are only a weak, rarity-skewed hint.
  */
 export function generateRock(
   rng: Rng = Math.random,
@@ -66,8 +67,11 @@ export function generateRock(
   if (pool.length === 0) throw new Error(`No minerals defined for rarity "${rarity.id}"`);
   const mineral = weightedPick(rng, pool, (m) => m.weight);
 
-  // The painted rock follows the rarity (plain stones for common finds, glowing ones for legendary), but only as a lean.
-  const exterior = pickExterior(rng, rarity.tier);
+  // The mineral's own exteriors are only a hint, never a promise.
+  const hints = (mineral.exteriors ?? [])
+    .map((id) => EXTERIORS.find((e) => e.id === id))
+    .filter((e): e is (typeof EXTERIORS)[number] => e !== undefined);
+  const exterior = hints.length > 0 && rng() < EXTERIOR_HINT_CHANCE ? pick(rng, hints) : pick(rng, EXTERIORS);
 
   const { minSize, maxSize } = GAME_CONFIG.rock;
   const size = range(rng, minSize, maxSize);
@@ -86,7 +90,30 @@ export function generateRock(
     value,
     sparkly: rng() < rarity.sparkleChance,
     cut: false,
+    layer: layerIndex,
+    valueMult,
   };
+}
+
+const NEXT_RARITY: Record<RarityId, RarityId> = {
+  worthless: 'common', common: 'uncommon', uncommon: 'rare', rare: 'epic', epic: 'legendary', legendary: 'legendary',
+};
+
+/**
+ * A lucky cut: the rock turns out to be one rarity better than it was (a new mineral of that rarity for the
+ * layer it came from, a new value). The caller rebuilds the cross-section texture.
+ */
+export function upgradeRock(rock: Rock, rng: Rng = Math.random): void {
+  const next = RARITIES.find((r) => r.id === NEXT_RARITY[rock.rarity.id]) ?? rock.rarity;
+  const pool = poolFor(next.id, rock.layer);
+  if (pool.length === 0) return;
+  const mineral = weightedPick(rng, pool, (m) => m.weight);
+  const { minSize, maxSize } = GAME_CONFIG.rock;
+  const sizeBonus = 0.85 + 0.3 * ((rock.size - minSize) / (maxSize - minSize));
+  rock.rarity = next;
+  rock.mineral = mineral;
+  rock.value = Math.max(1, Math.round(range(rng, mineral.value[0], mineral.value[1]) * sizeBonus * rock.valueMult));
+  rock.sparkly = rock.sparkly || rng() < next.sparkleChance;
 }
 
 export function sizeLabel(size: number): string {

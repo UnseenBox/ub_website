@@ -8,13 +8,20 @@
  * automatically - no code change needed. Square images (256x256) look best.
  */
 
-export type StoreTab = 'tools' | 'upgrades';
+export type StoreTab = 'tools' | 'upgrades' | 'skills';
 
 /** How an item icon is painted when no PNG override exists. */
 export type IconStyle =
   | { kind: 'shovel'; blade: number; shine: number; handle?: number }
   | { kind: 'placeholder' }
-  | { kind: 'glyph'; glyph: UpgradeGlyph; color: number };
+  | { kind: 'glyph'; glyph: UpgradeGlyph; color: number }
+  | { kind: 'tool-art'; art: 'hand-axe' | 'pickaxe' | 'jackhammer' | 'drill' }
+  | { kind: 'skill-art'; art: SkillArtId };
+
+/** Painted by art/SkillIcons.ts. */
+export type SkillArtId =
+  | 'keen-eye' | 'double-find' | 'quick-crack' | 'master-cut' | 'big-bag' | 'big-hole'
+  | 'angry' | 'afterimage' | 'hot-rock' | 'scrap-shot' | 'second-wind' | 'haggler';
 
 export type UpgradeGlyph = 'bolt' | 'refill' | 'efficiency' | 'damage' | 'speed';
 
@@ -28,6 +35,8 @@ export interface ToolItem {
   owned?: boolean;
   /** A stand-in slot waiting for real art and stats. */
   placeholder?: boolean;
+  /** Shown with a COMING SOON label and cannot be bought yet. */
+  comingSoon?: boolean;
   /** Prospector level needed before it can be bought. */
   minLevel: number;
   /** 'dig' tools replace each other; 'scanner' gadgets are passive. */
@@ -53,6 +62,8 @@ export interface UpgradeItem {
   priceGrowth: number;
   /** Level the player currently has. Display only - always 0 until linked. */
   level: number;
+  /** Prospector level needed before the first level can be bought (skills only). */
+  minLevel?: number;
 }
 
 export interface UpgradeSection {
@@ -95,18 +106,18 @@ const RAW_TOOL_SECTIONS: RawSection[] = [
     title: 'Digging Tools',
     subtitle: 'Axes, picks and power tools',
     items: [
-      { id: 'tool-hand-axe', name: 'Hand Axe', blurb: 'Chops through roots and loose rock.', price: 2800, icon: PLACEHOLDER },
-      { id: 'tool-pickaxe', name: 'Pickaxe', blurb: 'The classic. Cracks hard ground.', price: 9000, icon: PLACEHOLDER },
-      { id: 'tool-jackhammer', name: 'Jackhammer', blurb: 'Loud, heavy, very effective.', price: 26000, icon: PLACEHOLDER },
-      { id: 'tool-drill', name: 'Power Drill', blurb: 'Bores straight down through bedrock.', price: 75000, icon: PLACEHOLDER },
+      { id: 'tool-hand-axe', name: 'Hand Axe', blurb: 'Chops through roots and loose rock.', price: 2800, icon: { kind: 'tool-art', art: 'hand-axe' } },
+      { id: 'tool-pickaxe', name: 'Pickaxe', blurb: 'The classic. Cracks hard ground.', price: 9000, icon: { kind: 'tool-art', art: 'pickaxe' } },
+      { id: 'tool-jackhammer', name: 'Jackhammer', blurb: 'Loud, heavy, very effective.', price: 26000, icon: { kind: 'tool-art', art: 'jackhammer' } },
+      { id: 'tool-drill', name: 'Power Drill', blurb: 'Bores straight down through bedrock.', price: 75000, icon: { kind: 'tool-art', art: 'drill' } },
     ],
   },
   {
     title: 'Scanners',
     subtitle: 'See what is hiding underground',
     items: [
-      { id: 'tool-scanner', name: 'Rock Scanner', blurb: 'Pings nearby rocks as you dig.', price: 6000, icon: PLACEHOLDER },
-      { id: 'tool-deep-scanner', name: 'Deep Scanner', blurb: 'Reads the rock before you cut it.', price: 45000, icon: PLACEHOLDER },
+      { id: 'tool-scanner', name: 'Rock Scanner', blurb: 'Pings nearby rocks as you dig.', price: 6000, icon: PLACEHOLDER, comingSoon: true },
+      { id: 'tool-deep-scanner', name: 'Deep Scanner', blurb: 'Reads the rock before you cut it.', price: 45000, icon: PLACEHOLDER, comingSoon: true },
     ],
   },
   {
@@ -118,6 +129,7 @@ const RAW_TOOL_SECTIONS: RawSection[] = [
       blurb: 'Replace this art, name and price.',
       price: 0,
       placeholder: true,
+      comingSoon: true,
       icon: PLACEHOLDER,
     })),
   },
@@ -128,17 +140,28 @@ export const UPGRADE_SECTIONS: UpgradeSection[] = [
     title: 'Stamina',
     subtitle: 'Work longer before you tire',
     items: [
-      { id: 'up-stamina-tank', name: 'Bigger Tank', perLevel: '+20 max stamina', blurb: 'More swings from a full tank.', icon: { kind: 'glyph', glyph: 'bolt', color: 0xffc83d }, maxLevel: 8, basePrice: 200, priceGrowth: 1.55, level: 0 },
-      { id: 'up-stamina-regen', name: 'Quick Recovery', perLevel: '+1.5 stamina / second', blurb: 'Catch your breath faster.', icon: { kind: 'glyph', glyph: 'refill', color: 0x5fcf5c }, maxLevel: 8, basePrice: 260, priceGrowth: 1.55, level: 0 },
-      { id: 'up-stamina-efficiency', name: 'Efficient Swings', perLevel: '-6% stamina per swing', blurb: 'Waste less effort on every dig.', icon: { kind: 'glyph', glyph: 'efficiency', color: 0x4fb0ff }, maxLevel: 8, basePrice: 340, priceGrowth: 1.6, level: 0 },
+      { id: 'up-stamina-tank', name: 'Bigger Tank', perLevel: '+20 max stamina', blurb: 'More swings from a full tank.', icon: { kind: 'glyph', glyph: 'bolt', color: 0xffc83d }, maxLevel: 8, basePrice: 240, priceGrowth: 1.55, level: 0 },
+      { id: 'up-stamina-regen', name: 'Quick Recovery', perLevel: '+1.5 stamina / second', blurb: 'Catch your breath faster.', icon: { kind: 'glyph', glyph: 'refill', color: 0x5fcf5c }, maxLevel: 8, basePrice: 400, priceGrowth: 1.55, level: 0 },
+      { id: 'up-stamina-efficiency', name: 'Efficient Swings', perLevel: '-6% stamina per swing', blurb: 'Waste less effort on every dig.', icon: { kind: 'glyph', glyph: 'efficiency', color: 0x4fb0ff }, maxLevel: 8, basePrice: 330, priceGrowth: 1.6, level: 0 },
     ],
   },
   {
     title: 'Digging',
     subtitle: 'Hit harder, dig faster',
     items: [
-      { id: 'up-dig-damage', name: 'Digging Damage', perLevel: '+10% depth per swing', blurb: 'Every swing removes more ground.', icon: { kind: 'glyph', glyph: 'damage', color: 0xff6b4a }, maxLevel: 8, basePrice: 300, priceGrowth: 1.6, level: 0 },
-      { id: 'up-dig-speed', name: 'Swing Speed', perLevel: '-6% time between swings', blurb: 'Less waiting, more digging.', icon: { kind: 'glyph', glyph: 'speed', color: 0xb98cff }, maxLevel: 8, basePrice: 380, priceGrowth: 1.6, level: 0 },
+      { id: 'up-dig-damage', name: 'Digging Damage', perLevel: '+10% depth per swing', blurb: 'Every swing removes more ground.', icon: { kind: 'glyph', glyph: 'damage', color: 0xff6b4a }, maxLevel: 8, basePrice: 370, priceGrowth: 1.6, level: 0 },
+      { id: 'up-dig-speed', name: 'Swing Speed', perLevel: '-6% time between swings', blurb: 'Less waiting, more digging.', icon: { kind: 'glyph', glyph: 'speed', color: 0xb98cff }, maxLevel: 8, basePrice: 180, priceGrowth: 1.6, level: 0 },
+    ],
+  },
+  {
+    title: 'Prospecting',
+    subtitle: 'Find more, carry more, cut better',
+    items: [
+      { id: 'up-find-chance', name: 'Keen Eye', perLevel: '+10% rock find chance', blurb: 'More swings turn up a rock.', icon: { kind: 'skill-art', art: 'keen-eye' }, maxLevel: 8, basePrice: 700, priceGrowth: 1.75, level: 0 },
+      { id: 'up-instant-crack', name: 'Quick Crack', perLevel: '+6% chance to free in one hit', blurb: 'Sometimes one hit is enough.', icon: { kind: 'skill-art', art: 'quick-crack' }, maxLevel: 5, basePrice: 1500, priceGrowth: 2.0, level: 0 },
+      { id: 'up-bag', name: 'Bigger Bag', perLevel: '+1 bag slot (starts with 5)', blurb: 'Carry more rocks to the workshop.', icon: { kind: 'skill-art', art: 'big-bag' }, maxLevel: 5, basePrice: 800, priceGrowth: 3.6, level: 0 },
+      { id: 'up-double-find', name: 'Double Find', perLevel: '+8% chance of two rocks', blurb: 'Lucky digs turn up a pair.', icon: { kind: 'skill-art', art: 'double-find' }, maxLevel: 5, basePrice: 4500, priceGrowth: 2.1, level: 0 },
+      { id: 'up-lucky-cut', name: 'Master Cutter', perLevel: '+5% chance of a better cut', blurb: 'A steady hand finds a higher tier inside.', icon: { kind: 'skill-art', art: 'master-cut' }, maxLevel: 5, basePrice: 4500, priceGrowth: 2.1, level: 0 },
     ],
   },
   {
@@ -146,6 +169,35 @@ export const UPGRADE_SECTIONS: UpgradeSection[] = [
     subtitle: 'Endless - for deep pockets',
     items: [
       { id: 'up-mastery', name: 'Master Digger', perLevel: '+5% tool power', blurb: 'There is always more to learn.', icon: { kind: 'glyph', glyph: 'damage', color: 0xffd84d }, maxLevel: 99, basePrice: 12000, priceGrowth: 1.2, level: 0 },
+    ],
+  },
+];
+
+/** The Skills tab: traits that change how digging plays. Each needs a prospector level before the first level. */
+export const SKILL_SECTIONS: UpgradeSection[] = [
+  {
+    title: 'Digging skills',
+    subtitle: 'Swings that do something extra',
+    items: [
+      { id: 'trait-big-hole', name: 'Big Hole', perLevel: '+5% chance of a huge hole', blurb: 'Some swings dig a much bigger, deeper hole.', icon: { kind: 'skill-art', art: 'big-hole' }, maxLevel: 5, basePrice: 4000, priceGrowth: 2.05, level: 0, minLevel: 3 },
+      { id: 'trait-angry', name: 'Angry Shoveler', perLevel: '+6% rage chance (same spot)', blurb: 'Dig the same spot and he may snap: 5 seconds of faster, deeper swings.', icon: { kind: 'skill-art', art: 'angry' }, maxLevel: 5, basePrice: 8500, priceGrowth: 2.1, level: 0, minLevel: 5 },
+      { id: 'trait-afterimage', name: 'After Image', perLevel: '+5% chance of a ghost swing', blurb: 'A ghost shovel appears and digs the same spot for free.', icon: { kind: 'skill-art', art: 'afterimage' }, maxLevel: 5, basePrice: 9000, priceGrowth: 2.2, level: 0, minLevel: 7 },
+    ],
+  },
+  {
+    title: 'Junk skills',
+    subtitle: 'Worthless rocks finally pay off',
+    items: [
+      { id: 'trait-hot-rock', name: 'Hot Rock', perLevel: '+20% chance it explodes', blurb: 'A worthless rock you dig up may turn red hot and blast a big hole.', icon: { kind: 'skill-art', art: 'hot-rock' }, maxLevel: 5, basePrice: 1200, priceGrowth: 1.8, level: 0, minLevel: 6 },
+      { id: 'trait-scrap-shot', name: 'Scrap Shot', perLevel: '+1 shot per loaded swing', blurb: 'Throw a worthless rock away: your next swings fire mini shots.', icon: { kind: 'skill-art', art: 'scrap-shot' }, maxLevel: 5, basePrice: 1800, priceGrowth: 1.9, level: 0, minLevel: 8 },
+    ],
+  },
+  {
+    title: 'Survival and trade',
+    subtitle: 'Last longer, earn more',
+    items: [
+      { id: 'trait-second-wind', name: 'Second Wind', perLevel: 'Once a day: +40/55/70% stamina', blurb: 'When the tank runs dry, part of it comes back.', icon: { kind: 'skill-art', art: 'second-wind' }, maxLevel: 3, basePrice: 7500, priceGrowth: 2.5, level: 0, minLevel: 4 },
+      { id: 'trait-haggler', name: 'Haggler', perLevel: '+4% rock sale price', blurb: 'Every rock sells for a little more.', icon: { kind: 'skill-art', art: 'haggler' }, maxLevel: 5, basePrice: 4000, priceGrowth: 2.2, level: 0, minLevel: 6 },
     ],
   },
 ];
@@ -160,4 +212,4 @@ export const TOOL_SECTIONS: ToolSection[] = RAW_TOOL_SECTIONS.map((section) => (
 }));
 
 export const ALL_TOOLS: ToolItem[] = TOOL_SECTIONS.flatMap((s) => s.items);
-export const ALL_UPGRADES = UPGRADE_SECTIONS.flatMap((s) => s.items);
+export const ALL_UPGRADES = [...UPGRADE_SECTIONS, ...SKILL_SECTIONS].flatMap((s) => s.items);

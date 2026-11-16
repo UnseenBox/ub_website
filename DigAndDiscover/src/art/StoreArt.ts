@@ -1,7 +1,9 @@
 import type Phaser from 'phaser';
 import { FONT_FAMILY } from '../config/Theme';
-import { TOOL_SECTIONS, UPGRADE_SECTIONS, type IconStyle, type UpgradeGlyph } from '../data/store';
+import { SKILL_SECTIONS, TOOL_SECTIONS, UPGRADE_SECTIONS, type IconStyle, type UpgradeGlyph } from '../data/store';
 import { TAU, css, darken, lighten, makeCanvasTexture, roundRect } from './paint';
+import { paintSkillArt } from './SkillIcons';
+import { paintToolArt } from './ToolIcons';
 
 const SIZE = 128;
 
@@ -30,7 +32,7 @@ export function createStoreTextures(T: Phaser.Textures.TextureManager): void {
     makeCanvasTexture(T, key, SIZE, SIZE, (ctx) => paintIcon(ctx, style));
   };
   for (const section of TOOL_SECTIONS) for (const item of section.items) paint(item.id, item.icon);
-  for (const section of UPGRADE_SECTIONS) for (const item of section.items) paint(item.id, item.icon);
+  for (const section of [...UPGRADE_SECTIONS, ...SKILL_SECTIONS]) for (const item of section.items) paint(item.id, item.icon);
 }
 
 function paintIcon(ctx: CanvasRenderingContext2D, style: IconStyle): void {
@@ -41,6 +43,10 @@ function paintIcon(ctx: CanvasRenderingContext2D, style: IconStyle): void {
       return paintPlaceholder(ctx);
     case 'glyph':
       return paintGlyph(ctx, style.glyph, style.color);
+    case 'tool-art':
+      return paintToolArt(ctx, style.art);
+    case 'skill-art':
+      return paintSkillArt(ctx, style.art);
   }
 }
 

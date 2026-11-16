@@ -30,7 +30,7 @@ export const depositTint = (deposit: number): number => TINTS[Math.max(0, deposi
 
 /** Ground gets harder: +40% per completed deposit. */
 export const hardnessMult = (deposit: number): number => 1 + 0.4 * (deposit - 1);
-/** Rocks are worth more: +50% per completed deposit. */
+/** Finds are worth more: +50% per completed deposit (rocks and artifacts). */
 export const valueMult = (deposit: number): number => 1 + 0.5 * (deposit - 1);
 /** Experience: every tool hits 4% harder per completed deposit. */
 export const powerMult = (deposit: number): number => 1 + 0.04 * (deposit - 1);

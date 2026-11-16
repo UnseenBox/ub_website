@@ -1,5 +1,8 @@
 # Dig & Discover
 
+> **CrazyGames version (2026-11-16):** the previous rock-first version with the CrazyGames fixes. Escape is no longer a game key, no ad is offered on the dig screen (the stamina refill moved to a store row), the portal's mute setting is honoured, and loading start and stop are reported to the portal. Build it with `npm run build:crazygames`. The friend's newest version stays in `D:\WebGames\DigAndDiscover`. The shop has four painted tool icons (hand axe, pickaxe, jackhammer, power drill). Rock scanners and placeholder shovels are marked Coming soon and cannot be bought. The cottage on the dig screen is the MiniMax painting (`src/art/HouseMiniMax.ts`). Each tool has its own digging sprite (`drawToolSprites` in `src/art/TextureFactory.ts`). Upgrade prices follow how much each one helps; the numbers are in `dev/upgrade-test-results.md`.
+
+
 A 2D rock-mining and crystal-discovery web game. You play an ordinary father with a geology degree who makes a living as a small independent prospector: dig down through ten layers of ground, cut rocks open at the workshop and sell what you find. Rocks are the business, and the family has bills and a debt to the bank to pay. Now and then you also dig up a find (a valuable artifact to sell, a collectible for your album, or plain junk). Spend your earnings in the store, finish goals to level up and, when you reach bedrock, move on to a richer and tougher deposit. Every working day runs from 7:00 AM to 5:00 PM, and every month you must clear the debt that fell due or the run ends.
 
 Built with **Phaser 3** (WebGL with an automatic Canvas fallback), **TypeScript** and **Vite**. Almost all artwork is painted in code at startup. The game also uses a set of supplied MP3 sound effects and background music, one coin image and the **Rye** font.
@@ -31,7 +34,8 @@ You need Node.js 18 or newer.
 npm install              # install dependencies
 npm run dev              # dev server with hot reload at http://localhost:5173 (test ads enabled)
 npm run build            # type-check and build for production into dist/
-npm run build:crazygames # same, for the CrazyGames portal (real ads) into dist-crazygames/
+npm run build:crazygames # same, for the CrazyGames portal (Full Launch, real ads) into dist-crazygames/
+npm run build:crazygames-basic # for CrazyGames Basic Launch (SDK events, no ad offers) into dist-crazygames-basic/
 npm run preview          # serve the production build at http://localhost:4173
 npm run typecheck        # TypeScript check only
 ```
@@ -54,7 +58,7 @@ npm run typecheck        # TypeScript check only
 | Go to the workshop | **Workshop** button (works from your first rock; pulses at 3 rocks) | `Enter` |
 | Put a rock on the bench | Tap a rock in your bag | `1`-`5` |
 | Cut / Sell | Buttons on the card | `Space` |
-| Back to digging | **Back to Dig** button | `Esc` |
+| Back to digging | **Back to Dig** button | (button only) |
 | Store | Store button | `S` |
 | Goals | Goal pill under the top bar | `G` |
 | Finds (collection, artifacts to sell, junk) | Album button | `C` |
@@ -90,6 +94,8 @@ DigAndDiscover/
    ├─ data/                    data-driven content
    │  ├─ layers.ts             the ten layers: hardness, look, feel, discovery odds, value multiplier
    │  ├─ tools.ts              digging tools, scanners and upgrade effects
+   │  ├─ digShapes.ts          the hole each tool digs (profiles and shapes)
+   │  ├─ traits.ts             numbers for the prospecting upgrades and the skills
    │  ├─ store.ts              the store catalogue: prices, levels, icons
    │  ├─ goals.ts              goal types, onboarding and rewards
    │  ├─ finds.ts              the 71 finds (artifacts, collection, junk), conditions, chances, XP
@@ -113,13 +119,18 @@ DigAndDiscover/
    │  ├─ ProgressSystem.ts     level, XP, goals, owned tools, upgrades, save and load
    │  ├─ RockGenerator.ts      weighted rarity, then mineral, exterior, size, value
    │  ├─ StaminaSystem.ts      spend, rest delay, regeneration, upgrades, daily reset
+   │  ├─ TraitSystem.ts        the store's skills as pure logic
    │  ├─ InventorySystem.ts    fixed 5-slot bag
    │  └─ EconomySystem.ts      money, rewards and selling
    ├─ art/                     procedural canvas artwork
    │  ├─ TextureFactory.ts     shared textures (shovel, saw, machine, particles, ...)
    │  ├─ StrataArt.ts          the ten underground layers
    │  ├─ ScenicArt.ts          the illustrated sky, ridges and soil texture
-   │  ├─ SurfaceArt.ts         cottage, tree, woodpile, signpost and mine head-frame
+   │  ├─ HouseMiniMax.ts       the cottage on the dig screen (MiniMax painting)
+   │  ├─ ToolSpritesNew.ts    in-world sprites: hand axe, pickaxe, jackhammer, drill
+   │  ├─ SkillIcons.ts        shop icons for the new upgrades and skills (MiniMax painting)
+   │  ├─ ToolSpritesShovels.ts in-world sprites: iron, steel, gold and diamond shovels
+   │  ├─ SurfaceArt.ts         tree, woodpile, signpost and mine head-frame
    │  ├─ IconArt.ts            star and saw-blade icons
    │  ├─ StoreArt.ts           store icons (PNG override in assets/store)
    │  ├─ FindArt.ts            painted pictures of the 71 finds
@@ -153,7 +164,7 @@ DigAndDiscover/
 - **Working day.** `ClockSystem` runs the 7:00 AM to 5:00 PM clock from real elapsed time (never frame count). `DayCycleSystem` moves through `working`, `closing` and `summary`. In `closing`, new swings are refused, running animations finish, and the player is sent to the workshop to cut and sell every rock left in the bag; the summary opens only once the bag is empty.
 - **Excavation.** The ground is one `RenderTexture` that each swing erases an ellipse from, with a darker copy of the same strata behind it. The logical depth is a small heightmap in `ExcavationSystem`; both are updated from the same carved ellipse. Swings always bite into the exposed floor, so progress is strictly top-down. The camera follows the shaft down but never jumps because of a stray tap; scroll with the mouse wheel to look around.
 - **Layers and hardness.** Each layer in `data/layers.ts` has hardness, a stamina multiplier, a value multiplier, its own colors, stones and details, its own debris and sounds, and its own discovery odds. A swing's efficiency is `(tool power / layer hardness) ^ 1.4`, so a tool too weak for the layer digs very little.
-- **Tools, store and upgrades.** `data/tools.ts` and `data/store.ts` define nine digging tools, two scanners and six upgrades (one endless). `GameState.buyTool()` and `buyUpgrade()` apply them. The strongest owned tool is always the one in hand.
+- **Tools, store and upgrades.** `data/tools.ts` and `data/store.ts` define nine digging tools (each digs its own hole shape), two scanners, eleven upgrades (one endless) and seven skills in the Skills tab. `GameState.buyTool()` and `buyUpgrade()` apply them. The strongest owned tool is always the one in hand.
 - **Progression.** `ProgressSystem` tracks prospector level and XP (cuts, new layers, goals, finds), the three goals and the save file (`localStorage`).
 - **Finances.** `FinanceSystem` (numbers in `data/economy.ts`) settles the household bill when the day summary opens, issues a debt instalment every 7 days and checks the month on day 30; `GameState` wires it to the end-of-day card, the ledger, Game Over and `resetRun()`.
 - **Rocks and finds.** A swing may turn up a rock (chance and rarity weights depend on the layer) or, on a swing without a rock, a find (`FindSystem`). A rock sits half-buried until you free it with a few more swings. `RockGenerator` rolls the rarity first, then a mineral, then an independent exterior, so a glittery outside is only a weak hint.

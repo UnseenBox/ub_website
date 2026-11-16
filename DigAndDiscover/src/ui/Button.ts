@@ -17,10 +17,6 @@ export interface ButtonOptions {
   fontSize: number;
   colors: ButtonColors;
   onClick: () => void;
-  /** No painted face: the button sits on a picture (a plank) and only draws its picture and text. */
-  ghost?: boolean;
-  /** Picture height as a share of the button height (default 0.7). */
-  iconScale?: number;
 }
 
 /** Chunky rounded button with a 3D lip, press squash and optional pulse. */
@@ -36,13 +32,9 @@ export class Button extends Phaser.GameObjects.Container {
   private pressed = false;
   private pulseTween: Phaser.Tweens.Tween | null = null;
   private readonly onClick: () => void;
-  private readonly ghost: boolean;
-  private readonly iconShare: number;
 
   constructor(scene: Phaser.Scene, opts: ButtonOptions) {
     super(scene, 0, 0);
-    this.ghost = !!opts.ghost;
-    this.iconShare = opts.iconScale ?? 0.7;
     this.bw = opts.width;
     this.bh = opts.height;
     this.colors = opts.colors;
@@ -77,7 +69,6 @@ export class Button extends Phaser.GameObjects.Container {
     (this.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, width, height);
     this.label.setFontSize(fontSize);
     this.redraw();
-    if (this.ghost) this.layoutContent(0);
     return this;
   }
 
@@ -105,14 +96,14 @@ export class Button extends Phaser.GameObjects.Container {
 
   /** Centres the picture and the text together inside the face of the button. */
   private layoutContent(lip: number): void {
-    const y = this.ghost ? 0 : -lip / 2;
+    const y = -lip / 2;
     this.label.setY(y);
     const icon = this.iconImg;
     if (!icon || !icon.visible) {
       this.label.setX(0);
       return;
     }
-    const size = this.bh * this.iconShare;
+    const size = this.bh * 0.7;
     icon.setDisplaySize(size, size).setY(y);
     const textW = this.label.text ? this.label.width : 0;
     const gap = textW ? size * 0.18 : 0;
@@ -167,12 +158,6 @@ export class Button extends Phaser.GameObjects.Container {
 
   private redraw(): void {
     const { bw: w, bh: h } = this;
-    if (this.ghost) {
-      this.bg.clear();
-      this.label.setColor(this.enabled ? '#3a1f0b' : '#8a6a46').setStroke('#fff0cc', Math.max(3, Math.round(h * 0.09))).setShadow(0, 0, '#000000', 0, false, false);
-      this.layoutContent(0);
-      return;
-    }
     const c = this.enabled ? this.colors : BUTTON_COLORS.disabled;
     const lip = Math.max(4, Math.round(h * 0.1));
     const faceH = h - lip;

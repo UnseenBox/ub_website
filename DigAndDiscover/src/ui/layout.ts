@@ -7,12 +7,6 @@ export interface Rect {
   h: number;
 }
 
-export interface Circle {
-  x: number;
-  y: number;
-  r: number;
-}
-
 /** Screen layout shared by every scene, recomputed on resize. */
 export interface Layout {
   w: number;
@@ -21,75 +15,92 @@ export interface Layout {
   topH: number;
   /** Area left for the dig field / workshop stage. */
   play: Rect;
-  /** The bag panel picture (art/ui/rocks-tray.png), drawn at this rectangle. */
   tray: Rect;
-  /** The dark track of the stamina bar inside the panel. */
   stamina: Rect;
-  /** The round socket at the left end of the stamina bar (the bolt sits in it). */
-  badge: Circle;
+  bag: { x: number; y: number };
   depth: Rect;
   slotSize: number;
-  /** Centre of each bag slot. */
-  slotXs: number[];
+  /** Slots per row (the bag wraps to a second row after this many). */
+  slotCols: number;
+  slotGap: number;
+  slotX0: number;
   slotY: number;
-  /** The round craft medallion at the right end of the panel: the main action button. */
-  craft: Circle;
+  button: Rect;
 }
-
-/**
- * Where things sit on the panel picture, as fractions of its width and height
- * (the picture is 789 x 273; measured on the artwork "Rocks Collected Bar 2").
- */
-export const TRAY_ART = {
-  aspect: 273 / 789,
-  slotCx: [138.5 / 789, 261.5 / 789, 384.5 / 789, 507.5 / 789, 630.5 / 789],
-  slotCy: 140 / 273,
-  slotInner: 100 / 789,
-  /** The dark stamina track; its left end runs under the round socket (which ends at x = 143). */
-  track: { x0: 112 / 789, y0: 20 / 273, x1: 655 / 789, y1: 49 / 273 },
-  /** Share of the track hidden under the socket. */
-  trackCover: (143 - 112) / (655 - 112),
-  /** Region of the picture holding the round socket, in picture pixels (drawn again above the fill). */
-  badgeCrop: { x: 80, y: 0, w: 64, h: 70 },
-  badge: { x: 112 / 789, y: 34 / 273, r: 26 / 789 },
-  craft: { x: 738 / 789, y: 137 / 273, r: 47 / 789 },
-} as const;
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
+/** A bag with more slots than this wraps onto a second row. */
+const SLOTS_PER_ROW = 5;
+/** Slots shrink a little when there are two rows, to keep the play area big. */
+const TWO_ROW_SCALE = 0.84;
+
 /**
- * The bag panel is one picture along the bottom of the screen: the stamina bar, five slots and the
- * craft medallion are all placed on it, so every size follows the panel's width.
+ * Narrow screens (phones in portrait) stack the action button under the bag
+ * and use bigger touch targets relative to the screen; wide screens put the
+ * button beside the bag to leave more room for the play area.
  */
-export function computeLayout(w: number, h: number): Layout {
+export function computeLayout(w: number, h: number, slots: number = GAME_CONFIG.inventory.slots): Layout {
+  const n = Math.min(slots, SLOTS_PER_ROW);
+  const rows = Math.max(1, Math.ceil(slots / SLOTS_PER_ROW));
   const compact = w < 720;
   const topH = Math.round(clamp(h * 0.085, 54, 74));
-  // Short (landscape phone) screens give the panel a little more of the height so slots stay tappable.
-  const pw = Math.floor(Math.min(w - 8, 820, (h * (h < 480 ? 0.34 : 0.3)) / TRAY_ART.aspect));
-  const ph = Math.round(pw * TRAY_ART.aspect);
-  const px = Math.round((w - pw) / 2);
-  const py = h - ph - 2;
-  const T = TRAY_ART;
+  const bottomPad = 14;
+  const staminaH = compact ? 22 : 24;
+
+  if (compact) {
+    const gap = 8;
+    const slot = Math.floor(clamp((w - 28 - gap * (n - 1)) / n, 34, 92) * (rows > 1 ? TWO_ROW_SCALE : 1));
+    const rowW = slot * n + gap * (n - 1);
+    const slotsH = slot * rows + gap * (rows - 1);
+    const x0 = Math.round((w - rowW) / 2);
+    const btnH = Math.round(clamp(slot * 0.78, 50, 62));
+    const btnY = h - bottomPad - btnH;
+    const slotY = btnY - 10 - slotsH;
+    const staminaY = slotY - 12 - staminaH;
+    const trayY = staminaY - 12;
+    const depthW = compact ? 14 : 20;
+    return {
+      w, h, compact, topH,
+      play: { x: 0, y: topH, w, h: trayY - topH },
+      tray: { x: 6, y: trayY, w: w - 12, h: h - trayY + 30 },
+      stamina: { x: x0, y: staminaY, w: rowW, h: staminaH },
+      bag: { x: x0 + rowW, y: staminaY + staminaH / 2 },
+      depth: { x: w - depthW, y: topH, w: depthW, h: trayY - topH },
+      slotSize: slot, slotCols: n, slotGap: gap, slotX0: x0, slotY,
+      button: { x: x0, y: btnY, w: rowW, h: btnH },
+    };
+  }
+
+  const gap = 10;
+  const slot = Math.floor(clamp(h * 0.115, 60, 88) * (rows > 1 ? TWO_ROW_SCALE : 1));
+  const rowW = slot * n + gap * (n - 1);
+  const slotsH = slot * rows + gap * (rows - 1);
+  const btnW = Math.round(clamp(slot * 2.8, 200, 250));
+  const btnH = Math.round(clamp(slot * 0.82, 52, 66));
+  const total = rowW + 18 + btnW;
+  const x0 = Math.round((w - total) / 2);
+  const slotY = h - bottomPad - slotsH;
+  const staminaY = slotY - 12 - staminaH;
+  const trayY = staminaY - 12;
   const depthW = compact ? 14 : 20;
   return {
     w, h, compact, topH,
-    play: { x: 0, y: topH, w, h: py - topH },
-    tray: { x: px, y: py, w: pw, h: ph },
-    stamina: { x: px + T.track.x0 * pw, y: py + T.track.y0 * ph, w: (T.track.x1 - T.track.x0) * pw, h: (T.track.y1 - T.track.y0) * ph },
-    badge: { x: px + T.badge.x * pw, y: py + T.badge.y * ph, r: T.badge.r * pw },
-    depth: { x: w - depthW, y: topH, w: depthW, h: py - topH },
-    slotSize: Math.round(T.slotInner * pw),
-    slotXs: T.slotCx.map((f) => px + f * pw),
-    slotY: py + T.slotCy * ph,
-    craft: { x: px + T.craft.x * pw, y: py + T.craft.y * ph, r: T.craft.r * pw },
+    play: { x: 0, y: topH, w, h: trayY - topH },
+    tray: { x: x0 - 16, y: trayY, w: total + 32, h: h - trayY + 30 },
+    stamina: { x: x0, y: staminaY, w: rowW, h: staminaH },
+    bag: { x: x0 + rowW, y: staminaY + staminaH / 2 },
+    depth: { x: w - depthW, y: topH, w: depthW, h: trayY - topH },
+    slotSize: slot, slotCols: n, slotGap: gap, slotX0: x0, slotY,
+    button: { x: x0 + rowW + 18, y: slotY + (slotsH - btnH) / 2 - 2, w: btnW, h: btnH },
   };
 }
 
 export function slotCenter(L: Layout, index: number): { x: number; y: number } {
-  return { x: L.slotXs[index] ?? L.slotXs[0], y: L.slotY };
-}
-
-// The number of slots is fixed by the panel picture.
-if (GAME_CONFIG.inventory.slots !== TRAY_ART.slotCx.length) {
-  console.warn('The bag panel picture has', TRAY_ART.slotCx.length, 'slots but the game wants', GAME_CONFIG.inventory.slots);
+  const col = index % L.slotCols;
+  const row = Math.floor(index / L.slotCols);
+  return {
+    x: L.slotX0 + col * (L.slotSize + L.slotGap) + L.slotSize / 2,
+    y: L.slotY + row * (L.slotSize + L.slotGap) + L.slotSize / 2,
+  };
 }

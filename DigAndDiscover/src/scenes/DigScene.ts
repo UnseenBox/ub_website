@@ -4,16 +4,24 @@ import { PALETTE, outlinedStyle } from '../config/Theme';
 import { EVT, state, subscribe } from '../core/GameState';
 import { intRange, range } from '../core/Random';
 import type { Rock } from '../core/types';
-import { ART_RES, ensureRockTextures, rockKeys } from '../art/RockArt';
+import { ART_RES, ensureRockTextures, releaseRockTextures, rockKeys } from '../art/RockArt';
 import { paintStrata } from '../art/StrataArt';
-import { HOLE_RADIUS, HOLE_VARIANTS } from '../art/TextureFactory';
-import { shovelImage } from '../art/ShovelArt';
+import { paintHome, paintMine } from '../art/SurfaceArt';
+import {
+  CLOUDS, RIDGE_FAR, RIDGE_MID, RIDGE_NEAR, RIDGE_W, SKY, SUN_DISC, SUN_RAYS, createScenicTextures,
+} from '../art/ScenicArt';
+import { HOLE_RADIUS, HOLE_VARIANTS, SHOVEL } from '../art/TextureFactory';
 import { makeCanvasTexture } from '../art/paint';
 import { sfx } from '../audio/Sfx';
 import { generateRock } from '../systems/RockGenerator';
+import type { DigBoost, DigResult } from '../systems/ExcavationSystem';
+import { PLAIN_SWING, type SwingRoll } from '../systems/TraitSystem';
+import { TRAIT_EFFECTS } from '../data/traits';
+import type { Profile } from '../data/digShapes';
+import { ensureFindTexture } from '../art/FindArt';
 import { uiIcon } from '../art/UiIcons';
-import { SurfaceLife } from '../ui/SurfaceLife';
 import { depositTint } from '../data/deposits';
+import { CATEGORY_STYLE, type FindDef } from '../data/finds';
 import { computeLayout, type Layout } from '../ui/layout';
 
 const WORLD = GAME_CONFIG.world;
@@ -21,9 +29,9 @@ const W = WORLD.width;
 const SURFACE = WORLD.surfaceY;
 const TOTAL_H = state.dig.totalHeight;
 const SKY_HEIGHT = 900;
-/** Width, in field units, of the painted scene above the ground (its height follows the picture). */
-const BACKDROP_W = 1300;
-export const BACKDROP_KEY = 'above-surface';
+const SHOVEL_SCALE = 1.05 / ART_RES;
+const HOME_W = 520;
+const HOME_H = 300;
 
 /** Mouse wheel: screen pixels scrolled per wheel pixel. */
 const WHEEL_GAIN = 1.5;
@@ -47,6 +55,13 @@ const SHOVEL_FOLLOW_MS = 35;
 const SHOVEL_HOVER_MIN = 14;
 const SHOVEL_HOVER_MAX = 130;
 const SHOVEL_REST_ANGLE = 18;
+/** A find texture is 160px; this display size is about 70 field units across. */
+const FIND_SIZE = 70;
+/** Junk is a little smaller on screen. */
+const JUNK_SIZE = 56;
+/** Find textures are painted at this many pixels (see ensureFindTexture). */
+const FIND_TEXTURE = 160;
+
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
 /** Linear blend of two 0xRRGGBB colours. */
@@ -76,9 +91,12 @@ function skyTint(p: number): number {
   return SKY_STOPS[SKY_STOPS.length - 1][1];
 }
 
-/** A pocket in the shaft wall holding a rock. */
+/** A pocket in the shaft wall holding a rock - or, now and then, a find. */
 interface EmbeddedRock {
-  rock: Rock;
+  rock: Rock | null;
+  find: FindDef | null;
+  /** The bobbing "?" over a find that is still a mystery. */
+  mark: Phaser.GameObjects.Text | null;
   sprite: Phaser.GameObjects.Image;
   x: number;
   y: number;
@@ -97,11 +115,13 @@ interface EmbeddedRock {
  */
 export class DigScene extends Phaser.Scene {
   private L!: Layout;
-  private backdrop!: Phaser.GameObjects.Image;
-  private skyFill!: Phaser.GameObjects.Image;
-  private life!: SurfaceLife;
-  private shovelScale = 1;
-  private lifeLayer!: Phaser.GameObjects.Container;
+  private sky!: Phaser.GameObjects.Image;
+  private sun!: Phaser.GameObjects.Image;
+  private sunRays!: Phaser.GameObjects.Image;
+  private ridgeFar!: Phaser.GameObjects.Image;
+  private ridgeMid!: Phaser.GameObjects.Image;
+  private ridgeNear!: Phaser.GameObjects.Image;
+  private clouds: Phaser.GameObjects.Image[] = [];
   private wrap!: Phaser.GameObjects.Container;
   private root!: Phaser.GameObjects.Container;
   private rockLayer!: Phaser.GameObjects.Container;
@@ -158,6 +178,17 @@ export class DigScene extends Phaser.Scene {
   private lastMissWarning = 0;
   private lastTouch = false;
   private skyProgress = -1;
+  private emberFx!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private callouts: Phaser.GameObjects.Text[] = [];
+  private calloutIndex = 0;
+  private ghosts: Phaser.GameObjects.Image[] = [];
+  private ghostIndex = 0;
+  private shots: Phaser.GameObjects.Image[] = [];
+  private shotIndex = 0;
+  private rageShown = false;
+  private nextRageEmber = 0;
+  /** Rocks that popped out and have not yet been handed to the bag; each entry finishes one of them. */
+  private pendingPops = new Set<() => void>();
 
   /** "Back to the hole" chip, shown while the last dig site is out of view. */
   private chip!: Phaser.GameObjects.Container;
@@ -173,6 +204,7 @@ export class DigScene extends Phaser.Scene {
   create(): void {
     this.embedded = [];
     this.bedrockAnnounced = false;
+    this.clouds = [];
     this.rings = [];
     this.glints = [];
     this.dirtFx = [];
@@ -180,6 +212,11 @@ export class DigScene extends Phaser.Scene {
     this.lastX = W / 2;
     this.focusY = SURFACE;
     this.chipDir = 0;
+    this.callouts = [];
+    this.ghosts = [];
+    this.shots = [];
+    this.rageShown = false;
+    this.pendingPops = new Set();
     this.cameras.main.setBackgroundColor(0x232433);
 
     this.buildField();
@@ -206,11 +243,15 @@ export class DigScene extends Phaser.Scene {
     }
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
     this.events.on(Phaser.Scenes.Events.WAKE, this.onWake, this);
+    this.events.on(Phaser.Scenes.Events.SLEEP, this.finishPops, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.finishPops();
       this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
       this.events.off(Phaser.Scenes.Events.WAKE, this.onWake, this);
+      this.events.off(Phaser.Scenes.Events.SLEEP, this.finishPops, this);
     });
     subscribe(this, EVT.inventoryChanged, () => this.tryReleaseStuckRocks());
+    subscribe(this, EVT.capacityChanged, () => this.onResize());
     subscribe(this, EVT.toolChanged, () => this.applyToolLook());
     subscribe(this, EVT.relocated, () => this.onRelocated());
     subscribe(this, EVT.runReset, () => this.onRelocated()); // a restarted run: the ground starts over too
@@ -220,7 +261,11 @@ export class DigScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
-    this.life.update(dt);
+    this.sunRays.rotation += dt * 0.00005;
+    for (const cloud of this.clouds) {
+      cloud.x += cloud.getData('speed') * dt;
+      if (cloud.x - cloud.displayWidth / 2 > W + 400) cloud.x = -400 - cloud.displayWidth / 2;
+    }
     if (this.holdPointer) {
       if (!this.holdPointer.isDown) this.holdPointer = null;
       else if (this.inPlayArea(this.holdPointer.y)) this.tryDig(this.toFieldX(this.holdPointer.x));
@@ -239,6 +284,7 @@ export class DigScene extends Phaser.Scene {
     }
     const keyDir = (this.keyDown?.isDown ? 1 : 0) - (this.keyUp?.isDown ? 1 : 0);
     if (keyDir !== 0) this.scrollBy((keyDir * KEY_SCROLL_SPEED * dt) / 1000);
+    this.updateRage();
     this.followCursor(dt);
     this.followCamera(dt);
     this.updateReturnChip();
@@ -252,16 +298,26 @@ export class DigScene extends Phaser.Scene {
     makeCanvasTexture(this.textures, 'strata', W, TOTAL_H, (ctx) =>
       paintStrata(ctx, { width: W, height: TOTAL_H, surfaceY: SURFACE, bands: state.dig.bands }),
     );
-    // Everything above the ground is one painted picture. Its bottom edge sits on the grass line;
-    // a stretched copy of its top row carries the sky up past the top of the view.
-    const tex = this.textures.get(BACKDROP_KEY).getSourceImage() as { width: number; height: number };
-    const bs = BACKDROP_W / tex.width;
-    const bx = -(BACKDROP_W - W) / 2 + 8; // the cottage stands just left of the dig
-    this.backdrop = this.add.image(bx, SURFACE + 10, BACKDROP_KEY).setOrigin(0, 1).setScale(bs);
-    this.skyFill = this.add.image(bx, SURFACE + 10 - tex.height * bs + 1, BACKDROP_KEY).setOrigin(0, 1).setCrop(0, 0, tex.width, 2);
-    this.skyFill.setScale(bs, (SKY_HEIGHT + 400) / 2);
-    this.lifeLayer = this.add.container(0, 0);
-    this.life = new SurfaceLife(this, this.lifeLayer, { x: bx, bottom: SURFACE + 10, width: BACKDROP_W, height: tex.height * bs });
+    createScenicTextures(this.textures);
+    makeCanvasTexture(this.textures, 'home', HOME_W, HOME_H, (ctx, w, h) => paintHome(ctx, w, h));
+    makeCanvasTexture(this.textures, 'mine', HOME_W, HOME_H, (ctx, w, h) => paintMine(ctx, w, h));
+
+    this.sky = this.add.image(-1500, -SKY_HEIGHT, SKY).setOrigin(0, 0).setDisplaySize(W + 3000, SKY_HEIGHT + SURFACE + 2);
+    this.sunRays = this.add.image(0, 0, SUN_RAYS).setAlpha(0.5).setScale(1.5);
+    this.sun = this.add.image(0, 0, SUN_DISC).setScale(1.55);
+    for (let i = 0; i < 4; i++) {
+      const cloud = this.add.image(W * (0.06 + i * 0.28), SURFACE - 230 - (i % 2) * 70 - i * 12, CLOUDS[i % CLOUDS.length]);
+      cloud.setAlpha(0.96).setScale(1.15 - i * 0.1);
+      cloud.setData('speed', 0.005 + i * 0.0035);
+      this.clouds.push(cloud);
+    }
+    // Three ridges, far to near, like cut-paper stage flats; the far ones drift slower as the view scrolls.
+    const ridgeX = -(RIDGE_W - W) / 2;
+    this.ridgeFar = this.add.image(ridgeX, SURFACE + 8, RIDGE_FAR).setOrigin(0, 1);
+    this.ridgeMid = this.add.image(ridgeX, SURFACE + 12, RIDGE_MID).setOrigin(0, 1);
+    this.ridgeNear = this.add.image(ridgeX, SURFACE + 18, RIDGE_NEAR).setOrigin(0, 1);
+    const home = this.add.image(W / 2 - 215, SURFACE + 6, 'home').setOrigin(0.5, 1).setScale(0.8);
+    const mine = this.add.image(W / 2 + 215, SURFACE + 6, 'mine').setOrigin(0.5, 1).setScale(0.8);
 
     // The back wall of the shaft: the same strata, darkened. Cropped so the grass is not repeated.
     const under = this.add.image(0, 0, 'strata').setOrigin(0, 0).setTint(0x5d5a6c);
@@ -276,7 +332,7 @@ export class DigScene extends Phaser.Scene {
     this.wrap = this.add.container(0, 0);
     this.root = this.add.container(-W / 2, 0);
     this.wrap.add(this.root);
-    this.root.add([this.skyFill, this.backdrop, this.lifeLayer, under, this.rockLayer, this.soil, this.popLayer]);
+    this.root.add([this.sky, this.sunRays, this.sun, ...this.clouds, this.ridgeFar, this.ridgeMid, this.ridgeNear, home, mine, under, this.rockLayer, this.soil, this.popLayer]);
     this.stamp = this.make.image({ key: 'hole0', add: false });
   }
 
@@ -342,18 +398,37 @@ export class DigScene extends Phaser.Scene {
     for (let i = 0; i < 4; i++) this.glints.push(this.add.image(0, 0, 'star').setVisible(false).setBlendMode(Phaser.BlendModes.ADD));
     this.pips = this.add.graphics().setAlpha(0);
     this.tiredText = this.add.image(0, 0, uiIcon('zzz')).setDisplaySize(64, 64).setVisible(false);
+    this.emberFx = this.add.particles(0, 0, 'soft', {
+      emitting: false,
+      lifespan: 520,
+      speed: { min: 40, max: 200 },
+      angle: { min: 235, max: 305 },
+      gravityY: -120,
+      scale: { start: 0.55, end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      tint: [0xff5a2a, 0xff9a3a, 0xffd36a],
+      blendMode: Phaser.BlendModes.ADD,
+    });
+    for (let i = 0; i < 3; i++) this.callouts.push(this.add.text(0, 0, '', outlinedStyle(46, '#ffffff')).setOrigin(0.5).setVisible(false));
+    for (let i = 0; i < 8; i++) this.shots.push(this.add.image(0, 0, 'pebble').setVisible(false).setTint(0xffe9a8));
     this.popLayer.add([
-      ...this.rings, ...this.dustFx, ...this.dirtFx, this.pebbleFx, this.sparkleFx, this.crystalFx, ...this.glints, this.pips,
+      ...this.rings, ...this.dustFx, ...this.dirtFx, this.pebbleFx, this.sparkleFx, this.crystalFx, this.emberFx, ...this.glints, this.pips,
+      ...this.shots, ...this.callouts,
     ]);
   }
 
   private buildShovel(): void {
     const tool = state.tool;
-    this.shovel = this.add.image(0, 0, tool.textureKey);
+    this.shovel = this.add.image(0, 0, tool.textureKey).setOrigin(0.5, SHOVEL.tipY / SHOVEL.height).setScale(SHOVEL_SCALE);
     this.rig = this.add.container(W / 2 + 60, SURFACE - 70, [this.shovel]).setAngle(14);
     // A soft shadow on the ground where the next swing will land.
     this.aimMark = this.add.image(0, 0, 'soft').setTint(0x1a0f08).setScale(0.95, 0.24).setAlpha(0);
-    this.popLayer.add([this.aimMark, this.rig, this.tiredText]);
+    for (let i = 0; i < 3; i++) {
+      this.ghosts.push(
+        this.add.image(0, 0, tool.textureKey).setOrigin(0.5, SHOVEL.tipY / SHOVEL.height).setScale(SHOVEL_SCALE).setVisible(false).setBlendMode(Phaser.BlendModes.ADD),
+      );
+    }
+    this.popLayer.add([this.aimMark, ...this.ghosts, this.rig, this.tiredText]);
     this.applyToolLook();
     // Gentle idle sway on the inner image so swings (on the rig) never fight it.
     this.tweens.add({ targets: this.shovel, angle: { from: -2.5, to: 2.5 }, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -366,18 +441,11 @@ export class DigScene extends Phaser.Scene {
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart());
   }
 
-  /** Better tools wash the shovel sprite with their colour (until they get their own art). */
-  /** The store takes the tool out of the world while it shows the same tools on its shelf. */
-  setShovelHidden(hidden: boolean): void {
-    this.shovel?.setVisible(!hidden);
-  }
-
-  /** Shows the picture of the tool in hand, pivoting on its blade tip. */
+  /** The equipped tool's own in-world sprite. Called at start and whenever the tool changes. */
   private applyToolLook(): void {
-    const key = state.tool.textureKey;
-    const img = shovelImage(key);
-    this.shovelScale = img.displayH / img.texH;
-    this.shovel.setTexture(key).setOrigin(img.tipX, img.tipY).setScale(this.shovelScale).clearTint();
+    this.shovel.setTexture(state.tool.textureKey);
+    if (this.rageShown) this.shovel.setTint(0xff6a4a);
+    else this.shovel.clearTint();
   }
 
   /** Small depth labels where each new layer begins, written into the dirt. */
@@ -406,7 +474,7 @@ export class DigScene extends Phaser.Scene {
 
   private onResize(): void {
     const { width: w, height: h } = this.scale;
-    const L = (this.L = computeLayout(w, h));
+    const L = (this.L = computeLayout(w, h, state.inventory.capacity));
     // Never show empty space beside the pit; never shrink the pit below a readable width.
     const lower = L.play.w / W;
     const upper = Math.min(L.play.w / WORLD.minVisibleWidth, WORLD.maxScale);
@@ -542,14 +610,24 @@ export class DigScene extends Phaser.Scene {
   private applyScroll(): void {
     // Snap to whole screen pixels so the terrain never shimmers while scrolling.
     this.root.y = -Math.round(this.scrollY * this.fieldScale) / this.fieldScale;
+    // Parallax: the distant ridges lag behind the ground as the view scrolls.
+    this.ridgeFar.y = SURFACE + 8 + this.scrollY * 0.5;
+    this.ridgeMid.y = SURFACE + 12 + this.scrollY * 0.25;
   }
 
-  /** The picture takes the light of the day: warm at dawn, bright at noon, amber in the evening. */
   private applyTimeOfDay(p: number): void {
     this.skyProgress = p;
-    const tint = mixColor(0xffffff, skyTint(p), 0.7);
-    this.backdrop.setTint(tint);
-    this.skyFill.setTint(tint);
+    const tint = skyTint(p);
+    this.sky.setTint(tint);
+    const sunColor = mixColor(0xfff3b0, 0xffa94d, Math.max(0, (p - 0.6) / 0.4));
+    const sx = Phaser.Math.Linear(W * 0.12, W * 0.88, p);
+    const sy = SURFACE - 90 - Math.sin(Math.PI * p) * 150;
+    this.sun.setPosition(sx, sy).setTint(sunColor);
+    this.sunRays.setPosition(sx, sy).setTint(sunColor);
+    // The mountains and hills take the light too, the far ones most.
+    this.ridgeFar.setTint(mixColor(0xffffff, tint, 0.8));
+    this.ridgeMid.setTint(mixColor(0xffffff, tint, 0.55));
+    this.ridgeNear.setTint(mixColor(0xffffff, tint, 0.3));
   }
 
   private toFieldX(sx: number): number {
@@ -722,33 +800,59 @@ export class DigScene extends Phaser.Scene {
       return;
     }
     const layer = dig.layerAt(x);
-    if (!state.stamina.trySpend(state.tool.staminaMult * layer.staminaMult)) {
+    const traits = state.traits;
+    const cost = state.tool.staminaMult * layer.staminaMult * traits.staminaMult(now);
+    let paid = state.stamina.trySpend(cost);
+    if (!paid) {
+      // Second Wind: once a day, running dry gives a breather instead.
+      const wind = traits.trySecondWind(state.day.day);
+      if (wind > 0) {
+        state.stamina.restore(state.stamina.max * wind);
+        sfx.wind();
+        this.callout('SECOND WIND!', x, dig.floorAt(x) - 120, '#8dff9a');
+        paid = state.stamina.trySpend(cost);
+      }
+    }
+    if (!paid) {
       this.nextDigAt = now + 450;
       this.showTired(x);
       return;
     }
-    // Hard ground makes the swing heavier and slower, not just less effective.
-    this.nextDigAt = now + state.tool.swingCooldownMs * (1 + 0.5 * layer.feel.clang);
-    this.swing(x, layer.feel.clang);
+    const roll = traits.rollSwing(x, now);
+    // Hard ground makes the swing heavier and slower, not just less effective; a rage makes it faster.
+    this.nextDigAt = now + state.tool.swingCooldownMs * (1 + 0.5 * layer.feel.clang) * traits.cooldownMult(now);
+    this.swing(x, layer.feel.clang, roll);
   }
 
   /** Gameplay timing runs on the scene clock; tweens are purely cosmetic. */
-  private swing(x: number, clang: number): void {
-    const plungeMs = state.tool.plungeMs * (1 + 0.6 * clang);
+  private swing(x: number, clang: number, roll: SwingRoll): void {
+    const plungeMs = state.tool.plungeMs * (1 + 0.6 * clang) * (roll.raging ? 0.7 : 1);
     const floorY = state.dig.floorAt(x);
     this.lastX = x;
     this.swingEndsAt = this.time.now + plungeMs + 190;
     state.beginActivity();
+    if (roll.rageStarted) this.onRageStart(x);
     this.tweens.killTweensOf(this.rig);
     if (Phaser.Math.Distance.Between(this.rig.x, this.rig.y, x, floorY) > 160) {
       this.rig.setPosition(x + 20, floorY - 60).setAngle(30);
     }
     this.tweens.add({ targets: this.rig, x, y: floorY + 6, angle: 4, duration: plungeMs, ease: 'Quad.easeIn' });
+    if (state.tool.motion === 'jitter') {
+      // Hammers and drills shake while they bite instead of only swinging down.
+      this.tweens.add({
+        targets: this.shovel,
+        x: { from: -1.6, to: 1.6 },
+        yoyo: true,
+        repeat: Math.max(1, Math.round(plungeMs / 40)),
+        duration: 40,
+        onComplete: () => this.shovel.setX(0),
+      });
+    }
     this.time.delayedCall(plungeMs, () => {
-      this.impact(x);
+      this.impact(x, roll);
       const squash = 1 + clang;
-      this.shovel.setScale(this.shovelScale * (1 + 0.08 * squash), this.shovelScale * (1 - 0.12 * squash));
-      this.tweens.add({ targets: this.shovel, scaleX: this.shovelScale, scaleY: this.shovelScale, duration: 200, ease: 'Back.easeOut' });
+      this.shovel.setScale(SHOVEL_SCALE * (1 + 0.08 * squash), SHOVEL_SCALE * (1 - 0.12 * squash));
+      this.tweens.add({ targets: this.shovel, scaleX: SHOVEL_SCALE, scaleY: SHOVEL_SCALE, duration: 200, ease: 'Back.easeOut' });
       this.tweens.killTweensOf(this.rig);
       const upY = state.dig.floorAt(x) - 40 - 14 * clang;
       this.tweens.add({ targets: this.rig, x: x + 16, y: upY, angle: 24 + 10 * clang, duration: 170, ease: 'Back.easeOut' });
@@ -756,46 +860,80 @@ export class DigScene extends Phaser.Scene {
     });
   }
 
-  private impact(x: number): void {
-    const res = state.dig.dig(x, state.tool);
+  /** The tool bites: digs its own shape of hole, then rolls for rocks. Ghost swings (After Image) cost nothing and echo no skills. */
+  private impact(x: number, roll: SwingRoll = PLAIN_SWING, ghost = false): void {
+    const res = this.digAt(x, roll.depth !== 1 || roll.width !== 1 ? roll : undefined, ghost);
     const feel = res.layer.feel;
     const y = res.floorBefore;
-    const target = this.nearestEmbedded(x, y);
-    const direct = !!target && Phaser.Math.Distance.Between(x, y, target.x, target.y) <= target.r + GAME_CONFIG.dig.nearHitPadding;
-    sfx.dig(direct, feel.clang);
-    if (res.dug) {
-      this.paintCrater(res.cx, res.cy, res.rx, res.ry);
-      this.followFloor(state.dig.floorAt(x));
-      const lite = this.sys.game.device.input.touch ? 0.65 : 1; // phones: fewer particles
-      const chunks = Math.max(3, Math.round(feel.chunks * (0.55 + 0.45 * res.efficiency) * lite));
-      this.dirtFx[res.layerIndex].explode(chunks, x, y);
-      this.dustFx[res.layerIndex].explode(3, x, y - 6);
-      if (Math.random() < GAME_CONFIG.dig.pebbleChance * (0.6 + feel.clang)) this.pebbleFx.explode(1, x, y);
-      if (feel.sparks > 0 && Math.random() < 0.7) this.crystalFx.explode(feel.sparks, x, y - 4);
-    }
+    const target = this.strikeTarget(x, y);
+    sfx.dig(!!target, feel.clang);
     this.ring(x, y);
     // The swing that reaches bedrock: offer a new deposit once the dust settles.
     if (!this.bedrockAnnounced && state.dig.atBottom) {
       this.bedrockAnnounced = true;
       this.time.delayedCall(900, () => state.bus.emit(EVT.bedrock));
     }
-    this.cameras.main.shake(100, feel.shake * (this.sys.game.device.input.touch ? 0.6 : 1));
+    const touch = this.sys.game.device.input.touch ? 0.6 : 1;
+    this.cameras.main.shake(roll.bigHole ? 240 : 100, feel.shake * touch * (roll.bigHole ? 2.4 : ghost ? 0.5 : 1));
     this.dismissHint();
 
-    if (target && direct) {
+    if (target) {
       this.hitEmbedded(target);
     } else if (this.embedded.length >= GAME_CONFIG.dig.maxEmbeddedRocks) {
       state.discovery.skip();
     } else if (res.dug && state.discovery.roll(res.layer, Math.random)) {
-      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, (res.layer.discovery.valueMult ?? 1) * state.depositValueMult, res.layerIndex);
+      const value = (res.layer.discovery.valueMult ?? 1) * state.depositValueMult;
+      this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, value, res.layerIndex);
+      // Double Find: sometimes the dig turns up a second rock beside the first.
+      if (state.traits.rollDoubleFind() && this.embedded.length <= GAME_CONFIG.dig.maxEmbeddedRocks) {
+        this.embedRock(res.cx, res.layer.discovery.rarityWeights, res.layer.discovery.freeHits, value, res.layerIndex, (Math.random() < 0.5 ? -1 : 1) * 84);
+        this.callout('DOUBLE FIND!', res.cx, y - 130, '#ffe27a');
+      }
+    } else if (res.dug) {
+      const def = state.finds.roll(res.layerIndex, Math.random, (id) => state.findsInv.collectionCount(id) > 0);
+      if (def) this.embedFind(res.cx, def);
     }
+
+    if (ghost) return;
+    if (roll.bigHole) {
+      this.callout('BIG HOLE!', x, y - 120, '#ffb347');
+      sfx.blast(0.6);
+      this.dirtFx[res.layerIndex].explode(22, x, y);
+    }
+    if (roll.afterimage) this.spawnAfterimage(x);
+    if (roll.shots > 0) this.fireScrapShots(x, roll.shots, res.floorAfter - res.floorBefore);
   }
 
-  private nearestEmbedded(x: number, y: number): EmbeddedRock | null {
+  /** Digs at x with the equipped tool and paints every part of its hole. Shared by swings, ghosts and blasts. */
+  private digAt(x: number, boost: DigBoost | undefined, quiet: boolean): DigResult {
+    const res = state.dig.dig(x, state.tool, boost);
+    const feel = res.layer.feel;
+    const y = res.floorBefore;
+    if (res.dug) {
+      for (const p of res.parts) this.paintCrater(p.cx, p.cy, p.rx, p.ry, p.profile, false);
+      this.followFloor(state.dig.floorAt(x));
+      const lite = this.sys.game.device.input.touch ? 0.65 : 1; // phones: fewer particles
+      const chunks = Math.max(3, Math.round(feel.chunks * (0.55 + 0.45 * res.efficiency) * lite * (quiet ? 0.6 : 1)));
+      this.dirtFx[res.layerIndex].explode(chunks, x, y);
+      this.dustFx[res.layerIndex].explode(3, x, y - 6);
+      if (!quiet && Math.random() < GAME_CONFIG.dig.pebbleChance * (0.6 + feel.clang)) this.pebbleFx.explode(1, x, y);
+      if (feel.sparks > 0 && Math.random() < 0.7) this.crystalFx.explode(feel.sparks, x, y - 4);
+    }
+    return res;
+  }
+
+  /**
+   * The embedded rock a swing at x strikes, or null. It must be beside the swing and at most `strikeRise` above the
+   * floor (or just below it): the shaft may have gone down past it, and it still counts. The closest one wins.
+   */
+  private strikeTarget(x: number, floorY: number): EmbeddedRock | null {
     let best: EmbeddedRock | null = null;
     let bestD = Infinity;
     for (const b of this.embedded) {
-      const d = Phaser.Math.Distance.Squared(x, y, b.x, b.y);
+      const dx = Math.abs(b.x - x);
+      const above = floorY - b.y;
+      if (dx > b.r + GAME_CONFIG.dig.nearHitPadding || above > GAME_CONFIG.dig.strikeRise || above < -(b.r + GAME_CONFIG.dig.nearHitPadding)) continue;
+      const d = dx + Math.abs(above) * 0.25;
       if (d < bestD) {
         bestD = d;
         best = b;
@@ -806,15 +944,26 @@ export class DigScene extends Phaser.Scene {
 
   // ---------- terrain painting ----------
 
-  /** Carve the heightmap and erase the same ellipse from the visible soil. */
-  private paintCrater(cx: number, cy: number, rx: number, ry: number): void {
-    state.dig.carveEllipse(cx, cy, rx, ry);
+  /** Carve the heightmap and erase the same shape from the visible soil. */
+  private paintCrater(cx: number, cy: number, rx: number, ry: number, profile: Profile = 'round', carve = true): void {
+    if (carve) state.dig.carve(cx, cy, rx, ry, profile);
     this.stamp
-      .setTexture(`hole${intRange(Math.random, 0, HOLE_VARIANTS - 1)}`)
+      .setTexture(this.stampKey(profile))
       .setScale(rx / HOLE_RADIUS, ry / HOLE_RADIUS)
+      .setFlipX(Math.random() < 0.5)
       .setRotation(0)
       .setAlpha(1);
     this.soil.erase(this.stamp, cx, cy);
+  }
+
+  private stampKey(profile: Profile): string {
+    switch (profile) {
+      case 'scoop': return 'hole-scoop';
+      case 'vee': return 'hole-vee';
+      case 'tube': return 'hole-tube';
+      case 'ragged': return 'hole-ragged' + intRange(Math.random, 0, 1);
+      default: return 'hole' + intRange(Math.random, 0, HOLE_VARIANTS - 1);
+    }
   }
 
   // ---------- rocks ----------
@@ -826,17 +975,20 @@ export class DigScene extends Phaser.Scene {
     freeHits: { min: number; max: number },
     valueMult = 1,
     layerIndex = 0,
+    sideOffset = 0,
   ): void {
     const rock = generateRock(Math.random, rarityWeights, valueMult, layerIndex);
     ensureRockTextures(this.textures, rock);
     const k = GAME_CONFIG.rock.discoveryScale;
     const r = GAME_CONFIG.rock.baseRadius * rock.size * k;
-    const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
-    const y = state.dig.floorAt(x) + r * GAME_CONFIG.dig.rockSinkFactor;
+    const x = clamp(nearX + sideOffset + range(Math.random, -18, 18), r + 14, W - r - 14);
+    // On the floor of the shaft that was just dug, not on the ground beside it: a narrow bore or spike leaves a needle-thin
+    // shaft, and the ground next to it can be thousands of units higher.
+    const y = state.dig.floorAt(nearX) + r * GAME_CONFIG.dig.rockSinkFactor;
     const sprite = this.add.image(x, y + 24, rockKeys(rock).outside).setScale(0).setAngle(range(Math.random, -20, 20));
     this.rockLayer.add(sprite);
     const maxHp = intRange(Math.random, freeHits.min, freeHits.max);
-    const b: EmbeddedRock = { rock, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    const b: EmbeddedRock = { rock, find: null, mark: null, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
     this.embedded.push(b);
     this.tweens.add({ targets: sprite, y, scale: k / ART_RES, duration: 280, ease: 'Back.easeOut' });
     // Open a pocket around its top so the find is clearly visible, never just a sliver.
@@ -850,7 +1002,10 @@ export class DigScene extends Phaser.Scene {
   }
 
   private hitEmbedded(b: EmbeddedRock): void {
-    b.hp = Math.max(0, b.hp - 1);
+    // Quick Crack: now and then one hit is enough.
+    const instant = !!b.rock && state.traits.rollInstantCrack();
+    b.hp = instant ? 0 : Math.max(0, b.hp - 1);
+    if (instant) this.callout('CRACK!', b.x, b.y - b.r - 50, '#ffe27a');
     const frac = 1 - b.hp / b.maxHp;
     this.paintCrater(
       b.x + range(Math.random, -0.3, 0.3) * b.r,
@@ -863,7 +1018,8 @@ export class DigScene extends Phaser.Scene {
     this.tweens.add({ targets: b.sprite, angle: b.sprite.angle + Phaser.Math.Between(-9, 9), duration: 90, yoyo: true, ease: 'Sine.easeOut' });
     this.showPips(b);
     if (b.hp > 0.001) return;
-    if (b.rock && state.inventory.isFull) {
+    // A worthless rock may still go hot (and never reach the bag), so a full bag does not block it.
+    if (b.rock && state.inventory.isFull && !state.traits.mayGoHot(b.rock)) {
       b.hp = 0.01;
       if (this.time.now - this.lastFullWarning > 2500) {
         this.lastFullWarning = this.time.now;
@@ -907,7 +1063,16 @@ export class DigScene extends Phaser.Scene {
   }
 
   private unearth(b: EmbeddedRock): void {
+    if (b.find) {
+      this.unearthFind(b);
+      return;
+    }
     const { rock, sprite } = b;
+    if (!rock) return;
+    if (state.traits.rollHotRock(rock)) {
+      this.igniteHotRock(b);
+      return;
+    }
     // Take it off the list first: adding to the bag fires inventoryChanged, which looks for stuck rocks.
     this.embedded = this.embedded.filter((o) => o !== b);
     if (state.inventory.add(rock) < 0) {
@@ -943,12 +1108,143 @@ export class DigScene extends Phaser.Scene {
         { scaleX: base, scaleY: base, duration: 120 },
       ],
     });
-    this.time.delayedCall(860, () => {
+    // The hand-off to the bag runs on the scene clock, which stops while the workshop is open. Without the safety net
+    // below, a rock sold in the workshop would lose its texture while this sprite still draws it, and the next frame would throw.
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      this.pendingPops.delete(finish);
       const m = sprite.getWorldTransformMatrix();
       state.bus.emit(EVT.rockCollected, rock, m.tx, m.ty, base * this.fieldScale);
       this.tweens.killTweensOf(sprite);
       sprite.destroy();
       state.endActivity();
+    };
+    this.pendingPops.add(finish);
+    this.time.delayedCall(860, finish);
+  }
+
+  /** The scene is about to sleep or close: every rock that is still popping out goes to the bag now. */
+  private finishPops(): void {
+    for (const finish of [...this.pendingPops]) finish();
+  }
+
+  /** A buried object: shows up as a dark silhouette with a "?" until it is dug free. */
+  private embedFind(nearX: number, def: FindDef): void {
+    const junk = def.category === 'junk';
+    const size = junk ? JUNK_SIZE : FIND_SIZE;
+    const r = size * 0.7;
+    const scale = size / FIND_TEXTURE;
+    const x = clamp(nearX + range(Math.random, -18, 18), r + 14, W - r - 14);
+    const y = state.dig.floorAt(nearX) + r * GAME_CONFIG.dig.rockSinkFactor;
+    const key = ensureFindTexture(this.textures, def);
+    const sprite = this.add.image(x, y + 24, key).setScale(0).setTintFill(0x120a06).setAngle(range(Math.random, -12, 12));
+    this.rockLayer.add(sprite);
+    const maxHp = junk ? 1 : intRange(Math.random, 1, 2);
+    // The colour of the "?" hints at the kind: gold artifact, teal collection item, grey rubbish.
+    const mark = this.add
+      .text(x, y - r - 30, '?', outlinedStyle(junk ? 30 : 40, CATEGORY_STYLE[def.category].css))
+      .setOrigin(0.5)
+      .setScale(0);
+    this.popLayer.add(mark);
+    const b: EmbeddedRock = { rock: null, find: def, mark, sprite, x, y, r, hp: maxHp, maxHp, glint: null };
+    this.embedded.push(b);
+    this.tweens.add({ targets: sprite, y, scale, duration: 280, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: mark, scale: 1, duration: 300, delay: 120, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: mark, y: mark.y - 10, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 420 });
+    this.paintCrater(x, y - r * 0.3, r * 0.8, r * 0.62);
+    if (!junk) {
+      sfx.collect();
+      sfx.haptic(12);
+      this.sparkleFx.explode(8, x, y - r * 0.5);
+    }
+    this.showPips(b);
+  }
+
+  /**
+   * A find bursts out of the ground. Artifacts make the biggest fuss, collection items a smaller
+   * one, junk just flops. Nothing here pays money: the HUD card only names what it is, and
+   * artifacts are sold later from the Finds screen.
+   */
+  private unearthFind(b: EmbeddedRock): void {
+    const { find: def, sprite } = b;
+    if (!def) return;
+    this.embedded = this.embedded.filter((o) => o !== b);
+    if (b.mark) {
+      this.tweens.killTweensOf(b.mark);
+      b.mark.destroy();
+    }
+    state.beginActivity();
+    const cat = def.category;
+    const junk = cat === 'junk';
+    const artifact = cat === 'artifact';
+    const tier = def.tier;
+    const base = (junk ? JUNK_SIZE : FIND_SIZE) / FIND_TEXTURE;
+    const layerIndex = state.dig.layerIndexAtY(b.y);
+    this.paintCrater(b.x, b.y - b.r * 0.1, b.r * (junk ? 1.2 : 1.5), b.r * (junk ? 1.05 : 1.3));
+    this.dirtFx[layerIndex].explode(junk ? 14 : 28, b.x, b.y);
+    this.dustFx[layerIndex].explode(junk ? 5 : 9, b.x, b.y - b.r * 0.5);
+    if (!junk) {
+      this.sparkleFx.explode((artifact ? 14 : 8) + tier * (artifact ? 6 : 3), b.x, b.y - b.r * 0.4);
+      this.cameras.main.shake(artifact ? 170 + tier * 60 : 120, artifact ? 0.005 + tier * 0.0018 : 0.004);
+    }
+    if (artifact && tier >= 3) this.cameras.main.flash(280, 255, 244, 190);
+    sprite.clearTint();
+    this.rockLayer.remove(sprite);
+    this.popLayer.addAt(sprite, 0);
+
+    // The player's own reaction, shouted over the hole (not for rubbish).
+    if (!junk) {
+      const shout = this.add.text(b.x, b.y - 110, '!', outlinedStyle(artifact ? 64 : 48, CATEGORY_STYLE[cat].css)).setOrigin(0.5).setScale(0);
+      this.popLayer.add(shout);
+      this.tweens.add({ targets: shout, scale: 1.1, angle: { from: -8, to: 4 }, duration: 220, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: shout, y: shout.y - 50, alpha: 0, delay: 800, duration: 380, onComplete: () => shout.destroy() });
+    }
+
+    const landY = b.y - b.r * 0.2;
+    this.tweens.killTweensOf(sprite);
+    if (junk) {
+      // A dull flop: hop, land, lie there.
+      this.tweens.chain({
+        targets: sprite,
+        tweens: [
+          { y: landY - 50, scaleX: base * 1.1, scaleY: base * 0.9, angle: sprite.angle + 40, duration: 180, ease: 'Quad.easeOut' },
+          { y: landY, scale: base, angle: sprite.angle + 70, duration: 170, ease: 'Quad.easeIn' },
+        ],
+      });
+    } else {
+      this.tweens.chain({
+        targets: sprite,
+        tweens: [
+          { scaleX: base * 1.3, scaleY: base * 0.7, duration: 70, ease: 'Quad.easeOut' },
+          { y: landY - 190, scaleX: base * 1.15, scaleY: base * 1.2, angle: 360, duration: 360, ease: 'Quad.easeOut' },
+          { y: landY - 170, scale: base * (artifact ? 1.35 : 1.2), angle: 372, duration: 420, yoyo: true, ease: 'Sine.easeInOut' },
+        ],
+      });
+    }
+
+    // Record it right away (the HUD card shows at once). Never any cash here.
+    const item = state.finds.makeItem(def, Math.random, state.depositValueMult);
+    state.recordFindItem(def, item);
+    if (artifact) {
+      sfx.surprise(tier);
+      sfx.haptic(tier >= 3 ? [30, 40, 70] : 25);
+    } else if (cat === 'collection') {
+      sfx.surprise(Math.min(2, tier));
+      sfx.haptic(15);
+    } else {
+      sfx.collect();
+    }
+    this.time.delayedCall(junk ? 450 : artifact ? 900 : 700, () => {
+      this.tweens.killTweensOf(sprite);
+      this.tweens.add({
+        targets: sprite, scale: 0, alpha: 0, y: sprite.y - (junk ? 10 : 40), duration: 260, ease: 'Back.easeIn',
+        onComplete: () => {
+          sprite.destroy();
+          state.endActivity();
+        },
+      });
     });
   }
 
@@ -957,6 +1253,134 @@ export class DigScene extends Phaser.Scene {
     if (state.inventory.isFull) return;
     const stuck = this.embedded.find((b) => b.hp <= 0.01);
     if (stuck && this.scene.isActive()) this.unearth(stuck);
+  }
+
+  // ---------- skills ----------
+
+  /** A short word over the hole: BIG HOLE!, ANGRY!, CRACK!... */
+  private callout(text: string, x: number, y: number, color: string): void {
+    const t = this.callouts[this.calloutIndex++ % this.callouts.length];
+    this.tweens.killTweensOf(t);
+    t.setText(text).setColor(color).setPosition(clamp(x, this.visL + 120, this.visR - 120), y).setAlpha(1).setScale(0.4).setVisible(true);
+    this.tweens.add({ targets: t, scale: 0.85, duration: 200, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, y: y - 46, alpha: 0, delay: 650, duration: 420, onComplete: () => t.setVisible(false) });
+  }
+
+  /** Angry Shoveler: the digger snaps. */
+  private onRageStart(x: number): void {
+    this.callout('ANGRY!', x, state.dig.floorAt(x) - 130, '#ff6a4a');
+    this.cameras.main.shake(220, 0.006);
+    sfx.rage();
+    this.emberFx.explode(14, this.rig.x, this.rig.y - 30);
+  }
+
+  /** The rage look: a red shovel and rising embers for as long as it lasts. */
+  private updateRage(): void {
+    const now = this.time.now;
+    const raging = state.traits.raging(now);
+    if (raging !== this.rageShown) {
+      this.rageShown = raging;
+      if (raging) this.shovel.setTint(0xff6a4a);
+      else this.applyToolLook();
+    }
+    if (raging && now >= this.nextRageEmber) {
+      this.nextRageEmber = now + 70;
+      this.emberFx.explode(1, this.rig.x + range(Math.random, -10, 10), this.rig.y - 40);
+    }
+  }
+
+  /** After Image: a ghost copy of the tool drops in a moment later and digs the same spot for free. */
+  private spawnAfterimage(x: number): void {
+    const E = TRAIT_EFFECTS.afterimage;
+    const ghost = this.ghosts[this.ghostIndex++ % this.ghosts.length];
+    const floorY = state.dig.floorAt(x);
+    this.tweens.killTweensOf(ghost);
+    ghost.setTexture(state.tool.textureKey).setVisible(true).setAlpha(0).setTint(0x9fe8ff).setPosition(x + 36, floorY - 120).setAngle(26);
+    this.tweens.add({ targets: ghost, alpha: 0.75, duration: 140 });
+    this.callout('AFTER IMAGE!', x, floorY - 150, '#9fe8ff');
+    sfx.ghost();
+    this.time.delayedCall(E.delayMs, () => {
+      const landY = state.dig.floorAt(x) + 6;
+      this.tweens.add({
+        targets: ghost, x, y: landY, angle: 4, duration: state.tool.plungeMs * 1.3, ease: 'Quad.easeIn',
+        onComplete: () => {
+          this.impact(x, PLAIN_SWING, true);
+          this.tweens.add({ targets: ghost, alpha: 0, y: ghost.y - 34, duration: 280, onComplete: () => ghost.setVisible(false) });
+        },
+      });
+    });
+  }
+
+  /** Scrap Shot: mini projectiles leave the shovel and each dig a small hole beside the main one. */
+  private fireScrapShots(x: number, count: number, step: number): void {
+    const E = TRAIT_EFFECTS.scrapShot;
+    const radius = state.tool.craterRadius;
+    const startY = state.dig.floorAt(x) - 60;
+    this.callout('SCRAP SHOT!', x, startY - 70, '#ffd36a');
+    for (let i = 0; i < count; i++) {
+      const shot = this.shots[this.shotIndex++ % this.shots.length];
+      const lx = clamp(x + range(Math.random, -E.spread, E.spread) * radius, this.visL, this.visR);
+      this.tweens.killTweensOf(shot);
+      shot.setPosition(x, startY).setVisible(true).setAlpha(1).setScale(1);
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        delay: i * 70,
+        duration: 300,
+        ease: 'Quad.easeIn',
+        onUpdate: (tw) => {
+          const t = tw.getValue() ?? 0;
+          shot.setPosition(x + (lx - x) * t, startY + (state.dig.floorAt(lx) - startY) * t - Math.sin(Math.PI * t) * 90);
+          shot.setAngle(shot.angle + 24);
+        },
+        onComplete: () => {
+          shot.setVisible(false);
+          this.miniHole(x, lx - x, step);
+        },
+      });
+    }
+  }
+
+  /** One small crater from a projectile, dug into the bottom of the hole at x. */
+  private miniHole(x: number, offset: number, step: number): void {
+    const E = TRAIT_EFFECTS.scrapShot;
+    const part = state.dig.miniHole(x, offset, step * E.depthSteps, state.tool.craterRadius * E.widthMult);
+    this.paintCrater(part.cx, part.cy, part.rx, part.ry, 'round', false);
+    const layerIndex = state.dig.layerIndexAtY(part.cy);
+    this.dirtFx[layerIndex].explode(5, part.cx, state.dig.floorAt(part.cx));
+    this.dustFx[layerIndex].explode(2, part.cx, state.dig.floorAt(part.cx) - 4);
+    this.followFloor(state.dig.floorAt(x));
+  }
+
+  /** Hot Rock: a worthless rock turns red hot where it lies, then blows a big hole. */
+  private igniteHotRock(b: EmbeddedRock): void {
+    const E = TRAIT_EFFECTS.hotRock;
+    this.embedded = this.embedded.filter((o) => o !== b);
+    b.glint?.remove();
+    state.recordFind();
+    state.beginActivity();
+    b.sprite.setTint(0xff7a3a);
+    this.tweens.killTweensOf(b.sprite);
+    this.tweens.add({ targets: b.sprite, scale: b.sprite.scale * 1.16, duration: 110, yoyo: true, repeat: Math.round(E.fuseMs / 220) });
+    this.callout('HOT ROCK!', b.x, b.y - b.r - 60, '#ff8a3d');
+    this.emberFx.explode(10, b.x, b.y - b.r * 0.4);
+    this.time.delayedCall(E.fuseMs, () => this.detonate(b));
+  }
+
+  private detonate(b: EmbeddedRock): void {
+    const E = TRAIT_EFFECTS.hotRock;
+    const rock = b.rock;
+    this.tweens.killTweensOf(b.sprite);
+    b.sprite.destroy();
+    if (rock) releaseRockTextures(this.textures, rock);
+    const res = this.digAt(b.x, { depth: E.depthMult, width: E.widthMult }, false);
+    this.emberFx.explode(26, b.x, b.y - b.r * 0.3);
+    this.pebbleFx.explode(4, b.x, b.y);
+    this.cameras.main.shake(300, 0.009);
+    this.cameras.main.flash(120, 255, 170, 90);
+    sfx.blast(1);
+    this.ring(b.x, res.floorBefore);
+    state.endActivity();
   }
 
   // ---------- feedback ----------
