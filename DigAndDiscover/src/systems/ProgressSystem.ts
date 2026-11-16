@@ -41,7 +41,12 @@ export interface ProgressHooks {
   grant: (cash: number) => void;
 }
 
-const SAVE_KEY = 'dig-and-discover-save-v2';
+/**
+ * main_2 uses its own save slot on purpose, so every player starts fresh. Saves from earlier versions of the
+ * game ('dig-and-discover-save-v2') are never read; they stay untouched in the browser, so going back to an
+ * earlier version later would still find them.
+ */
+const SAVE_KEY = 'dig-and-discover-save-main2';
 const GOAL_SLOTS = 3;
 
 /** XP needed to climb from `level` to `level + 1`. */

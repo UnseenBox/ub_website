@@ -188,7 +188,7 @@ Replaced the friend's 57 emoji "curios", which paid cash at once. Rocks stay the
 - Offers: refill stamina (store row), sell a rock for double (rock worth $30+), double the day's earnings (summary), free cash (store row), and a midgame break between days. A rewarded offer has a 20-second cooldown, midgame breaks are at least 3 minutes apart, and all sound is muted while an ad plays. The game reports `gameplayStart` / `gameplayStop` to the SDK.
 
 ### Saving
-- Saved to `localStorage` under `dig-and-discover-save-v2` (older v1 saves are ignored): money, day number, rocks found and cut, XP, owned tools, upgrade levels, active goals, best depth, the finds inventory (artifacts held, collection and junk counts), the finance state (debt, instalments, carried bills, month and day in month, game over), the current deposit and the deepest layer already paid out. A run that ended in Game Over stays ended after a reload until Restart is pressed.
+- Saved to `localStorage` under `dig-and-discover-save-main2` (main_2 has its own save slot so every player starts fresh; saves of earlier versions under `dig-and-discover-save-v2` are never read but not deleted): money, day number, rocks found and cut, XP, owned tools, upgrade levels, active goals, best depth, the finds inventory (artifacts held, collection and junk counts), the finance state (debt, instalments, carried bills, month and day in month, game over), the current deposit and the deepest layer already paid out. A run that ended in Game Over stays ended after a reload until Restart is pressed.
 - **Not saved (from reading the code):** the dug shaft itself, the rocks in your bag and the time of day. Reloading restores your progress but starts the ground over.
 - Add `?reset` to the URL to clear the save.
 
@@ -357,7 +357,7 @@ Entry point. Starts the ad SDK in the background (never blocks), waits for the R
 | `DiscoverySystem.ts` | Per-swing chance to turn up a rock, with the pity ramp and the scanners' find bonus. |
 | `FindSystem.ts` | `FindSystem` (per-swing find roll by category and layer, item making with condition and value) and `FindsInventory` (artifacts held, collection and junk counts, sell, save and restore). No money is created here. |
 | `FinanceSystem.ts` | Pure finance logic: itemised household bill, carried bills, weekly instalments, overdue, month check, `pay`, `payBills`, `payInstallment`, `view()` for the UI, save and restore. |
-| `ProgressSystem.ts` | Level and XP, owned tools, upgrade levels, the three goals, deposit number and the **save and load** to `localStorage` (save key `dig-and-discover-save-v2`). |
+| `ProgressSystem.ts` | Level and XP, owned tools, upgrade levels, the three goals, deposit number and the **save and load** to `localStorage` (save key `dig-and-discover-save-main2`). |
 | `RockGenerator.ts` | `generateRock()`: rarity (the layer's weights), mineral, independent exterior, size and value with the layer/deposit multiplier. |
 | `StaminaSystem.ts` | Spending stamina (with cost multiplier), the rest delay, regeneration, store upgrades and `reset()` / `refill()`. |
 | `InventorySystem.ts` | Bag with a growable number of slots (`setCapacity`, set by Bigger Bag): add, remove, `markCut`, `firstUncut`, counts, `isFull`. |
