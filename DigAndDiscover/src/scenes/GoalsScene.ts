@@ -134,6 +134,11 @@ export class GoalsScene extends Phaser.Scene {
     content.add(startOver);
     y += 50;
 
+    // Which build is this? (the name and the build time; the same text is in the page's script, so it proves what loaded)
+    const label = typeof __BUILD_LABEL__ === 'string' ? __BUILD_LABEL__ : 'main_2';
+    content.add(this.add.text(CARD_W / 2, y - 4, label, textStyle(12, SOFT_INK)).setOrigin(0.5, 0));
+    y += 20;
+
     this.cardH = y + 10;
     const ph = this.cardH - 8;
     panel.fillStyle(0x000000, 0.3).fillRoundedRect(4, 12, CARD_W, ph, 24);

@@ -176,7 +176,7 @@ Replaced the friend's 57 emoji "curios", which paid cash at once. Rocks stay the
 - You owe the bank **$250,000**. An **instalment** (month 1: $2,500, growing x2.4 each month) falls due **every 7 days**. A missed instalment stays overdue and piles up.
 - The month is **30 days**. When you press START NEXT DAY on day 30, any **overdue debt** ends the run: **Game Over**, with the reason on screen and a **Restart** button (no key can press it). If you are clear, the next month starts with a new, bigger schedule.
 - The **debt ledger** (`L`, or the ledger chip under the top bar with a red or amber badge) shows debt, weekly payment, paid so far, overdue, next payment day, days left in the month, bills owed and your money. **Pay what is due** clears the carried household bills first, then the overdue instalment (with nothing due it reads **Pay ahead** and prepays the next instalment). **Pay all I can** pays bills, then the debt.
-- **Start over** (a small red button on the Goals card, with a confirmation card) erases everything stored in the browser, including the sound setting and saves of earlier versions, and reloads the game: Old Shovel, $0, day 1.
+- **Start over** (a small red button on the Goals card, with a confirmation card) erases everything stored in the browser, including the sound setting and saves of earlier versions, and reloads the game: Old Shovel, $0, day 1. The bottom of the Goals card also shows the build label ("main_2 - build <date time> UTC", put in at build time by `vite.config.ts` as `__BUILD_LABEL__`), so anyone can tell which build is running.
 - **Restart** resets the whole run (money, day, dig, tools, upgrades, XP, bag, finds, bills, debt). Only the sound mute preference survives.
 - All numbers live in `data/economy.ts`; the logic is the pure `systems/FinanceSystem.ts` (checks in `dev/finance-sim.ts`).
 
@@ -421,6 +421,7 @@ The old `ClockPill.ts` and `ToolChip.ts` widgets were removed when the HUD was q
 | `CollectionScene.ts` | The Finds screen (scene key `Collection`): collection, artifacts (Sell and Sell all, the only way artifacts pay) and junk tabs. |
 | `LedgerScene.ts` | The debt card: debt, weekly payment, overdue, next payment, month deadline, bills owed, pay buttons. |
 | `GameOverScene.ts` | The end of a run: reason, three stats and the Restart button (no key triggers it). |
+| `build-info.d.ts` | Declares `__BUILD_LABEL__`, the build label that `vite.config.ts` defines. |
 | `ResetScene.ts` | "Start over?": opened by the red Start over button on the Goals card. Asks once; "Erase everything" deletes every save slot of every version and the sound setting from the browser (`wipeAllData` in `ProgressSystem.ts`) and reloads the page, so the next game starts with the Old Shovel and $0. No key triggers it. |
 | `RelocateScene.ts` | The bedrock card that offers the next deposit and shows what changes. |
 
