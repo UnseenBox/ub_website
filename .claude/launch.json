@@ -39,6 +39,21 @@
         "--strictPort"
       ],
       "port": 5184
+    },
+    {
+      "name": "crazy-kora-crazygames-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "crazy-goal",
+        "run",
+        "dev:crazygames",
+        "--",
+        "--port",
+        "5188",
+        "--strictPort"
+      ],
+      "port": 5188
     }
   ]
 }

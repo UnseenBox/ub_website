@@ -33,6 +33,7 @@ interface CrazySdk {
     loadingStop(): void;
     gameplayStart(): void;
     gameplayStop(): void;
+    happytime(): void;
   };
   readonly ad: {
     requestAd(type: 'midgame' | 'rewarded', callbacks?: AdCallbacks): void;
@@ -156,6 +157,15 @@ export class Portal {
       this.sdk?.game.gameplayStop();
     } catch {
       /* reporting must never break the game */
+    }
+  }
+
+  /** The SDK's own celebration overlay, saved for the one thing in this game rare enough to earn it. */
+  happytime(): void {
+    try {
+      this.sdk?.game.happytime();
+    } catch {
+      /* purely decorative */
     }
   }
 

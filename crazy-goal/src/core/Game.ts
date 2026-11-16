@@ -434,7 +434,8 @@ export class Game {
     // A hidden tab is a break: freeze play wherever it is, in every build.
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && !this.paused && this.state !== 'menu' && (this.state === 'ready' || this.state === 'aiming' || this.state === 'flight' || this.state === 'replay')) {
-        this.setPaused(true);
+        // The CrazyGames SDK already tracks focus loss on its own; this pause is ours alone to report.
+        this.setPaused(true, false);
       }
     });
     window.addEventListener('pagehide', () => {
@@ -1035,12 +1036,17 @@ export class Game {
     this.onLevelEntered();
   }
 
-  setPaused(paused: boolean): void {
+  /**
+   * `reportToPortal` is false only for a pause the tab's own visibility forced: the CrazyGames SDK
+   * handles a hidden tab itself and asks games not to call gameplayStop for it, only for a pause
+   * the player actually asked for.
+   */
+  setPaused(paused: boolean, reportToPortal = true): void {
     if (this.state === 'menu' || paused === this.paused) return;
     this.paused = paused;
     if (paused) {
       if (this.state === 'aiming') this.cancelAim();
-      portal.gameplayStop();
+      if (reportToPortal) portal.gameplayStop();
       if (this.duel.active) this.duel.showPause();
       else {
         this.overlay.showPause();
@@ -1476,6 +1482,8 @@ export class Game {
       this.record.paidStars = Math.max(this.record.paidStars, stars);
       this.save.data.coins += this.goalCoins;
       portal.gameplayStop();
+      // The one moment in the whole campaign rare enough for the platform's own celebration: finishing it.
+      if (firstClear && this.level.index === this.levels.length - 1) portal.happytime();
     }
     if (this.shotRule === 'free') this.offerGoalTips(card.lines.map((l) => l.label));
     if (card.newBest) this.record.best = card.total;
