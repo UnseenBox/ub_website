@@ -34,6 +34,8 @@ interface CrazySdk {
     gameplayStart(): void;
     gameplayStop(): void;
     happytime(): void;
+    readonly settings?: { readonly muteAudio?: unknown } | null;
+    addSettingsChangeListener?(fn: () => void): void;
   };
   readonly ad: {
     requestAd(type: 'midgame' | 'rewarded', callbacks?: AdCallbacks): void;
@@ -79,6 +81,8 @@ export class Portal {
   private loading = false;
   private ready = false;
   private lastMidroll = 0;
+  /** Set once the audio manager asks to be told about the platform's own mute toggle. */
+  private muteWatcher: ((muted: boolean) => void) | null = null;
 
   /** Boots the SDK in the background; never blocks the game. */
   async init(): Promise<void> {
@@ -102,8 +106,31 @@ export class Portal {
       }
       // A press on Play may have happened before the SDK was live.
       if (this.playing) sdk.game.gameplayStart();
+      // The audio manager may already be waiting to hear the platform's mute setting.
+      if (this.muteWatcher) this.attachMuteWatcher(sdk, this.muteWatcher);
     } catch {
       this.sdk = null;
+    }
+  }
+
+  /**
+   * The CrazyGames SDK's own mute switch (the player muted the browser tab, or a site-wide
+   * control): "takes priority over in-game audio toggles", so the audio manager asks to hear
+   * about it here instead of reading it once. Safe to call before the SDK is ready; it is kept
+   * and attached once `init()` resolves.
+   */
+  watchMute(apply: (muted: boolean) => void): void {
+    this.muteWatcher = apply;
+    if (this.sdk) this.attachMuteWatcher(this.sdk, apply);
+  }
+
+  private attachMuteWatcher(sdk: CrazySdk, apply: (muted: boolean) => void): void {
+    try {
+      const read = (): boolean => sdk.game.settings?.muteAudio === true;
+      apply(read());
+      sdk.game.addSettingsChangeListener?.(() => apply(read()));
+    } catch {
+      /* no mute signal from the platform; the player's own toggle still works */
     }
   }
 

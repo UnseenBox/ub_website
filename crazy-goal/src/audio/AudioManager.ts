@@ -92,6 +92,13 @@ export class AudioManager {
   soundVolume = 0.3;
   musicVolume = 0.2;
   muted = false;
+  /** A platform mute (the CrazyGames SDK's own mute toggle) on top of the player's own: either one is enough to mute. */
+  private platformMuted = false;
+
+  /** What the player's own toggle and the platform's mute setting agree on. */
+  private get effectiveMuted(): boolean {
+    return this.muted || this.platformMuted;
+  }
 
   /**
    * Starts downloading the sound sheet. It is decoded later, once the browser allows audio.
@@ -382,9 +389,9 @@ export class AudioManager {
       if (!this.ctx) {
         const ctx = new AudioContext();
         const master = ctx.createGain();
-        master.gain.value = this.muted ? 0 : volumeTaper(this.soundVolume);
+        master.gain.value = this.effectiveMuted ? 0 : volumeTaper(this.soundVolume);
         const musicBus = ctx.createGain();
-        musicBus.gain.value = this.muted ? 0 : volumeTaper(this.musicVolume) * MUSIC_LEVEL;
+        musicBus.gain.value = this.effectiveMuted ? 0 : volumeTaper(this.musicVolume) * MUSIC_LEVEL;
         // A gentle limiter so stacked impacts never clip.
         const limiter = ctx.createDynamicsCompressor();
         limiter.threshold.value = -14;
@@ -415,14 +422,21 @@ export class AudioManager {
     this.setVolumes(this.soundVolume, this.musicVolume);
   }
 
+  /** The CrazyGames SDK's own mute toggle: takes priority over the player's own, as the platform asks. */
+  setPlatformMuted(muted: boolean): void {
+    if (muted === this.platformMuted) return;
+    this.platformMuted = muted;
+    this.setVolumes(this.soundVolume, this.musicVolume);
+  }
+
   /** Both 0 to 1. */
   setVolumes(sound: number, music: number): void {
     this.soundVolume = sound;
     this.musicVolume = music;
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    this.master?.gain.setTargetAtTime(this.muted ? 0 : volumeTaper(sound), now, 0.02);
-    this.musicBus?.gain.setTargetAtTime(this.muted ? 0 : volumeTaper(music) * MUSIC_LEVEL, now, 0.02);
+    this.master?.gain.setTargetAtTime(this.effectiveMuted ? 0 : volumeTaper(sound), now, 0.02);
+    this.musicBus?.gain.setTargetAtTime(this.effectiveMuted ? 0 : volumeTaper(music) * MUSIC_LEVEL, now, 0.02);
   }
 
   /** The audio clock in seconds, or -1 while sound cannot play. */
@@ -431,7 +445,7 @@ export class AudioManager {
   }
 
   private get live(): AudioContext | null {
-    return this.ctx && this.master && !this.muted && this.ctx.state === 'running' ? this.ctx : null;
+    return this.ctx && this.master && !this.effectiveMuted && this.ctx.state === 'running' ? this.ctx : null;
   }
 
   /** Synthetic SFX removed: assets only. */

@@ -326,6 +326,8 @@ export class Game {
     this.input.onGesture = () => this.audio.unlock();
     this.audio.muted = this.save.data.muted;
     this.audio.setVolumes(this.save.data.sound, this.save.data.music);
+    // CrazyGames' own mute switch takes priority over the player's in-game toggle.
+    portal.watchMute((muted) => this.audio.setPlatformMuted(muted));
     this.audio.loadSheet(sfxUrl, sfxIndex);
     // Crowd cheering as background music (loops on the music bus).
     this.audio.loadMusic(bgMusicUrl);
