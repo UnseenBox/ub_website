@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>SLIPSHOT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game" aria-label="SLIPSHOT game arena"></canvas>
+
+      <div id="hud" class="hud">
+        <div class="hud-left">
+          <div class="hud-label">YOU</div>
+          <div class="hp-track"><div id="player-hp-fill" class="hp-fill player"></div></div>
+          <div id="player-hp-text" class="hp-text">100 / 100</div>
+        </div>
+        <div class="hud-center">
+          <div id="wave-text" class="wave-text">WAVE 1</div>
+          <div id="score-text" class="score-text">Score 0</div>
+        </div>
+        <div class="hud-right">
+          <button id="restart-btn" class="btn small" type="button">Restart</button>
+        </div>
+        <div id="upgrade-levels" class="upgrade-levels"></div>
+      </div>
+
+      <div id="upgrade-panel" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
+        <div class="panel">
+          <h2 id="upgrade-title">Wave cleared!</h2>
+          <p class="panel-sub">+15 HP recovered. Pick one upgrade for the next wave.</p>
+          <div id="upgrade-options" class="upgrade-options"></div>
+        </div>
+      </div>
+
+      <div id="gameover-panel" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
+        <div class="panel">
+          <h2 id="gameover-title">Splatted!</h2>
+          <p id="gameover-sub" class="panel-sub"></p>
+          <button id="gameover-restart" class="btn big" type="button">Play again</button>
+        </div>
+      </div>
+
+      <div id="hint" class="hint">Hold anywhere, drag back to aim, release to fire</div>
+      <div class="rotate-hint">Turn your phone sideways for a bigger view</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
