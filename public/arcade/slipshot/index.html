@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>SLIPSHOT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet" />
+    <script type="module" crossorigin src="./assets/index-BhqqahGC.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-rctvDFDd.css">
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game" aria-label="SLIPSHOT game arena"></canvas>
+
+      <div id="hud" class="hud hidden">
+        <button id="jump-btn" class="jump-btn" type="button" data-act="jump" aria-label="Jump">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 L19 13 H14 V20 H10 V13 H5 Z" fill="currentColor"/></svg>
+          <span id="jump-label">Jump</span>
+        </button>
+        <div class="hud-left">
+          <div class="hud-label">YOU</div>
+          <div class="hp-track"><div id="player-hp-fill" class="hp-fill player"></div></div>
+          <div id="player-hp-text" class="hp-text">100 / 100</div>
+          <div id="stamina-track" class="stamina-track"><div id="stamina-fill" class="stamina-fill"></div></div>
+          <div class="hud-chips">
+            <div id="coins-text" class="chip coins">0 coins</div>
+            <button id="weapon-btn" class="chip weapon-btn" type="button" data-act="cycle">Bare Hands ›</button>
+            <button id="build-btn" class="chip build-btn" type="button" data-act="build">🧱 Build</button>
+          </div>
+        </div>
+        <div class="hud-center">
+          <div id="wave-text" class="wave-text">WAVE 1</div>
+          <div class="wave-bar"><div id="wave-fill" class="wave-fill"></div></div>
+          <div id="score-text" class="score-text">0</div>
+          <div id="combo-chip" class="combo hidden">
+            <div id="combo-text" class="combo-text">COMBO ×2</div>
+            <div class="combo-bar"><div id="combo-fill" class="combo-fill"></div></div>
+          </div>
+        </div>
+        <div class="hud-right">
+          <button id="pause-btn" class="btn small" type="button" data-act="pause">Pause</button>
+        </div>
+      </div>
+
+      <div id="menu-panel" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+        <div class="panel menu">
+          <h1 id="menu-title" class="title">SLIPSHOT</h1>
+          <p class="menu-sub">Slime launcher physics</p>
+          <div id="menu-coins" class="chip coins">0 coins</div>
+          <div id="menu-weapon" class="menu-line">Equipped: Bare Hands</div>
+          <div id="menu-home" class="menu-line">Fortress: empty</div>
+          <div class="menu-buttons">
+            <button class="btn big" type="button" data-act="play">Play</button>
+            <button class="btn" type="button" data-act="menu-weapons">Weapons</button>
+            <button class="btn" type="button" data-act="build">Fortress</button>
+            <button class="btn" type="button" data-act="menu-upgrades">Upgrades</button>
+            <button class="btn ghost" type="button" data-act="reset-profile">Reset progress</button>
+          </div>
+          <p class="menu-help">Drag back to aim · release to fire · Space jumps · Jump when down to get up</p>
+        </div>
+      </div>
+
+      <div id="pause-panel" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+        <div class="panel menu">
+          <h2 id="pause-title" class="title small">Paused</h2>
+          <div class="menu-buttons">
+            <button class="btn big" type="button" data-act="resume">Resume</button>
+            <button class="btn" type="button" data-act="pause-weapons">Weapons</button>
+            <button class="btn" type="button" data-act="build">Fortress</button>
+            <button class="btn" type="button" data-act="pause-upgrades">Upgrades</button>
+            <button class="btn" type="button" data-act="restart">Restart run</button>
+            <button class="btn" type="button" data-act="main-menu">Main menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="catalog-panel" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="catalog-title">
+        <div class="panel shop">
+          <div class="shop-head">
+            <h2 id="catalog-title">Weapons</h2>
+            <div class="shop-meta">
+              <span id="catalog-coins" class="chip coins">0 coins</span>
+              <span id="catalog-sub" class="shop-bonus"></span>
+            </div>
+          </div>
+          <div id="catalog-tabs" class="tabs"></div>
+          <div id="catalog-body" class="shop-scroll"></div>
+          <button id="catalog-close" class="btn big" type="button" data-act="close">Back</button>
+        </div>
+      </div>
+
+      <div id="build-panel" class="build hidden" aria-label="Build your fortress">
+        <div class="build-top">
+          <div class="build-title">Fortress</div>
+          <div id="build-coins" class="chip coins">0 coins</div>
+          <div class="build-actions">
+            <button id="build-rotate" class="btn small" type="button" data-act="build-rotate" title="Rotate (R)">⟳ Rotate</button>
+            <button class="btn small" type="button" data-act="build-shop">Shop</button>
+            <button class="btn small build-done" type="button" data-act="build-done">Done</button>
+          </div>
+        </div>
+        <div id="build-hint" class="build-hint">Drag a piece onto your island.</div>
+        <div id="build-tray" class="build-tray"></div>
+      </div>
+
+      <div id="gameover-panel" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
+        <div class="panel menu">
+          <h2 id="gameover-title" class="title small">Splatted!</h2>
+          <p id="gameover-sub" class="panel-sub"></p>
+          <div class="menu-buttons">
+            <button class="btn big" type="button" data-act="restart">Play again</button>
+            <button class="btn" type="button" data-act="main-menu">Main menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="hint" class="hint">Drag back to aim · release to fire · Space jumps · Jump when down</div>
+      <div class="rotate-hint">Turn your phone sideways for a bigger view</div>
+    </div>
+  </body>
+</html>

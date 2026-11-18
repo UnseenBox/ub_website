@@ -8,6 +8,38 @@ import { L, SEED_DATE } from "./helpers";
  */
 export const playables: Playable[] = [
   {
+    id: "play_slipshot",
+    slug: "slipshot",
+    title: "SLIPSHOT",
+    added: "2026-11-19",
+    moods: ["chaos", "quick", "phone"],
+    src: "/arcade/slipshot/index.html",
+    poster: "/arcade/slipshot/poster.svg",
+    genre: L(
+      "Slime physics: throw, stick, build",
+      "Physique du slime : lancer, coller, bâtir",
+      "فيزياء الطين: ارمِ والصق وابنِ",
+    ),
+    summary: L(
+      "Throw slime with your bare hands at ragdoll enemies on the far island. Every hit bursts and sticks like gum, and a KO flings the body and scatters coins that fly back to you. Spend your coins to unlock and place pieces in your fortress: bricks, metal sheets, spike strips, jelly pads, a telescope, a rubber duck that draws enemy fire, and a slime cannon that fights for you. Enemies beam in somewhere new after every KO, and a wave is cleared when the quota is spent.",
+      "Lancez du slime à mains nues sur des ennemis en ragdoll de l'île d'en face. Chaque impact éclate et colle comme de la gomme, et un KO projette le corps et répand des pièces qui reviennent vers vous. Dépensez vos pièces pour débloquer et placer des éléments dans votre forteresse : briques, tôles, bandes à pointes, coussins gélatineux, un télescope, un canard en caoutchouc qui attire les tirs ennemis et un canon à slime qui combat pour vous. Après chaque KO, un nouvel ennemi apparaît ailleurs, et la vague est terminée quand le quota est atteint.",
+      "ارمِ الطين بيدك العارية على أعداء الدمى المتحركة في الجزيرة البعيدة. كل إصابة تنفجر وتلتصق كالعلكة، وكل قتيل يقذف جسده وتتناثر منه العملات لتعود إليك. أنفق عملاتك لفتح قطع وتركيبها في حصنك: طوب ولوحات معدنية وأشرطة شوك ووسادات هلامية ومنظار وبطة مطاطية تجذب نيران الأعداء ومدفع طين يقاتل عنك. يظهر عدو جديد في مكان آخر بعد كل قتيل، وتنتهي الموجة عند استنفاد الحصة.",
+    ),
+    desktopControls: L(
+      "Drag back from your hand to aim, release to throw · Esc pauses · Space jumps · Build opens the fortress: drag pieces from the tray, R rotates",
+      "Tirez vers l'arrière depuis votre main pour viser, relâchez pour lancer · Échap met en pause · Espace saute · Bâtir ouvre la forteresse : glissez les pièces depuis le plateau, R fait pivoter",
+      "اسحب للخلف من يدك للتصويب، وأفلت للرمي · Esc للإيقاف المؤقت · المسافة للقفز · البناء يفتح الحصن: اسحب القطع من الصينية، و R للتدوير",
+    ),
+    phoneControls: L(
+      "Drag back from your hand to aim, let go to throw · Jump when knocked down to get up · Build opens the fortress: drag pieces from the tray onto your island",
+      "Glissez vers l'arrière depuis votre main pour viser, relâchez pour lancer · Sautez à terre pour vous relever · Bâtir ouvre la forteresse : glissez les pièces du plateau sur votre île",
+      "اسحب للخلف من يدك للتصويب، وارفع إصبعك للرمي · اقفز عند السقوط للنهوض · البناء يفتح الحصن: اسحب القطع من الصينية إلى جزيرتك",
+    ),
+    enabled: true,
+    order: 0,
+    updatedAt: SEED_DATE,
+  },
+  {
     id: "play_dig-and-discover",
     slug: "dig-and-discover",
     title: "DIG & DISCOVER",

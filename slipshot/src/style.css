@@ -1,0 +1,1164 @@
+:root {
+  --ink: #1d2638;
+  --panel: #ffffff;
+  --muted: #5b6780;
+  --accent: #8dff5a;
+  --accent-deep: #3f9a1c;
+  --danger: #ff6b6b;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --panel: #ffffff;
+    --ink: #1d2638;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0a1b35;
+  color: var(--ink);
+  font-family: 'Baloo 2', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+#game {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* HUD: pointer events pass through to the canvas except on buttons. */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud-left {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  width: min(250px, 44vw);
+}
+
+.hud-label {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 14px;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(3, 9, 22, 0.8);
+}
+
+.hp-track {
+  height: 16px;
+  margin-top: 4px;
+  background: rgba(29, 38, 56, 0.28);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(29, 38, 56, 0.18);
+}
+
+.hp-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  transform-origin: left center;
+  transition: transform 0.18s ease-out;
+}
+
+.hp-fill.player {
+  background: linear-gradient(90deg, #4fd46b, #b8ff6a);
+}
+
+.hp-text {
+  margin-top: 2px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(3, 9, 22, 0.8);
+}
+
+.upgrade-levels {
+  position: absolute;
+  left: 16px;
+  top: 74px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: min(320px, 70vw);
+}
+
+.chip {
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 1px 4px rgba(29, 38, 56, 0.15);
+}
+
+.chip b {
+  color: var(--accent-deep);
+}
+
+.hud-center {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.wave-text {
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(29, 38, 56, 0.45);
+}
+
+.score-text {
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(29, 38, 56, 0.5);
+}
+
+/* Hit-chain meter under the score. Hidden until the second hit. */
+.combo {
+  width: 150px;
+  margin: 7px auto 0;
+  padding: 5px 10px 6px;
+  border-radius: 14px;
+  background: rgba(20, 28, 44, 0.42);
+  box-shadow: 0 2px 8px rgba(3, 9, 22, 0.25);
+  animation: combo-pop 0.18s ease-out;
+}
+
+.combo-text {
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  color: #b8ff6a;
+  text-shadow: 0 1px 2px rgba(3, 9, 22, 0.7);
+}
+
+.combo-bar {
+  height: 5px;
+  margin-top: 4px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.combo-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #8dff5a, #ffe27a);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+@keyframes combo-pop {
+  from {
+    transform: scale(0.86);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.hud-right {
+  position: absolute;
+  right: 16px;
+  top: 12px;
+  pointer-events: auto;
+}
+
+.btn {
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  background: #ffffff;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(29, 38, 56, 0.25);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(29, 38, 56, 0.25);
+}
+
+.btn.small {
+  font-size: 14px;
+}
+
+.btn.big {
+  font-size: 20px;
+  padding: 12px 28px;
+  background: var(--accent);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(20, 28, 44, 0.42);
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.panel {
+  width: min(720px, 100%);
+  background: var(--panel);
+  border-radius: 22px;
+  padding: 24px 22px 22px;
+  text-align: center;
+  box-shadow: 0 14px 40px rgba(20, 28, 44, 0.35);
+}
+
+.panel h2 {
+  margin: 0 0 4px;
+  font-size: 30px;
+  letter-spacing: 0.02em;
+}
+
+.panel-sub {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.upgrade-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  gap: 12px;
+}
+
+.upgrade-card {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px 14px;
+  border: 2px solid #dfe6f1;
+  border-radius: 16px;
+  background: #f7faff;
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 0.08s ease, border-color 0.08s ease;
+}
+
+.upgrade-card:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.upgrade-card:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.upgrade-card:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.upgrade-title {
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: 0.04em;
+}
+
+.upgrade-detail {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.pips {
+  display: flex;
+  gap: 4px;
+}
+
+.pips i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d5dcea;
+}
+
+.pips i.on {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(63, 154, 28, 0.25);
+}
+
+.upgrade-state {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(29, 38, 56, 0.72);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* HUD chips: coins and the weapon cycle button. */
+.hud-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chip.coins {
+  background: #ffe27a;
+  font-weight: 800;
+}
+
+.hud .weapon-btn,
+.hud .build-btn {
+  pointer-events: auto;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+
+/* Shop: a scrolling panel of weapon, upgrade and repair cards. */
+.panel.shop {
+  width: min(900px, 100%);
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 16px;
+  text-align: left;
+}
+
+.shop-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.shop-head h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.shop-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shop-bonus {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--accent-deep);
+}
+
+.shop-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+}
+
+.shop-section {
+  margin: 14px 0 8px;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shop-section:first-child {
+  margin-top: 0;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 2px solid #dfe6f1;
+  border-radius: 14px;
+  background: #f7faff;
+}
+
+.card.is-equipped {
+  border-color: var(--accent);
+  background: #f2ffe8;
+}
+
+.card-wide {
+  grid-column: 1 / -1;
+}
+
+.card-title {
+  font-weight: 800;
+  font-size: 17px;
+}
+
+.card-blurb {
+  min-height: 2.4em;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card-stats {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.card .btn.small {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.card .btn.small:disabled {
+  opacity: 0.55;
+  cursor: default;
+  box-shadow: none;
+}
+
+.card .pips {
+  margin: 2px 0;
+}
+
+/* HUD buttons take clicks even though the HUD itself lets pointers through. */
+.hud .btn {
+  pointer-events: auto;
+}
+
+/* Menus: main menu, pause and game over share the centred panel style. */
+.panel.menu {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 26px 22px 22px;
+}
+
+.title {
+  margin: 0;
+  font-size: 54px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.title.small {
+  font-size: 34px;
+}
+
+.menu-sub {
+  margin: -6px 0 2px;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.menu-line {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.menu-help {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.menu-buttons {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.menu-buttons .btn {
+  width: 100%;
+}
+
+.btn.ghost {
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Catalog: tabs across the top of the weapons, upgrades and field kit lists. */
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: 2px solid #dfe6f1;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: #ffffff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.tab.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tag {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e4ecf8;
+  color: #1d2638;
+}
+
+/* Stamina bar under the health bar. Turns red for a moment when an action fails. */
+.stamina-track {
+  height: 9px;
+  margin-top: 6px;
+  border-radius: 99px;
+  background: rgba(3, 9, 22, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  transition: box-shadow 0.15s ease;
+}
+
+.stamina-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #5ec8ff, #d9f7ff);
+  transform-origin: left center;
+  transform: scaleX(1);
+  transition: transform 0.15s ease-out;
+}
+
+.stamina-track.is-empty {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.45);
+}
+
+.stamina-track.is-empty .stamina-fill {
+  background: linear-gradient(90deg, #ff6b6b, #ffb3b3);
+}
+
+/* Jump button, bottom right, big enough to hit with a thumb. */
+.jump-btn {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 78px;
+  height: 78px;
+  padding: 8px 0 6px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #e3f1ff 55%, #9cc8f0 100%);
+  color: #14325d;
+  font: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  box-shadow: 0 5px 0 #5b8fc2, 0 10px 18px rgba(3, 9, 22, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.jump-btn svg {
+  width: 26px;
+  height: 26px;
+}
+
+.jump-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #5b8fc2, 0 6px 10px rgba(3, 9, 22, 0.35);
+}
+
+/* When the player is down, the same thumb button becomes the kip-up. */
+.jump-btn.is-getup {
+  background: radial-gradient(circle at 35% 30%, #fffbe0 0%, #ffe27a 55%, #f2b23a 100%);
+  box-shadow: 0 5px 0 #b57d1a, 0 10px 18px rgba(3, 9, 22, 0.35);
+  animation: getup-pulse 0.8s ease-in-out infinite alternate;
+}
+
+.jump-btn.is-getup:active {
+  box-shadow: 0 2px 0 #b57d1a, 0 6px 10px rgba(3, 9, 22, 0.35);
+}
+
+@keyframes getup-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+/* Wave progress under the wave number. */
+.wave-bar {
+  width: 130px;
+  height: 6px;
+  margin: 6px auto 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.wave-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #8dff5a, #ffe27a);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 0.35s ease-out;
+}
+
+/* Weapon button and menu icons. */
+.weapon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 4px;
+}
+
+.wb-ic {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f1f5fb;
+  box-shadow: inset 0 0 0 2px #dfe6f1;
+}
+
+.wb-ic svg,
+.menu-ic svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.menu-weapon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.menu-ic {
+  display: block;
+  width: 84px;
+  height: 84px;
+  filter: drop-shadow(0 6px 8px rgba(3, 9, 22, 0.35));
+}
+
+/* Weapon cards: artwork first, one badge, three meters, one action. */
+.wgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 12px;
+}
+
+.wcard {
+  --c: #8dff5a;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 12px 10px;
+  border-radius: 18px;
+  border: 2px solid color-mix(in srgb, var(--c) 45%, #ffffff);
+  background: linear-gradient(170deg, color-mix(in srgb, var(--c) 30%, #ffffff) 0%, #ffffff 62%);
+  box-shadow: 0 6px 14px rgba(20, 28, 44, 0.08);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.wcard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px rgba(20, 28, 44, 0.14);
+}
+
+.wcard.is-equipped {
+  border-color: var(--c);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 40%, transparent), 0 8px 16px rgba(20, 28, 44, 0.12);
+}
+
+.wcard.is-locked .wart {
+  filter: grayscale(0.35) opacity(0.85);
+}
+
+.wart {
+  width: 92px;
+  height: 92px;
+  margin: 2px 0 0;
+  filter: drop-shadow(0 6px 8px rgba(20, 28, 44, 0.22));
+}
+
+.wart svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.wname {
+  font-weight: 800;
+  font-size: 16px;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.wbadge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 9px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--c) 35%, #ffffff);
+  color: #1d2638;
+}
+
+.wmeters {
+  width: 100%;
+  display: flex;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.wmeters i {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(29, 38, 56, 0.12);
+  overflow: hidden;
+}
+
+.wmeters i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: calc(var(--v) * 100%);
+  border-radius: inherit;
+  background: var(--c);
+}
+
+.wfoot {
+  margin-top: auto;
+  padding-top: 4px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wbuy {
+  font: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  min-width: 84px;
+  padding: 6px 14px 6px 28px;
+  border: 0;
+  border-radius: 99px;
+  background: #ffffff;
+  color: #1d2638;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 2px 0 rgba(29, 38, 56, 0.18);
+}
+
+.wbuy::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: #ffd84a;
+  box-shadow: inset 0 0 0 2px #d9a300;
+}
+
+.wbuy.wequip {
+  padding-left: 14px;
+  background: var(--c);
+}
+
+.wbuy.wequip::before {
+  display: none;
+}
+
+.wbuy:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.wtick {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #1d2638;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: var(--c);
+}
+
+/* ---- Fortress: shop cards and build mode ------------------------------- */
+
+.fhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.fblurb {
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--muted);
+  text-align: center;
+  min-height: 2.5em;
+}
+
+.fstats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ink);
+  opacity: 0.8;
+}
+
+.wbuy.funlock {
+  background: #1d2638;
+  color: #ffe27a;
+}
+
+.hud .build-btn {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  color: var(--ink);
+  background: #ffd9a8;
+}
+
+.chip.coins.bump {
+  animation: bump 0.28s ease-out;
+}
+
+@keyframes bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+/* Build mode: a top bar and a tray of pieces along the bottom; the arena stays visible between them. */
+.build {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 12;
+}
+
+.build-top {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 16px 0;
+  padding: 8px 10px 8px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 20px rgba(4, 11, 25, 0.35);
+}
+
+.build-title {
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.build-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.build-actions .btn.is-on {
+  background: #ffe27a;
+}
+
+.build-actions .build-done {
+  background: var(--accent);
+}
+
+.build-hint {
+  align-self: center;
+  margin-top: auto;
+  margin-bottom: 8px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  background: rgba(4, 11, 25, 0.72);
+  color: #eaf4ff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  max-width: calc(100% - 32px);
+}
+
+.build-tray {
+  pointer-events: auto;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 16px 14px;
+  padding: 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 -4px 20px rgba(4, 11, 25, 0.3);
+  touch-action: none;
+}
+
+.tray-slot {
+  flex: 0 0 auto;
+  width: 86px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px 6px;
+  border: 2px solid color-mix(in srgb, var(--c, #8dff5a) 60%, #ffffff);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c, #8dff5a) 16%, #ffffff);
+  font: inherit;
+  color: var(--ink);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.tray-slot:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 14px rgba(29, 38, 56, 0.18);
+}
+
+.tray-slot.is-held {
+  transform: translateY(-6px) scale(1.04);
+  box-shadow: 0 8px 18px rgba(29, 38, 56, 0.25);
+  opacity: 0.6;
+}
+
+.tray-slot.is-empty {
+  filter: grayscale(0.8);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tray-slot.shake {
+  animation: shake 0.32s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+
+.tray-art {
+  width: 46px;
+  height: 46px;
+  pointer-events: none;
+}
+
+.tray-art svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tray-name {
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+.tray-count {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 8px;
+  border-radius: 99px;
+  background: var(--ink);
+  color: #ffffff;
+  pointer-events: none;
+}
+
+.tray-more {
+  --c: #c9d3df;
+  justify-content: center;
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.tray-plus {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* The tray owns the bottom of the screen in build mode. */
+#build-panel:not(.hidden) ~ .rotate-hint {
+  display: none !important;
+}
+
+.rotate-hint {
+  display: none;
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .hint {
+    white-space: normal;
+    width: calc(100% - 32px);
+    text-align: center;
+    border-radius: 14px;
+  }
+  .hud-left {
+    width: min(200px, 52vw);
+  }
+  .hud-center {
+    left: auto;
+    right: 16px;
+    top: 58px;
+    transform: none;
+    text-align: right;
+  }
+  .upgrade-levels {
+    top: 96px;
+  }
+  .wave-text {
+    font-size: 18px;
+  }
+  .panel.shop {
+    padding: 14px 12px 12px;
+  }
+  .card-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .hud-right .btn {
+    padding: 6px 12px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 700px) {
+  .rotate-hint {
+    display: block;
+  }
+}
