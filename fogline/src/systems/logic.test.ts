@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../data/enemies';
 import { WAVES, scheduledCount } from '../data/waves';
 import { WEAPONS } from '../data/weapons';
+import { WEAPON_SHOT_FILES } from '../audio/overrides';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
 import { groundAt, project } from '../game/perspective';
@@ -14,6 +15,28 @@ import { WaveManager } from './WaveManager';
 import { WeaponManager } from './WeaponManager';
 
 const none = new Set<never>();
+
+describe('weapon shot recordings', () => {
+  it('gives every gun its own supplied shot file', () => {
+    expect(new Set(WEAPONS.map((w) => w.sound.shot)).size).toBe(4);
+    const mapping = Object.fromEntries(
+      WEAPONS.map((w) => [w.id, WEAPON_SHOT_FILES[w.sound.shot as keyof typeof WEAPON_SHOT_FILES]]),
+    );
+    expect(mapping).toEqual({
+      service: 'audio/fogline/gun-1.mp3',
+      m4: 'audio/fogline/gun-2.mp3',
+      m249: 'audio/fogline/gun-3.mp3',
+      m32: 'audio/fogline/rocket-launch.mp3',
+    });
+  });
+
+  it('keeps every supplied recording public', () => {
+    const files = import.meta.glob('../../public/audio/fogline/*.mp3');
+    for (const url of Object.values(WEAPON_SHOT_FILES)) {
+      expect(files[`../../public/${url}`], url).toBeDefined();
+    }
+  });
+});
 
 describe('perspective', () => {
   it('distant points are higher and smaller', () => {

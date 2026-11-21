@@ -2,15 +2,22 @@ import { audio } from './AudioManager';
 
 const ROOT = 'audio/fogline';
 
+/** Supplied shot recordings, one per firearm. */
+export const WEAPON_SHOT_FILES = {
+  shot_service: `${ROOT}/gun-1.mp3`,
+  shot_m4: `${ROOT}/gun-2.mp3`,
+  shot_m249: `${ROOT}/gun-3.mp3`,
+  shot_m32: `${ROOT}/rocket-launch.mp3`,
+} as const;
+
 /**
  * Recorded SFX supplied for Fogline. These replace the synthesized placeholders
  * for the same keys as soon as the first click unlocks the AudioContext.
  * Paths are relative to the page so the static build also works from a subfolder.
  */
 export function registerFoglineOverrides(): void {
-  const gunshot = `${ROOT}/gun-1.mp3`;
-  for (const key of ['shot_service', 'shot_m4', 'shot_m249', 'shot_m32']) {
-    audio.registerOverride(key, gunshot);
+  for (const [key, url] of Object.entries(WEAPON_SHOT_FILES)) {
+    audio.registerOverride(key, url);
   }
 
   const reload = `${ROOT}/gun-reload.mp3`;

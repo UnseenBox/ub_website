@@ -75,7 +75,10 @@ exists; `ui_hover` and `ui_click` are recordings only.
 
 | Key(s) | Recording |
 | --- | --- |
-| `shot_service`, `shot_m4`, `shot_m249`, `shot_m32` | `GUN 1.mp3` → `gun-1.mp3` |
+| `shot_service` | `GUN 1.mp3` → `gun-1.mp3` |
+| `shot_m4` | `GUN 2.mp3` → `gun-2.mp3` |
+| `shot_m249` | `GUN 3 SFX.mp3` → `gun-3.mp3` |
+| `shot_m32` | `Rocket Launcher ( Launching ).mp3` → `rocket-launch.mp3` |
 | `reload_service`, `reload_m4`, `reload_m249`, `reload_m32` | `Gun Realod.mp3` → `gun-reload.mp3` |
 | `death_0`, `death_1`, `death_2` | `kill sfx 4.mp3` → `kill-4.mp3` |
 | `headshot_confirm` | `Kill sfx 1.mp3`, `kill sfx 2.mp3`, `killing sfx.mp3` (random pool) |
