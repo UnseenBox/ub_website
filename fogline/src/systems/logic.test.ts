@@ -9,6 +9,7 @@ import { ECONOMY, VIEW } from '../game/config';
 import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
 import { TOUCH_AIM_SENSITIVITY, TOUCH_LAYOUT, isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
+import { enterPhoneFullscreen } from '../game/phoneFullscreen';
 import { Abilities } from './Abilities';
 import { BunkerManager } from './BunkerManager';
 import { blastDamage, bulletDamage, killReward } from './CombatRules';
@@ -509,5 +510,47 @@ describe('view-model aiming', () => {
     });
     expect(p.pivotX).toBeCloseTo(model.pivotX + (20 - VIEW.centerX) * model.aimX);
     expect(p.pivotY).toBeCloseTo(model.pivotY + (80 - 300) * model.aimY);
+  });
+});
+
+describe('phone full screen', () => {
+  const deps = (over: Record<string, unknown> = {}) => {
+    const calls: string[] = [];
+    return {
+      calls,
+      deps: {
+        isPhone: true,
+        isFullscreen: () => false,
+        target: { requestFullscreen: async (o?: { navigationUI?: string }) => { calls.push(`fs:${o?.navigationUI}`); } },
+        lockLandscape: async () => { calls.push('lock'); },
+        ...over,
+      },
+    };
+  };
+
+  it('asks for full screen with the browser bars hidden, then locks landscape', async () => {
+    const { calls, deps: d } = deps();
+    expect(await enterPhoneFullscreen(d)).toBe(true);
+    expect(calls).toEqual(['fs:hide', 'lock']);
+  });
+
+  it('does nothing on desktop or when already full screen', async () => {
+    const a = deps({ isPhone: false });
+    expect(await enterPhoneFullscreen(a.deps)).toBe(false);
+    const b = deps({ isFullscreen: () => true });
+    expect(await enterPhoneFullscreen(b.deps)).toBe(false);
+    expect(a.calls.concat(b.calls)).toEqual([]);
+  });
+
+  it('reports failure when the browser refuses or has no support, without throwing', async () => {
+    const refused = deps({ target: { requestFullscreen: async () => { throw new Error('denied'); } } });
+    expect(await enterPhoneFullscreen(refused.deps)).toBe(false);
+    const none = deps({ target: {} });
+    expect(await enterPhoneFullscreen(none.deps)).toBe(false);
+  });
+
+  it('still succeeds when landscape lock is not allowed', async () => {
+    const d = deps({ lockLandscape: async () => { throw new Error('not allowed'); } });
+    expect(await enterPhoneFullscreen(d.deps)).toBe(true);
   });
 });

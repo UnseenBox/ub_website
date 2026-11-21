@@ -6,6 +6,7 @@ import { VIEW } from './game/config';
 import { GameOverScene } from './game/GameOverScene';
 import { GameScene } from './game/GameScene';
 import { MenuScene } from './game/MenuScene';
+import { installPhoneFullscreen } from './game/phoneFullscreen';
 import { PauseScene } from './game/PauseScene';
 import { SettingsScene } from './game/SettingsScene';
 import { ShopScene } from './game/ShopScene';
@@ -14,6 +15,9 @@ import { ShopScene } from './game/ShopScene';
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('selectstart', (e) => e.preventDefault());
 window.addEventListener('dragstart', (e) => e.preventDefault());
+
+// On phones, go full screen (and landscape) on the first tap instead of staying in a small window.
+installPhoneFullscreen();
 
 // Swap the synthesized gun, reload, kill and headshot cues for the supplied recordings.
 registerFoglineOverrides();
