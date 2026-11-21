@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import m1aViewUrl from '../assets/m1a-view.png';
 import menuBgUrl from '../assets/main-menu.png';
+import menuButtonsUrl from '../assets/menu-buttons.png';
 import { audio } from '../audio/AudioManager';
 import { buildEnvironmentTextures } from '../rendering/EnvironmentArt';
 import { buildFxTextures } from '../rendering/FxArt';
@@ -9,7 +10,7 @@ import { buildWeaponTextures } from '../rendering/WeaponArt';
 import { ZOMBIE_ATLAS, buildZombieAtlas } from '../rendering/ZombieArt';
 import { SaveManager } from '../systems/SaveManager';
 import { VIEW } from './config';
-import { MENU_BG_TEXTURE } from './textureKeys';
+import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from './textureKeys';
 
 /** Paints every procedural texture and synthesizes the sound bank. */
 export class BootScene extends Phaser.Scene {
@@ -21,6 +22,7 @@ export class BootScene extends Phaser.Scene {
     // Supplied bitmaps; everything else is generated below.
     this.load.image('view_service_photo', m1aViewUrl);
     this.load.image(MENU_BG_TEXTURE, menuBgUrl);
+    this.load.image(MENU_BUTTONS_TEXTURE, menuButtonsUrl);
   }
 
   create(): void {
@@ -37,6 +39,14 @@ export class BootScene extends Phaser.Scene {
       const z = buildZombieAtlas();
       const tex = this.textures.addCanvas(ZOMBIE_ATLAS, z.canvas)!;
       for (const f of z.frames) tex.add(f.name, 0, f.x, f.y, f.w, f.h);
+
+      // Crop the supplied button sheet into usable frames. The baked labels are
+      // covered by imageButton() so the correct action names can be drawn on top.
+      const buttons = this.textures.get(MENU_BUTTONS_TEXTURE);
+      buttons.add(MENU_BUTTON_FRAMES.deploy, 0, 266, 458, 1002, 136);
+      buttons.add(MENU_BUTTON_FRAMES.fullscreen, 0, 263, 630, 1005, 130);
+      buttons.add(MENU_BUTTON_FRAMES.patch, 0, 950, 660, 220, 90);
+
       audio.setVolumes(SaveManager.load().volumes);
       // Build the audio graph and decode the supplied recordings while the
       // loading screen is up; playback still waits for the first gesture.

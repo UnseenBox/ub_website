@@ -6,7 +6,7 @@ import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../au
 import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
-import { MENU_BG_TEXTURE } from '../game/textureKeys';
+import { MENU_BG_TEXTURE, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
 import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, resetTouchPointerIds, supportAim, touchGunAim } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { Abilities } from './Abilities';
@@ -34,6 +34,19 @@ describe('main menu background', () => {
     const menu = Object.values(sources).join('\n');
     expect(menu).not.toContain('MOUSE          aim');
     expect(menu).not.toContain('ESC / P        pause & settings');
+  });
+
+  it('registers the supplied menu-button texture', () => {
+    expect(MENU_BUTTONS_TEXTURE).toBe('menu_buttons');
+    const assets = import.meta.glob('../../src/assets/*.png');
+    expect(Object.keys(assets).some((k) => k.endsWith('menu-buttons.png'))).toBe(true);
+  });
+
+  it('uses the image buttons on the title screen', () => {
+    const sources = import.meta.glob('../../src/game/*.ts', { eager: true, query: '?raw', import: 'default' });
+    const menu = Object.entries(sources).find(([k]) => k.endsWith('MenuScene.ts'))?.[1] ?? '';
+    expect(menu).toContain('imageButton(');
+    expect(menu).not.toContain('button(this, VIEW.centerX, 320');
   });
 });
 

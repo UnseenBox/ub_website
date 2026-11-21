@@ -15,6 +15,7 @@ Status legend: **P** = procedural placeholder (final-quality slot, replace with 
 | Key | Size | Use | Source | Status |
 | --- | --- | --- | --- | --- |
 | `menu_bg` | 16:9 (1280×720 displayed) | Full-screen title-screen background | supplied `Main Menu.png` → `src/assets/main-menu.png` | supplied |
+| `menu_buttons` (`btn_deploy`, `btn_fullscreen`, `btn_patch`) | 1536×1024 sheet | DEPLOY and FULLSCREEN title-screen buttons | supplied `Post-Apocalyptic Military Menu Buttons.png` → `src/assets/menu-buttons.png` | supplied |
 
 ## Battlefield (`rendering/EnvironmentArt.ts`)
 
