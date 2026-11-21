@@ -15,6 +15,13 @@ export const WEAPON_IMPACT_FILES = {
   rocket_impact: `${ROOT}/rocket-explosion.mp3`,
 } as const;
 
+/** Supplied recordings for support strikes and bunker defences. */
+export const SUPPORT_SFX_FILES = {
+  shutters_up: `${ROOT}/metal-shield.mp3`,
+  nuke: `${ROOT}/nuc-explosion.mp3`,
+  orbital_charge: `${ROOT}/satellite-beam.mp3`,
+} as const;
+
 /**
  * Recorded SFX supplied for Fogline. These replace the synthesized placeholders
  * for the same keys as soon as the first click unlocks the AudioContext.
@@ -25,6 +32,9 @@ export function registerFoglineOverrides(): void {
     audio.registerOverride(key, url);
   }
   for (const [key, url] of Object.entries(WEAPON_IMPACT_FILES)) {
+    audio.registerOverride(key, url);
+  }
+  for (const [key, url] of Object.entries(SUPPORT_SFX_FILES)) {
     audio.registerOverride(key, url);
   }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../data/enemies';
 import { WAVES, scheduledCount } from '../data/waves';
 import { WEAPONS } from '../data/weapons';
-import { WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../audio/overrides';
+import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../audio/overrides';
 import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
@@ -49,6 +49,30 @@ describe('weapon shot recordings', () => {
     const files = import.meta.glob('../../public/audio/fogline/*.mp3');
     expect(files[`../../public/${WEAPON_IMPACT_FILES.rocket_impact}`]).toBeDefined();
     expect(buildSoundBank(11025).has('rocket_impact')).toBe(true);
+  });
+});
+
+describe('support strike recordings', () => {
+  it('routes the supplied support recordings to the right cues', () => {
+    expect(Object.keys(SUPPORT_SFX_FILES)).toEqual(['shutters_up', 'nuke', 'orbital_charge']);
+    expect(Object.values(SUPPORT_SFX_FILES)).toEqual([
+      'audio/fogline/metal-shield.mp3',
+      'audio/fogline/nuc-explosion.mp3',
+      'audio/fogline/satellite-beam.mp3',
+    ]);
+  });
+
+  it('ships each support recording and keeps its synthesized fallback', () => {
+    const files = import.meta.glob('../../public/audio/fogline/*.mp3');
+    const bank = buildSoundBank(11025);
+    for (const [key, url] of Object.entries(SUPPORT_SFX_FILES)) {
+      expect(files[`../../public/${url}`], url).toBeDefined();
+      expect(bank.has(key), key).toBe(true);
+    }
+  });
+
+  it('leaves the rocket impact recording unchanged', () => {
+    expect(WEAPON_IMPACT_FILES.rocket_impact).toBe('audio/fogline/rocket-explosion.mp3');
   });
 });
 

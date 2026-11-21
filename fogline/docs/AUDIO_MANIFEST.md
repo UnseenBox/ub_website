@@ -80,6 +80,9 @@ exists; `ui_hover` and `ui_click` are recordings only.
 | `shot_m249` | `GUN 3 SFX.mp3` → `gun-3.mp3` |
 | `shot_m32` | `Rocket Launcher ( Launching ).mp3` → `rocket-launch.mp3` |
 | `rocket_impact` | `Rocket Launcher ( Explosion ).mp3` → `rocket-explosion.mp3`; falls back to synthesized `explosion_small` until decoded |
+| `shutters_up` | `Metal Shield.mp3` → `metal-shield.mp3`; falls back to synthesized shutter cue until decoded |
+| `nuke` | `Nuc Explosion sfx.mp3` → `nuc-explosion.mp3`; falls back to synthesized `nuke` until decoded |
+| `orbital_charge` | `Satelite Beam SFX.mp3` → `satellite-beam.mp3`; falls back to synthesized `orbital_charge` until decoded |
 | `reload_service`, `reload_m4`, `reload_m249`, `reload_m32` | `Gun Realod.mp3` → `gun-reload.mp3` |
 | `death_0`, `death_1`, `death_2` | `kill sfx 4.mp3` → `kill-4.mp3` |
 | `headshot_confirm` | `Kill sfx 1.mp3`, `kill sfx 2.mp3`, `killing sfx.mp3` (random pool) |

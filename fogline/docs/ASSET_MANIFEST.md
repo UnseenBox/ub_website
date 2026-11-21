@@ -56,6 +56,9 @@ frames, plus a shared `shadow`. Pivots and lengths are in `PART` and `LEN`. The 
 | `gun-3.mp3` | supplied `GUN 3 SFX.mp3` | M249 shot | Final |
 | `rocket-launch.mp3` | supplied `Rocket Launcher ( Launching ).mp3` | M32 launch | Final |
 | `rocket-explosion.mp3` | supplied `Rocket Launcher ( Explosion ).mp3` | M32 impact | Final |
+| `metal-shield.mp3` | supplied `Metal Shield.mp3` | Blast Shutters activation | Final |
+| `nuc-explosion.mp3` | supplied `Nuc Explosion sfx.mp3` | Tactical Nuke detonation | Final |
+| `satellite-beam.mp3` | supplied `Satelite Beam SFX.mp3` | Orbital Lance call-in | Final |
 | `gun-reload.mp3`, `kill-*.mp3`, `killing.mp3`, `hover.mp3`, `click.mp3` | supplied | Reload, kills, headshot, UI | Final |
 
 ## Effects (`rendering/FxArt.ts`) and HUD (`rendering/HudArt.ts`)
