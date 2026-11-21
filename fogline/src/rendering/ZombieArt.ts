@@ -50,6 +50,8 @@ const LOOKS: Look[] = [
   { key: 'plated_0', skin: 0x737868, cloth: 0x1d2024, pants: 0x22262d, shoe: 0x141416, hair: 0x111111, head: 'helmet', torso: 'armor', sleeve: 'armor' },
   { key: 'plated_1', skin: 0x7c7e6d, cloth: 0x272c31, pants: 0x2a2e26, shoe: 0x141416, hair: 0x111111, head: 'helmet', torso: 'armor', sleeve: 'armor' },
   { key: 'carrier_0', skin: 0x7c7a5c, cloth: 0x6f6a58, pants: 0x3a3a33, shoe: 0x2a2420, hair: 0x2a221c, head: 'bloat', torso: 'bloat', sleeve: 'bare' },
+  { key: 'brute_0', skin: 0x80766a, cloth: 0x2c231c, pants: 0x2b2620, shoe: 0x1a1612, hair: 0x15110e, head: 'normal', torso: 'bloat', sleeve: 'bare' },
+  { key: 'brute_1', skin: 0x6d7468, cloth: 0x37302a, pants: 0x232a2c, shoe: 0x1a1612, hair: 0x2a221c, head: 'scream', torso: 'bloat', sleeve: 'bare' },
   { key: 'crawler_0', skin: 0x6b7062, cloth: 0x4b4a40, pants: 0x2f2f2c, shoe: 0x22201d, hair: 0x1a1512, head: 'scream', torso: 'shirt', sleeve: 'bare' },
 ];
 
@@ -480,6 +482,8 @@ function paintTorso(ctx: CanvasRenderingContext2D, w: number, h: number, rng: Rn
 
 function paintBloatTorso(ctx: CanvasRenderingContext2D, w: number, h: number, rng: Rng, L: Look): void {
   const cx = w / 2, top = 8, bot = h - 5;
+  // Brutes share the swollen silhouette but are scarred and aproned, not pustulant.
+  const brute = L.key.startsWith('brute');
   const pts = [
     [cx - 14, top], [cx - 44, top + 8], [cx - 60, top + 16, cx - 62, top + 34], [cx - 84, top + 90, cx - 80, top + 130],
     [cx - 74, bot - 18, cx - 46, bot], [cx + 46, bot], [cx + 74, bot - 18, cx + 80, top + 130], [cx + 84, top + 90, cx + 62, top + 34],
@@ -519,7 +523,7 @@ function paintBloatTorso(ctx: CanvasRenderingContext2D, w: number, h: number, rn
   // belly button
   softCircle(ctx, cx + 4, top + 128, 5, 'rgba(40,24,16,0.85)', 'rgba(40,24,16,0)');
   // open sores with something moving inside (dark lumps)
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < (brute ? 0 : 2); i++) {
     const sx = cx + rand(rng, -45, 45), sy = rand(rng, top + 70, bot - 40), sr = rand(rng, 7, 11);
     softCircle(ctx, sx, sy, sr * 1.6, 'rgba(110,40,30,0.55)', 'rgba(110,40,30,0)');
     ctx.fillStyle = '#2a0d08';
@@ -533,11 +537,38 @@ function paintBloatTorso(ctx: CanvasRenderingContext2D, w: number, h: number, rn
       ctx.fill();
     }
   }
-  for (let i = 0; i < 9; i++) pustule(ctx, rng, cx + rand(rng, -62, 62), rand(rng, top + 40, bot - 30), rand(rng, 1.5, 3.2));
+  for (let i = 0; i < (brute ? 0 : 9); i++) pustule(ctx, rng, cx + rand(rng, -62, 62), rand(rng, top + 40, bot - 30), rand(rng, 1.5, 3.2));
   // torn shirt remnant around chest
   ctx.fillStyle = cylinderGradient(ctx, cx - 70, cx + 70, L.cloth, 0.15, 0.6);
   path(ctx, [[cx - 70, top + 4], [cx + 70, top + 4], [cx + 66, top + 46], [cx + 40, top + 40], [cx + 20, top + 58], [cx - 6, top + 44], [cx - 30, top + 62], [cx - 66, top + 48]]);
   ctx.fill();
+  if (brute) {
+    // heavy leather apron over the belly, held by a strap, with old stitched scars
+    ctx.fillStyle = cylinderGradient(ctx, cx - 62, cx + 62, 0x2a1d14, 0.2, 0.6);
+    path(ctx, [[cx - 40, top + 40], [cx + 40, top + 40], [cx + 68, top + 120], [cx + 62, bot - 14], [cx - 62, bot - 14], [cx - 68, top + 120]]);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(8,6,4,0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.strokeStyle = '#1a120c';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx - 36, top + 38); ctx.lineTo(cx - 22, top + 6);
+    ctx.moveTo(cx + 36, top + 38); ctx.lineTo(cx + 22, top + 6);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(200,190,160,0.5)';
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) {
+      const sx = cx + rand(rng, -40, 40), sy = rand(rng, top + 70, bot - 40);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy); ctx.lineTo(sx + rand(rng, 14, 26), sy + rand(rng, -6, 6));
+      for (let k = 0; k < 4; k++) {
+        ctx.moveTo(sx + 3 + k * 5, sy - 3); ctx.lineTo(sx + 3 + k * 5, sy + 3);
+      }
+      ctx.stroke();
+    }
+    for (let i = 0; i < 6; i++) bloodStain(ctx, rng, cx + rand(rng, -50, 50), rand(rng, top + 60, bot - 30), rand(rng, 6, 14), 2, 0.65);
+  }
   speckle(ctx, rng, 0, 0, w, h, 200, '#3a3018', 3, 0.05, 0.2);
   bloodStain(ctx, rng, cx - 10, top + 30, 16, 4, 0.7);
   vShade(ctx, 0, h, 0.06, 0.4, w);

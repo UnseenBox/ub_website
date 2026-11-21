@@ -29,6 +29,9 @@ export const DEFAULT_VIEW_MODEL: ResolvedViewModel = {
   anchorX: VIEW.centerX + 150,
   anchorY: 792,
   muzzleGap: 70,
+  rotationTrim: 0,
+  gunShiftX: 0,
+  gunShiftY: 0,
 };
 
 export function resolveViewModel(def: WeaponDef): ResolvedViewModel {
@@ -91,9 +94,8 @@ export function computeViewModelPose(input: ViewModelPoseInput): ViewModelPose {
   if (model.muzzleLock && model.barrelAlign) {
     // Aim the barrel axis straight at the crosshair. The aim line comes from a
     // distant anchor far below the screen (so the gun only turns a little as the
-    // crosshair sweeps across the view). The muzzle sits on that line short of the
-    // crosshair, as close as `muzzleGap` but pushed back as far as needed to keep
-    // the stock and arms anchored near the bottom of the screen.
+    // crosshair sweeps across the view). The muzzle sits on that line `muzzleGap`
+    // short of the crosshair (plus the fixed on-screen shift).
     const cx = clamp(input.cursorX, 0, VIEW.width);
     const cy = clamp(input.cursorY, 0, VIEW.hudTop);
     let ux = cx - model.anchorX;
@@ -104,17 +106,13 @@ export function computeViewModelPose(input: ViewModelPoseInput): ViewModelPose {
     // Angle of a direction measured clockwise from "up" (screen y points down).
     const aimAngle = Math.atan2(ux, -uy);
     const axisAngle = Math.atan2(model.muzzleX - model.tailX, -(model.muzzleY - model.tailY));
-    baseRotation = aimAngle - axisAngle;
-    const cosR = Math.cos(baseRotation);
-    const sinR = Math.sin(baseRotation);
-    const lmx = (model.muzzleX - textureWidth / 2) * scale;
-    const lmy = (model.muzzleY - textureHeight) * scale;
-    const rotMuzzleY = lmx * sinR + lmy * cosR;
-    const restY = model.pivotY + (cy - 300) * model.aimY;
-    const upward = Math.max(0.2, -uy);
-    const gap = Math.max(model.muzzleGap, (restY + rotMuzzleY - cy) / upward);
-    lockTargetX = cx - ux * gap;
-    lockTargetY = cy - uy * gap;
+    // `rotationTrim` nudges the picture's lean (negative = turn it left) without
+    // moving the muzzle off the aim line.
+    baseRotation = aimAngle - axisAngle + model.rotationTrim;
+    // The muzzle always sits the same distance from the crosshair, so the gun moves
+    // exactly with it in every direction.
+    lockTargetX = cx - ux * model.muzzleGap + model.gunShiftX;
+    lockTargetY = cy - uy * model.muzzleGap + model.gunShiftY;
   }
   const rotation = baseRotation + input.tilt + input.kickRot;
 

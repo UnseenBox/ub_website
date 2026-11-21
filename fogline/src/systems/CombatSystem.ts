@@ -109,8 +109,11 @@ export class CombatSystem {
       const wasAlive = zb.alive;
       this.damage(zb, dmg, 'torso', dir, source, 0xffd0a0);
       if (zb.alive) {
-        zb.stagger(0.6);
-        zb.z = Math.min(zb.z + (1 - h.dist / radius) * 2.5, 95);
+        // Giants (Brutes) are too heavy to be shoved or stunned by a blast.
+        if (zb.def.staggerThreshold < 5000) {
+          zb.stagger(0.6);
+          zb.z = Math.min(zb.z + (1 - h.dist / radius) * 2.5, 95);
+        }
       } else if (wasAlive) kills++;
     }
     return kills;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../data/enemies';
-import { WAVES, scheduledCount } from '../data/waves';
+import { WAVES, newEnemiesInWave, scheduledCount } from '../data/waves';
 import { WEAPONS } from '../data/weapons';
 import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../audio/overrides';
 import { buildSoundBank } from '../audio/SoundBank';
@@ -248,6 +248,41 @@ describe('WaveManager', () => {
     wm.notifyRemoved(3);
     expect(victory).toBe(true);
   });
+  it('starts bigger and grows every wave', () => {
+    const counts = WAVES.map(scheduledCount);
+    expect(counts[0]).toBeGreaterThanOrEqual(18);
+    for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeGreaterThan(counts[i - 1]);
+  });
+
+  it('introduces Brutes in wave 2 and Crawler packs in wave 3', () => {
+    const kinds = (i: number) => new Set(WAVES[i].groups.map((g) => g.enemy));
+    expect(kinds(0).has('brute')).toBe(false);
+    expect(kinds(1).has('brute')).toBe(true);
+    expect(kinds(1).has('crawler')).toBe(false);
+    expect(kinds(2).has('crawler')).toBe(true);
+    expect(newEnemiesInWave(1)).toContain('brute');
+    expect(newEnemiesInWave(2)).toContain('crawler');
+    expect(newEnemiesInWave(0)).toEqual(['shambler']);
+    // Brutes and Crawlers keep coming in every later wave.
+    for (let i = 2; i < WAVES.length; i++) {
+      expect(kinds(i).has('brute')).toBe(true);
+      expect(kinds(i).has('crawler')).toBe(true);
+    }
+  });
+
+  it('Brutes are giant and hard to kill: huge health, soft body, head is the weak point', () => {
+    const b = ENEMIES.brute, s = ENEMIES.shambler;
+    expect(b.height).toBeGreaterThan(s.height * 1.4);
+    expect(b.health).toBeGreaterThanOrEqual(s.health * 8);
+    expect(b.zoneMultiplier.torso).toBeLessThan(0.6);
+    expect(b.zoneMultiplier.head).toBe(1);
+    // A M1A headshot (38 x3) is the best way to hurt it; a body shot barely scratches it.
+    const head = bulletDamage(38, 3, 'head', b, none).damage;
+    const body = bulletDamage(38, 3, 'torso', b, none).damage;
+    expect(head).toBeGreaterThan(body * 4);
+    expect(b.health / body).toBeGreaterThan(30);
+  });
+
   it('difficulty rises across the campaign', () => {
     expect(WAVES).toHaveLength(8);
     const counts = WAVES.map(scheduledCount);
@@ -393,13 +428,16 @@ describe('view-model aiming', () => {
       const ax = model.muzzleX - model.tailX, ay = model.muzzleY - model.tailY;
       const cos = Math.cos(p.rotation), sin = Math.sin(p.rotation);
       const dirX = ax * cos - ay * sin, dirY = ax * sin + ay * cos;
-      const toX = cx - p.muzzleX, toY = cy - p.muzzleY;
+      // Take out the deliberate on-screen shift of the gun before checking the line.
+      const toX = cx - (p.muzzleX - model.gunShiftX), toY = cy - (p.muzzleY - model.gunShiftY);
       const cross = (dirX * toY - dirY * toX) / (Math.hypot(dirX, dirY) * Math.hypot(toX, toY));
       const dot = dirX * toX + dirY * toY;
-      expect(Math.abs(cross)).toBeLessThan(1e-6);
+      // Aligned apart from the small deliberate lean trim: the barrel is turned
+      // left of the aim line, which shows up as a positive cross product.
+      expect(Math.asin(cross)).toBeCloseTo(-model.rotationTrim, 6);
       expect(dot).toBeGreaterThan(0);
-      // The muzzle is never closer than the minimum gap to the crosshair.
-      expect(Math.hypot(toX, toY)).toBeGreaterThanOrEqual(model.muzzleGap - 1e-6);
+      // The muzzle sits exactly the fixed gap from the crosshair.
+      expect(Math.hypot(toX, toY)).toBeCloseTo(model.muzzleGap, 5);
     }
   });
 
@@ -410,15 +448,24 @@ describe('view-model aiming', () => {
     }
   });
 
-  it('M1A slides with the crosshair and keeps the stock near the bottom when aiming high', () => {
+  it('M1A slides with the crosshair sideways', () => {
     const center = pose('service', 640, 300, 640, 300);
     const left = pose('service', 170, 300, 170, 300);
-    const high = pose('service', 640, 40, 640, 40);
     expect(left.pivotX).toBeLessThan(center.pivotX - 100);
     expect(left.rotation).toBeLessThan(center.rotation);
-    // Aiming high pushes the muzzle further from the stock, not the whole gun up the screen.
-    expect(high.pivotY).toBeGreaterThan(center.pivotY - 120);
-    expect(high.muzzleY).toBeLessThan(center.muzzleY);
+  });
+
+  it('M1A keeps the same distance from the crosshair when it moves up and down', () => {
+    for (const cx of [100, 640, 1180]) {
+      const offsets = [20, 150, 300, 450, 580].map((cy) => {
+        const p = pose('service', cx, cy, cx, cy);
+        return [p.muzzleX - cx, p.muzzleY - cy];
+      });
+      for (const [dx, dy] of offsets) {
+        expect(dx).toBeCloseTo(offsets[0][0], 0);
+        expect(dy).toBeCloseTo(offsets[0][1], 0);
+      }
+    }
   });
 
   it('leaves the other view models on the legacy pivot behaviour', () => {
