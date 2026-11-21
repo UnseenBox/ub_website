@@ -1,0 +1,231 @@
+// Weapon catalogue. Every combat value the WeaponManager / CombatSystem uses is
+// read from here, so new guns are added by appending a definition.
+
+export type FireMode = 'semi' | 'auto';
+export type WeaponKind = 'hitscan' | 'grenade';
+
+/**
+ * Placement and motion for a first-person view-model texture. Points are in
+ * texture pixels; the origin for `muzzle`/`eject` is the texture's top-left.
+ * Only the M1A needs an override today; the procedural guns share the defaults
+ * in WeaponView.
+ */
+export interface WeaponViewModel {
+  /** Screen position of the texture's bottom-centre when the gun is at rest. */
+  pivotX: number;
+  pivotY: number;
+  scale: number;
+  muzzleX: number;
+  muzzleY: number;
+  ejectX: number;
+  ejectY: number;
+  /** How much of the aim offset the model follows (0 = fixed, 1 = fully). */
+  aimX: number;
+  aimY: number;
+  /** Maximum rotation in radians while tracking the aim point. */
+  maxRot: number;
+  /**
+   * Pin the muzzle to a fixed screen offset from the crosshair. The whole gun
+   * translates with the aim while the stock swings around the muzzle.
+   */
+  muzzleLock?: boolean;
+  /** Muzzle offset from the crosshair when `muzzleLock` is on. */
+  muzzleLockX?: number;
+  muzzleLockY?: number;
+  /** Multiplier on idle sway (1 = normal, 0 = locked to aim). */
+  sway: number;
+  /** Multiplier on the reload tilt. */
+  reloadTilt: number;
+  /** Vertical distance the model drops during a weapon switch. */
+  switchDrop: number;
+}
+
+export interface WeaponSoundConfig {
+  /** Key into the synthesized sound bank (see audio/SoundBank.ts). */
+  shot: string;
+  reload: string;
+  empty: string;
+  /** Random playback-rate spread so repeated shots don't sound machine-gunned. */
+  pitchJitter: number;
+}
+
+export interface WeaponDef {
+  id: string;
+  name: string;
+  shortName: string;
+  slot: 1 | 2 | 3 | 4;
+  price: number;
+  kind: WeaponKind;
+  mode: FireMode;
+  damage: number;
+  /** Rounds per second. */
+  fireRate: number;
+  magazine: number;
+  /** Rounds carried in reserve when bought; Infinity = unlimited. */
+  startReserve: number;
+  maxReserve: number;
+  /** Shop ammo pack: rounds per pack and price. */
+  ammoPack: { rounds: number; price: number };
+  reloadTime: number;
+  /** Visual kick strength (px of gun travel) and crosshair bloom added per shot. */
+  recoil: number;
+  bloomPerShot: number;
+  /** Base spread radius in screen pixels at rest. */
+  spread: number;
+  maxSpread: number;
+  headshotMultiplier: number;
+  /** Camera shake intensity per shot (0 = none). */
+  shake: number;
+  /** Grenade-only: projectile flight speed (m/s), blast radius (m). */
+  projectileSpeed?: number;
+  blastRadius?: number;
+  muzzleFlash: { scale: number; tint: number };
+  sound: WeaponSoundConfig;
+  /** Texture key of the first-person view model and HUD icon. */
+  viewTexture: string;
+  iconTexture: string;
+  /** Optional per-weapon placement/motion tuning for the view model. */
+  viewModel?: Partial<WeaponViewModel>;
+  description: string;
+}
+
+export const WEAPONS: WeaponDef[] = [
+  {
+    id: 'service',
+    name: 'M1A Service Rifle',
+    shortName: 'M1A',
+    slot: 1,
+    price: 0,
+    kind: 'hitscan',
+    mode: 'semi',
+    damage: 38,
+    fireRate: 4.5,
+    magazine: 10,
+    startReserve: Infinity,
+    maxReserve: Infinity,
+    ammoPack: { rounds: 0, price: 0 },
+    reloadTime: 1.7,
+    recoil: 16,
+    bloomPerShot: 7,
+    spread: 2,
+    maxSpread: 22,
+    headshotMultiplier: 3,
+    shake: 0,
+    muzzleFlash: { scale: 0.65, tint: 0xffd9a0 },
+    sound: { shot: 'shot_service', reload: 'reload_service', empty: 'empty_light', pitchJitter: 0.04 },
+    viewTexture: 'view_service_photo',
+    viewModel: {
+      // Full-frame 16:9 photo (rifle + hands). The muzzle stays 80px below the
+      // crosshair, so the gun translates and rotates with the aim as one unit.
+      pivotX: 620,
+      pivotY: 835,
+      scale: 0.74,
+      muzzleX: 430,
+      muzzleY: 8,
+      ejectX: 820,
+      ejectY: 250,
+      maxRot: 0.4,
+      sway: 0,
+      reloadTilt: 0.28,
+      switchDrop: 840,
+      muzzleLock: true,
+      muzzleLockX: 0,
+      muzzleLockY: 80,
+    },
+    iconTexture: 'icon_service',
+    description: 'Semi-automatic battle rifle. Accurate, punchy, unlimited ammo. Click per shot.',
+  },
+  {
+    id: 'm4',
+    name: 'M4 Carbine',
+    shortName: 'M4',
+    slot: 2,
+    price: 1100,
+    kind: 'hitscan',
+    mode: 'auto',
+    damage: 30,
+    fireRate: 11,
+    magazine: 30,
+    startReserve: 180,
+    maxReserve: 360,
+    ammoPack: { rounds: 90, price: 120 },
+    reloadTime: 2.0,
+    recoil: 7,
+    bloomPerShot: 2.6,
+    spread: 3,
+    maxSpread: 26,
+    headshotMultiplier: 2.6,
+    shake: 0,
+    muzzleFlash: { scale: 0.75, tint: 0xffe2b0 },
+    sound: { shot: 'shot_m4', reload: 'reload_m4', empty: 'empty_light', pitchJitter: 0.05 },
+    viewTexture: 'view_m4',
+    iconTexture: 'icon_m4',
+    description: 'Full-auto carbine with red-dot optic. Fast, controllable, the backbone upgrade.',
+  },
+  {
+    id: 'm249',
+    name: 'M249 SAW',
+    shortName: 'M249',
+    slot: 3,
+    price: 3200,
+    kind: 'hitscan',
+    mode: 'auto',
+    damage: 40,
+    fireRate: 13,
+    magazine: 100,
+    startReserve: 300,
+    maxReserve: 600,
+    ammoPack: { rounds: 100, price: 220 },
+    reloadTime: 4.4,
+    recoil: 11,
+    bloomPerShot: 3.4,
+    spread: 6,
+    maxSpread: 40,
+    headshotMultiplier: 2.2,
+    shake: 0.0016,
+    muzzleFlash: { scale: 1.05, tint: 0xffc98a },
+    sound: { shot: 'shot_m249', reload: 'reload_m249', empty: 'empty_heavy', pitchJitter: 0.035 },
+    viewTexture: 'view_m249',
+    iconTexture: 'icon_m249',
+    description: 'Belt-fed light machine gun. Huge sustained output, heavy recoil, expensive ammo.',
+  },
+  {
+    id: 'm32',
+    name: 'M32 Grenade Launcher',
+    shortName: 'M32',
+    slot: 4,
+    price: 4000,
+    kind: 'grenade',
+    mode: 'semi',
+    damage: 260,
+    fireRate: 1.4,
+    magazine: 6,
+    startReserve: 18,
+    maxReserve: 36,
+    ammoPack: { rounds: 6, price: 300 },
+    reloadTime: 3.6,
+    recoil: 26,
+    bloomPerShot: 0,
+    spread: 0,
+    maxSpread: 0,
+    headshotMultiplier: 1,
+    shake: 0.004,
+    projectileSpeed: 48,
+    blastRadius: 6,
+    muzzleFlash: { scale: 1.2, tint: 0xffb070 },
+    sound: { shot: 'shot_m32', reload: 'reload_m32', empty: 'empty_heavy', pitchJitter: 0.03 },
+    viewTexture: 'view_m32',
+    iconTexture: 'icon_m32',
+    description: '40mm six-shot revolver launcher. Lobbed high-explosive rounds shred packed groups.',
+  },
+];
+
+export function weaponById(id: string): WeaponDef {
+  const w = WEAPONS.find((x) => x.id === id);
+  if (!w) throw new Error(`Unknown weapon ${id}`);
+  return w;
+}
+
+export function weaponBySlot(slot: number): WeaponDef | undefined {
+  return WEAPONS.find((w) => w.slot === slot);
+}
