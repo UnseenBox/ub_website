@@ -55,6 +55,18 @@ describe('main menu background', () => {
   it('defines exactly the five supplied button frames', () => {
     expect(Object.keys(MENU_BUTTON_FRAMES)).toEqual(['continue', 'newGame', 'armory', 'settings', 'store']);
   });
+
+  it('wires the menu buttons to real actions', () => {
+    const sources = import.meta.glob('../../src/{game,ui}/*.ts', { eager: true, query: '?raw', import: 'default' });
+    const mainSources = import.meta.glob('../../src/*.ts', { eager: true, query: '?raw', import: 'default' });
+    const menu = Object.entries(sources).find(([k]) => k.endsWith('MenuScene.ts'))?.[1] ?? '';
+    const game = Object.entries(sources).find(([k]) => k.endsWith('GameScene.ts'))?.[1] ?? '';
+    const main = Object.values(mainSources).join('\n');
+    expect(menu).toContain('openShop: true');
+    expect(menu).toContain("scene.launch('Settings')");
+    expect(game).toContain('openShop?: boolean');
+    expect(main).toContain('SettingsScene');
+  });
 });
 
 describe('weapon shot recordings', () => {

@@ -7,6 +7,7 @@ import { GameOverScene } from './game/GameOverScene';
 import { GameScene } from './game/GameScene';
 import { MenuScene } from './game/MenuScene';
 import { PauseScene } from './game/PauseScene';
+import { SettingsScene } from './game/SettingsScene';
 import { ShopScene } from './game/ShopScene';
 
 // Block the context menu and accidental selection/drag anywhere on the page.
@@ -27,7 +28,7 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   render: { antialias: true, powerPreference: 'high-performance' },
   fps: { target: 60 },
-  scene: [BootScene, MenuScene, GameScene, ShopScene, PauseScene, GameOverScene],
+  scene: [BootScene, MenuScene, GameScene, ShopScene, PauseScene, SettingsScene, GameOverScene],
 });
 
 // Debug/test hooks (used by the automated playtest; harmless in production).

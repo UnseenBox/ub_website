@@ -62,13 +62,14 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private openArmory(): void {
-    // Replaced with a menu-safe shop launch in the action wiring task.
-    this.deploy();
+    audio.unlock();
+    audio.play('radio', { volume: 0.6 });
+    this.scene.start('Game', { openShop: true });
   }
 
   private openSettings(): void {
-    // Replaced with the SettingsScene launch in the action wiring task.
-    toggleFullscreen(this);
+    audio.unlock();
+    this.scene.launch('Settings');
   }
 
   private deploy(): void {

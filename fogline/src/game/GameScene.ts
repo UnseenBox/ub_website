@@ -71,7 +71,7 @@ export class GameScene extends Phaser.Scene {
     super('Game');
   }
 
-  create(): void {
+  create(data?: { openShop?: boolean }): void {
     this.over = false;
     this.trigger = false;
     resetTouchPointerIds(this);
@@ -131,6 +131,7 @@ export class GameScene extends Phaser.Scene {
       if (this.waves.phase === 'idle') this.startNextWave();
     });
     (window as unknown as { __fogline: GameScene }).__fogline = this;
+    if (data?.openShop) this.openShop();
   }
 
   // ------------------------------------------------------------ wiring
