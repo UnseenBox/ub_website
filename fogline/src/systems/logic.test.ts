@@ -28,6 +28,13 @@ describe('main menu background', () => {
     const images = import.meta.glob('../../src/assets/*.png');
     expect(Object.keys(images).some((key) => key.endsWith('main-menu.png'))).toBe(true);
   });
+
+  it('does not render the menu control list', () => {
+    const sources = import.meta.glob('../../src/game/*.ts', { eager: true, query: '?raw', import: 'default' });
+    const menu = Object.values(sources).join('\n');
+    expect(menu).not.toContain('MOUSE          aim');
+    expect(menu).not.toContain('ESC / P        pause & settings');
+  });
 });
 
 describe('weapon shot recordings', () => {

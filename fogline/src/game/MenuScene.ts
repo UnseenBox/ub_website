@@ -27,18 +27,6 @@ export class MenuScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    const controls = [
-      'MOUSE          aim  ·  LMB fire  ·  RMB / R reload',
-      '1 2 3 4        weapons          5 6 7 8   ammo mods',
-      'A S D          gunship · orbital · nuke',
-      'W E            repair crew · blast shutters',
-      'SPACE          armory (pauses)    ENTER  next wave',
-      'ESC / P        pause & settings   F      fullscreen',
-    ];
-    this.add.rectangle(VIEW.centerX, 520, 620, 150, 0x0c0d0c, 0.75).setStrokeStyle(1, 0x4a4c48);
-    this.add.text(VIEW.centerX - 290, 452, controls.join('\n'), {
-      fontFamily: MONO, fontSize: '14px', color: '#c8c8b0', lineSpacing: 6,
-    });
     const save = SaveManager.load();
     if (save.bestWave > 0) {
       this.add.text(VIEW.centerX, 610, `BEST: WAVE ${save.bestWave}  ·  ${save.bestKills} KILLS`, {
