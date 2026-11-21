@@ -45,6 +45,8 @@ export interface WeaponSoundConfig {
   shot: string;
   reload: string;
   empty: string;
+  /** Optional impact cue for projectile weapons. */
+  impact?: string;
   /** Random playback-rate spread so repeated shots don't sound machine-gunned. */
   pitchJitter: number;
 }
@@ -213,7 +215,7 @@ export const WEAPONS: WeaponDef[] = [
     projectileSpeed: 48,
     blastRadius: 6,
     muzzleFlash: { scale: 1.2, tint: 0xffb070 },
-    sound: { shot: 'shot_m32', reload: 'reload_m32', empty: 'empty_heavy', pitchJitter: 0.03 },
+    sound: { shot: 'shot_m32', reload: 'reload_m32', empty: 'empty_heavy', impact: 'rocket_impact', pitchJitter: 0.03 },
     viewTexture: 'view_m32',
     iconTexture: 'icon_m32',
     description: '40mm six-shot revolver launcher. Lobbed high-explosive rounds shred packed groups.',

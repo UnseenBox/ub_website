@@ -47,6 +47,17 @@ frames, plus a shared `shadow`. Pivots and lengths are in `PART` and `LEN`. The 
 | `icon_service`, `icon_m4`, `icon_m249`, `icon_m32` | 128×48 | Side-profile HUD and shop icons | P |
 | `icon_mod_*`, `icon_gunship`, `icon_orbital`, `icon_nuke`, `icon_repair`, `icon_wall`, `icon_reinforce` | 48×48 | HUD and shop icons | P |
 
+## Audio (`public/audio/fogline`)
+
+| File | Source | Use | Status |
+| --- | --- | --- | --- |
+| `gun-1.mp3` | supplied `GUN 1.mp3` | M1A shot | Final |
+| `gun-2.mp3` | supplied `GUN 2.mp3` | M4 shot | Final |
+| `gun-3.mp3` | supplied `GUN 3 SFX.mp3` | M249 shot | Final |
+| `rocket-launch.mp3` | supplied `Rocket Launcher ( Launching ).mp3` | M32 launch | Final |
+| `rocket-explosion.mp3` | supplied `Rocket Launcher ( Explosion ).mp3` | M32 impact | Final |
+| `gun-reload.mp3`, `kill-*.mp3`, `killing.mp3`, `hover.mp3`, `click.mp3` | supplied | Reload, kills, headshot, UI | Final |
+
 ## Effects (`rendering/FxArt.ts`) and HUD (`rendering/HudArt.ts`)
 
 | Key | Use | Status |

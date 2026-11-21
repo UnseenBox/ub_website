@@ -92,11 +92,11 @@ export class GameScene extends Phaser.Scene {
     this.projectiles = new ProjectileManager(this);
     this.support = new SupportSystem(this, this.enemies, this.combat, this.fx);
     this.support.shake = (d, i) => this.cameras.main.shake(d * 1000, i);
-    this.projectiles.onImpact = (x, z, radius, damage) => {
+    this.projectiles.onImpact = (x, z, radius, damage, impactSound) => {
       const kills = this.combat.explode(x, z, radius, damage, 'blast');
       if (kills > 0) this.combat.stats.hits++;
       this.fx.explosion(x, z, radius * 0.8);
-      audio.play('explosion_small', { volume: Phaser.Math.Clamp(16 / z, 0.45, 1), pan: x / 20 });
+      audio.play(impactSound, { volume: Phaser.Math.Clamp(16 / z, 0.45, 1), pan: x / 20 });
       this.cameras.main.shake(160, Phaser.Math.Clamp(0.05 / z, 0.002, 0.007));
     };
     this.view = new WeaponView(this, this.weapons.current.def);
@@ -407,7 +407,7 @@ export class GameScene extends Phaser.Scene {
         tx = (g.x * tz) / Math.max(g.z, 0.001);
       }
       this.combat.stats.shots++;
-      this.projectiles.launch(this.view.muzzle.x, this.view.muzzle.y, tx, tz, def.projectileSpeed ?? 40, def.damage, def.blastRadius ?? 5);
+      this.projectiles.launch(this.view.muzzle.x, this.view.muzzle.y, tx, tz, def.projectileSpeed ?? 40, def.damage, def.blastRadius ?? 5, def.sound.impact);
       return;
     }
     // random point inside the spread circle (uniform disc)

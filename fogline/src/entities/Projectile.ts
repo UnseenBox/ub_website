@@ -14,6 +14,7 @@ interface Shell {
   endScale: number;
   damage: number;
   radius: number;
+  impactSound: string;
 }
 
 /**
@@ -22,7 +23,7 @@ interface Shell {
  */
 export class ProjectileManager {
   private shells: Shell[] = [];
-  onImpact: (x: number, z: number, radius: number, damage: number) => void = () => {};
+  onImpact: (x: number, z: number, radius: number, damage: number, impactSound: string) => void = () => {};
 
   constructor(private readonly scene: Phaser.Scene) {
     for (let i = 0; i < 12; i++) this.shells.push(this.make());
@@ -30,10 +31,10 @@ export class ProjectileManager {
 
   private make(): Shell {
     const img = this.scene.add.image(0, 0, 'grenade').setDepth(DEPTH.tracer).setVisible(false);
-    return { img, active: false, t: 0, dur: 1, x0: 0, y0: 0, tx: 0, tz: 0, x1: 0, y1: 0, arc: 0, endScale: 1, damage: 0, radius: 0 };
+    return { img, active: false, t: 0, dur: 1, x0: 0, y0: 0, tx: 0, tz: 0, x1: 0, y1: 0, arc: 0, endScale: 1, damage: 0, radius: 0, impactSound: 'explosion_small' };
   }
 
-  launch(fromX: number, fromY: number, tx: number, tz: number, speed: number, damage: number, radius: number): void {
+  launch(fromX: number, fromY: number, tx: number, tz: number, speed: number, damage: number, radius: number, impactSound = 'explosion_small'): void {
     const s = this.shells.find((q) => !q.active) ?? this.make();
     if (!this.shells.includes(s)) this.shells.push(s);
     const p = project(tx, tz);
@@ -47,6 +48,7 @@ export class ProjectileManager {
     s.endScale = Phaser.Math.Clamp(p.ppm / 60, 0.08, 1.2);
     s.damage = damage;
     s.radius = radius;
+    s.impactSound = impactSound;
     s.img.setVisible(true).setPosition(fromX, fromY).setScale(1.4);
   }
 
@@ -63,7 +65,7 @@ export class ProjectileManager {
       if (k >= 1) {
         s.active = false;
         s.img.setVisible(false);
-        this.onImpact(s.tx, s.tz, s.radius, s.damage);
+        this.onImpact(s.tx, s.tz, s.radius, s.damage, s.impactSound);
       }
     }
   }

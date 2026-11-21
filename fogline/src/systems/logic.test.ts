@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../data/enemies';
 import { WAVES, scheduledCount } from '../data/waves';
 import { WEAPONS } from '../data/weapons';
-import { WEAPON_SHOT_FILES } from '../audio/overrides';
+import { WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../audio/overrides';
+import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
 import { groundAt, project } from '../game/perspective';
@@ -35,6 +36,19 @@ describe('weapon shot recordings', () => {
     for (const url of Object.values(WEAPON_SHOT_FILES)) {
       expect(files[`../../public/${url}`], url).toBeDefined();
     }
+  });
+
+  it('gives only the M32 a rocket impact cue', () => {
+    const m32 = WEAPONS.find((w) => w.id === 'm32')!;
+    expect(m32.sound.impact).toBe('rocket_impact');
+    for (const w of WEAPONS.filter((x) => x.id !== 'm32')) expect(w.sound.impact).toBeUndefined();
+  });
+
+  it('registers the rocket impact recording and a synthesized fallback', () => {
+    expect(WEAPON_IMPACT_FILES.rocket_impact).toBe('audio/fogline/rocket-explosion.mp3');
+    const files = import.meta.glob('../../public/audio/fogline/*.mp3');
+    expect(files[`../../public/${WEAPON_IMPACT_FILES.rocket_impact}`]).toBeDefined();
+    expect(buildSoundBank(11025).has('rocket_impact')).toBe(true);
   });
 });
 

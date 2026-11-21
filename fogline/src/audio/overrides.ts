@@ -10,6 +10,11 @@ export const WEAPON_SHOT_FILES = {
   shot_m32: `${ROOT}/rocket-launch.mp3`,
 } as const;
 
+/** Supplied impact recordings for projectile weapons. */
+export const WEAPON_IMPACT_FILES = {
+  rocket_impact: `${ROOT}/rocket-explosion.mp3`,
+} as const;
+
 /**
  * Recorded SFX supplied for Fogline. These replace the synthesized placeholders
  * for the same keys as soon as the first click unlocks the AudioContext.
@@ -17,6 +22,9 @@ export const WEAPON_SHOT_FILES = {
  */
 export function registerFoglineOverrides(): void {
   for (const [key, url] of Object.entries(WEAPON_SHOT_FILES)) {
+    audio.registerOverride(key, url);
+  }
+  for (const [key, url] of Object.entries(WEAPON_IMPACT_FILES)) {
     audio.registerOverride(key, url);
   }
 

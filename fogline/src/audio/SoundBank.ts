@@ -291,6 +291,7 @@ export function buildSoundBank(sampleRate = 44100): Bank {
 
   // --------------------------------------------------------- explosions and strikes
   putLo('explosion_small', explosion(lo, 1.6, 0.8));
+  bank.set('rocket_impact', bank.get('explosion_small')!);
   putLo('explosion', explosion(lo, 2.6, 1.3));
   {
     const out = d.buf(1.0);
