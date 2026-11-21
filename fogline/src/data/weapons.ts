@@ -29,9 +29,22 @@ export interface WeaponViewModel {
    * translates with the aim while the stock swings around the muzzle.
    */
   muzzleLock?: boolean;
-  /** Muzzle offset from the crosshair when `muzzleLock` is on. */
+  /** Muzzle offset from the crosshair when `muzzleLock` is on (legacy fixed-offset mode). */
   muzzleLockX?: number;
   muzzleLockY?: number;
+  /**
+   * Barrel alignment (needs `muzzleLock`). The model is rotated so the line from
+   * its `tail` point (the stock/hands, in texture pixels) through the muzzle
+   * points exactly at the crosshair, and the muzzle sits `muzzleGap` px short of
+   * the crosshair along that line. The line starts at the screen `anchor`
+   * (the shoulder), so the gun swings around the bottom of the screen.
+   */
+  barrelAlign?: boolean;
+  tailX?: number;
+  tailY?: number;
+  anchorX?: number;
+  anchorY?: number;
+  muzzleGap?: number;
   /** Multiplier on idle sway (1 = normal, 0 = locked to aim). */
   sway: number;
   /** Multiplier on the reload tilt. */
@@ -117,8 +130,9 @@ export const WEAPONS: WeaponDef[] = [
     sound: { shot: 'shot_service', reload: 'reload_service', empty: 'empty_light', pitchJitter: 0.04 },
     viewTexture: 'view_service_photo',
     viewModel: {
-      // Full-frame 16:9 photo (rifle + hands). The muzzle stays 80px below the
-      // crosshair, so the gun translates and rotates with the aim as one unit.
+      // Full-frame 16:9 photo (rifle + hands). The barrel axis is rotated to
+      // point at the crosshair and the muzzle stays 70px short of it, so the
+      // gun translates and rotates with the aim as one unit.
       pivotX: 620,
       pivotY: 835,
       scale: 0.74,
@@ -133,6 +147,16 @@ export const WEAPONS: WeaponDef[] = [
       muzzleLock: true,
       muzzleLockX: 0,
       muzzleLockY: 80,
+      // The rifle in the photo runs from the stock (bottom right) to the front
+      // sight (top left); that axis is what lines up with the crosshair.
+      barrelAlign: true,
+      tailX: 880,
+      tailY: 720,
+      anchorX: 640,
+      anchorY: 8000,
+      aimX: 0.36,
+      aimY: 0.06,
+      muzzleGap: 70,
     },
     iconTexture: 'icon_service',
     description: 'Semi-automatic battle rifle. Accurate, punchy, unlimited ammo. Click per shot.',

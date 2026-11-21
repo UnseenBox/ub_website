@@ -4,6 +4,7 @@ import { SaveManager } from '../systems/SaveManager';
 import { MONO, STENCIL, button, slider, toggleFullscreen } from '../ui/widgets';
 import { VIEW } from './config';
 import type { GameScene } from './GameScene';
+import { keyHint } from './touchControls';
 
 /** Pause overlay with volume controls, fullscreen, restart and quit. */
 export class PauseScene extends Phaser.Scene {
@@ -29,8 +30,8 @@ export class PauseScene extends Phaser.Scene {
     slider(this, x0 + 60, y0 + 154, 280, 'SFX VOLUME', save.volumes.sfx, (v) => { set('sfx', v); }, 5);
     slider(this, x0 + 60, y0 + 204, 280, 'MUSIC / AMBIENCE', save.volumes.music, (v) => set('music', v), 5);
 
-    button(this, VIEW.centerX, y0 + 262, 300, 40, 'RESUME  [ESC]', () => this.resume(), 10);
-    button(this, VIEW.centerX, y0 + 310, 300, 36, 'FULLSCREEN  [F]', () => toggleFullscreen(this), 10, 0x6a7a8a);
+    button(this, VIEW.centerX, y0 + 262, 300, 40, keyHint('RESUME', 'ESC'), () => this.resume(), 10);
+    button(this, VIEW.centerX, y0 + 310, 300, 36, keyHint('FULLSCREEN', 'F'), () => toggleFullscreen(this), 10, 0x6a7a8a);
     button(this, VIEW.centerX, y0 + 354, 300, 36, 'RESTART RUN', () => {
       this.scene.stop();
       game.scene.stop();

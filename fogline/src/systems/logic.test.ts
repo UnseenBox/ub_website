@@ -7,7 +7,7 @@ import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
 import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
-import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, resetTouchPointerIds, supportAim, touchGunAim } from '../game/touchControls';
+import { TOUCH_AIM_SENSITIVITY, TOUCH_LAYOUT, isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { Abilities } from './Abilities';
 import { BunkerManager } from './BunkerManager';
@@ -364,29 +364,41 @@ describe('Abilities', () => {
 });
 
 describe('phone touch controls', () => {
-  it('inverts the aim offsets so the finger becomes the crosshair', () => {
-    expect(touchGunAim(200, 300)).toEqual({ x: 350, y: 380 });
-    expect(crosshairFromGun(350, 380)).toEqual({ x: 200, y: 300 });
+  it('drags the crosshair relatively, scaled by the sensitivity', () => {
+    const next = stepTouchAim({ x: 640, y: 300 }, 10, -20);
+    expect(next).toEqual({ x: 640 + 10 * TOUCH_AIM_SENSITIVITY, y: 300 - 20 * TOUCH_AIM_SENSITIVITY });
   });
 
-  it('clamps touch aim to the battlefield', () => {
-    expect(touchGunAim(1300, 700)).toEqual({ x: VIEW.width, y: VIEW.hudTop });
-    expect(touchGunAim(-20, -20)).toEqual({ x: 130, y: 60 });
-    expect(crosshairFromGun(130, 60)).toEqual({ x: 0, y: 0 });
+  it('clamps the touch crosshair to the battlefield', () => {
+    expect(stepTouchAim({ x: 1270, y: 580 }, 500, 500)).toEqual({ x: VIEW.width, y: VIEW.hudTop });
+    expect(stepTouchAim({ x: 5, y: 5 }, -500, -500)).toEqual({ x: 0, y: 0 });
   });
 
-  it('splits the battlefield into aim and fire halves', () => {
+  it('the left half above the HUD is the aim zone, the right half is not', () => {
     expect(isAimTouch(200, 300)).toBe(true);
     expect(isAimTouch(900, 300)).toBe(false);
     expect(isAimTouch(200, VIEW.hudTop + 5)).toBe(false);
-    expect(isFireTouch(900, 300)).toBe(true);
-    expect(isFireTouch(200, 300)).toBe(false);
-    expect(isFireTouch(900, VIEW.hudTop + 5)).toBe(false);
   });
 
-  it('uses the touch crosshair for support strikes while aiming by touch', () => {
-    expect(supportAim(true, 400, 200, 900, 600)).toEqual({ x: 400, y: 200 });
-    expect(supportAim(false, 0, 0, 640, 300)).toEqual({ x: 490, y: 220 });
+  it('only the on-screen buttons fire, reload, pause, shop and deploy', () => {
+    const L = TOUCH_LAYOUT;
+    expect(touchButtonAt(L.fire.x, L.fire.y, false)).toBe('fire');
+    expect(touchButtonAt(L.reload.x, L.reload.y, false)).toBe('reload');
+    expect(touchButtonAt(L.pause.x, L.pause.y, false)).toBe('pause');
+    expect(touchButtonAt(L.shop.x, L.shop.y, false)).toBe('shop');
+    expect(touchButtonAt(L.deploy.x, L.deploy.y, false)).toBeNull();
+    expect(touchButtonAt(L.deploy.x, L.deploy.y, true)).toBe('deploy');
+    // empty right-side battlefield does nothing
+    expect(touchButtonAt(900, 200, true)).toBeNull();
+  });
+
+  it('keeps every button on the battlefield, clear of the HUD', () => {
+    for (const c of [TOUCH_LAYOUT.fire, TOUCH_LAYOUT.reload, TOUCH_LAYOUT.pause, TOUCH_LAYOUT.shop]) {
+      expect(c.y + c.r).toBeLessThan(VIEW.hudTop);
+      expect(c.x - c.r).toBeGreaterThanOrEqual(0);
+      expect(c.x + c.r).toBeLessThanOrEqual(VIEW.width);
+    }
+    expect(TOUCH_LAYOUT.deploy.y + TOUCH_LAYOUT.deploy.h / 2).toBeLessThan(VIEW.hudTop);
   });
 
   it('clears stale touch pointer ids on restart', () => {
@@ -397,7 +409,6 @@ describe('phone touch controls', () => {
 });
 
 describe('view-model aiming', () => {
-  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
   const pose = (id: string, aimX: number, aimY: number, cursorX: number, cursorY: number) => {
     const model = resolveViewModel(WEAPONS.find((w) => w.id === id)!);
     return computeViewModelPose({
@@ -406,23 +417,40 @@ describe('view-model aiming', () => {
     });
   };
 
-  it('M1A keeps its muzzle at a fixed offset from the crosshair at every aim', () => {
-    for (const [ax, ay] of [[640, 300], [20, 20], [1260, 580], [640, 20], [640, 580], [20, 300], [1260, 300]]) {
-      const cx = clamp(ax + AIM_LEFT_OFFSET, 0, VIEW.width);
-      const cy = clamp(ay + AIM_VERT_OFFSET, 0, VIEW.hudTop);
-      const p = pose('service', ax, ay, cx, cy);
-      expect(p.muzzleX - cx).toBeCloseTo(0, 5);
-      expect(p.muzzleY - cy).toBeCloseTo(80, 5);
+  it('M1A barrel axis points exactly at the crosshair at every aim', () => {
+    const model = resolveViewModel(WEAPONS.find((w) => w.id === 'service')!);
+    for (const [cx, cy] of [[640, 300], [20, 20], [1260, 580], [640, 20], [640, 580], [20, 300], [1260, 300], [300, 450]]) {
+      const p = pose('service', cx, cy, cx, cy);
+      // Rotate the texture's tail->muzzle axis by the pose rotation and compare with muzzle->crosshair.
+      const ax = model.muzzleX - model.tailX, ay = model.muzzleY - model.tailY;
+      const cos = Math.cos(p.rotation), sin = Math.sin(p.rotation);
+      const dirX = ax * cos - ay * sin, dirY = ax * sin + ay * cos;
+      const toX = cx - p.muzzleX, toY = cy - p.muzzleY;
+      const cross = (dirX * toY - dirY * toX) / (Math.hypot(dirX, dirY) * Math.hypot(toX, toY));
+      const dot = dirX * toX + dirY * toY;
+      expect(Math.abs(cross)).toBeLessThan(1e-6);
+      expect(dot).toBeGreaterThan(0);
+      // The muzzle is never closer than the minimum gap to the crosshair.
+      expect(Math.hypot(toX, toY)).toBeGreaterThanOrEqual(model.muzzleGap - 1e-6);
     }
   });
 
-  it('M1A translates the gun as well as rotating it', () => {
-    const center = pose('service', 640, 300, 490, 220);
-    const left = pose('service', 20, 300, 0, 220);
-    const top = pose('service', 640, 20, 490, 0);
+  it('M1A only turns a few degrees as the crosshair sweeps the screen', () => {
+    const center = pose('service', 640, 300, 640, 300).rotation;
+    for (const [cx, cy] of [[20, 20], [1260, 580], [20, 580], [1260, 20]]) {
+      expect(Math.abs(pose('service', cx, cy, cx, cy).rotation - center)).toBeLessThan(0.12);
+    }
+  });
+
+  it('M1A slides with the crosshair and keeps the stock near the bottom when aiming high', () => {
+    const center = pose('service', 640, 300, 640, 300);
+    const left = pose('service', 170, 300, 170, 300);
+    const high = pose('service', 640, 40, 640, 40);
     expect(left.pivotX).toBeLessThan(center.pivotX - 100);
-    expect(top.pivotY).toBeLessThan(center.pivotY - 100);
     expect(left.rotation).toBeLessThan(center.rotation);
+    // Aiming high pushes the muzzle further from the stock, not the whole gun up the screen.
+    expect(high.pivotY).toBeGreaterThan(center.pivotY - 120);
+    expect(high.muzzleY).toBeLessThan(center.muzzleY);
   });
 
   it('leaves the other view models on the legacy pivot behaviour', () => {

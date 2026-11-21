@@ -21,7 +21,8 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { HUD } from '../ui/HUD';
 import { toggleFullscreen } from '../ui/widgets';
 import { isTestMode } from './testMode';
-import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, resetTouchPointerIds, supportAim, touchGunAim } from './touchControls';
+import { isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt, TouchButton } from './touchControls';
+import { TouchUI } from '../ui/TouchUI';
 import { Zombie } from '../entities/Zombie';
 import type { ModId } from '../data/upgrades';
 
@@ -53,12 +54,14 @@ export class GameScene extends Phaser.Scene {
   private projectiles!: ProjectileManager;
   private activeMods = new Set<ModId>();
   private trigger = false;
-  private readonly touchAimGun = { x: 0, y: 0 };
-  private readonly touchAimRaw = { x: 0, y: 0 };
+  private touchUi!: TouchUI;
+  /** Crosshair while playing by touch (relative drag aim). */
+  private touchCursor: { x: number; y: number } = { x: VIEW.centerX, y: 300 };
+  private touchLast: { x: number; y: number } = { x: 0, y: 0 };
   aimPointerId: number | null = null;
   firePointerId: number | null = null;
-  private aimCursorX = VIEW.centerX + AIM_LEFT_OFFSET;
-  private aimCursorY = 300 + AIM_VERT_OFFSET;
+  private aimCursorX: number = VIEW.centerX;
+  private aimCursorY = 300;
   private ambientLeft = 3;
   private wind: LoopHandle | null = null;
   private music: LoopHandle | null = null;
@@ -111,6 +114,9 @@ export class GameScene extends Phaser.Scene {
       defense: (i) => this.useDefense(i),
     });
 
+    this.touchUi = new TouchUI(this);
+    this.touchUi.setEnabled(this.prefersTouch());
+    this.touchCursor = { x: VIEW.centerX, y: 300 };
     this.wireEvents();
     this.wireInput();
 
@@ -123,7 +129,7 @@ export class GameScene extends Phaser.Scene {
 
     this.hud.banner(
       'HOLD THE LINE',
-      `${test ? 'TEST LOADOUT: all weapons and gear unlocked.  ' : ''}Contacts massing in the fog.  [ENTER] begin wave 1  ·  [SPACE] armory`,
+      `${test ? 'TEST LOADOUT: all weapons and gear unlocked.  ' : ''}Contacts massing in the fog.  ${this.touchUi.isEnabled ? 'Tap DEPLOY to begin wave 1  ·  SHOP for the armory' : '[ENTER] begin wave 1  ·  [SPACE] armory'}`,
       999,
       true,
     );
@@ -168,7 +174,7 @@ export class GameScene extends Phaser.Scene {
       this.weapons.topUpStarter();
       audio.play('wave_clear', { volume: 0.7 });
       if (wave < this.waves.totalWaves) {
-        this.hud.banner(`SECTOR CLEAR — WAVE ${wave}`, `Completion bonus +$${reward}\n[SPACE] armory  ·  [ENTER] deploy wave ${wave + 1}`, 999, true);
+        this.hud.banner(`SECTOR CLEAR — WAVE ${wave}`, `Completion bonus +$${reward}\n${this.touchUi.isEnabled ? `SHOP for the armory  ·  tap DEPLOY for wave ${wave + 1}` : `[SPACE] armory  ·  [ENTER] deploy wave ${wave + 1}`}`, 999, true);
       } else {
         this.hud.banner('THE LINE HELD', `Final bonus +$${reward}`, 999, true);
       }
@@ -191,12 +197,37 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private setTouchAim(x: number, y: number): void {
-    this.touchAimRaw.x = x;
-    this.touchAimRaw.y = y;
-    const gun = touchGunAim(x, y);
-    this.touchAimGun.x = gun.x;
-    this.touchAimGun.y = gun.y;
+  /** True on phones/tablets whose primary pointer is a finger. */
+  private prefersTouch(): boolean {
+    return typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  }
+
+  private pressTouchButton(button: TouchButton, p: Phaser.Input.Pointer): void {
+    switch (button) {
+      case 'fire':
+        this.firePointerId = p.id;
+        this.trigger = true;
+        this.touchUi.setPressed('fire', true);
+        break;
+      case 'reload':
+        this.weapons.reload();
+        this.flashButton('reload');
+        break;
+      case 'pause':
+        this.openPause();
+        break;
+      case 'shop':
+        this.openShop();
+        break;
+      case 'deploy':
+        this.startNextWave();
+        break;
+    }
+  }
+
+  private flashButton(button: TouchButton): void {
+    this.touchUi.setPressed(button, true);
+    this.time.delayedCall(140, () => this.touchUi.setPressed(button, false));
   }
 
   private wireInput(): void {
@@ -224,17 +255,25 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       audio.unlock();
-      document.body.classList.add('touched');
       if (p.wasTouch) {
+        document.body.classList.add('touched');
+        this.touchUi.setEnabled(true);
+        // HUD slots handle their own taps; only the battlefield is routed here.
+        if (p.y >= VIEW.hudTop) return;
+        const button = touchButtonAt(p.x, p.y, this.touchUi.deployVisible);
+        if (button) {
+          if (button !== 'fire' || this.firePointerId === null) this.pressTouchButton(button, p);
+          return;
+        }
         if (this.aimPointerId === null && isAimTouch(p.x, p.y)) {
           this.aimPointerId = p.id;
-          this.setTouchAim(p.x, p.y);
-        } else if (this.firePointerId === null && isFireTouch(p.x, p.y)) {
-          this.firePointerId = p.id;
-          this.trigger = true;
+          this.touchLast.x = p.x;
+          this.touchLast.y = p.y;
+          this.touchUi.noteAimUsed();
         }
         return;
       }
+      if (!this.prefersTouch()) this.touchUi.setEnabled(false);
       if (p.rightButtonDown()) {
         this.weapons.reload();
         return;
@@ -243,7 +282,15 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      if (p.wasTouch && p.id === this.aimPointerId) this.setTouchAim(p.x, p.y);
+      // A real mouse on a hybrid laptop switches the on-screen controls off.
+      if (!p.wasTouch && this.touchUi.isEnabled && !this.prefersTouch()) this.touchUi.setEnabled(false);
+      if (p.wasTouch && p.id === this.aimPointerId) {
+        const next = stepTouchAim(this.touchCursor, p.x - this.touchLast.x, p.y - this.touchLast.y);
+        this.touchCursor.x = next.x;
+        this.touchCursor.y = next.y;
+        this.touchLast.x = p.x;
+        this.touchLast.y = p.y;
+      }
     });
 
     const releasePointer = (p: Phaser.Input.Pointer): void => {
@@ -251,6 +298,7 @@ export class GameScene extends Phaser.Scene {
         if (p.id === this.firePointerId) {
           this.firePointerId = null;
           this.trigger = false;
+          this.touchUi.setPressed('fire', false);
         }
         if (p.id === this.aimPointerId) this.aimPointerId = null;
       }
@@ -272,6 +320,7 @@ export class GameScene extends Phaser.Scene {
     this.trigger = false;
     this.aimPointerId = null;
     this.firePointerId = null;
+    this.touchUi?.setPressed('fire', false);
     if (this.scene.isActive() && !this.over && this.waves.phase === 'active') this.openPause();
   }
 
@@ -299,7 +348,7 @@ export class GameScene extends Phaser.Scene {
       const def = WEAPONS.find((w) => w.slot === slot);
       if (def && !this.weapons.owns(def.id)) {
         audio.play('deny', { volume: 0.5 });
-        this.fx.floatText(VIEW.centerX, VIEW.hudTop - 90, `${def.shortName} NOT OWNED — BUY IN ARMORY [SPACE]`, '#ff9a70', 16);
+        this.fx.floatText(VIEW.centerX, VIEW.hudTop - 90, `${def.shortName} NOT OWNED — BUY IN THE ARMORY${this.touchUi.isEnabled ? '' : ' [SPACE]'}`, '#ff9a70', 16);
       }
     }
   }
@@ -342,10 +391,8 @@ export class GameScene extends Phaser.Scene {
       audio.play('deny', { volume: 0.5 });
       return;
     }
-    const p = this.input.activePointer;
-    const supportTarget = supportAim(this.aimPointerId !== null, this.aimCursorX, this.aimCursorY, p.x, p.y);
-    const aimX = supportTarget.x;
-    const aimY = supportTarget.y;
+    const aimX = this.aimCursorX;
+    const aimY = this.aimCursorY;
     if (def.id === 'gunship') this.support.callGunship();
     else if (def.id === 'orbital') this.support.callOrbital(aimX, Math.min(aimY, VIEW.wallTop - 4));
     else this.support.callNuke();
@@ -466,17 +513,16 @@ export class GameScene extends Phaser.Scene {
   override update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05);
     const p = this.input.activePointer;
-    // Mouse aim stays as before. Touch aim is stored as the virtual gun-aim
-    // point whose crosshair (after the fixed offset) sits under the finger.
-    const usingTouchAim = this.aimPointerId !== null;
-    const gunAimX = usingTouchAim ? this.touchAimGun.x : Phaser.Math.Clamp(p.x, 0, VIEW.width);
-    const gunAimY = usingTouchAim ? this.touchAimGun.y : Phaser.Math.Clamp(p.y, 0, VIEW.hudTop);
-    const pointerY = usingTouchAim ? this.touchAimRaw.y : p.y;
-    const cursor = crosshairFromGun(gunAimX, gunAimY);
-    this.aimCursorX = cursor.x;
-    this.aimCursorY = cursor.y;
-    const cursorAimX = this.aimCursorX;
-    const cursorAimY = this.aimCursorY;
+    // The crosshair is exactly where the mouse is (or where the touch aim pad
+    // has dragged it); the gun is then rotated to point its barrel at it.
+    const touchMode = this.touchUi.isEnabled;
+    const cursorAimX = Phaser.Math.Clamp(touchMode ? this.touchCursor.x : p.x, 0, VIEW.width);
+    const cursorAimY = Phaser.Math.Clamp(touchMode ? this.touchCursor.y : p.y, 0, VIEW.hudTop);
+    this.aimCursorX = cursorAimX;
+    this.aimCursorY = cursorAimY;
+    const gunAimX = cursorAimX;
+    const gunAimY = cursorAimY;
+    const pointerY = touchMode ? 300 : p.y;
 
     if (!this.over) {
       for (const req of this.waves.update(dt)) {
@@ -506,6 +552,13 @@ export class GameScene extends Phaser.Scene {
     this.view.update(dt, cursorAimX, cursorAimY, gunAimX, gunAimY, this.weapons.spread, this.weapons.reloadProgress, this.weapons.reloading, this.hoverZone === 'head', !!hover);
     this.view.setVisible(!this.over);
     this.hud.update(dt);
+    const w = this.waves;
+    this.touchUi.update(dt, {
+      reloading: this.weapons.reloading,
+      reloadProgress: this.weapons.reloadProgress,
+      deploy: w.canStartNext && w.remaining === 0 && !this.over ? `DEPLOY WAVE ${w.wave + 1}` : null,
+      inputLocked: this.over,
+    });
     this.updateAmbience(dt);
   }
 
