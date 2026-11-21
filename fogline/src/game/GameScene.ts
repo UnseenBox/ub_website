@@ -21,7 +21,7 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { HUD } from '../ui/HUD';
 import { toggleFullscreen } from '../ui/widgets';
 import { isTestMode } from './testMode';
-import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, touchGunAim } from './touchControls';
+import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, resetTouchPointerIds, supportAim, touchGunAim } from './touchControls';
 import { Zombie } from '../entities/Zombie';
 import type { ModId } from '../data/upgrades';
 
@@ -55,8 +55,8 @@ export class GameScene extends Phaser.Scene {
   private trigger = false;
   private readonly touchAimGun = { x: 0, y: 0 };
   private readonly touchAimRaw = { x: 0, y: 0 };
-  private aimPointerId: number | null = null;
-  private firePointerId: number | null = null;
+  aimPointerId: number | null = null;
+  firePointerId: number | null = null;
   private aimCursorX = VIEW.centerX + AIM_LEFT_OFFSET;
   private aimCursorY = 300 + AIM_VERT_OFFSET;
   private ambientLeft = 3;
@@ -74,6 +74,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.over = false;
     this.trigger = false;
+    resetTouchPointerIds(this);
     this.upgrades = { reinforceLevel: 0 };
     this.input.setDefaultCursor('none');
     this.input.mouse?.disableContextMenu();
@@ -341,8 +342,9 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const p = this.input.activePointer;
-    const aimX = Phaser.Math.Clamp(p.x + AIM_LEFT_OFFSET, 0, VIEW.width);
-    const aimY = Phaser.Math.Clamp(p.y + AIM_VERT_OFFSET, 0, VIEW.hudTop);
+    const supportTarget = supportAim(this.aimPointerId !== null, this.aimCursorX, this.aimCursorY, p.x, p.y);
+    const aimX = supportTarget.x;
+    const aimY = supportTarget.y;
     if (def.id === 'gunship') this.support.callGunship();
     else if (def.id === 'orbital') this.support.callOrbital(aimX, Math.min(aimY, VIEW.wallTop - 4));
     else this.support.callNuke();

@@ -6,7 +6,7 @@ import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../au
 import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
-import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, touchGunAim } from '../game/touchControls';
+import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, resetTouchPointerIds, supportAim, touchGunAim } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { Abilities } from './Abilities';
 import { BunkerManager } from './BunkerManager';
@@ -331,6 +331,17 @@ describe('phone touch controls', () => {
     expect(isFireTouch(900, 300)).toBe(true);
     expect(isFireTouch(200, 300)).toBe(false);
     expect(isFireTouch(900, VIEW.hudTop + 5)).toBe(false);
+  });
+
+  it('uses the touch crosshair for support strikes while aiming by touch', () => {
+    expect(supportAim(true, 400, 200, 900, 600)).toEqual({ x: 400, y: 200 });
+    expect(supportAim(false, 0, 0, 640, 300)).toEqual({ x: 490, y: 220 });
+  });
+
+  it('clears stale touch pointer ids on restart', () => {
+    const state = { aimPointerId: 1 as number | null, firePointerId: 2 as number | null };
+    resetTouchPointerIds(state);
+    expect(state).toEqual({ aimPointerId: null, firePointerId: null });
   });
 });
 

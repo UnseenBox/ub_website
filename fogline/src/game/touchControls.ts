@@ -34,3 +34,23 @@ export function isAimTouch(x: number, y: number): boolean {
 export function isFireTouch(x: number, y: number): boolean {
   return x >= VIEW.width / 2 && x <= VIEW.width && y >= 0 && y < VIEW.hudTop;
 }
+
+export interface TouchPointerIds {
+  aimPointerId: number | null;
+  firePointerId: number | null;
+}
+
+/** Clear stale touch slots when a run restarts with a finger still held. */
+export function resetTouchPointerIds(state: TouchPointerIds): void {
+  state.aimPointerId = null;
+  state.firePointerId = null;
+}
+
+/** Aim-driven abilities follow the touch crosshair, otherwise the mouse pointer. */
+export function supportAim(usingTouch: boolean, cursorX: number, cursorY: number, pointerX: number, pointerY: number): { x: number; y: number } {
+  if (usingTouch) return { x: clamp(cursorX, 0, VIEW.width), y: clamp(cursorY, 0, VIEW.hudTop) };
+  return {
+    x: clamp(pointerX + AIM_LEFT_OFFSET, 0, VIEW.width),
+    y: clamp(pointerY + AIM_VERT_OFFSET, 0, VIEW.hudTop),
+  };
+}
