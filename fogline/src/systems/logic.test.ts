@@ -68,6 +68,12 @@ describe('main menu background', () => {
     expect(game).toContain('openShop?: boolean');
     expect(main).toContain('SettingsScene');
   });
+
+  it('defers the menu shop launch until after scene creation', () => {
+    const sources = import.meta.glob('../../src/game/*.ts', { eager: true, query: '?raw', import: 'default' });
+    const game = Object.entries(sources).find(([k]) => k.endsWith('GameScene.ts'))?.[1] ?? '';
+    expect(game).toContain('this.time.delayedCall(0, () => this.openShop())');
+  });
 });
 
 describe('weapon shot recordings', () => {
