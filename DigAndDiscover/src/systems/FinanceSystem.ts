@@ -1,3 +1,4 @@
+import { FEATURES } from '../config/features';
 import { ECONOMY, expenseItemsForMonth, installmentForMonth, type ExpenseLine } from '../data/economy';
 
 export type { ExpenseLine };
@@ -49,6 +50,12 @@ export interface LedgerView {
   debtFree: boolean;
   /** What the household bill of today will cost (without carried bills). */
   todaysExpenseEstimate: number;
+  /** The payment for this month (the whole month's instalment). */
+  monthlyPayment: number;
+  /** What is still unpaid of it, overdue included (0 when it is covered). */
+  paymentLeft: number;
+  /** Working days left to pay it, today included; 0 once the deadline day has been settled. */
+  daysToPayment: number;
 }
 
 /** The part of the save file that belongs to the finance system. */
@@ -196,7 +203,9 @@ export class FinanceSystem {
    */
   payInstallment(money: number): number {
     if (this.debtFree) return 0;
-    const target = this.overdue > 0 ? this.overdue : installmentForMonth(this.monthIndex);
+    // Retention update: pay exactly what is still missing of this month's payment (not a second full instalment).
+    const missing = FEATURES.v2 ? this.paymentView().paymentLeft : 0;
+    const target = this.overdue > 0 ? this.overdue : missing > 0 ? missing : installmentForMonth(this.monthIndex);
     return this.pay(target, money);
   }
 
@@ -272,6 +281,26 @@ export class FinanceSystem {
       billsOutstanding: this.billsOutstanding,
       debtFree: this.debtFree,
       todaysExpenseEstimate: items.reduce((sum, item) => sum + item.amount, 0),
+      ...this.paymentView(),
+    };
+  }
+
+  /**
+   * The monthly payment as the player sees it (retention update). The instalment is issued while the last day of
+   * the month is settled; before that, prepayments sit in `credit`, afterwards the unpaid part sits in `overdue`.
+   */
+  private paymentView(): { monthlyPayment: number; paymentLeft: number; daysToPayment: number } {
+    const monthlyPayment = installmentForMonth(this.monthIndex);
+    if (this.debtFree) return { monthlyPayment, paymentLeft: 0, daysToPayment: 0 };
+    const monthDays = ECONOMY.month.days;
+    const settledThisMonth = this.daysSurvived - this.monthIndex * monthDays;
+    const issued = this.dayInMonth >= monthDays && settledThisMonth >= monthDays;
+    if (issued) return { monthlyPayment, paymentLeft: this.overdue, daysToPayment: 0 };
+    const due = Math.min(monthlyPayment, this.debtRemaining);
+    return {
+      monthlyPayment,
+      paymentLeft: this.overdue + Math.max(0, due - this.credit),
+      daysToPayment: monthDays - this.dayInMonth + 1,
     };
   }
 

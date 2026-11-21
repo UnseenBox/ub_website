@@ -3,8 +3,7 @@ import { GAME_CONFIG } from '../config/GameConfig';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { EVT, state, subscribe } from '../core/GameState';
 import type { Rock } from '../core/types';
-import { ART_RES, ensureRockTextures, iconScale, releaseRockTextures, rockKeys } from '../art/RockArt';
-import { MACHINE, SAW_RADIUS } from '../art/TextureFactory';
+import { ensureRockTextures, iconScale, releaseRockTextures, rockKeys } from '../art/RockArt';
 import { sfx, type SawHandle } from '../audio/Sfx';
 import { portal } from '../ads/Portal';
 import { ICON_SAW, ICON_STAR } from '../art/IconArt';
@@ -12,9 +11,9 @@ import { uiIcon } from '../art/UiIcons';
 import { Button } from '../ui/Button';
 import { computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { formatMoney } from '../ui/MoneyCounter';
+import { SawBench, type BenchFx } from './SawBench';
 
-type BenchState = 'empty' | 'placing' | 'ready' | 'cutting' | 'revealed' | 'selling';
-
+/** Logical stage size for the original, single-machine workshop. */
 interface StageLayout {
   w: number;
   h: number;
@@ -29,16 +28,14 @@ interface StageLayout {
 const WIDE_STAGE: StageLayout = { w: 980, h: 600, machineX: 340, bedY: 430, cardX: 770, cardY: 300, cardW: 340, cardH: 390 };
 const TALL_STAGE: StageLayout = { w: 640, h: 860, machineX: 320, bedY: 440, cardX: 320, cardY: 708, cardW: 590, cardH: 270 };
 
-/** Rocks worth at least this much offer a "sell for double" ad. */
+/** Rocks worth at least this much offer a "sell for double" ad (single rock only). */
 const AD_SELL_MIN_VALUE = 30;
-const BLADE_REST = -290;
-const BLADE_END = -60;
-const RAY_COUNT = 12;
 
 /**
- * The workshop: place a rock on the bench, run the saw, reveal the inside
- * with a rarity-scaled celebration, then sell. Everything lives in a logical
- * "stage" container that is scaled to fit the play area.
+ * The workshop now hosts one to four saw machines. With no Extra Saws levels
+ * there is exactly one machine and the original layout, controls and timing.
+ * Extra machines use the same SawBench unit at a smaller scale and share the
+ * Cut/Sell buttons, so a handful of rocks takes about as long as a single one.
  */
 export class WorkshopScene extends Phaser.Scene {
   private S: StageLayout = WIDE_STAGE;
@@ -46,14 +43,9 @@ export class WorkshopScene extends Phaser.Scene {
   private backdrop!: Phaser.GameObjects.Graphics;
   private lamp!: Phaser.GameObjects.Image;
   private stage!: Phaser.GameObjects.Container;
-  private machine!: Phaser.GameObjects.Image;
-  private machineShadow!: Phaser.GameObjects.Image;
-  private rays!: Phaser.GameObjects.Container;
-  private rod!: Phaser.GameObjects.Rectangle;
-  private blade!: Phaser.GameObjects.Image;
-  private rockImg!: Phaser.GameObjects.Image;
-  private cutLine!: Phaser.GameObjects.Rectangle;
-  private halves: Phaser.GameObjects.Image[] = [];
+  private benches: SawBench[] = [];
+  private fx!: BenchFx;
+
   private card!: Phaser.GameObjects.Graphics;
   private chip!: Phaser.GameObjects.Container;
   private chipBg!: Phaser.GameObjects.Graphics;
@@ -66,80 +58,65 @@ export class WorkshopScene extends Phaser.Scene {
   private cutBtn!: Button;
   private sellBtn!: Button;
   private adBtn!: Button;
+
   private sparkFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private dustFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private burstFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private confettiFx!: Phaser.GameObjects.Particles.ParticleEmitter;
   private glitterFx!: Phaser.GameObjects.Particles.ParticleEmitter;
-  private glitterTimer: Phaser.Time.TimerEvent | null = null;
 
-  private bench: BenchState = 'empty';
-  private current: Rock | null = null;
-  private bladeSpeed = 0;
-  private bladeTarget = 0;
   private saw: SawHandle | null = null;
-  private cutting = false;
-  private raysSpin = 0;
   private bigCounter = { value: 0 };
   private legendaryHue = -1;
+  /** Every timer and floating label we create, so SLEEP/SHUTDOWN can clean up strictly. */
+  private timers: Phaser.Time.TimerEvent[] = [];
+  private floaters: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super('Workshop');
   }
 
   create(): void {
-    this.halves = [];
-    this.bench = 'empty';
-    this.current = null;
     this.backdrop = this.add.graphics();
     this.lamp = this.add.image(0, 0, 'soft').setTint(0xffd9a0).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD);
     this.stage = this.add.container(0, 0);
-    this.buildStage();
+
+    this.fx = {
+      dust: (x, y, count) => this.dustFx.explode(count, x, y),
+      spark: (x, y, count) => this.sparkFx.emitParticleAt(x, y, count),
+      glitter: (x, y) => this.glitterFx.emitParticleAt(x, y, 1),
+      lucky: (bench) => this.flashLuckyCut(bench),
+    };
+    this.syncBenches();
     this.buildCard();
     this.buildEffects();
+    this.computeStage();
 
     subscribe(this, EVT.slotSelected, (id: string) => this.onSlotSelected(id));
-    subscribe(this, EVT.capacityChanged, () => this.onResize());
+    subscribe(this, EVT.capacityChanged, () => this.computeStage());
     subscribe(this, EVT.dayPhaseChanged, () => this.refreshCard());
+    // The keyboard shortcuts act on every machine at once.
     this.input.keyboard?.on('keydown-SPACE', () => {
-      if (this.bench === 'ready') this.cutBtn.trigger();
-      else if (this.bench === 'revealed') this.sellBtn.trigger();
+      if (this.benches.some((b) => b.phase === 'ready')) void this.cut();
+      else if (this.benches.some((b) => b.phase === 'revealed')) this.sell(1);
     });
-    this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.computeStage, this);
     this.events.on(Phaser.Scenes.Events.WAKE, this.onEnter, this);
-    const stopSaw = (): void => {
-      this.saw?.stop();
-      this.saw = null;
-    };
-    this.events.on(Phaser.Scenes.Events.SLEEP, stopSaw);
+    const cleanup = (): void => this.cleanup(false);
+    this.events.on(Phaser.Scenes.Events.SLEEP, cleanup);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      stopSaw();
-      this.events.off(Phaser.Scenes.Events.SLEEP, stopSaw);
-      this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
+      this.cleanup(true);
+      this.events.off(Phaser.Scenes.Events.SLEEP, cleanup);
+      this.scale.off(Phaser.Scale.Events.RESIZE, this.computeStage, this);
       this.events.off(Phaser.Scenes.Events.WAKE, this.onEnter, this);
     });
-    this.onResize();
     this.onEnter();
   }
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100);
     this.updateAdButton();
-    this.bladeSpeed += (this.bladeTarget - this.bladeSpeed) * Math.min(1, dt / 220);
-    if (this.bladeSpeed > 0.001) this.blade.rotation += this.bladeSpeed * dt * 0.03;
-    this.rod.height = Math.max(0, this.blade.y - (this.S.bedY + BLADE_REST));
-    if (this.cutting && this.current) {
-      const rx = this.S.machineX;
-      this.rockImg.x = rx + Phaser.Math.FloatBetween(-1.6, 1.6);
-      const contact = Math.min(this.blade.y + SAW_RADIUS, this.S.bedY - 4);
-      const top = this.rockTop();
-      if (contact > top) {
-        this.cutLine.setPosition(rx, top).setSize(5, contact - top).setVisible(true);
-        this.sparkFx.emitParticleAt(rx, contact, 2);
-        if (Math.random() < 0.3) this.dustFx.emitParticleAt(rx, contact, 1);
-      }
-    }
-    if (this.rays.visible) this.rays.rotation += this.raysSpin * dt;
+    for (const bench of this.benches) bench.update(dt);
     if (this.legendaryHue >= 0) {
       this.legendaryHue = (this.legendaryHue + dt * 0.12) % 360;
       const tint = Phaser.Display.Color.HSVToRGB(this.legendaryHue / 360, 0.35, 1).color;
@@ -149,19 +126,22 @@ export class WorkshopScene extends Phaser.Scene {
 
   // ---------- construction ----------
 
-  private buildStage(): void {
-    this.machineShadow = this.add.image(0, 0, 'shadow').setScale(3.6, 1.4);
-    this.machine = this.add.image(0, 0, 'machine').setScale(1 / ART_RES).setOrigin(0.5, MACHINE.bedY / MACHINE.height);
-    this.rays = this.add.container(0, 0).setVisible(false);
-    for (let i = 0; i < RAY_COUNT; i++) {
-      this.rays.add(this.add.image(0, 0, 'ray').setOrigin(0.5, 1).setRotation((i / RAY_COUNT) * Math.PI * 2).setBlendMode(Phaser.BlendModes.ADD));
+  /** Creates/removes machine units when the Extra Saws level changes. */
+  private syncBenches(): void {
+    const wanted = state.sawCount;
+    while (this.benches.length < wanted) {
+      const bench = new SawBench(this, this.benches.length, this.fx);
+      // Keep machines below the card and the particle pools, even when bought mid-run.
+      const cardIndex = this.card ? this.stage.getIndex(this.card) : this.benches.length;
+      this.stage.addAt(bench.root, Math.min(this.benches.length, cardIndex));
+      this.benches.push(bench);
     }
-    this.rockImg = this.add.image(0, 0, '__DEFAULT').setVisible(false);
-    this.cutLine = this.add.rectangle(0, 0, 5, 10, 0xfff3c4).setOrigin(0.5, 0).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
-    for (let i = 0; i < 2; i++) this.halves.push(this.add.image(0, 0, '__DEFAULT').setVisible(false));
-    this.rod = this.add.rectangle(0, 0, 14, 0, 0x8d99a6).setOrigin(0.5, 0).setStrokeStyle(2, 0x4f5763);
-    this.blade = this.add.image(0, 0, 'saw').setScale(1 / ART_RES);
-    this.stage.add([this.machineShadow, this.machine, this.rays, this.rockImg, this.cutLine, ...this.halves, this.rod, this.blade]);
+    while (this.benches.length > wanted) {
+      const bench = this.benches.pop();
+      if (!bench) break;
+      if (bench.rock) releaseRockTextures(this.textures, bench.rock);
+      bench.destroy();
+    }
   }
 
   private buildCard(): void {
@@ -242,23 +222,69 @@ export class WorkshopScene extends Phaser.Scene {
       alpha: { start: 1, end: 0 },
       blendMode: Phaser.BlendModes.ADD,
     });
-    // Particles render just below the blade so sparks fly in front of the rock.
-    this.stage.addAt([this.dustFx, this.burstFx, this.glitterFx, this.sparkFx], this.stage.getIndex(this.rod));
-    this.stage.add(this.confettiFx);
+    // One pooled emitter each; never created per rock. Drawn above the benches.
+    this.stage.add([this.dustFx, this.burstFx, this.glitterFx, this.sparkFx, this.confettiFx]);
   }
 
   // ---------- layout ----------
 
-  private onResize(): void {
+  /** Recomputes the stage, the card and every machine view from the current viewport. */
+  private computeStage(): void {
     const { width: w, height: h } = this.scale;
     const L = (this.L = computeLayout(w, h, state.inventory.capacity));
-    const prev = this.S;
-    this.S = L.play.w / L.play.h < 1.05 ? TALL_STAGE : WIDE_STAGE;
-    const S = this.S;
+    const count = this.benches.length;
+    let S: StageLayout;
+    let views: { x: number; bedY: number; scale: number }[];
+
+    if (count <= 1) {
+      // Exactly the original stage and position for a single machine.
+      S = L.play.w / L.play.h < 1.05 ? TALL_STAGE : WIDE_STAGE;
+      views = [{ x: S.machineX, bedY: S.bedY, scale: 1 }];
+    } else {
+      // Several machines: a compact card plus a row (wide) or 2-column grid (portrait).
+      const portrait = L.play.w / L.play.h < 1.05;
+      const cardW = portrait ? Math.min(L.play.w - 24, 520) : Math.min(360, L.play.w * 0.28);
+      const cardH = portrait ? Math.min(150, L.play.h * 0.24) : Math.min(340, L.play.h * 0.62);
+      // Stage-local coordinates (the stage is already positioned at L.play).
+      const cardX = portrait ? L.play.w / 2 : L.play.w - cardW / 2 - 12;
+      const cardY = portrait ? L.play.h - cardH / 2 - 8 : L.play.h / 2;
+      S = { w: L.play.w, h: L.play.h, machineX: 0, bedY: 0, cardX, cardY, cardW, cardH };
+
+      const areaX0 = 12;
+      const areaX1 = portrait ? L.play.w - 12 : cardX - cardW / 2 - 12;
+      // Leaves room for the HUD chips (money, level, daily goal, debt) above the machines.
+      const areaY0 = portrait ? (L.compact ? 44 : 60) : L.play.y + 36;
+      const areaY1 = portrait ? cardY - cardH / 2 - 18 : L.play.h - 16;
+      const areaW = Math.max(120, areaX1 - areaX0);
+      const areaH = Math.max(140, areaY1 - areaY0);
+      const cols = portrait ? Math.min(2, count) : count;
+      const rows = Math.ceil(count / cols);
+      const cellH = areaH / rows;
+      // One machine is about 395 stage units wide (base with its control box) and 430 tall (blade travel
+      // included); neighbours may overlap by roughly half a base, so the row spacing is 190 units.
+      const MACHINE_HALF_W = 197;
+      const SPACING = 190;
+      const s = Math.min(areaW / (2 * MACHINE_HALF_W + SPACING * (cols - 1)), cellH / 430, portrait ? 0.55 : 0.85);
+      const half = MACHINE_HALF_W * s;
+      const step = cols > 1 ? (areaW - 2 * half) / (cols - 1) : 0;
+      views = [];
+      for (let i = 0; i < count; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        views.push({
+          x: cols > 1 ? areaX0 + half + col * step : areaX0 + areaW / 2,
+          bedY: areaY0 + row * cellH + 290 * s + (cellH - 410 * s) / 2,
+          scale: s,
+        });
+      }
+      S.machineX = views[0].x;
+      S.bedY = views[0].bedY;
+    }
+    this.S = S;
     const scale = Math.min(L.play.w / S.w, L.play.h / S.h);
     this.stage.setScale(scale).setPosition(L.play.x + (L.play.w - S.w * scale) / 2, L.play.y + (L.play.h - S.h * scale) / 2);
 
-    // Full-screen workshop wall and bench.
+    // Full-screen workshop wall and bench, as in the original scene.
     const benchY = this.stage.y + (S.bedY + 85) * scale;
     const g = this.backdrop;
     g.clear();
@@ -274,53 +300,39 @@ export class WorkshopScene extends Phaser.Scene {
     g.fillStyle(0xe0a46a).fillRect(0, benchY, w, 6 * scale);
     g.fillStyle(0x8c5532).fillRect(0, benchY + 26 * scale, w, h - benchY);
     for (let y = benchY + 60 * scale; y < h; y += 46 * scale) g.fillStyle(0x7a4a2b).fillRect(0, y, w, 4 * scale);
-    this.lamp.setPosition(this.stage.x + S.machineX * scale, this.stage.y + (S.bedY - 150) * scale).setScale((520 * scale) / 64);
+    this.lamp.setPosition(this.stage.x + S.machineX * scale, this.stage.y + (S.bedY - 150) * scale)
+      .setScale((520 * scale * views[0].scale) / 64);
 
-    this.layoutStage(prev !== S);
+    this.benches.forEach((bench, i) => bench.setView(views[i]));
+    this.drawCard();
   }
 
-  private layoutStage(recenterRock: boolean): void {
-    const S = this.S;
-    this.machineShadow.setPosition(S.machineX, S.bedY + 120);
-    this.machine.setPosition(S.machineX, S.bedY);
-    this.rays.setPosition(S.machineX, this.rockCenterY());
-    this.rod.setPosition(S.machineX, S.bedY + BLADE_REST);
-    if (!this.cutting) this.blade.setPosition(S.machineX, S.bedY + BLADE_REST);
-    if (recenterRock && this.current && this.bench !== 'placing') this.rockImg.setPosition(S.machineX, this.rockCenterY());
-    if (this.bench === 'revealed' || this.bench === 'selling') this.placeHalves(false);
+  /** True for the short card of several machines on a phone: the stars chip is dropped and the buttons shrink. */
+  private tightCard(): boolean {
+    return this.benches.length > 1 && this.S.cardH < 200;
+  }
 
-    const { cardX: x, cardY: y, cardW: w, cardH: h } = S;
+  private btnScale(): number {
+    return this.tightCard() ? 0.62 : 1;
+  }
+
+  private drawCard(): void {
+    const { cardX: x, cardY: y, cardW: w, cardH: h } = this.S;
     const g = this.card;
     g.clear();
     g.fillStyle(0x000000, 0.25).fillRoundedRect(x - w / 2, y - h / 2 + 8, w, h, 28);
     g.fillStyle(PALETTE.cream).fillRoundedRect(x - w / 2, y - h / 2, w, h, 28);
     g.fillStyle(PALETTE.creamShade).fillRoundedRect(x - w / 2 + 10, y + h * 0.12, w - 20, h * 0.38 - 10, 20);
     g.lineStyle(4, 0xe2c497).strokeRoundedRect(x - w / 2, y - h / 2, w, h, 28);
+    const tight = this.tightCard();
     this.chip.setPosition(x, y - h * 0.37);
-    this.title.setPosition(x, y - h * 0.21).setWordWrapWidth(w - 40);
+    this.title.setFontSize(tight ? 22 : this.benches.length > 1 ? 26 : 34).setPosition(x, y - h * (tight ? 0.3 : 0.21)).setWordWrapWidth(w - 40);
     this.sub.setPosition(x, y - h * 0.07).setWordWrapWidth(w - 40);
-    this.big.setPosition(x, y + h * 0.1);
-    this.bigIcon.setPosition(x, y + h * 0.1).setDisplaySize(84, 84);
-    this.cutBtn.setPosition(x, y + h * 0.33);
-    this.sellBtn.setPosition(x, y + h * 0.33);
+    this.big.setPosition(x, y + h * (tight ? -0.02 : 0.1));
+    this.bigIcon.setPosition(x, y + h * (tight ? -0.02 : 0.1)).setDisplaySize(tight ? 56 : 84, tight ? 56 : 84);
+    this.cutBtn.setPosition(x, y + h * (tight ? 0.3 : 0.33)).setScale(this.btnScale());
+    this.sellBtn.setPosition(x, y + h * (tight ? 0.3 : 0.33)).setScale(this.btnScale());
     this.adBtn.setPosition(x, y + h * 0.33 + 64);
-  }
-
-  private rockScale(): number {
-    return GAME_CONFIG.rock.workshopScale / ART_RES;
-  }
-
-  private rockRadius(): number {
-    return this.current ? GAME_CONFIG.rock.baseRadius * this.current.size * GAME_CONFIG.rock.workshopScale : 0;
-  }
-
-  private rockCenterY(): number {
-    const r = this.rockRadius() || GAME_CONFIG.rock.baseRadius * GAME_CONFIG.rock.workshopScale;
-    return this.S.bedY - r * (this.current?.exterior.squash ?? 0.85) - 2;
-  }
-
-  private rockTop(): number {
-    return this.rockCenterY() - this.rockRadius() * (this.current?.exterior.squash ?? 0.85);
   }
 
   private stageToScreen(x: number, y: number): { x: number; y: number } {
@@ -337,39 +349,57 @@ export class WorkshopScene extends Phaser.Scene {
 
   private onEnter(): void {
     this.cameras.main.fadeIn(220, 30, 20, 12);
-    this.onResize();
-    if (this.bench === 'empty') this.autoPlace();
+    this.cleanup(false);
+    this.syncBenches();
+    this.computeStage();
+    if (this.benches.every((b) => b.phase === 'empty')) this.autoPlace();
     else this.refreshCard();
   }
 
+  /** Fills every free machine with a different uncut rock from the bag. */
   private autoPlace(): void {
-    if (this.bench !== 'empty' || this.current || !state.canCut) return;
-    const next = state.inventory.firstUncut();
-    if (next) this.place(next);
-    else this.refreshCard();
+    if (!state.canCut) return;
+    const placed = new Set(this.benches.map((b) => b.rock?.id).filter((id): id is string => !!id));
+    let started = false;
+    for (const bench of this.benches) {
+      if (bench.phase !== 'empty') continue;
+      let next: Rock | null = null;
+      for (let i = 0; i < state.inventory.capacity; i++) {
+        const rock = state.inventory.get(i);
+        if (rock && !rock.cut && !placed.has(rock.id)) { next = rock; break; }
+      }
+      if (!next) break;
+      placed.add(next.id);
+      this.placeOn(bench, next);
+      started = true;
+    }
+    if (!started) this.refreshCard();
   }
 
   private onSlotSelected(id: string): void {
-    if (!state.canCut || (this.bench !== 'empty' && this.bench !== 'ready')) return;
-    if (this.current?.id === id) return;
+    if (!state.canCut) return;
+    const onBench = this.benches.find((b) => b.rock?.id === id && (b.phase === 'ready' || b.phase === 'placing'));
+    if (onBench) {
+      // Tapping a rock that is already on a machine takes it off again.
+      if (onBench.phase !== 'ready') return;
+      const back = this.slotStagePos(state.inventory.indexOf(id));
+      this.syncPlaced();
+      void onBench.returnToSlot(back, this.slotIconScale()).then(() => { this.syncPlaced(); this.refreshCard(); });
+      return;
+    }
     const index = state.inventory.indexOf(id);
     const rock = state.inventory.get(index);
     if (!rock || rock.cut) return;
-    if (this.bench === 'ready' && this.current) {
-      // Send the current rock back to its slot, then bring the new one.
-      const back = this.slotStagePos(state.inventory.indexOf(this.current.id));
-      this.bench = 'placing';
-      this.tweens.add({
-        targets: this.rockImg, x: back.x, y: back.y, scale: this.slotIconScale(), duration: 220, ease: 'Quad.easeIn',
-        onComplete: () => {
-          this.current = null;
-          this.bench = 'empty';
-          this.place(rock);
-        },
-      });
-    } else {
-      this.place(rock);
+    const free = this.benches.find((b) => b.phase === 'empty');
+    if (free) {
+      this.placeOn(free, rock);
+      return;
     }
+    // All machines busy: swap out the first ready rock, as the original did.
+    const swap = this.benches.find((b) => b.phase === 'ready' && b.rock);
+    if (!swap) return;
+    const back = this.slotStagePos(state.inventory.indexOf(swap.rock!.id));
+    void swap.returnToSlot(back, this.slotIconScale()).then(() => this.placeOn(swap, rock));
   }
 
   private slotStagePos(index: number): { x: number; y: number } {
@@ -381,283 +411,256 @@ export class WorkshopScene extends Phaser.Scene {
     return iconScale(this.L.slotSize * GAME_CONFIG.rock.inventoryScale) / this.stage.scaleX;
   }
 
-  private place(rock: Rock): void {
-    this.current = rock;
-    this.bench = 'placing';
-    state.bus.emit(EVT.placedChanged, rock.id);
-    this.refreshCard();
+  private placeOn(bench: SawBench, rock: Rock): void {
     const from = this.slotStagePos(state.inventory.indexOf(rock.id));
-    const to = { x: this.S.machineX, y: this.rockCenterY() };
-    const ctrl = { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 220 };
-    const startScale = this.slotIconScale();
-    const endScale = this.rockScale();
-    this.rockImg.setTexture(rockKeys(rock).outside).setPosition(from.x, from.y).setScale(startScale).setAngle(0).setAlpha(1).setVisible(true);
-    this.tweens.addCounter({
-      from: 0,
-      to: 1,
-      duration: 460,
-      ease: 'Sine.easeInOut',
-      onUpdate: (tw) => {
-        const t = tw.getValue() ?? 0;
-        const u = 1 - t;
-        this.rockImg.setPosition(u * u * from.x + 2 * u * t * ctrl.x + t * t * to.x, u * u * from.y + 2 * u * t * ctrl.y + t * t * to.y);
-        this.rockImg.setScale(Phaser.Math.Linear(startScale, endScale, t));
-        this.rockImg.setAngle(-20 * u);
-      },
-      onComplete: () => {
-        sfx.place();
-        this.dustFx.explode(6, to.x, this.S.bedY - 6);
-        this.tweens.add({ targets: this.machine, y: { from: this.S.bedY + 4, to: this.S.bedY }, duration: 200, ease: 'Bounce.easeOut' });
-        this.tweens.chain({
-          targets: this.rockImg,
-          tweens: [
-            { scaleX: endScale * 1.18, scaleY: endScale * 0.84, duration: 80, ease: 'Quad.easeOut' },
-            { scaleX: endScale, scaleY: endScale, duration: 300, ease: 'Elastic.easeOut', easeParams: [1.1, 0.45] },
-          ],
-        });
-        this.bench = 'ready';
-        this.refreshCard();
-      },
+    const flight = bench.place(rock, from, this.slotIconScale());
+    // After place() has claimed the rock, so the bag markers include this one too.
+    this.syncPlaced();
+    this.refreshCard();
+    void flight.then(() => {
+      this.refreshCard();
+      this.autoPlace();
     });
   }
 
+  /** Notifies the HUD which bag slots are currently marked as "on a bench". */
+  private syncPlaced(): void {
+    // A rock already being sold is no longer "on the bench" for the bag's markers.
+    state.setPlacedRockIds(this.benches.map((b) => (b.phase === 'selling' ? '' : (b.rock?.id ?? ''))));
+  }
+
+  /** Cuts every ready machine in parallel; one saw sound for the whole batch. */
   private async cut(): Promise<void> {
-    const rock = this.current;
-    if (this.bench !== 'ready' || !rock || !state.canCut) return;
-    this.bench = 'cutting';
+    const ready = this.benches.filter((b) => b.phase === 'ready' && b.rock);
+    if (!ready.length || !state.canCut) return;
     state.setBusy(true);
     this.refreshCard();
-    const S = this.S;
     this.saw = sfx.startSaw();
-    this.bladeTarget = 1;
-    await this.tween({ targets: this.blade, y: this.rockTop() - SAW_RADIUS + 6, duration: 320, ease: 'Sine.easeIn' });
-    this.saw.grind(true);
-    this.cutting = true;
-    await this.tween({ targets: this.blade, y: S.bedY + BLADE_END, duration: GAME_CONFIG.cutting.cutDurationMs, ease: 'Linear' });
-    this.cutting = false;
-    this.saw.grind(false);
-    this.rockImg.x = S.machineX;
-    await this.tween({ targets: this.blade, y: S.bedY + BLADE_REST, duration: 300, ease: 'Sine.easeOut' });
-    this.bladeTarget = 0;
-    this.saw.stop();
+    const saw = this.saw;
+    await Promise.all(ready.map((b) => b.cutDown()));
+    saw.grind(true);
+    await Promise.all(ready.map((b) => b.cutThrough()));
+    saw.grind(false);
+    await Promise.all(ready.map((b) => b.cutUp()));
+    saw.stop();
     this.saw = null;
 
-    // Master Cutter: the cut may turn out better than the rock looked. The cross-section is repainted first.
-    if (state.rollLuckyCut(rock)) {
-      this.textures.remove(rockKeys(rock).inside);
-      ensureRockTextures(this.textures, rock);
-      this.flashLuckyCut();
+    // Master Cutter is rolled per rock: the cross-section is repainted before reveal.
+    for (const bench of ready) {
+      const rock = bench.rock!;
+      if (state.rollLuckyCut(rock)) {
+        this.textures.remove(rockKeys(rock).inside);
+        ensureRockTextures(this.textures, rock);
+        bench.refreshInside();
+      }
     }
-
-    // Anticipation: a little wobble (plus a dramatic pause for the good stuff).
-    const tier = rock.rarity.tier;
-    await this.tween({ targets: this.rockImg, angle: { from: -4, to: 4 }, duration: 70, yoyo: true, repeat: 1 });
-    this.rockImg.setAngle(0);
-    if (tier >= 3) {
+    await Promise.all(ready.map((b) => b.wobble()));
+    const maxTier = Math.max(...ready.map((b) => b.rock!.rarity.tier));
+    if (maxTier >= 3) {
       this.cameras.main.shake(260, 0.0025);
       await this.wait(280);
     }
-    this.reveal(rock);
+    for (const bench of ready) this.revealBench(bench);
+    this.refreshCard();
+    this.animateRevealCard(ready.reduce((sum, b) => sum + b.rock!.value, 0), maxTier);
+    if (ready.length >= 2) this.playCombo(ready);
   }
 
-  /** A short "LUCKY CUT!" over the machine when Master Cutter pays off. */
-  private flashLuckyCut(): void {
-    const t = this.add.text(this.S.machineX, this.rockCenterY() - 100, 'LUCKY CUT!', outlinedStyle(36, '#ffe27a')).setOrigin(0.5).setScale(0.4).setDepth(40);
+  /** Floating "LUCKY CUT!" over the machine when Master Cutter pays off. */
+  private flashLuckyCut(bench: SawBench): void {
+    const small = this.benches.length > 1;
+    const t = this.add.text(bench.x, bench.rockCenterY() - (small ? 60 : 100), 'LUCKY CUT!',
+      outlinedStyle(small ? 26 : 36, '#ffe27a')).setOrigin(0.5).setScale(0.4).setDepth(40);
+    this.floaters.push(t);
     this.tweens.add({ targets: t, scale: 1.1, duration: 240, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, y: t.y - 44, alpha: 0, delay: 900, duration: 400, onComplete: () => t.destroy() });
     this.cameras.main.flash(140, 255, 236, 150);
   }
 
-  private reveal(rock: Rock): void {
-    const S = this.S;
+  /** Reveal FX for one machine. For batches the combined effect supplies the shake/flash. */
+  private revealBench(bench: SawBench): void {
+    const rock = bench.rock;
+    if (!rock) return;
     const tier = rock.rarity.tier;
-    // A dud (plain stone) or a worthless rock ($0) gets no celebration: only a sad little puff.
     const dud = !!rock.mineral.dud || rock.value <= 0;
     const tint = revealColor(rock);
+    const x = bench.x;
+    const cy = bench.rockCenterY();
+    const s = bench.scale;
+
     state.inventory.markCut(rock.id);
     state.recordCut(rock);
-
-    this.rockImg.setVisible(false);
-    this.cutLine.setVisible(false);
-    const inside = rockKeys(rock).inside;
-    const cy = this.rockCenterY();
-    this.halves.forEach((half, i) => {
-      half.setTexture(inside).setFlipX(i === 1).setPosition(S.machineX, cy).setScale(this.rockScale()).setAngle(0).setAlpha(1).setVisible(true);
-    });
-    this.placeHalves(true);
+    bench.reveal();
 
     const color = Phaser.Display.Color.IntegerToColor(tint);
-    if (!dud) this.cameras.main.flash(120 + tier * 70, color.red, color.green, color.blue);
-    if (!dud && rock.mineral.reveal === 'storm') this.time.delayedCall(150, () => this.cameras.main.flash(90, 170, 225, 255));
-    if (tier >= 2) this.cameras.main.shake(180 + tier * 70, 0.002 + tier * 0.0015);
-    this.dustFx.explode(8, S.machineX, cy);
+    if (s === 1 && !dud) this.cameras.main.flash(120 + tier * 70, color.red, color.green, color.blue);
+    if (s === 1 && !dud && rock.mineral.reveal === 'storm') {
+      this.delay(150, () => this.cameras.main.flash(90, 170, 225, 255));
+    }
+    if (s === 1 && tier >= 2) this.cameras.main.shake(180 + tier * 70, 0.002 + tier * 0.0015);
+    this.dustFx.explode(8, x, cy);
     if (!dud) {
       if (rock.mineral.reveal === 'rainbow') {
-        // Three bursts in different colours: a rainbow pop.
         [0xff9ad5, 0x7fe0d0, 0xffe27a].forEach((c, i) => {
           this.burstFx.setParticleTint(c);
-          this.burstFx.explode(Math.ceil((8 + tier * 10) / 3), S.machineX, cy - 8 + i * 8);
+          this.burstFx.explode(Math.ceil((8 + tier * 10) / 3), x, cy - 8 * s + i * 8);
         });
       } else {
         this.burstFx.setParticleTint(tint);
-        this.burstFx.explode(8 + tier * 10, S.machineX, cy);
+        this.burstFx.explode(8 + tier * 10, x, cy);
       }
     }
     if (tier >= 4) {
-      this.confettiFx.explode(70, S.machineX, cy);
-      this.time.delayedCall(350, () => this.confettiFx.explode(50, S.machineX, cy - 60));
-    }
-    if (tier >= 2) {
-      this.rays.setVisible(true).setAlpha(0).setScale(0.3).setPosition(S.machineX, cy);
-      this.rays.each((ray: Phaser.GameObjects.Image) => ray.setTint(tint));
-      this.raysSpin = 0.0003 + tier * 0.0001;
-      this.tweens.add({ targets: this.rays, alpha: 0.25 + tier * 0.08, scale: 0.85 + tier * 0.15, duration: 500, ease: 'Back.easeOut' });
-    }
-    if (tier >= 1) {
-      const rate = 420 - tier * 80;
-      this.glitterFx.setParticleTint(lightTint(rock.mineral.colors[0]));
-      this.glitterTimer = this.time.addEvent({
-        delay: rate,
-        loop: true,
-        callback: () => {
-          const r = this.rockRadius();
-          for (const half of this.halves) {
-            this.glitterFx.emitParticleAt(half.x + Phaser.Math.FloatBetween(-0.6, 0.6) * r, half.y + Phaser.Math.FloatBetween(-0.5, 0.5) * r, 1);
-          }
-        },
-      });
+      this.confettiFx.explode(70, x, cy);
+      this.delay(350, () => this.confettiFx.explode(50, x, cy - 60 * s));
     }
     sfx.reveal(tier, rock.value);
-
-    this.bench = 'revealed';
-    this.refreshCard();
-    this.chip.setScale(0);
-    this.tweens.add({ targets: this.chip, scale: 1 + tier * 0.06, delay: 120, duration: 420, ease: 'Back.easeOut', easeParams: [2.5] });
-    this.title.setScale(0.6);
-    this.tweens.add({ targets: this.title, scale: 1, duration: 300, ease: 'Back.easeOut' });
-    this.bigCounter.value = 0;
-    this.tweens.add({
-      targets: this.bigCounter,
-      value: rock.value,
-      duration: 450 + tier * 160,
-      ease: 'Quad.easeOut',
-      onUpdate: () => this.big.setText(formatMoney(this.bigCounter.value)),
-    });
-    this.sellBtn.setVisible(true).setScale(0);
-    this.tweens.add({ targets: this.sellBtn, scale: 1, delay: 380 + tier * 100, duration: 320, ease: 'Back.easeOut' });
   }
 
-  private placeHalves(animate: boolean): void {
-    const S = this.S;
-    const r = this.rockRadius();
-    const cy = this.rockCenterY() - 8;
-    const spread = r * 1.08;
-    this.halves.forEach((half, i) => {
-      const dir = i === 0 ? -1 : 1;
-      const target = { x: S.machineX + dir * spread, y: cy, angle: dir * 9 };
-      if (!animate) {
-        half.setPosition(target.x, target.y).setAngle(target.angle);
-        return;
-      }
-      const s = this.rockScale();
-      this.tweens.add({ targets: half, x: target.x, y: target.y, angle: target.angle, duration: 420, ease: 'Back.easeOut', easeParams: [2] });
-      this.tweens.chain({
-        targets: half,
-        tweens: [
-          { scaleX: s * 1.12, scaleY: s * 0.9, duration: 110 },
-          { scaleX: s, scaleY: s, duration: 380, ease: 'Elastic.easeOut', easeParams: [1, 0.5] },
-        ],
-      });
-      this.tweens.add({ targets: half, y: target.y - 6, delay: 500, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    });
+  /** Banner, bench-wide confetti, shake and a rising chime for multi-rock cuts. */
+  private playCombo(benches: SawBench[]): void {
+    const n = benches.length;
+    const rocks = benches.map((b) => b.rock!);
+    const total = rocks.reduce((sum, r) => sum + r.value, 0);
+    const maxTier = Math.max(...rocks.map((r) => r.rarity.tier));
+    const big = total >= 150 || maxTier >= 3;
+    const label = n === 2 ? 'DOUBLE CUT!' : n === 3 ? 'TRIPLE CUT!' : n === 4 ? 'QUAD CUT!' : `${n}x CUT!`;
+
+    // Several machines: float the banner over the row, just above the rocks, clear of the HUD.
+    const bannerX = n > 1 ? benches.reduce((sum, b) => sum + b.x, 0) / n : this.S.machineX;
+    const bannerY = n > 1 ? benches.reduce((sum, b) => sum + b.rockCenterY(), 0) / n - 40 * (this.benches[0]?.viewScale ?? 1) : 80;
+    const t = this.add.text(bannerX, bannerY, label,
+      outlinedStyle(32 + n * 4 + (big ? 6 : 0), '#ffe27a')).setOrigin(0.5).setScale(0.3).setDepth(50);
+    this.floaters.push(t);
+    this.tweens.add({ targets: t, scale: 1.15, duration: 260, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, y: bannerY - 24, alpha: 0, delay: 950, duration: 420, onComplete: () => t.destroy() });
+
+    this.cameras.main.shake(140 + n * 20, 0.0012 + n * 0.0004 + (maxTier >= 3 ? 0.0006 : 0));
+    this.confettiFx.explode(30 + n * 14 + (big ? 20 : 0), bannerX, this.S.bedY - 60);
+    this.burstFx.setParticleTint(big ? 0xffe27a : 0xffb347);
+    for (const bench of benches) this.burstFx.explode(6 + maxTier * 3, bench.x, bench.rockCenterY());
+
+    // Built from existing cues only. 170ms gaps respect every CUE_RULES repeat limit.
+    const cues: Array<() => void> = [
+      () => sfx.coin(),
+      () => sfx.discover(),
+      () => sfx.reveal(Math.min(5, maxTier + 1), Math.max(30, total)),
+    ];
+    if (big) cues.push(() => sfx.coin());
+    cues.forEach((cue, i) => this.delay(i * 170, cue));
   }
 
-  /** "Sell for double (watch an ad)" under the SELL button, for rocks worth the wait. */
+  /** "Sell for double" only for a single revealed rock worth the wait. */
   private updateAdButton(): void {
-    const rock = this.current;
-    const show = this.bench === 'revealed' && !!rock && rock.value >= AD_SELL_MIN_VALUE && portal.rewardedReady && this.sellBtn.visible;
+    const revealed = this.benches.filter((b) => b.phase === 'revealed' && b.rock);
+    const rock = revealed.length === 1 ? revealed[0].rock : null;
+    const show = !!rock && rock.value >= AD_SELL_MIN_VALUE && portal.rewardedReady && this.sellBtn.visible;
     if (this.adBtn.visible !== show) this.adBtn.setVisible(show);
   }
 
   private sellDoubled(): void {
-    if (this.bench !== 'revealed') return;
-    // No reward when the ad did not play; the button hides itself when ads are off or blocked (updateAdButton).
+    if (this.benches.filter((b) => b.phase === 'revealed' && b.rock).length !== 1) return;
     portal.rewarded(() => this.sell(2), (granted) => {
       if (!granted) sfx.denied();
     });
   }
 
+  /** Sells every revealed rock together: one money pop-up, all normal per-rock effects. */
   private sell(multiplier = 1): void {
-    const rock = this.current;
-    if (this.bench !== 'revealed' || !rock) return;
-    this.bench = 'selling';
+    const revealed = this.benches.filter((b) => b.phase === 'revealed' && b.rock);
+    if (!revealed.length) return;
+    const rocks = revealed.map((b) => b.rock!);
+    for (const bench of revealed) bench.phase = 'selling';
     this.adBtn.setVisible(false);
-    const amount = state.economy.sell(rock, multiplier * state.sellMult);
-    // Throwing a worthless rock away loads the shovel (Scrap Shot).
-    if (amount <= 0 && state.traits.onWorthlessThrown()) state.bus.emit(EVT.toast, 'Shovel loaded!');
+    let total = 0;
+    let maxTier = 0;
+    for (const rock of rocks) {
+      const amount = state.economy.sell(rock, multiplier * state.sellMult);
+      total += amount;
+      maxTier = Math.max(maxTier, rock.rarity.tier);
+      // Throwing a worthless rock away loads the shovel (Scrap Shot).
+      if (amount <= 0 && state.traits.onWorthlessThrown()) state.bus.emit(EVT.toast, 'Shovel loaded!');
+    }
     const p = this.stageToScreen(this.big.x, this.big.y);
-    state.bus.emit(EVT.sale, amount, p.x, p.y, rock.rarity.tier);
-    state.inventory.remove(rock.id);
-    state.bus.emit(EVT.placedChanged, null);
+    state.bus.emit(EVT.sale, total, p.x, p.y, maxTier);
+    for (const rock of rocks) state.inventory.remove(rock.id);
+    this.syncPlaced();
+    // The HUD's sale listener already plays sfx.sell(), so don't double it here.
+
     this.tweens.add({ targets: this.sellBtn, scale: 0, duration: 160, ease: 'Back.easeIn' });
     this.tweens.add({ targets: this.big, scale: { from: 1.3, to: 1 }, duration: 260, ease: 'Back.easeOut' });
-    this.glitterTimer?.remove();
-    this.glitterTimer = null;
     this.legendaryHue = -1;
     for (const star of this.chipStars) star.clearTint();
-    this.tweens.add({ targets: this.rays, alpha: 0, duration: 300, onComplete: () => this.rays.setVisible(false) });
-    for (const half of this.halves) this.tweens.killTweensOf(half);
-    this.tweens.add({
-      targets: this.halves,
-      scale: this.rockScale() * 0.2,
-      alpha: 0,
-      y: '-=60',
-      duration: 320,
-      ease: 'Back.easeIn',
-      onComplete: () => {
-        for (const half of this.halves) half.setVisible(false).setTexture('__DEFAULT');
-        this.rockImg.setTexture('__DEFAULT');
-        releaseRockTextures(this.textures, rock);
-        this.current = null;
-        this.bench = 'empty';
-        this.sellBtn.setVisible(false).setScale(1);
-        state.setBusy(false);
-        this.time.delayedCall(220, () => this.autoPlace());
-      },
+    void Promise.all(revealed.map((b) => b.sellOut())).then(() => {
+      for (const rock of rocks) releaseRockTextures(this.textures, rock);
+      this.sellBtn.setVisible(false).setScale(this.btnScale());
+      state.setBusy(false);
+      this.delay(220, () => this.autoPlace());
     });
   }
 
   // ---------- card ----------
 
+  /** Restores the original reveal-card animation (counts up to the combined payout). */
+  private animateRevealCard(target: number, tier: number): void {
+    this.chip.setScale(0);
+    this.tweens.add({ targets: this.chip, scale: 1 + tier * 0.06, delay: 120, duration: 420, ease: 'Back.easeOut', easeParams: [2.5] });
+    this.title.setScale(0.6);
+    this.tweens.add({ targets: this.title, scale: 1, duration: 300, ease: 'Back.easeOut' });
+    this.bigCounter.value = 0;
+    this.tweens.addCounter({
+      from: 0,
+      to: target,
+      duration: 450 + tier * 160,
+      ease: 'Quad.easeOut',
+      onUpdate: (tw: Phaser.Tweens.Tween) => {
+        this.bigCounter.value = tw.getValue() ?? 0;
+        this.big.setText(formatMoney(Math.round(this.bigCounter.value)));
+      },
+    });
+    this.sellBtn.setVisible(true).setScale(0);
+    this.tweens.add({ targets: this.sellBtn, scale: this.btnScale(), delay: 380 + tier * 100, duration: 320, ease: 'Back.easeOut' });
+  }
+
   private refreshCard(): void {
-    const rock = this.current;
-    const showChip = (this.bench === 'revealed' || this.bench === 'selling') && rock;
-    this.chip.setVisible(!!showChip);
-    this.cutBtn.setVisible(this.bench === 'ready').setEnabled(state.canCut);
-    if (this.bench !== 'revealed' && this.bench !== 'selling') this.sellBtn.setVisible(false);
-    this.big.setScale(1).setFontSize(56);
+    const revealed = this.benches.filter((b) => b.phase === 'revealed' && b.rock);
+    const ready = this.benches.filter((b) => b.phase === 'ready' && b.rock);
+    // The card follows the best revealed rock, otherwise the first rock being prepared.
+    const focus = [...revealed].sort((a, b) => b.rock!.value - a.rock!.value)[0]
+      ?? ready[0]
+      ?? this.benches.find((b) => b.rock) ?? null;
+    const rock = focus?.rock ?? null;
+    const showChip = revealed.length > 0;
+    this.chip.setVisible(showChip && !this.tightCard());
+    this.cutBtn.setVisible(ready.length > 0).setEnabled(state.canCut);
+    if (!showChip) this.sellBtn.setVisible(false);
+    this.big.setScale(1).setFontSize(this.tightCard() ? 40 : 56);
     // No words here: a picture says what to do next.
     this.title.setText('');
     this.sub.setText('');
     this.bigIcon.setVisible(!rock);
 
     if (!rock) {
-      // Nothing on the bench: a tick when every rock is done, otherwise the bag (pick the next rock).
       const none = state.inventory.uncutCount === 0;
       this.big.setText('');
       this.bigIcon.setTexture(none ? uiIcon('check') : uiIcon('bag'));
       return;
     }
-    // A worthless rock cannot be "sold": the same button throws it away.
     this.sellBtn.setIcon(rock.value > 0 ? uiIcon('cash') : uiIcon('junk'));
-    if (this.bench === 'placing' || this.bench === 'ready' || this.bench === 'cutting') {
+    if (!showChip) {
       this.big.setText('?').setColor(PALETTE.money);
       return;
     }
-    const tier = rock.rarity.tier;
-    this.title.setText(rock.mineral.name);
+    if (revealed.length > 1) {
+      const total = revealed.reduce((sum, b) => sum + b.rock!.value, 0);
+      this.title.setText(`${revealed.length} ROCKS REVEALED`);
+      this.big.setText(formatMoney(total));
+    } else {
+      this.title.setText(rock.mineral.name);
+      this.big.setText(formatMoney(rock.value));
+    }
     this.big.setColor(rock.mineral.dud || rock.value <= 0 ? '#d8d0c4' : PALETTE.money);
-    // Rarity is a row of gold stars on the chip - no words. A worthless rock has no stars at all.
+    const tier = rock.rarity.tier;
     const n = rock.rarity.id === 'worthless' ? 0 : tier + 1;
     const sz = 32 + tier * 3;
     const gap = sz * 0.9;
@@ -672,18 +675,48 @@ export class WorkshopScene extends Phaser.Scene {
     if (tier < 4) for (const star of this.chipStars) star.clearTint();
   }
 
-  // ---------- helpers ----------
+  // ---------- cleanup & helpers ----------
 
-  private tween(config: Phaser.Types.Tweens.TweenBuilderConfig): Promise<void> {
-    return new Promise((resolve) => this.tweens.add({ ...config, onComplete: () => resolve() }));
+  /** Strictly stops saw, tracked timers, tweens and floating labels. */
+  private cleanup(deep: boolean): void {
+    const interrupted = !deep && state.mode === 'workshop'
+      && this.benches.some((b) => b.phase === 'cutting' || b.phase === 'placing');
+    this.saw?.stop();
+    this.saw = null;
+    for (const timer of this.timers) timer.remove();
+    this.timers.length = 0;
+    for (const label of this.floaters) label.destroy();
+    this.floaters.length = 0;
+    this.tweens.killTweensOf([this.chip, this.title, this.big, this.bigCounter, this.chipStars, this.cutBtn, this.sellBtn, this.adBtn]);
+    for (const bench of this.benches) bench.clear();
+    // A cancelled cut would otherwise leave the game "busy" forever.
+    if (interrupted) state.setBusy(false);
+    if (deep) {
+      for (const bench of this.benches) {
+        if (bench.rock) releaseRockTextures(this.textures, bench.rock);
+        bench.destroy();
+      }
+      this.benches = [];
+      state.setPlacedRockIds([]);
+    }
+  }
+
+  /** Tracked delayed call (removed on SLEEP/SHUTDOWN). */
+  private delay(ms: number, callback: () => void): void {
+    const timer = this.time.delayedCall(ms, () => {
+      const i = this.timers.indexOf(timer);
+      if (i >= 0) this.timers.splice(i, 1);
+      callback();
+    });
+    this.timers.push(timer);
   }
 
   private wait(ms: number): Promise<void> {
-    return new Promise((resolve) => this.time.delayedCall(ms, resolve));
+    return new Promise((resolve) => this.delay(ms, resolve));
   }
 }
 
-/** Tint of the reveal burst, flash and rays: the mineral's own feel beats the plain rarity colour. */
+/** Tint of the reveal burst and rays: the mineral's own feel beats the plain rarity colour. */
 function revealColor(rock: Rock): number {
   switch (rock.mineral.reveal) {
     case 'embers': return 0xff8a2b;
@@ -695,10 +728,4 @@ function revealColor(rock: Rock): number {
     case 'rainbow': return 0xff9ad5;
     default: return rock.rarity.color;
   }
-}
-
-function lightTint(color: number): number {
-  const c = Phaser.Display.Color.IntegerToColor(color);
-  const mix = (v: number) => Math.round(v + (255 - v) * 0.5);
-  return Phaser.Display.Color.GetColor(mix(c.red), mix(c.green), mix(c.blue));
 }

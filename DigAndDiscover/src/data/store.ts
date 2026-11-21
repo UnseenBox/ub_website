@@ -8,6 +8,8 @@
  * automatically - no code change needed. Square images (256x256) look best.
  */
 
+import { FEATURES } from '../config/features';
+
 export type StoreTab = 'tools' | 'upgrades' | 'skills';
 
 /** How an item icon is painted when no PNG override exists. */
@@ -60,6 +62,8 @@ export interface UpgradeItem {
   /** Price of level 1; later levels multiply by `priceGrowth`. */
   basePrice: number;
   priceGrowth: number;
+  /** Explicit price per level. When present it overrides `basePrice`/`priceGrowth`. */
+  prices?: readonly number[];
   /** Level the player currently has. Display only - always 0 until linked. */
   level: number;
   /** Prospector level needed before the first level can be bought (skills only). */
@@ -79,6 +83,8 @@ const MIN_LEVEL: Record<string, number> = {
 };
 
 export function upgradePrice(item: UpgradeItem, level: number): number {
+  const fixed = item.prices?.[level];
+  if (fixed !== undefined) return fixed;
   return Math.round((item.basePrice * Math.pow(item.priceGrowth, level)) / 5) * 5;
 }
 
@@ -135,6 +141,20 @@ const RAW_TOOL_SECTIONS: RawSection[] = [
   },
 ];
 
+/** Extra Saws is a v2-only upgrade: each level adds one more cutting machine. */
+const EXTRA_SAWS_UPGRADE: UpgradeItem = {
+  id: 'up-saws',
+  name: 'Extra Saws',
+  perLevel: '+1 cutting machine',
+  blurb: 'Place, cut and sell more rocks at once.',
+  icon: { kind: 'skill-art', art: 'master-cut' },
+  maxLevel: 3,
+  basePrice: 1000,
+  priceGrowth: 1,
+  level: 0,
+  prices: [1000, 2500, 5000],
+};
+
 export const UPGRADE_SECTIONS: UpgradeSection[] = [
   {
     title: 'Stamina',
@@ -162,6 +182,7 @@ export const UPGRADE_SECTIONS: UpgradeSection[] = [
       { id: 'up-bag', name: 'Bigger Bag', perLevel: '+1 bag slot (starts with 5)', blurb: 'Carry more rocks to the workshop.', icon: { kind: 'skill-art', art: 'big-bag' }, maxLevel: 5, basePrice: 800, priceGrowth: 3.6, level: 0 },
       { id: 'up-double-find', name: 'Double Find', perLevel: '+8% chance of two rocks', blurb: 'Lucky digs turn up a pair.', icon: { kind: 'skill-art', art: 'double-find' }, maxLevel: 5, basePrice: 4500, priceGrowth: 2.1, level: 0 },
       { id: 'up-lucky-cut', name: 'Master Cutter', perLevel: '+5% chance of a better cut', blurb: 'A steady hand finds a higher tier inside.', icon: { kind: 'skill-art', art: 'master-cut' }, maxLevel: 5, basePrice: 4500, priceGrowth: 2.1, level: 0 },
+      ...(FEATURES.v2 ? [EXTRA_SAWS_UPGRADE] : []),
     ],
   },
   {

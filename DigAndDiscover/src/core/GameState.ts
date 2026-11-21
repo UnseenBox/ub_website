@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config/GameConfig';
+import { FEATURES } from '../config/features';
 import { LAYERS } from '../data/layers';
 import { SCANNERS, TOOL_DEFS, type ToolDef } from '../data/tools';
 import { ALL_TOOLS, ALL_UPGRADES, upgradePrice, type ToolItem, type UpgradeItem } from '../data/store';
@@ -9,8 +10,10 @@ import { hardnessMult, relocationBonus, valueMult } from '../data/deposits';
 import { PROSPECT_EFFECTS } from '../data/traits';
 import { staminaUpgrades, toolWithUpgrades } from '../systems/ToolStats';
 import { TraitSystem } from '../systems/TraitSystem';
-import { upgradeRock } from '../systems/RockGenerator';
+import { generateRock, upgradeRock } from '../systems/RockGenerator';
 import { ProgressSystem, ROCK_XP, clearSave, readSave, writeSave, type Goal } from '../systems/ProgressSystem';
+import { DailyGoalSystem } from '../systems/DailyGoalSystem';
+import type { DailyStrength } from '../data/dailyGoals';
 import { FinanceSystem, type DaySettlement, type FinanceDaySummary, type LedgerView } from '../systems/FinanceSystem';
 import type { ClockConfig } from '../systems/ClockSystem';
 import { DayCycleSystem, type DayPhase, type DaySummary } from '../systems/DayCycleSystem';
@@ -32,7 +35,7 @@ export const EVT = {
   rockCollected: 'rock-collected',
   /** (rockId) player tapped an inventory slot while in the workshop. */
   slotSelected: 'slot-selected',
-  /** (rockId | null) rock currently sitting on the cutting bench. */
+  /** (rockIds: string[]) ids of rocks sitting on the cutting benches (empty when none). */
   placedChanged: 'placed-changed',
   /** (amount, screenX, screenY, tier) */
   sale: 'sale',
@@ -53,6 +56,10 @@ export const EVT = {
   levelUp: 'level-up',
   /** (goal) a goal was finished and paid out. */
   goalDone: 'goal-done',
+  /** (goal | null, bonus?) a daily goal was finished (null = all three done). */
+  dailyGoalDone: 'daily-goal-done',
+  /** Today's daily goals progressed, reset or were restored. */
+  dailyGoalsChanged: 'daily-goals-changed',
   /** The tool in the player's hands changed. */
   toolChanged: 'tool-changed',
   /** (def: FindDef, item: FindItem, first: boolean) a find was dug up. */
@@ -85,6 +92,7 @@ export class GameState {
     if (earned) {
       this.day.today.earned += delta;
       this.progress.note('earn', delta);
+      this.daily.note('earn', delta);
     }
     this.bus.emit(EVT.moneyChanged, money, delta, earned);
     this.save();
@@ -114,6 +122,29 @@ export class GameState {
   readonly day = new DayCycleSystem(clockConfig(), GAME_CONFIG.day, {
     onPhase: (phase) => this.bus.emit(EVT.dayPhaseChanged, phase),
   });
+  /**
+   * The three small goals for the current working day. Disabled entirely by
+   * FEATURES.v2: when off it creates nothing, saves nothing and draws nothing.
+   */
+  readonly daily = new DailyGoalSystem(
+    {
+      changed: () => {
+        this.bus.emit(EVT.dailyGoalsChanged);
+        this.save();
+      },
+      completed: (goal) => {
+        this.economy.grant(goal.cash);
+        this.bus.emit(EVT.dailyGoalDone, goal);
+        this.save();
+      },
+      allDone: (bonus) => {
+        this.economy.grant(bonus);
+        this.bus.emit(EVT.dailyGoalDone, null, bonus);
+        this.save();
+      },
+    },
+    FEATURES.v2,
+  );
   private toolCache: ToolDef | null = null;
   private lastToolId = 'tool-old-shovel';
   readonly stats = { found: 0, cut: 0, best: null as Rock | null };
@@ -140,6 +171,21 @@ export class GameState {
     this.progress.ensureGoals();
     this.applyUpgrades();
     this.lastToolId = this.progress.equippedToolId;
+
+    // Daily goals need the final tool/level/depth, so they are restored last.
+    this.daily.restore(save?.daily, this.day.day, this.strength);
+    if (FEATURES.v2) {
+      // DigScene has no per-swing hook; wrapping the excavation call keeps the
+      // "Dig N times" goal accurate without touching the scene or the system.
+      const rawDig = this.dig.dig.bind(this.dig);
+      this.dig.dig = (x, tool, boost) => {
+        const result = rawDig(x, tool, boost);
+        if (result.dug) this.daily.note('dig');
+        return result;
+      };
+      // WorkshopScene emits this for every sale; a daily goal wants the best one.
+      this.bus.on(EVT.sale, (amount: number) => this.daily.note('sale', amount, true));
+    }
   }
 
   /** The tool in the player's hands, with the store's digging upgrades applied. */
@@ -157,6 +203,17 @@ export class GameState {
   /** Deep Scanner owners see each uncut rock's rarity on its bag badge. */
   get showsRarity(): boolean {
     return this.progress.scanners.some((id) => SCANNERS[id]?.showsRarity);
+  }
+
+  /** What daily goals need to know about this player today. */
+  get strength(): DailyStrength {
+    return {
+      level: this.progress.level,
+      toolPower: this.tool.power,
+      toolId: this.progress.equippedToolId,
+      day: this.day.day,
+      bestDepth: this.progress.bestDepth,
+    };
   }
 
   /** Pushes store upgrades and gadgets into the systems they affect. */
@@ -247,6 +304,7 @@ export class GameState {
   }
 
   private save(): void {
+    if (this.dreaming) return; // nothing of the dream is ever saved
     writeSave(
       this.progress.toSave({
         money: this.economy.money,
@@ -256,6 +314,7 @@ export class GameState {
         finance: this.finance.toSave(),
         gameOver: this.finance.gameOver,
         finds: this.findsInv.toSave(),
+        daily: this.daily.toSave(),
       }),
     );
   }
@@ -290,6 +349,25 @@ export class GameState {
   /** At least one uncut rock: the workshop can be visited (it just is not urgent yet). */
   get workshopAvailable(): boolean {
     return this.inventory.uncutCount > 0;
+  }
+
+  /**
+   * Number of cutting machines in the workshop. Always 1 outside v2; each
+   * Extra Saws level adds one more (max 4). Persisted through the normal
+   * upgrade save, so no new save format is needed.
+   */
+  get sawCount(): number {
+    return FEATURES.v2 ? 1 + this.progress.upgradeLevel('up-saws') : 1;
+  }
+
+  /** Ids of rocks currently sitting on the benches, indexed by machine. */
+  readonly placedRockIds: string[] = [];
+
+  /** Replaces the bench occupancy list and notifies every listener (bag markings). */
+  setPlacedRockIds(ids: readonly string[]): void {
+    this.placedRockIds.length = 0;
+    for (const id of ids) if (id) this.placedRockIds.push(id);
+    this.bus.emit(EVT.placedChanged, [...this.placedRockIds]);
   }
 
   /** Enough uncut rocks to make a trip to the workshop worthwhile. */
@@ -328,6 +406,7 @@ export class GameState {
     this.stats.found++;
     this.day.today.found++;
     this.progress.note('find');
+    this.daily.note('find');
     this.bus.emit(EVT.statsChanged);
   }
 
@@ -423,7 +502,11 @@ export class GameState {
     this.stats.cut++;
     this.day.today.processed++;
     this.progress.note('cut');
-    if (rock.rarity.tier >= 2) this.progress.note('rare');
+    this.daily.note('cut');
+    if (rock.rarity.tier >= 2) {
+      this.progress.note('rare');
+      this.daily.note('rare');
+    }
     this.progress.addXp(ROCK_XP[rock.rarity.tier] ?? 3);
     if (!this.stats.best || rock.value > this.stats.best.value) this.stats.best = rock;
     this.bus.emit(EVT.statsChanged);
@@ -441,7 +524,8 @@ export class GameState {
     }
     this.stamina.update(deltaMs);
     this.progress.note('depth', this.dig.deepestMeters, true);
-    this.day.tick(deltaMs, this.rocksLeft);
+    this.daily.note('depth', this.dig.deepestMeters, true);
+    if (!this.dreaming) this.day.tick(deltaMs, this.rocksLeft); // the clock is frozen in the dream
     if (this.day.readyForSummary(this.somethingRunning, this.rocksLeft)) {
       this.day.openSummary();
       this.settleFinance();
@@ -509,6 +593,15 @@ export class GameState {
     if (this.day.phase !== 'summary') return;
     const view = this.finance.view();
     if (view.dayInMonth === view.monthDays) {
+      // Retention update: a player who can afford the overdue payment never loses by missing a button; the bank collects it.
+      if (FEATURES.v2 && this.finance.overdue > 0 && this.economy.money >= this.finance.overdue) {
+        const collected = this.finance.pay(this.finance.overdue, this.economy.money);
+        if (collected > 0) {
+          this.economy.spend(collected);
+          this.bus.emit(EVT.financeChanged);
+          this.bus.emit(EVT.toast, `The bank collected $${Math.round(collected).toLocaleString('en-US')}`);
+        }
+      }
       // The month is over: anything still overdue ends the run.
       const check = this.finance.evaluateMonth();
       if (!check.ok) {
@@ -524,6 +617,7 @@ export class GameState {
     this.financeSettlement = null;
     this.stamina.reset();
     this.day.startNextDay();
+    this.daily.reset(this.day.day, this.strength);
     this.bus.emit(EVT.dayStarted, this.day.day);
     this.save();
   }
@@ -583,6 +677,68 @@ export class GameState {
    * bills and debt are all cleared and the save file is removed. The audio
    * mute preference is not touched.
    */
+  // ---------- the dream (retention update) ----------
+
+  private dreaming = false;
+
+  /** True while the opening dream is being played. */
+  get inDream(): boolean {
+    return this.dreaming;
+  }
+
+  private dreamRockIds: string[] = [];
+
+  /** The dream's own rocks are all cut (or already sold): time to wake up. */
+  get dreamRocksCut(): boolean {
+    return this.dreamRockIds.length > 0 && this.dreamRockIds.every((id) => {
+      const i = this.inventory.indexOf(id);
+      return i < 0 || !!this.inventory.get(i)?.cut;
+    });
+  }
+
+  /**
+   * The opening dream: the real game with everything maxed out. Every digging tool is owned (the best one is in the
+   * hands), every upgrade and skill is at half of its maximum, and the bag holds a few fancy rocks to cut. Nothing is saved
+   * and the clock is frozen until `endDream()`.
+   */
+  beginDream(): void {
+    this.dreaming = true;
+    for (const t of ALL_TOOLS) if (!t.placeholder) this.progress.own(t.id);
+    // Half of every upgrade (rounded up), with the best tool: strong, but the climb is still ahead.
+    for (const up of ALL_UPGRADES) this.progress.setUpgradeLevel(up.id, Math.ceil((up.id === 'up-mastery' ? 10 : up.maxLevel) / 2));
+    this.applyUpgrades();
+    this.stamina.reset();
+    // Epic and legendary rocks, so there is something impressive to put on the saw.
+    this.dreamRockIds = [];
+    for (let i = 0; i < 3; i++) {
+      const rock = generateRock(Math.random, [0, 0, 0, 3, 2, 0], 3, 6 + i);
+      this.dreamRockIds.push(rock.id);
+      this.inventory.add(rock);
+    }
+    this.bus.emit(EVT.inventoryChanged);
+  }
+
+  /**
+   * Empties the bag. The dream uses it to catch a rock that was still flying through the air when the run was reset,
+   * and that landed in the new, empty bag a moment later.
+   */
+  clearBag(): void {
+    for (let i = 0; i < this.inventory.capacity; i++) {
+      const rock = this.inventory.get(i);
+      if (rock) this.inventory.remove(rock.id);
+    }
+    // Rocks still in flight when the run was reset were counted as finds of the new run: zero those again.
+    for (const goal of this.progress.goals) goal.progress = 0;
+    this.stats.found = 0;
+    this.bus.emit(EVT.progressChanged);
+  }
+
+  /** The dream is over: everything is taken away again (Old Shovel, $0, day 1). */
+  endDream(): void {
+    this.dreaming = false;
+    this.resetRun();
+  }
+
   resetRun(): void {
     this.economy.reset(GAME_CONFIG.economy.startingMoney);
     this.finance.reset();
@@ -622,6 +778,7 @@ export class GameState {
     this.setBusy(false);
     this.activity = 0;
 
+    this.daily.reset(1, this.strength);
     clearSave();
     this.bus.emit(EVT.runReset);
   }

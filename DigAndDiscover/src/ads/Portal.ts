@@ -13,7 +13,7 @@ import { sfx } from '../audio/Sfx';
 const MODE = import.meta.env.MODE;
 export const isCrazyGames = MODE === 'crazygames' || MODE === 'crazygames-basic';
 /** Basic Launch build: no ad offers, whatever the SDK says. */
-const ADS_OFF = MODE === 'crazygames-basic';
+const ADS_OFF = MODE === 'crazygames-basic' || (import.meta.env.DEV && !new URLSearchParams(window.location.search).has('mockads'));
 
 const SDK_URL = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
 const SDK_TIMEOUT = 3000;
