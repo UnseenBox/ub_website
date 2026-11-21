@@ -21,7 +21,7 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { HUD } from '../ui/HUD';
 import { toggleFullscreen } from '../ui/widgets';
 import { isTestMode } from './testMode';
-import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET } from './touchControls';
+import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, touchGunAim } from './touchControls';
 import { Zombie } from '../entities/Zombie';
 import type { ModId } from '../data/upgrades';
 
@@ -53,6 +53,12 @@ export class GameScene extends Phaser.Scene {
   private projectiles!: ProjectileManager;
   private activeMods = new Set<ModId>();
   private trigger = false;
+  private readonly touchAimGun = { x: 0, y: 0 };
+  private readonly touchAimRaw = { x: 0, y: 0 };
+  private aimPointerId: number | null = null;
+  private firePointerId: number | null = null;
+  private aimCursorX = VIEW.centerX + AIM_LEFT_OFFSET;
+  private aimCursorY = 300 + AIM_VERT_OFFSET;
   private ambientLeft = 3;
   private wind: LoopHandle | null = null;
   private music: LoopHandle | null = null;
@@ -71,6 +77,7 @@ export class GameScene extends Phaser.Scene {
     this.upgrades = { reinforceLevel: 0 };
     this.input.setDefaultCursor('none');
     this.input.mouse?.disableContextMenu();
+    this.input.addPointer(2);
 
     this.economy = new EconomyManager(ECONOMY.startingCash);
     this.bunker = new BunkerManager();
@@ -182,6 +189,14 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private setTouchAim(x: number, y: number): void {
+    this.touchAimRaw.x = x;
+    this.touchAimRaw.y = y;
+    const gun = touchGunAim(x, y);
+    this.touchAimGun.x = gun.x;
+    this.touchAimGun.y = gun.y;
+  }
+
   private wireInput(): void {
     const kb = this.input.keyboard!;
     kb.addCapture('SPACE,ENTER,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,A,S,D,W,E,R');
@@ -207,21 +222,54 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       audio.unlock();
+      document.body.classList.add('touched');
+      if (p.wasTouch) {
+        if (this.aimPointerId === null && isAimTouch(p.x, p.y)) {
+          this.aimPointerId = p.id;
+          this.setTouchAim(p.x, p.y);
+        } else if (this.firePointerId === null && isFireTouch(p.x, p.y)) {
+          this.firePointerId = p.id;
+          this.trigger = true;
+        }
+        return;
+      }
       if (p.rightButtonDown()) {
         this.weapons.reload();
         return;
       }
       if (p.leftButtonDown() && p.y < VIEW.hudTop) this.trigger = true;
     });
+
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (p.wasTouch && p.id === this.aimPointerId) this.setTouchAim(p.x, p.y);
+    });
+
+    const releasePointer = (p: Phaser.Input.Pointer): void => {
+      if (p.wasTouch) {
+        if (p.id === this.firePointerId) {
+          this.firePointerId = null;
+          this.trigger = false;
+        }
+        if (p.id === this.aimPointerId) this.aimPointerId = null;
+      }
+    };
+
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (p.wasTouch) {
+        releasePointer(p);
+        return;
+      }
       if (!p.leftButtonDown()) this.trigger = false;
     });
+    this.input.on('pointerupoutside', releasePointer);
     this.input.on('gameout', () => { this.trigger = false; });
     this.game.events.on(Phaser.Core.Events.BLUR, this.onBlur, this);
   }
 
   private onBlur(): void {
     this.trigger = false;
+    this.aimPointerId = null;
+    this.firePointerId = null;
     if (this.scene.isActive() && !this.over && this.waves.phase === 'active') this.openPause();
   }
 
@@ -381,9 +429,8 @@ export class GameScene extends Phaser.Scene {
   // ------------------------------------------------------------ firing
 
   private onFire(def: WeaponDef, spread: number): void {
-    const p = this.input.activePointer;
-    const aimX = Phaser.Math.Clamp(p.x + AIM_LEFT_OFFSET, 0, VIEW.width);
-    const aimY = Phaser.Math.Clamp(p.y + AIM_VERT_OFFSET, 0, VIEW.hudTop);
+    const aimX = this.aimCursorX;
+    const aimY = this.aimCursorY;
     this.view.fire(def);
     const rate = 1 + (Math.random() * 2 - 1) * def.sound.pitchJitter;
     audio.play(def.sound.shot, { volume: def.id === 'm4' ? 0.85 : 1, rate });
@@ -416,12 +463,17 @@ export class GameScene extends Phaser.Scene {
   override update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05);
     const p = this.input.activePointer;
-    // The crosshair is offset from the mouse; the gun rotates toward the mouse
-    // and pins its muzzle to the crosshair, so both move as one unit.
-    const cursorAimX = Phaser.Math.Clamp(p.x + AIM_LEFT_OFFSET, 0, VIEW.width);
-    const cursorAimY = Phaser.Math.Clamp(p.y + AIM_VERT_OFFSET, 0, VIEW.hudTop);
-    const gunAimX = Phaser.Math.Clamp(p.x, 0, VIEW.width);
-    const gunAimY = Phaser.Math.Clamp(p.y, 0, VIEW.hudTop);
+    // Mouse aim stays as before. Touch aim is stored as the virtual gun-aim
+    // point whose crosshair (after the fixed offset) sits under the finger.
+    const usingTouchAim = this.aimPointerId !== null;
+    const gunAimX = usingTouchAim ? this.touchAimGun.x : Phaser.Math.Clamp(p.x, 0, VIEW.width);
+    const gunAimY = usingTouchAim ? this.touchAimGun.y : Phaser.Math.Clamp(p.y, 0, VIEW.hudTop);
+    const pointerY = usingTouchAim ? this.touchAimRaw.y : p.y;
+    const cursor = crosshairFromGun(gunAimX, gunAimY);
+    this.aimCursorX = cursor.x;
+    this.aimCursorY = cursor.y;
+    const cursorAimX = this.aimCursorX;
+    const cursorAimY = this.aimCursorY;
 
     if (!this.over) {
       for (const req of this.waves.update(dt)) {
@@ -436,7 +488,7 @@ export class GameScene extends Phaser.Scene {
     this.combat.coverTop = this.field.coverTop;
     this.combat.shuttersUp = this.bunker.shielded;
 
-    const inField = p.y < VIEW.hudTop && p.y > 0;
+    const inField = pointerY < VIEW.hudTop && pointerY > 0;
     this.weapons.update(dt, this.trigger && inField && !this.over);
 
     this.enemies.update(dt);
