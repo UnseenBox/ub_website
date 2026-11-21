@@ -45,6 +45,15 @@ export interface WeaponViewModel {
   anchorX?: number;
   anchorY?: number;
   muzzleGap?: number;
+  /** Extra rotation in radians applied to the aligned model (negative = turn left). */
+  rotationTrim?: number;
+  /**
+   * Shift of the aligned model on screen, in pixels (+x right, +y down). Moving the
+   * gun right and up makes the crosshair sit further left and lower beside the
+   * muzzle, without changing where shots land.
+   */
+  gunShiftX?: number;
+  gunShiftY?: number;
   /** Multiplier on idle sway (1 = normal, 0 = locked to aim). */
   sway: number;
   /** Multiplier on the reload tilt. */
@@ -157,6 +166,12 @@ export const WEAPONS: WeaponDef[] = [
       aimX: 0.36,
       aimY: 0.06,
       muzzleGap: 70,
+      // The photo looked twisted to the right at rest; turn it a good way back to the
+      // left (about 32 degrees), so it sits close to the picture's own upright pose.
+      rotationTrim: -0.56,
+      // Crosshair a little further left and lower relative to the muzzle.
+      gunShiftX: 55,
+      gunShiftY: -70,
     },
     iconTexture: 'icon_service',
     description: 'Semi-automatic battle rifle. Accurate, punchy, unlimited ammo. Click per shot.',

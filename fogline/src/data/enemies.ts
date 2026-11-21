@@ -126,6 +126,30 @@ export const ENEMIES: Record<string, EnemyDef> = {
     special: { burstInto: { id: 'crawler', count: 3 }, detonateDamage: 160 },
     description: 'Swollen with crawling parasites. Bursts into Crawlers when killed and detonates on the wall. Kill it far out.',
   },
+  brute: {
+    id: 'brute',
+    name: 'Brute',
+    // Half again as tall as a man and twice as wide: a wall of dead flesh.
+    height: 2.8,
+    health: 900,
+    speed: 1.3,
+    speedJitter: 0.12,
+    // Thick fat soaks body shots; the head is the only soft spot.
+    zoneMultiplier: { head: 1, torso: 0.45, legs: 0.35 },
+    armoredZones: [],
+    attackDamage: 55,
+    attackInterval: 2.2,
+    reward: 180,
+    headshotBonus: 90,
+    rig: 'bloat',
+    look: 'brute',
+    looks: 2,
+    voice: 'groan_plated',
+    groanInterval: [5, 9],
+    // Bullets never stagger it; only a big blast shoves it.
+    staggerThreshold: 9999,
+    description: 'A giant, bloated hulk. Bullets barely slow it and body shots bounce off the fat. Aim for the head, or use explosives.',
+  },
   crawler: {
     id: 'crawler',
     name: 'Crawler',

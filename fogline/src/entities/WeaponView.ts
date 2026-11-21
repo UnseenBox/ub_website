@@ -83,7 +83,7 @@ export class WeaponView {
     this.flashLeft -= dt;
     this.hitMarker = Math.max(0, this.hitMarker - dt);
 
-    let dropY = 0, tilt = 0;
+    let dropY = 0, tilt = 0, reloadDrop = 0;
     if (this.switching) {
       this.switchT += dt / 0.32;
       const k = this.switchT < 0.5 ? this.switchT / 0.5 : 1 - (this.switchT - 0.5) / 0.5;
@@ -92,7 +92,8 @@ export class WeaponView {
     }
     if (reloading) {
       const k = Math.sin(Math.min(1, reloadProgress) * Math.PI);
-      dropY += 110 * k;
+      reloadDrop = 110 * k;
+      dropY += reloadDrop;
       tilt -= 0.42 * k * this.model.reloadTilt;
     }
     const swayX = Math.sin(this.time * 1.3) * 2.2 * this.model.sway;
@@ -131,34 +132,56 @@ export class WeaponView {
       this.reloadText.setVisible(false);
       return;
     }
+    // While reloading, the crosshair travels with the gun as it dips and tilts (you
+    // cannot fire then). It follows the muzzle's reload motion and settles back after.
+    let drawX = cx, drawY = cy;
+    if (reloading) {
+      const rest = computeViewModelPose({
+        model: this.model,
+        textureWidth: this.gun.width,
+        textureHeight: this.gun.height,
+        aimX: gunAimX,
+        aimY: gunAimY,
+        cursorX: cx,
+        cursorY: cy,
+        kick: this.kick,
+        kickRot: this.kickRot,
+        tilt: 0,
+        dropY: dropY - reloadDrop,
+        swayX,
+        swayY,
+      });
+      drawX = Phaser.Math.Clamp(cx + (pose.muzzleX - rest.muzzleX), 0, VIEW.width);
+      drawY = Phaser.Math.Clamp(cy + (pose.muzzleY - rest.muzzleY), 0, VIEW.hudTop - 10);
+    }
     const col = overEnemyHead ? 0xff5040 : overEnemy ? 0xffb040 : 0xd8f0c8;
     const gap = 6 + spread;
     const len2 = 9;
     g.lineStyle(3, 0x000000, 0.55);
-    this.ticks(g, cx, cy, gap, len2);
+    this.ticks(g, drawX, drawY, gap, len2);
     g.lineStyle(1.6, col, 0.95);
-    this.ticks(g, cx, cy, gap, len2);
+    this.ticks(g, drawX, drawY, gap, len2);
     g.fillStyle(col, 1);
-    g.fillCircle(cx, cy, 1.4);
+    g.fillCircle(drawX, drawY, 1.4);
     if (this.hitMarker > 0) {
       const c = this.hitMarkerHead ? 0xff3020 : 0xffffff;
       const s = this.hitMarkerHead ? 11 : 8;
       g.lineStyle(2.4, c, Math.min(1, this.hitMarker * 8));
       for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-        g.lineBetween(cx + dx * 4, cy + dy * 4, cx + dx * (4 + s), cy + dy * (4 + s));
+        g.lineBetween(drawX + dx * 4, drawY + dy * 4, drawX + dx * (4 + s), drawY + dy * (4 + s));
       }
     }
     if (reloading) {
       g.lineStyle(3, 0x000000, 0.5);
       g.beginPath();
-      g.arc(cx, cy, gap + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * reloadProgress);
+      g.arc(drawX, drawY, gap + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * reloadProgress);
       g.strokePath();
       g.lineStyle(2, 0xe8d890, 0.95);
       g.beginPath();
-      g.arc(cx, cy, gap + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * reloadProgress);
+      g.arc(drawX, drawY, gap + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * reloadProgress);
       g.strokePath();
     }
-    this.reloadText.setVisible(reloading).setPosition(cx, cy + gap + 22);
+    this.reloadText.setVisible(reloading).setPosition(drawX, drawY + gap + 22);
   }
 
   private ticks(g: Phaser.GameObjects.Graphics, x: number, y: number, gap: number, len: number): void {

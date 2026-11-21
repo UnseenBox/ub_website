@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { audio, LoopHandle } from '../audio/AudioManager';
 import { BUNKER_UPGRADE, DEFENSES, MODS, REPAIR_AMOUNT, SUPPORT, WALL_DURATION } from '../data/upgrades';
 import { WEAPONS, WeaponDef } from '../data/weapons';
+import { ENEMIES } from '../data/enemies';
+import { newEnemiesInWave } from '../data/waves';
 import { ECONOMY, FIELD, VIEW } from './config';
 import { groundAt } from './perspective';
 import { ProjectileManager } from '../entities/Projectile';
@@ -160,12 +162,20 @@ export class GameScene extends Phaser.Scene {
       }
     };
     this.enemies.onStrike = (z) => {
-      if (z.def.attackDamage > 0) this.hitBunker(z.def.attackDamage, z);
+      if (z.def.attackDamage <= 0) return;
+      this.hitBunker(z.def.attackDamage, z);
+      // A giant's slam rattles the whole bunker.
+      if (z.def.attackDamage >= 40 && !this.bunker.shielded) this.cameras.main.shake(260, 0.008);
     };
 
     this.waves.events.on('countdown', ({ wave }) => {
       const def = this.waves.current!;
-      this.hud.banner(`WAVE ${wave} — ${def.name.toUpperCase()}`, 'Hostiles inbound', 3.6);
+      const fresh = newEnemiesInWave(wave - 1).map((id) => `NEW: ${ENEMIES[id].name.toUpperCase()}`);
+      this.hud.banner(
+        `WAVE ${wave} — ${def.name.toUpperCase()}`,
+        fresh.length ? `Hostiles inbound\n${fresh.join('  ·  ')}` : 'Hostiles inbound',
+        3.8,
+      );
       audio.play('wave_start', { volume: 0.75 });
     });
     this.waves.events.on('start', () => this.hud.clearBanner());
