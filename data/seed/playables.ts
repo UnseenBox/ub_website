@@ -8,6 +8,38 @@ import { L, SEED_DATE } from "./helpers";
  */
 export const playables: Playable[] = [
   {
+    id: "play_fogline",
+    slug: "fogline",
+    title: "FOGLINE",
+    added: "2026-11-20",
+    moods: ["chaos", "dark", "quick"],
+    src: "/arcade/fogline/index.html",
+    poster: "/arcade/fogline/poster.jpg",
+    genre: L(
+      "First-person wave defense",
+      "Défense par vagues à la première personne",
+      "دفاع بموجات من منظور الشخص الأول",
+    ),
+    summary: L(
+      "The fog is moving. Hold a sandbagged highway bunker against waves of the infected with an M1A, an M4, a light machine gun and a grenade launcher. Aim for the head, spend salvage on ammunition mods, gunship runs, orbital strikes and bunker repairs, and keep the line until the last wave breaks.",
+      "La brume avance. Tenez un bunker de sacs de sable sur une autoroute en ruine face à des vagues d'infectés avec un M1A, un M4, une mitrailleuse légère et un lance-grenades. Visez la tête, dépensez vos gains en mods de munitions, passes d'hélicoptère, frappes orbitales et réparations du bunker, et tenez la ligne jusqu'à la dernière vague.",
+      "الضباب يزحف. دافع عن مخبأ محصّن بأكياس الرمل على طريق سريع مدمّر أمام موجات المصابين ببندقية M1A ورشاش M4 ومدفع رشاش خفيف وقاذف قنابل. صوّب على الرأس، وأنفق الغنائم على تعديلات الذخيرة وطلعات المروحية والضربات المدارية وإصلاح المخبأ، وحافظ على الخط حتى تنكسر آخر موجة.",
+    ),
+    desktopControls: L(
+      "Mouse aims · click fires · R reloads · 1–4 switch weapons · 5–8 ammo mods · A S D support · W E bunker · Space opens the armory · Enter starts the next wave · Esc pauses",
+      "La souris vise · clic pour tirer · R pour recharger · 1–4 pour changer d'arme · 5–8 mods de munitions · A S D soutien · W E bunker · Espace ouvre l'armurerie · Entrée lance la vague suivante · Échap met en pause",
+      "الفأرة للتصويب · النقر لإطلاق النار · R لإعادة التذخير · 1–4 لتبديل الأسلحة · 5–8 تعديلات الذخيرة · A S D الدعم · W E المخبأ · المسافة تفتح الترسانة · Enter يبدأ الموجة التالية · Esc للإيقاف المؤقت",
+    ),
+    phoneControls: L(
+      "Best on a computer with a mouse and keyboard. The bunker line does not take touch controls yet.",
+      "Mieux sur ordinateur avec souris et clavier. La ligne de bunker n'a pas encore de commandes tactiles.",
+      "الأفضل على حاسوب بفأرة ولوحة مفاتيح. لا يدعم خط المخبأ أدوات اللمس بعد.",
+    ),
+    enabled: true,
+    order: 0,
+    updatedAt: SEED_DATE,
+  },
+  {
     id: "play_slipshot",
     slug: "slipshot",
     title: "SLIPSHOT",
