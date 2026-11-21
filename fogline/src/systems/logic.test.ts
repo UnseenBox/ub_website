@@ -6,6 +6,7 @@ import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../au
 import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
+import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, touchGunAim } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { Abilities } from './Abilities';
 import { BunkerManager } from './BunkerManager';
@@ -311,6 +312,28 @@ describe('Abilities', () => {
   });
 });
 
+describe('phone touch controls', () => {
+  it('inverts the aim offsets so the finger becomes the crosshair', () => {
+    expect(touchGunAim(200, 300)).toEqual({ x: 350, y: 380 });
+    expect(crosshairFromGun(350, 380)).toEqual({ x: 200, y: 300 });
+  });
+
+  it('clamps touch aim to the battlefield', () => {
+    expect(touchGunAim(1300, 700)).toEqual({ x: VIEW.width, y: VIEW.hudTop });
+    expect(touchGunAim(-20, -20)).toEqual({ x: 130, y: 60 });
+    expect(crosshairFromGun(130, 60)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('splits the battlefield into aim and fire halves', () => {
+    expect(isAimTouch(200, 300)).toBe(true);
+    expect(isAimTouch(900, 300)).toBe(false);
+    expect(isAimTouch(200, VIEW.hudTop + 5)).toBe(false);
+    expect(isFireTouch(900, 300)).toBe(true);
+    expect(isFireTouch(200, 300)).toBe(false);
+    expect(isFireTouch(900, VIEW.hudTop + 5)).toBe(false);
+  });
+});
+
 describe('view-model aiming', () => {
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
   const pose = (id: string, aimX: number, aimY: number, cursorX: number, cursorY: number) => {
@@ -323,8 +346,8 @@ describe('view-model aiming', () => {
 
   it('M1A keeps its muzzle at a fixed offset from the crosshair at every aim', () => {
     for (const [ax, ay] of [[640, 300], [20, 20], [1260, 580], [640, 20], [640, 580], [20, 300], [1260, 300]]) {
-      const cx = clamp(ax - 150, 0, VIEW.width);
-      const cy = clamp(ay - 80, 0, VIEW.hudTop);
+      const cx = clamp(ax + AIM_LEFT_OFFSET, 0, VIEW.width);
+      const cy = clamp(ay + AIM_VERT_OFFSET, 0, VIEW.hudTop);
       const p = pose('service', ax, ay, cx, cy);
       expect(p.muzzleX - cx).toBeCloseTo(0, 5);
       expect(p.muzzleY - cy).toBeCloseTo(80, 5);

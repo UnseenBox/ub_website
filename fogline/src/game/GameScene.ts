@@ -21,6 +21,7 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { HUD } from '../ui/HUD';
 import { toggleFullscreen } from '../ui/widgets';
 import { isTestMode } from './testMode';
+import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET } from './touchControls';
 import { Zombie } from '../entities/Zombie';
 import type { ModId } from '../data/upgrades';
 
@@ -32,14 +33,6 @@ export interface RunSummary {
   accuracy: number;
   earned: number;
 }
-
-/**
- * Fixed screen offset from the mouse to the crosshair. The M1A's muzzle is
- * pinned 80px below the crosshair (see its viewModel), so the gun and cursor
- * translate together and keep the same gap at every aim.
- */
-const AIM_LEFT_OFFSET = -150;
-const AIM_VERT_OFFSET = -80;
 
 /** The battle: fixed first-person bunker view, waves, shooting, economy. */
 export class GameScene extends Phaser.Scene {
