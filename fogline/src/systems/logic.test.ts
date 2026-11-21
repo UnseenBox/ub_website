@@ -6,6 +6,7 @@ import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../au
 import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
+import { MENU_BG_TEXTURE } from '../game/textureKeys';
 import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, resetTouchPointerIds, supportAim, touchGunAim } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { Abilities } from './Abilities';
@@ -17,6 +18,17 @@ import { WaveManager } from './WaveManager';
 import { WeaponManager } from './WeaponManager';
 
 const none = new Set<never>();
+
+describe('main menu background', () => {
+  it('registers one shared menu-background texture key', () => {
+    expect(MENU_BG_TEXTURE).toBe('menu_bg');
+  });
+
+  it('ships the supplied main-menu image', () => {
+    const images = import.meta.glob('../../src/assets/*.png');
+    expect(Object.keys(images).some((key) => key.endsWith('main-menu.png'))).toBe(true);
+  });
+});
 
 describe('weapon shot recordings', () => {
   it('gives every gun its own supplied shot file', () => {

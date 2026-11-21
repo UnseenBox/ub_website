@@ -1,13 +1,20 @@
 # Asset manifest
 
 Every visual asset is **original and procedurally generated** at boot by the painters
-in `src/rendering/`, except the M1A first-person view model which loads the supplied
-bitmap `src/assets/m1a-view.png` as `view_service_photo` in `BootScene`. No other
-third-party art is used. To replace one, load an image under the same texture key in
-`BootScene` after the painters run (or remove the painter call). Keep the listed
-dimensions and pivots so perspective scaling stays correct.
+in `src/rendering/`, except the supplied bitmaps loaded in `BootScene`: the M1A
+first-person view model (`src/assets/m1a-view.png` → `view_service_photo`) and the
+main-menu background (`src/assets/main-menu.png` → `menu_bg`). No other third-party
+art is used. To replace one, load an image under the same texture key in `BootScene`
+after the painters run (or remove the painter call). Keep the listed dimensions and
+pivots so perspective scaling stays correct.
 
 Status legend: **P** = procedural placeholder (final-quality slot, replace with illustrated art when available).
+
+## Menu
+
+| Key | Size | Use | Source | Status |
+| --- | --- | --- | --- | --- |
+| `menu_bg` | 16:9 (1280×720 displayed) | Full-screen title-screen background | supplied `Main Menu.png` → `src/assets/main-menu.png` | supplied |
 
 ## Battlefield (`rendering/EnvironmentArt.ts`)
 

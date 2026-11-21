@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
 import { audio, LoopHandle } from '../audio/AudioManager';
 import { SaveManager } from '../systems/SaveManager';
-import { MONO, STENCIL, button, toggleFullscreen } from '../ui/widgets';
+import { MONO, button, toggleFullscreen } from '../ui/widgets';
 import { VIEW } from './config';
 import { isTestMode } from './testMode';
+import { MENU_BG_TEXTURE } from './textureKeys';
 
 /** Title screen. The DEPLOY click is also the user gesture that unlocks audio. */
 export class MenuScene extends Phaser.Scene {
@@ -15,19 +16,8 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.input.setDefaultCursor('default');
-    this.add.image(0, 0, 'backdrop').setOrigin(0);
-    this.add.tileSprite(0, 0, VIEW.width, 190, 'clouds').setOrigin(0).setName('clouds');
-    this.add.image(0, VIEW.horizonY, 'ground').setOrigin(0);
-    this.add.image(0, VIEW.wallTop - 26, 'parapet').setOrigin(0);
-    this.add.image(0, 0, 'frame').setOrigin(0);
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x000000, 0.45).setOrigin(0);
-
-    this.add.text(VIEW.centerX, 150, 'FOGLINE', {
-      fontFamily: STENCIL, fontSize: '112px', color: '#d8d4bc', stroke: '#0a0a0a', strokeThickness: 10,
-    }).setOrigin(0.5).setShadow(0, 6, '#000', 12, true, true);
-    this.add.text(VIEW.centerX, 226, 'HOLD THE BUNKER  ·  EIGHT NIGHTS OF THE DEAD', {
-      fontFamily: MONO, fontSize: '16px', color: '#a8a48c', stroke: '#000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    this.add.image(0, 0, MENU_BG_TEXTURE).setOrigin(0).setDisplaySize(VIEW.width, VIEW.height);
+    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x000000, 0.25).setOrigin(0);
 
     button(this, VIEW.centerX, 320, 280, 58, 'DEPLOY', () => this.deploy(), 10);
     button(this, VIEW.centerX, 392, 280, 42, 'FULLSCREEN  [F]', () => toggleFullscreen(this), 10, 0x6a7a8a);
@@ -55,7 +45,7 @@ export class MenuScene extends Phaser.Scene {
         fontFamily: MONO, fontSize: '14px', color: '#8a8a76',
       }).setOrigin(0.5);
     }
-    this.add.text(VIEW.width - 12, VIEW.height - 10, 'original prototype · all art and audio procedurally generated', {
+    this.add.text(VIEW.width - 12, VIEW.height - 10, 'original prototype · supplied art and audio', {
       fontFamily: MONO, fontSize: '11px', color: '#5a5a50',
     }).setOrigin(1, 1);
 

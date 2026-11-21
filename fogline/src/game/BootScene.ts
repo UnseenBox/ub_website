@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import m1aViewUrl from '../assets/m1a-view.png';
+import menuBgUrl from '../assets/main-menu.png';
 import { audio } from '../audio/AudioManager';
 import { buildEnvironmentTextures } from '../rendering/EnvironmentArt';
 import { buildFxTextures } from '../rendering/FxArt';
@@ -8,6 +9,7 @@ import { buildWeaponTextures } from '../rendering/WeaponArt';
 import { ZOMBIE_ATLAS, buildZombieAtlas } from '../rendering/ZombieArt';
 import { SaveManager } from '../systems/SaveManager';
 import { VIEW } from './config';
+import { MENU_BG_TEXTURE } from './textureKeys';
 
 /** Paints every procedural texture and synthesizes the sound bank. */
 export class BootScene extends Phaser.Scene {
@@ -16,8 +18,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // The M1A is a hand-painted bitmap; everything else is generated below.
+    // Supplied bitmaps; everything else is generated below.
     this.load.image('view_service_photo', m1aViewUrl);
+    this.load.image(MENU_BG_TEXTURE, menuBgUrl);
   }
 
   create(): void {
