@@ -137,7 +137,7 @@ export class GameScene extends Phaser.Scene {
       if (this.waves.phase === 'idle') this.startNextWave();
     });
     (window as unknown as { __fogline: GameScene }).__fogline = this;
-    if (data?.openShop) this.openShop();
+    if (data?.openShop) this.time.delayedCall(0, () => this.openShop());
   }
 
   // ------------------------------------------------------------ wiring
