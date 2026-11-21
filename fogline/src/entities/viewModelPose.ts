@@ -23,6 +23,12 @@ export const DEFAULT_VIEW_MODEL: ResolvedViewModel = {
   muzzleLock: false,
   muzzleLockX: 0,
   muzzleLockY: 0,
+  barrelAlign: false,
+  tailX: 150,
+  tailY: 400,
+  anchorX: VIEW.centerX + 150,
+  anchorY: 792,
+  muzzleGap: 70,
 };
 
 export function resolveViewModel(def: WeaponDef): ResolvedViewModel {
@@ -66,8 +72,8 @@ const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.m
  *
  * The default models pivot from a low stock point and follow only a fraction of
  * the aim. Models with `muzzleLock` instead solve the pivot so the muzzle stays
- * at a fixed screen offset below the crosshair: the whole gun translates with
- * the aim while the stock swings around the muzzle.
+ * near the crosshair. With `barrelAlign` the barrel axis is also rotated to
+ * point at the crosshair, so the gun visibly aims where the shots land.
  */
 export function computeViewModelPose(input: ViewModelPoseInput): ViewModelPose {
   const { model, textureWidth, textureHeight } = input;
@@ -79,7 +85,38 @@ export function computeViewModelPose(input: ViewModelPoseInput): ViewModelPose {
     -model.maxRot,
     model.maxRot,
   );
-  const rotation = baseRot + input.tilt + input.kickRot;
+  let baseRotation = baseRot;
+  let lockTargetX = 0;
+  let lockTargetY = 0;
+  if (model.muzzleLock && model.barrelAlign) {
+    // Aim the barrel axis straight at the crosshair. The aim line comes from a
+    // distant anchor far below the screen (so the gun only turns a little as the
+    // crosshair sweeps across the view). The muzzle sits on that line short of the
+    // crosshair, as close as `muzzleGap` but pushed back as far as needed to keep
+    // the stock and arms anchored near the bottom of the screen.
+    const cx = clamp(input.cursorX, 0, VIEW.width);
+    const cy = clamp(input.cursorY, 0, VIEW.hudTop);
+    let ux = cx - model.anchorX;
+    let uy = cy - model.anchorY;
+    const len = Math.hypot(ux, uy) || 1;
+    ux /= len;
+    uy /= len;
+    // Angle of a direction measured clockwise from "up" (screen y points down).
+    const aimAngle = Math.atan2(ux, -uy);
+    const axisAngle = Math.atan2(model.muzzleX - model.tailX, -(model.muzzleY - model.tailY));
+    baseRotation = aimAngle - axisAngle;
+    const cosR = Math.cos(baseRotation);
+    const sinR = Math.sin(baseRotation);
+    const lmx = (model.muzzleX - textureWidth / 2) * scale;
+    const lmy = (model.muzzleY - textureHeight) * scale;
+    const rotMuzzleY = lmx * sinR + lmy * cosR;
+    const restY = model.pivotY + (cy - 300) * model.aimY;
+    const upward = Math.max(0.2, -uy);
+    const gap = Math.max(model.muzzleGap, (restY + rotMuzzleY - cy) / upward);
+    lockTargetX = cx - ux * gap;
+    lockTargetY = cy - uy * gap;
+  }
+  const rotation = baseRotation + input.tilt + input.kickRot;
 
   const halfW = textureWidth / 2;
   const localMuzzleX = (model.muzzleX - halfW) * scale;
@@ -88,12 +125,13 @@ export function computeViewModelPose(input: ViewModelPoseInput): ViewModelPose {
   let pivotX: number;
   let pivotY: number;
   if (model.muzzleLock) {
-    const cos = Math.cos(baseRot);
-    const sin = Math.sin(baseRot);
+    const rot = model.barrelAlign ? baseRotation : baseRot;
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
     const rotatedX = localMuzzleX * cos - localMuzzleY * sin;
     const rotatedY = localMuzzleX * sin + localMuzzleY * cos;
-    const targetX = clamp(input.cursorX, 0, VIEW.width) + model.muzzleLockX;
-    const targetY = clamp(input.cursorY, 0, VIEW.hudTop) + model.muzzleLockY;
+    const targetX = model.barrelAlign ? lockTargetX : clamp(input.cursorX, 0, VIEW.width) + model.muzzleLockX;
+    const targetY = model.barrelAlign ? lockTargetY : clamp(input.cursorY, 0, VIEW.hudTop) + model.muzzleLockY;
     pivotX = targetX - rotatedX + input.swayX;
     pivotY = targetY - rotatedY + input.kick + input.dropY + input.swayY;
   } else {

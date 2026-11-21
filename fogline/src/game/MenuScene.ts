@@ -5,6 +5,7 @@ import { MONO, button, toggleFullscreen } from '../ui/widgets';
 import { VIEW } from './config';
 import { isTestMode } from './testMode';
 import { MENU_BG_TEXTURE } from './textureKeys';
+import { keyHint } from './touchControls';
 
 /** Title screen. The DEPLOY click is also the user gesture that unlocks audio. */
 export class MenuScene extends Phaser.Scene {
@@ -20,7 +21,7 @@ export class MenuScene extends Phaser.Scene {
     this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x000000, 0.25).setOrigin(0);
 
     button(this, VIEW.centerX, 320, 280, 58, 'DEPLOY', () => this.deploy(), 10);
-    button(this, VIEW.centerX, 392, 280, 42, 'FULLSCREEN  [F]', () => toggleFullscreen(this), 10, 0x6a7a8a);
+    button(this, VIEW.centerX, 392, 280, 42, keyHint('FULLSCREEN', 'F'), () => toggleFullscreen(this), 10, 0x6a7a8a);
     if (isTestMode()) {
       this.add.text(VIEW.centerX, 430, 'TEST MODE — ALL WEAPONS & GEAR UNLOCKED', {
         fontFamily: MONO, fontSize: '12px', color: '#c8a040', stroke: '#000', strokeThickness: 3,

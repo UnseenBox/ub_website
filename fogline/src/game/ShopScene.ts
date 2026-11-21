@@ -4,6 +4,7 @@ import { STATUS_TEXT, ShopCategory, ShopItem } from '../systems/Shop';
 import { MONO, STENCIL, button } from '../ui/widgets';
 import { VIEW } from './config';
 import type { GameScene } from './GameScene';
+import { keyHint } from './touchControls';
 
 const COLUMNS: { cat: ShopCategory; title: string }[] = [
   { cat: 'weapons', title: 'WEAPONS & AMMO' },
@@ -68,10 +69,10 @@ export class ShopScene extends Phaser.Scene {
     this.msg = this.add.text(x0 + W - 26, iy + 23, '', { fontFamily: STENCIL, fontSize: '18px', color: '#ff7050', stroke: '#000', strokeThickness: 3 }).setOrigin(1, 0.5);
 
     const by = y0 + H - 28;
-    button(this, x0 + 160, by, 280, 36, 'RETURN TO LINE  [SPACE]', () => this.close(), 10, 0x6a7a8a);
+    button(this, x0 + 160, by, 280, 36, keyHint('RETURN TO LINE', 'SPACE'), () => this.close(), 10, 0x6a7a8a);
     const waves = this.game_.waves;
     if (waves.canStartNext && waves.remaining === 0) {
-      this.deployBtn = button(this, x0 + W - 170, by, 300, 36, `DEPLOY WAVE ${waves.wave + 1}  [ENTER]`, () => this.close(true), 10, 0xc84030);
+      this.deployBtn = button(this, x0 + W - 170, by, 300, 36, keyHint(`DEPLOY WAVE ${waves.wave + 1}`, 'ENTER'), () => this.close(true), 10, 0xc84030);
     }
     this.add.text(VIEW.centerX, by, `WAVE ${waves.wave}/${waves.totalWaves}  ·  BUNKER ${Math.ceil(this.game_.bunker.health)}/${this.game_.bunker.max}`, {
       fontFamily: MONO, fontSize: '12px', color: '#8a8a76',

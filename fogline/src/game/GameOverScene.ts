@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MONO, STENCIL, button } from '../ui/widgets';
 import { VIEW } from './config';
 import type { RunSummary } from './GameScene';
+import { keyHint } from './touchControls';
 
 /** Defeat / victory overlay with run stats and a restart. */
 export class GameOverScene extends Phaser.Scene {
@@ -35,7 +36,7 @@ export class GameOverScene extends Phaser.Scene {
       this.scene.stop();
       this.scene.start('Game');
     };
-    button(this, VIEW.centerX, 510, 300, 50, 'REDEPLOY  [ENTER]', restart, 10, 0xc84030);
+    button(this, VIEW.centerX, 510, 300, 50, keyHint('REDEPLOY', 'ENTER'), restart, 10, 0xc84030);
     button(this, VIEW.centerX, 568, 300, 38, 'MAIN MENU', () => {
       this.scene.stop('Game');
       this.scene.start('Menu');

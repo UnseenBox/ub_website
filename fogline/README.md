@@ -95,7 +95,7 @@ the head is checked before the body.
 ## Implemented mechanics
 
 - Fixed first-person bunker view: layered sky, mountains, ruined skyline, treeline, perspective ground, props, fog bands, sandbag parapet, bunker frame and film grain
-- Mouse aiming with a dynamic crosshair. Spread blooms when firing, the crosshair turns orange over an enemy and red over a head, hit markers confirm hits, and a reload ring shows progress
+- Mouse aiming with a dynamic crosshair that sits exactly on the pointer, with the gun rotated so its barrel points at it. On phones: drag the left half to aim and use the on-screen FIRE, reload, shop, pause and deploy buttons (see `docs/PHONE_CONTROLS.md`). Spread blooms when firing, the crosshair turns orange over an enemy and red over a head, hit markers confirm hits, and a reload ring shows progress
 - First-person view model: aim follow, idle sway, recoil kick, muzzle flash and light, ejected casings, a reload dip and tilt, and a drop-and-raise weapon switch
 - 4 weapons, all data-driven:
   - M1A semi-auto starter with unlimited ammo
