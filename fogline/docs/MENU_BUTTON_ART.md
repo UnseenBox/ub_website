@@ -1,6 +1,6 @@
 # Supplied menu-button artwork
 
-Status: approved for implementation.
+Status: superseded by `MENU_BUTTONS_FULL.md` — all five baked-label buttons are used with no text overlay.
 
 ## Intent
 

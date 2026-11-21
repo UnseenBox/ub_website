@@ -40,12 +40,14 @@ export class BootScene extends Phaser.Scene {
       const tex = this.textures.addCanvas(ZOMBIE_ATLAS, z.canvas)!;
       for (const f of z.frames) tex.add(f.name, 0, f.x, f.y, f.w, f.h);
 
-      // Crop the supplied button sheet into usable frames. The baked labels are
-      // covered by imageButton() so the correct action names can be drawn on top.
+      // Crop the supplied button sheet into five frames. The labels are baked
+      // into the art; artButton() draws the slices without any text overlay.
       const buttons = this.textures.get(MENU_BUTTONS_TEXTURE);
-      buttons.add(MENU_BUTTON_FRAMES.deploy, 0, 266, 458, 1002, 136);
-      buttons.add(MENU_BUTTON_FRAMES.fullscreen, 0, 263, 630, 1005, 130);
-      buttons.add(MENU_BUTTON_FRAMES.patch, 0, 950, 660, 220, 90);
+      buttons.add(MENU_BUTTON_FRAMES.continue, 0, 266, 50, 1002, 168);
+      buttons.add(MENU_BUTTON_FRAMES.newGame, 0, 266, 269, 1002, 157);
+      buttons.add(MENU_BUTTON_FRAMES.armory, 0, 266, 458, 1002, 136);
+      buttons.add(MENU_BUTTON_FRAMES.settings, 0, 263, 630, 1005, 130);
+      buttons.add(MENU_BUTTON_FRAMES.store, 0, 263, 790, 1005, 128);
 
       audio.setVolumes(SaveManager.load().volumes);
       // Build the audio graph and decode the supplied recordings while the

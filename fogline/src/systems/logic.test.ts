@@ -6,7 +6,7 @@ import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../au
 import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
-import { MENU_BG_TEXTURE, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
+import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
 import { AIM_LEFT_OFFSET, AIM_VERT_OFFSET, crosshairFromGun, isAimTouch, isFireTouch, resetTouchPointerIds, supportAim, touchGunAim } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { Abilities } from './Abilities';
@@ -42,11 +42,18 @@ describe('main menu background', () => {
     expect(Object.keys(assets).some((k) => k.endsWith('menu-buttons.png'))).toBe(true);
   });
 
-  it('uses the image buttons on the title screen', () => {
-    const sources = import.meta.glob('../../src/game/*.ts', { eager: true, query: '?raw', import: 'default' });
+  it('uses all five baked-label menu buttons with no text overlay', () => {
+    const sources = import.meta.glob('../../src/{game,ui}/*.ts', { eager: true, query: '?raw', import: 'default' });
     const menu = Object.entries(sources).find(([k]) => k.endsWith('MenuScene.ts'))?.[1] ?? '';
-    expect(menu).toContain('imageButton(');
-    expect(menu).not.toContain('button(this, VIEW.centerX, 320');
+    const art = Object.entries(sources).find(([k]) => k.endsWith('buttonArt.ts'))?.[1] ?? '';
+    expect(menu.match(/artButton\(/g)?.length).toBe(5);
+    expect(menu).not.toContain('imageButton(');
+    expect(art).not.toContain('btn_patch');
+    expect(art).not.toContain('scene.add.text');
+  });
+
+  it('defines exactly the five supplied button frames', () => {
+    expect(Object.keys(MENU_BUTTON_FRAMES)).toEqual(['continue', 'newGame', 'armory', 'settings', 'store']);
   });
 });
 
