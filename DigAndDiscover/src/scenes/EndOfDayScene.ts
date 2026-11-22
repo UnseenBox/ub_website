@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { FEATURES } from '../config/features';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { EVT, state, subscribe, type DaySummary } from '../core/GameState';
 import { paintFamilyPhoto } from '../art/FamilyPhoto';
@@ -158,6 +159,19 @@ export class EndOfDayScene extends Phaser.Scene {
     content.add(bar);
     y += 34;
 
+    // daily goals: a compact line in the day summary.
+    const dailyRow: FadeItem[] = [];
+    if (FEATURES.v2 && state.daily.total > 0) {
+      const daily = state.daily;
+      const icon = this.add.image(PAD + 14, y + 13, uiIcon('target')).setDisplaySize(26, 26);
+      const text = this.add
+        .text(PAD + 36, y + 13, `Daily goals: ${daily.completedCount}/${daily.total} done, earned ${formatMoney(daily.earned)}`, textStyle(14, daily.done ? GREEN : SOFT))
+        .setOrigin(0, 0.5);
+      content.add([icon, text]);
+      dailyRow.push(icon, text);
+      y += 30;
+    }
+
     // The household bill, itemised: what the family cost today.
     const bill = this.add.graphics();
     bill.fillStyle(0xf1dcb8).fillRoundedRect(PAD - 10, y - 4, CARD_W - PAD * 2 + 20, 0, 12); // sized below
@@ -261,7 +275,7 @@ export class EndOfDayScene extends Phaser.Scene {
     this.card.sendToBack(panel);
 
     this.refreshFinance();
-    this.animateIn(content, rowTexts, [photo], [depthValue, bar]);
+    this.animateIn(content, rowTexts, [photo], [depthValue, bar, ...dailyRow]);
   }
 
   /** Debt, overdue amount, deadline text and money: refreshed after the player pays the bank. */
@@ -284,6 +298,17 @@ export class EndOfDayScene extends Phaser.Scene {
       } else {
         message = 'Month cleared. A new month starts tomorrow.';
         color = GREEN;
+      }
+    } else if (FEATURES.v2) {
+      // Retention update: say plainly what has to be paid and by when.
+      const left = Math.max(0, v.paymentLeft);
+      const days = v.daysToPayment - 1; // tonight is over: days still ahead
+      if (left <= 0) {
+        message = `This month's bank payment is covered (${formatMoney(v.monthlyPayment)}).`;
+        color = GREEN;
+      } else {
+        message = `Bank payment ${formatMoney(left)}: ${days} day${days === 1 ? '' : 's'} left.`;
+        color = days <= 3 ? RED : days <= 7 ? '#d9822b' : SOFT;
       }
     } else {
       message = `Month ${v.monthNumber}: ${f.daysLeftInMonth} day${f.daysLeftInMonth === 1 ? '' : 's'} left`;

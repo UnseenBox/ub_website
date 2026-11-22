@@ -3,6 +3,7 @@ import { ONBOARDING, rollGoal, type GoalContext, type GoalDef, type GoalMetric }
 import { TOOL_DEFS } from '../data/tools';
 import type { FinanceSave } from './FinanceSystem';
 import type { FindsSave } from './FindSystem';
+import type { DailyGoalsSave } from '../data/dailyGoals';
 
 export interface Goal extends GoalDef {
   progress: number;
@@ -30,6 +31,8 @@ export interface SaveData {
   finance?: FinanceSave;
   /** Why the run ended, null while the run is alive. */
   gameOver?: string | null;
+  /** Today's three daily goals (only when FEATURES.v2 is on). */
+  daily?: DailyGoalsSave;
 }
 
 export interface ProgressHooks {
@@ -222,6 +225,7 @@ export class ProgressSystem {
     finds?: FindsSave;
     finance?: FinanceSave;
     gameOver?: string | null;
+    daily?: DailyGoalsSave;
   }): SaveData {
     return {
       v: 2,

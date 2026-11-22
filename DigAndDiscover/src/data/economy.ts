@@ -8,6 +8,8 @@
  * scale up with the same pace as the income.
  */
 
+import { FEATURES } from '../config/features';
+
 /** One line of the daily household bill. */
 export interface ExpenseItemDef {
   /** Stable id, used by the end-of-day screen to lay out the rows. */
@@ -61,10 +63,14 @@ export const ECONOMY: EconomyConfig = {
   debt: {
     /** What the father owes when the run starts (about four and a half months of instalments). */
     startingDebt: 250000,
-    /** An instalment becomes due every N completed working days. */
-    installmentIntervalDays: 7,
+    /**
+     * An instalment becomes due every N completed working days.
+     * Retention update (FEATURES.v2): the four weekly payments become ONE monthly payment of the same total,
+     * due at the end of day 30 (one clear deadline instead of a small weekly one that never bit; see RETENTION_UPDATE_REMINDER.md).
+     */
+    installmentIntervalDays: FEATURES.v2 ? 30 : 7,
     /** Instalment due in month 1 (end of days 7, 14, 21 and 28). */
-    firstMonthInstallment: 2500,
+    firstMonthInstallment: FEATURES.v2 ? 10000 : 2500,
     installmentGrowthPerMonth: 2.4,
     lenderName: 'the bank',
   },

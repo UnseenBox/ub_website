@@ -12,10 +12,85 @@
       #game canvas { display: block; touch-action: none; }
       #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
         font: 400 22px Georgia, serif; color: #5a3a22; }
+
+      /* Loading screen v2: shown by the retention update builds (the vite config swaps it for the plain one otherwise). */
+      #loading.ld { z-index: 10; flex-direction: column; justify-content: flex-end; overflow: hidden;
+        background: linear-gradient(#7fcfff 0%, #bfe8ff 46%, #fff1c9 62%); transition: opacity 0.45s ease; }
+      #loading.ld.done { opacity: 0; pointer-events: none; }
+      .ld-sun { position: absolute; top: 3%; right: 4%; width: 22vmin; height: 22vmin; max-width: 150px; max-height: 150px; border-radius: 50%;
+        background: radial-gradient(circle, #fff7c2 0%, #ffe27a 55%, rgba(255, 226, 122, 0) 72%); animation: ld-glow 3s ease-in-out infinite alternate; }
+      .ld-ground { position: relative; width: 100%; height: 44%; background:
+        linear-gradient(#6fbf3f 0 14px, #4f9a2c 14px 20px, transparent 20px),
+        linear-gradient(#8a5a34, #5c3a20 60%, #3f2713); box-shadow: inset 0 6px 0 rgba(255, 255, 255, 0.18); }
+      .ld-stones { position: absolute; inset: 40px 0 0 0; opacity: 0.55;
+        background:
+          radial-gradient(ellipse 14px 9px at 12% 24%, #b8a58c 60%, transparent 62%),
+          radial-gradient(ellipse 10px 7px at 30% 58%, #d9c8a8 60%, transparent 62%),
+          radial-gradient(ellipse 16px 10px at 55% 34%, #a89478 60%, transparent 62%),
+          radial-gradient(ellipse 11px 7px at 76% 70%, #cdb98f 60%, transparent 62%),
+          radial-gradient(ellipse 13px 8px at 90% 28%, #b8a58c 60%, transparent 62%); }
+      .ld-center { position: absolute; left: 0; right: 0; top: 0; bottom: 44%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 0 16px; }
+      .ld-title { font: 400 clamp(34px, 9vmin, 64px) Rye, Georgia, serif; color: #fff7e0; text-align: center; line-height: 1.05;
+        text-shadow: 0 3px 0 #7a4a22, 0 -2px 0 #7a4a22, 3px 0 0 #7a4a22, -3px 0 0 #7a4a22, 0 8px 18px rgba(60, 30, 10, 0.45); }
+      .ld-title small { display: block; font-size: 0.42em; letter-spacing: 0.08em; margin-top: 8px; color: #ffe58a; }
+      .ld-pick { width: clamp(70px, 16vmin, 110px); height: auto; transform-origin: 82% 92%; animation: ld-swing 0.9s ease-in-out infinite; filter: drop-shadow(0 6px 4px rgba(60, 30, 10, 0.35)); }
+      .ld-dirt { position: absolute; left: 50%; bottom: 44%; width: 0; height: 0; }
+      .ld-dirt i { position: absolute; width: 8px; height: 8px; border-radius: 2px; background: #7a4a22; opacity: 0; animation: ld-spray 0.9s ease-out infinite; }
+      .ld-dirt i:nth-child(1) { --dx: -34px; --dy: -46px; animation-delay: 0.38s; }
+      .ld-dirt i:nth-child(2) { --dx: 22px; --dy: -58px; animation-delay: 0.42s; background: #a8793f; }
+      .ld-dirt i:nth-child(3) { --dx: 46px; --dy: -34px; animation-delay: 0.40s; }
+      .ld-dirt i:nth-child(4) { --dx: -12px; --dy: -66px; animation-delay: 0.44s; background: #c9a56a; }
+      .ld-bar { position: absolute; left: 50%; bottom: 16%; width: min(300px, 70vw); height: 18px; transform: translateX(-50%); border-radius: 10px;
+        background: #3a2412; border: 3px solid #fff1c9; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3); overflow: hidden; }
+      .ld-bar b { display: block; height: 100%; width: 100%; transform-origin: left; transform: scaleX(0.04); border-radius: 6px;
+        background: linear-gradient(#ffe27a, #f0a720); animation: ld-fill 5s cubic-bezier(0.15, 0.7, 0.3, 1) forwards; }
+      .ld-tip { position: absolute; left: 0; right: 0; bottom: 7%; text-align: center; font: 400 clamp(14px, 3.6vmin, 19px) Georgia, serif; color: #ffe9bd; padding: 0 20px; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
+      @keyframes ld-swing { 0% { transform: rotate(-52deg); } 42% { transform: rotate(18deg); } 52% { transform: rotate(18deg); } 100% { transform: rotate(-52deg); } }
+      @keyframes ld-spray { 0% { opacity: 0; transform: translate(0, 0); } 8% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 40px)); } }
+      @keyframes ld-fill { to { transform: scaleX(0.92); } }
+      @keyframes ld-glow { to { transform: scale(1.12); opacity: 0.85; } }
+      @media (prefers-reduced-motion: reduce) { .ld-pick, .ld-dirt i, .ld-sun { animation: none; } .ld-dirt { display: none; } }
     </style>
   </head>
   <body>
-    <div id="loading">Loading...</div>
+    <!--LOADER_V2-->
+    <div id="loading" class="ld">
+      <div class="ld-sun"></div>
+      <div class="ld-center">
+        <div class="ld-title">Dig &amp; Discover<small>Dig. Cut. Get rich.</small></div>
+        <svg class="ld-pick" viewBox="0 0 100 100" aria-hidden="true">
+          <rect x="44" y="26" width="10" height="70" rx="4" fill="#9a6a3a" stroke="#4a2a12" stroke-width="3" />
+          <path d="M6 40 C 22 8, 78 8, 94 40 C 78 24, 22 24, 6 40 Z" fill="#cfd6df" stroke="#3b4350" stroke-width="4" stroke-linejoin="round" />
+          <path d="M20 26 C 38 16, 62 16, 80 26" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.7" />
+        </svg>
+      </div>
+      <div class="ld-dirt"><i></i><i></i><i></i><i></i></div>
+      <div class="ld-ground"><div class="ld-stones"></div></div>
+      <div class="ld-bar"><b></b></div>
+      <div class="ld-tip" id="ld-tip">Loading...</div>
+    </div>
+    <script>
+      (function () {
+        var tips = [
+          'Dig deeper to find rarer rocks.',
+          'Cut rocks open at the workshop to see what is inside.',
+          'The bank wants its payment by the end of the month.',
+          'A better shovel digs bigger holes.',
+          'Finish the daily goals to earn extra cash.',
+          'Every find you cut goes into your album.',
+        ];
+        var el = document.getElementById('ld-tip');
+        if (el) el.textContent = 'Tip: ' + tips[Math.floor(Math.random() * tips.length)];
+        // Called by the game once the first scene is up.
+        window.__hideLoading = function () {
+          var l = document.getElementById('loading');
+          if (!l) return;
+          l.classList.add('done');
+          setTimeout(function () { if (l.parentNode) l.parentNode.removeChild(l); }, 600);
+        };
+      })();
+    </script>
+    <!--/LOADER_V2-->
     <div id="game"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

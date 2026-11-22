@@ -149,6 +149,7 @@ export class DigScene extends Phaser.Scene {
 
   private embedded: EmbeddedRock[] = [];
   private bedrockAnnounced = false;
+  private restartTimer = 0;
   private aimMark!: Phaser.GameObjects.Image;
   private fieldScale = 1;
   private visL = 0;
@@ -437,8 +438,16 @@ export class DigScene extends Phaser.Scene {
   /** A fresh deposit: fade out, rebuild the ground from scratch, fade back in. */
   private onRelocated(): void {
     const cam = this.cameras.main;
-    cam.fadeOut(380, 20, 12, 8);
-    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart());
+    // `force` matters: a fade already running (the fade-in after waking from the workshop) would otherwise swallow
+    // this one, the restart would never happen and the old terrain, with its holes, would stay.
+    cam.fade(380, 20, 12, 8, true);
+    // A plain timer, not the fade's completion event: a scene that slept in the workshop, or one whose fade was
+    // interrupted, never fires it, and then the old terrain (and the hole in it) would stay.
+    if (this.restartTimer) window.clearTimeout(this.restartTimer);
+    this.restartTimer = window.setTimeout(() => {
+      this.restartTimer = 0;
+      this.scene.restart();
+    }, 420);
   }
 
   /** The equipped tool's own in-world sprite. Called at start and whenever the tool changes. */

@@ -21,15 +21,16 @@ if errorlevel 1 goto Fail
 
 :Build
 echo.
-echo [2/3] Building production bundle...
-call npm run build
+echo [2/3] Building the CrazyGames BASIC build (dream, daily goals, monthly bank payment, extra saws)...
+call npm run build:crazygames-basic
 if errorlevel 1 goto Fail
 
 echo.
 echo [3/3] Starting local server and opening your browser...
+echo       The dream only plays on a brand-new game: use the in-game Start over, or open a private window.
 echo       Keep this window open while playing. Close it (or press Ctrl+C) to stop.
 echo.
-call npm run preview -- --open
+call npx vite preview --outDir dist-crazygames-basic --open
 goto End
 
 :NoNode

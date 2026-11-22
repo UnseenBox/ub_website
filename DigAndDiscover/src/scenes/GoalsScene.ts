@@ -7,6 +7,8 @@ import { uiIcon } from '../art/UiIcons';
 import { sfx } from '../audio/Sfx';
 import { Button, type ButtonColors } from '../ui/Button';
 import { formatMoney } from '../ui/MoneyCounter';
+import { FEATURES } from '../config/features';
+import { dailyGoalIcon, dailyGoalText } from '../data/dailyGoals';
 
 const CARD_W = 480;
 const PAD = 22;
@@ -90,6 +92,59 @@ export class GoalsScene extends Phaser.Scene {
     content.add(this.add.image(PAD, y + 8, uiIcon('flag')).setDisplaySize(24, 24).setOrigin(0, 0.5));
     content.add(this.add.text(PAD + 28, y + 8, `${state.progress.deposit}`, textStyle(24, '#2a8a3a')).setOrigin(0, 0.5));
     y += 28;
+
+    // daily goals: today's three small goals, above the long-term goals.
+    if (FEATURES.v2 && state.daily.total > 0) {
+      const daily = state.daily;
+      content.add(this.add.image(PAD + 12, y + 10, uiIcon('target')).setDisplaySize(24, 24).setOrigin(0, 0.5));
+      content.add(this.add.text(PAD + 32, y + 10, "Today's goals", textStyle(20, INK)).setOrigin(0, 0.5));
+      content.add(
+        this.add
+          .text(CARD_W - PAD, y + 10, `${daily.completedCount}/${daily.total}`, textStyle(14, daily.done ? '#2a8a3a' : SOFT_INK))
+          .setOrigin(1, 0.5),
+      );
+      y += 30;
+
+      for (const goal of daily.goals) {
+        const rowH = 66;
+        const g = this.add.graphics();
+        g.fillStyle(0x000000, 0.1).fillRoundedRect(PAD, y + 4, CARD_W - PAD * 2, rowH - 8, 12);
+        g.fillStyle(goal.done ? 0xdff0cf : 0xf1dcb8).fillRoundedRect(PAD, y, CARD_W - PAD * 2, rowH - 8, 12);
+        g.lineStyle(2, 0x3b2616, 0.22).strokeRoundedRect(PAD, y, CARD_W - PAD * 2, rowH - 8, 12);
+        const f = Phaser.Math.Clamp(goal.progress / goal.target, 0, 1);
+        const barX = PAD + 44;
+        const barW = CARD_W - PAD * 2 - 44 - 76;
+        g.fillStyle(0x3b2616, 0.18).fillRoundedRect(barX, y + 40, barW, 10, 5);
+        if (f > 0) g.fillStyle(0x5fcf5c).fillRoundedRect(barX, y + 40, Math.max(10, barW * f), 10, 5);
+        g.lineStyle(2, 0x3b2616, 0.35).strokeRoundedRect(barX, y + 40, barW, 10, 5);
+        content.add(g);
+
+        content.add(this.add.image(PAD + 14, y + 16, dailyGoalIcon(goal.metric)).setDisplaySize(24, 24).setOrigin(0, 0.5));
+        content.add(this.add.text(PAD + 44, y + 16, dailyGoalText(goal), textStyle(15, INK)).setOrigin(0, 0.5));
+
+        const rewardX = goal.done ? CARD_W - PAD - 34 : CARD_W - PAD - 14;
+        content.add(this.add.text(rewardX, y + 16, `+${formatMoney(goal.cash)}`, textStyle(13, '#2a8a3a')).setOrigin(1, 0.5));
+        if (goal.done) {
+          content.add(this.add.image(CARD_W - PAD - 14, y + 16, uiIcon('check')).setDisplaySize(18, 18).setOrigin(1, 0.5));
+        }
+        content.add(
+          this.add
+            .text(CARD_W - PAD - 14, y + 40, `${Math.floor(goal.progress)}/${goal.target}`, textStyle(12, SOFT_INK))
+            .setOrigin(1, 0.5),
+        );
+        y += rowH;
+      }
+
+      content.add(this.add.image(PAD + 12, y + 10, uiIcon('sparkle')).setDisplaySize(18, 18).setOrigin(0, 0.5));
+      const bonus = daily.done ? `All three done: +${formatMoney(daily.bonus)} paid` : `All three: +${formatMoney(daily.bonus)} bonus`;
+      content.add(this.add.text(PAD + 30, y + 10, bonus, textStyle(14, daily.done ? '#2a8a3a' : SOFT_INK)).setOrigin(0, 0.5));
+      y += 30;
+
+      const divider = this.add.graphics();
+      divider.lineStyle(2, 0x3b2616, 0.18).lineBetween(PAD, y, CARD_W - PAD, y);
+      content.add(divider);
+      y += 14;
+    }
 
     // Goals.
     for (const goal of state.progress.goals) {

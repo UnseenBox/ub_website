@@ -120,6 +120,11 @@ export class ExcavationSystem {
     return a + (b - a) * (f - i);
   }
 
+  /** Swings made so far (the dream tutorial moves on after a few). */
+  get swingCount(): number {
+    return this.swings;
+  }
+
   /** The deepest point dug has reached bedrock. */
   get atBottom(): boolean {
     return this.deepest >= this.floorLimit - 0.5;

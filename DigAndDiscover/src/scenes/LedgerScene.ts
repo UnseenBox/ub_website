@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { FEATURES } from '../config/features';
 import { BUTTON_COLORS, PALETTE, outlinedStyle, textStyle } from '../config/Theme';
 import { state } from '../core/GameState';
 import { sfx } from '../audio/Sfx';
@@ -79,15 +80,26 @@ export class LedgerScene extends Phaser.Scene {
     y = 86;
 
     y = this.row(y, 'Debt remaining', formatMoney(view.debtRemaining), INK);
-    y = this.row(y, 'Weekly payment', formatMoney(view.installment), INK);
-    y = this.row(y, 'Paid so far', formatMoney(view.paidTotal), INK);
-    y = this.row(y, 'Overdue', formatMoney(view.overdue), view.overdue > 0 ? WARN : INK);
-    const next =
-      view.nextInstallmentDay === null
-        ? 'None'
-        : `Day ${view.nextInstallmentDay} (in ${view.daysUntilNextInstallment} days)`;
-    y = this.row(y, 'Next payment', next, INK);
-    y = this.row(y, 'Month deadline', `Month ${view.monthNumber}: ${view.daysLeftInMonth} days left`, INK);
+    if (FEATURES.v2) {
+      // Retention update: ONE payment per month, with a clear deadline.
+      y = this.row(y, "This month's payment", formatMoney(view.monthlyPayment), INK);
+      y = this.row(y, 'Still to pay', formatMoney(view.paymentLeft), view.paymentLeft > 0 ? WARN : GOOD);
+      const days = view.daysToPayment;
+      const when = view.debtFree ? 'None' : days <= 0 ? 'Today, now' : `End of day ${view.monthDays} (${days} day${days === 1 ? '' : 's'} left)`;
+      y = this.row(y, 'Pay by', when, days <= 3 && view.paymentLeft > 0 ? WARN : INK);
+      y = this.row(y, 'Paid so far', formatMoney(view.paidTotal), INK);
+      if (view.overdue > 0) y = this.row(y, 'Overdue', formatMoney(view.overdue), WARN);
+    } else {
+      y = this.row(y, 'Weekly payment', formatMoney(view.installment), INK);
+      y = this.row(y, 'Paid so far', formatMoney(view.paidTotal), INK);
+      y = this.row(y, 'Overdue', formatMoney(view.overdue), view.overdue > 0 ? WARN : INK);
+      const next =
+        view.nextInstallmentDay === null
+          ? 'None'
+          : `Day ${view.nextInstallmentDay} (in ${view.daysUntilNextInstallment} days)`;
+      y = this.row(y, 'Next payment', next, INK);
+      y = this.row(y, 'Month deadline', `Month ${view.monthNumber}: ${view.daysLeftInMonth} days left`, INK);
+    }
     if (view.billsOutstanding > 0) {
       y = this.row(y, 'Household bills owed', formatMoney(view.billsOutstanding), WARN);
     }
@@ -102,7 +114,7 @@ export class LedgerScene extends Phaser.Scene {
       );
       y += 46;
     } else {
-      const owes = view.overdue > 0 || view.billsOutstanding > 0;
+      const owes = view.overdue > 0 || view.billsOutstanding > 0 || (FEATURES.v2 && view.paymentLeft > 0);
       const due = new Button(this, {
         width: 200,
         height: 54,

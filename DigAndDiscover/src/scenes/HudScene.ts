@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config/GameConfig';
+import { FEATURES } from '../config/features';
 import { BUTTON_COLORS, PALETTE, outlinedStyle } from '../config/Theme';
 import { EVT, state, subscribe } from '../core/GameState';
 import type { DaySummary } from '../core/GameState';
@@ -12,6 +13,7 @@ import { DepthGauge } from '../ui/DepthGauge';
 import { ICON_SAW, ICON_STAR } from '../art/IconArt';
 import { uiIcon } from '../art/UiIcons';
 import { GoalPill } from '../ui/GoalPill';
+import { DailyGoalChip } from '../ui/DailyGoalChip';
 import { ClockPill } from '../ui/ClockPill';
 import { FindCard } from '../ui/FindCard';
 import type { FindDef } from '../data/finds';
@@ -21,6 +23,7 @@ import { computeLayout, slotCenter, type Layout } from '../ui/layout';
 import { MoneyCounter, formatMoney } from '../ui/MoneyCounter';
 import { StaminaBar } from '../ui/StaminaBar';
 import { Toast } from '../ui/Toast';
+import { dailyGoalText, type DailyGoal } from '../data/dailyGoals';
 
 const COIN_POOL = 14;
 const FLOAT_POOL = 4;
@@ -43,12 +46,20 @@ export class HudScene extends Phaser.Scene {
   private storeDeal = false;
   private iconR = 20;
   private goalPill!: GoalPill;
+  // daily goals: chip sits beside (or below) the level goal pill.
+  private dailyChip: DailyGoalChip | null = null;
+  private dailyChipEdge = 14;
+  private quiet = false;
   private clockPill!: ClockPill;
   private clockStacked = false;
   private ledgerBtn!: Phaser.GameObjects.Container;
   private ledgerBg!: Phaser.GameObjects.Graphics;
   private ledgerIcon!: Phaser.GameObjects.Image;
   private ledgerBadge!: Phaser.GameObjects.Graphics;
+  // debt reminder (retention update)
+  private ledgerDays: Phaser.GameObjects.Text | null = null;
+  private ledgerExt = 0;
+  private noticeShown = new Set<string>();
   private ledgerSize = 44;
   private findCard!: FindCard;
   private collectBtn!: Phaser.GameObjects.Container;
@@ -65,7 +76,8 @@ export class HudScene extends Phaser.Scene {
   private floats: Phaser.GameObjects.Text[] = [];
   private floatIndex = 0;
   private readonly incoming = new Set<string>();
-  private benchRockId: string | null = null;
+  /** Rocks currently sitting on any of the cutting machines (one to four with Extra Saws). */
+  private benchRockIds = new Set<string>();
   private switching = false;
   private closingBanner: Phaser.GameObjects.Container | null = null;
   private closingBannerTween: Phaser.Tweens.Tween | null = null;
@@ -97,9 +109,12 @@ export class HudScene extends Phaser.Scene {
     this.toast = new Toast(this);
     this.switching = false;
     this.buildLedgerButton();
+    this.noticeShown = new Set<string>();
 
     this.depthGauge = new DepthGauge(this);
     this.goalPill = new GoalPill(this, () => this.openGoals());
+    // daily goals: compact chip that opens the same card.
+    if (FEATURES.v2) this.dailyChip = new DailyGoalChip(this, () => this.openGoals());
 
     for (let i = 0; i < COIN_POOL; i++) this.coins.push(this.add.image(0, 0, 'coin').setVisible(false).setDepth(20));
     for (let i = 0; i < FLOAT_POOL; i++) {
@@ -111,8 +126,8 @@ export class HudScene extends Phaser.Scene {
     subscribe(this, EVT.modeChanged, () => this.refresh());
     subscribe(this, EVT.busyChanged, () => this.refresh());
     subscribe(this, EVT.rockCollected, (rock: Rock, x: number, y: number, scale: number) => this.flyRockToBag(rock, x, y, scale));
-    subscribe(this, EVT.placedChanged, (id: string | null) => {
-      this.benchRockId = id;
+    subscribe(this, EVT.placedChanged, (ids: string[]) => {
+      this.benchRockIds = new Set(ids);
       this.refreshSlots();
     });
     subscribe(this, EVT.sale, (amount: number, x: number, y: number, tier: number) => this.celebrateSale(amount, x, y, tier));
@@ -132,6 +147,7 @@ export class HudScene extends Phaser.Scene {
       this.updateStoreDeal();
     });
     subscribe(this, EVT.findFound, (def: FindDef, item: FindItem, first: boolean) => {
+      if (state.inDream) return; // no find cards (with their stars) in the dream
       this.findCard.show(def, item, first, this.L.w - 24);
       this.drawCollectionButton(this.iconR);
     });
@@ -149,9 +165,19 @@ export class HudScene extends Phaser.Scene {
       this.goalPill.bump();
       sfx.coin();
     });
+    // daily goals: progress ticks and payouts.
+    subscribe(this, EVT.dailyGoalsChanged, () => this.dailyChip?.refresh());
+    subscribe(this, EVT.dailyGoalDone, (goal: DailyGoal | null, bonus?: number) => {
+      if (goal) this.toast.show(`+${formatMoney(goal.cash)} · ${dailyGoalText(goal)}`, 1800, uiIcon('cash'));
+      else this.toast.show(`All daily goals! +${formatMoney(bonus ?? 0)}`, 2000, uiIcon('trophy'));
+      this.dailyChip?.bump();
+      sfx.coin();
+    });
     subscribe(this, EVT.financeChanged, () => this.drawLedgerButton());
     subscribe(this, EVT.gameOver, () => this.onGameOver());
     subscribe(this, EVT.runReset, () => this.onRunReset());
+    // debt reminder: the first card shortly after the scene is up
+    if (FEATURES.v2) this.time.delayedCall(1200, () => this.maybeShowDebtNotice());
     this.input.once('pointerdown', () => (this.userActed = true));
     this.input.keyboard?.once('keydown', () => (this.userActed = true));
 
@@ -246,7 +272,27 @@ export class HudScene extends Phaser.Scene {
     this.stamina.layout(L.stamina.x, L.stamina.y, L.stamina.w, L.stamina.h);
     const pillW = L.compact ? Math.min(L.w * 0.62, 270) : 300;
     const goalH = L.compact ? 44 : 50;
+    // Phone workshop: the level bar and the daily-goal chip are not needed there, so they step aside and the
+    // machines get the room. They are back as soon as the player returns to the dig site.
+    this.quiet = this.wantQuiet(L.compact);
+    this.goalPill.setVisible(!this.quiet);
+    if (this.dailyChip) this.dailyChip.quiet = this.quiet;
     this.goalPill.layout(14 + pillW / 2, L.topH + 8 + goalH / 2, pillW, goalH);
+    // daily goals: wide screens tuck the chip right of the goal pill; narrow
+    // screens give it its own short row, with the clock moved along it.
+    this.dailyChipEdge = 14;
+    if (this.dailyChip) {
+      if (L.compact) {
+        const chipW = Math.min(120, Math.round(L.w * 0.3));
+        const chipH = Math.max(34, Math.round(goalH * 0.78));
+        const goalBottom = L.topH + 8 + goalH;
+        this.dailyChip.layout(14 + chipW / 2, goalBottom + 6 + chipH / 2, chipW, chipH);
+        this.dailyChipEdge = 14 + chipW + 8;
+      } else {
+        const chipW = 128;
+        this.dailyChip.layout(14 + pillW + 8 + chipW / 2, L.topH + 8 + goalH / 2, chipW, goalH);
+      }
+    }
     this.slots.forEach((slot, i) => {
       const c = slotCenter(L, i);
       slot.setPosition(c.x, c.y);
@@ -265,7 +311,8 @@ export class HudScene extends Phaser.Scene {
     if (this.clockStacked) {
       const clockH = Math.round(pillH * 0.9);
       const goalBottom = L.topH + 8 + (L.compact ? 44 : 50);
-      this.clockPill.layout(0, goalBottom + 6 + clockH / 2, clockH, 14, true);
+      if (this.quiet) this.clockPill.layout(0, L.topH + 8 + goalH / 2, clockH, 14, true);
+      else this.clockPill.layout(0, goalBottom + 6 + clockH / 2, clockH, this.dailyChipEdge, true);
     } else {
       this.clockPill.layout(L.w / 2, L.topH / 2, Math.round(pillH * 0.86), this.money.rightEdge + 10);
     }
@@ -287,9 +334,14 @@ export class HudScene extends Phaser.Scene {
 
     this.toast.place(L.w / 2, L.topH + 108 + (this.clockStacked ? 28 : 0), L.compact ? 16 : 20);
     // The debt chip sits in the row under the top bar, at the right, clear of the depth label.
-    this.ledgerBtn.setPosition(L.w - 14 - L.depth.w - 46 - goalH / 2, L.topH + 8 + goalH / 2);
-    this.ledgerBtn.setSize(goalH, goalH);
-    (this.ledgerBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, goalH, goalH);
+    // With the debt reminder the button is a pill (days left + icon): the icon keeps its place and the pill grows to the left
+    // (the depth label sits on the right).
+    // On a narrow phone there is no room for the pill: the days left become a small tag under the icon instead.
+    this.ledgerExt = this.ledgerDays && L.w >= 480 ? Math.round(goalH * 1.0) : 0;
+    const ledgerW = goalH + this.ledgerExt;
+    this.ledgerBtn.setPosition(L.w - 14 - L.depth.w - 46 - goalH / 2 - this.ledgerExt / 2, L.topH + 8 + goalH / 2);
+    this.ledgerBtn.setSize(ledgerW, goalH);
+    (this.ledgerBtn.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setTo(0, 0, ledgerW, goalH);
     this.ledgerSize = goalH;
     this.drawLedgerButton();
     this.depthGauge.layout(L.depth.x, L.depth.y, L.depth.w, L.depth.h);
@@ -297,7 +349,18 @@ export class HudScene extends Phaser.Scene {
 
   // ---------- state -> UI ----------
 
+  /** Phone: the level bar and daily chip only show while digging for real (not in the workshop or the dream). */
+  private wantQuiet(compact: boolean): boolean {
+    return compact && (state.mode === 'workshop' || state.inDream);
+  }
+
+  /** Re-lays the top rows out when the quiet state changed. Public so the dream can call it when it ends. */
+  syncQuiet(): void {
+    if (this.L?.compact && this.wantQuiet(true) !== this.quiet) this.onResize();
+  }
+
   private refresh(): void {
+    this.syncQuiet();
     this.refreshSlots();
     const inv = state.inventory;
 
@@ -336,7 +399,7 @@ export class HudScene extends Phaser.Scene {
       slot.show({
         rock,
         incoming: !!rock && this.incoming.has(rock.id),
-        onBench: !!rock && rock.id === this.benchRockId && state.mode === 'workshop',
+        onBench: !!rock && this.benchRockIds.has(rock.id) && state.mode === 'workshop',
       });
     });
   }
@@ -441,6 +504,14 @@ export class HudScene extends Phaser.Scene {
     }
     this.refresh();
     sfx.newDay();
+    if (FEATURES.v2) this.time.delayedCall(1400, () => this.maybeShowDebtNotice());
+    // daily goals: announce the fresh set once the summary has cleared.
+    if (FEATURES.v2 && state.daily.total > 0) {
+      this.time.delayedCall(800, () => {
+        if (this.storeOpen || this.scene.isActive('EndOfDay')) return;
+        this.toast.show('New daily goals!', 1800, uiIcon('target'));
+      });
+    }
   }
 
   private onLayerEntered(_layerIndex: number): void {
@@ -555,6 +626,7 @@ export class HudScene extends Phaser.Scene {
 
   /** Opens the store overlay. It pauses the world while open (see StoreScene). */
   private openStore(): void {
+    if (state.inDream) return; // no shopping in the dream
     if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
     sfx.click();
     this.tweens.add({ targets: this.storeBtn, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
@@ -628,6 +700,7 @@ export class HudScene extends Phaser.Scene {
 
   /** Bedrock reached: offer a fresh deposit (never over another card or mid-trip). */
   private offerRelocation(): void {
+    if (state.inDream) return; // no "new deposit" card in the dream
     if (this.storeOpen || this.switching || state.mode !== 'dig' || !state.canRelocate) return;
     if (this.scene.isActive('EndOfDay')) return;
     // Declined a moment ago? Do not nag on every swing at bedrock.
@@ -640,6 +713,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   private openCollection(): void {
+    if (state.inDream) return;
     if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
     sfx.click();
     this.scene.launch('Collection');
@@ -652,6 +726,11 @@ export class HudScene extends Phaser.Scene {
     this.ledgerIcon = this.add.image(0, 0, uiIcon('ledger'));
     this.ledgerBadge = this.add.graphics();
     this.ledgerBtn = this.add.container(0, 0, [this.ledgerBg, this.ledgerIcon, this.ledgerBadge]);
+    this.ledgerDays = null;
+    if (FEATURES.v2) {
+      this.ledgerDays = this.add.text(0, 0, '', outlinedStyle(18, '#ffffff')).setOrigin(0.5);
+      this.ledgerBtn.add(this.ledgerDays);
+    }
     this.ledgerBtn.setSize(44, 44);
     this.ledgerBtn.setInteractive({ useHandCursor: true });
     this.ledgerBtn.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.openLedger());
@@ -661,6 +740,7 @@ export class HudScene extends Phaser.Scene {
   private ledgerMood(): 'ok' | 'soon' | 'late' {
     if (state.hasOverdue) return 'late';
     const v = state.ledger;
+    if (FEATURES.v2) return !v.debtFree && v.paymentLeft > 0 && v.daysToPayment <= 7 ? 'soon' : 'ok';
     if (!v.debtFree && v.nextInstallmentDay !== null && v.daysUntilNextInstallment <= 2) return 'soon';
     return 'ok';
   }
@@ -672,14 +752,31 @@ export class HudScene extends Phaser.Scene {
     const ring = mood === 'late' ? 0xe5533d : mood === 'soon' ? 0xffb627 : PALETTE.gold;
     const g = this.ledgerBg;
     g.clear();
-    g.fillStyle(0x000000, 0.22).fillCircle(0, 3, r);
-    g.fillStyle(PALETTE.tray, 0.88).fillCircle(0, 0, r);
-    g.lineStyle(Math.max(2, r * 0.08), ring, mood === 'ok' ? 0.55 : 1).strokeCircle(0, 0, r - 1);
-    this.ledgerIcon.setDisplaySize(r * 1.35, r * 1.35).setPosition(0, -r * 0.04);
+    // Debt reminder pill: a rounded bar with the icon on the left and the days left on the right.
+    const ext = this.ledgerDays ? this.ledgerExt : 0;
+    const left = -r - ext / 2; // left edge of the button (the container is centred on the whole pill)
+    const cx = ext / 2; // centre of the icon circle (right end of the pill)
+    g.fillStyle(0x000000, 0.22).fillRoundedRect(left, -r + 3, r * 2 + ext, r * 2, r);
+    g.fillStyle(PALETTE.tray, 0.88).fillRoundedRect(left, -r, r * 2 + ext, r * 2, r);
+    g.lineStyle(Math.max(2, r * 0.08), ring, mood === 'ok' ? 0.55 : 1).strokeRoundedRect(left + 1, -r + 1, r * 2 + ext - 2, r * 2 - 2, r - 1);
+    this.ledgerIcon.setDisplaySize(r * 1.35, r * 1.35).setPosition(cx, -r * 0.04);
+    if (this.ledgerDays) {
+      const v = state.ledger;
+      let label = '';
+      if (v.debtFree) label = '';
+      else if (v.overdue > 0 || (v.paymentLeft > 0 && v.daysToPayment === 0)) label = '!';
+      else if (v.paymentLeft <= 0) label = 'OK';
+      else label = v.daysToPayment + 'd';
+      this.ledgerDays
+        .setText(label)
+        .setFontSize(Math.round(r * (ext > 0 ? 0.9 : 0.62)))
+        .setColor(mood === 'late' || (mood === 'soon' && v.daysToPayment <= 3) ? '#ff8f7a' : mood === 'soon' ? '#ffd36b' : '#ffffff')
+        .setPosition(ext > 0 ? -r * 0.9 : 0, ext > 0 ? 0 : r + 7);
+    }
     const b = this.ledgerBadge;
     b.clear();
     if (mood !== 'ok') {
-      const bx = r * 0.7;
+      const bx = cx + r * 0.7;
       const by = -r * 0.7;
       b.fillStyle(mood === 'late' ? 0xe5533d : 0xffb627).fillCircle(bx, by, r * 0.3);
       b.lineStyle(2, 0xffffff).strokeCircle(bx, by, r * 0.3);
@@ -688,10 +785,38 @@ export class HudScene extends Phaser.Scene {
   }
 
   private openLedger(): void {
+    if (state.inDream) return;
     if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay') || state.isGameOver) return;
     sfx.click();
     this.tweens.add({ targets: this.ledgerBtn, scale: { from: 0.85, to: 1 }, duration: 200, ease: 'Back.easeOut' });
     this.scene.launch('Ledger');
+  }
+
+  /**
+   * Retention update: tells the player about the bank payment. Opens the "bank is waiting" card on the first day of a
+   * month and again when 7, 3 and 1 days are left and the month's payment is not covered. Once per milestone and run.
+   */
+  maybeShowDebtNotice(tries = 0): void {
+    if (!FEATURES.v2 || state.isGameOver || state.inDream) return;
+    const v = state.ledger;
+    if (v.debtFree) return;
+    let kind: 'start' | 'warn' | null = null;
+    let key = '';
+    if (v.dayInMonth === 1) {
+      kind = 'start';
+      key = v.monthIndex + ':start';
+    } else if (v.paymentLeft > 0 && (v.daysToPayment === 7 || v.daysToPayment === 3 || v.daysToPayment === 1)) {
+      kind = 'warn';
+      key = v.monthIndex + ':' + v.daysToPayment;
+    }
+    if (!kind || this.noticeShown.has(key)) return;
+    const busy = ['EndOfDay', 'Store', 'Goals', 'Collection', 'Relocate', 'Ledger', 'GameOver', 'Reset', 'DebtNotice', 'Dream'];
+    if (this.switching || busy.some((k) => this.scene.isActive(k))) {
+      if (tries < 6) this.time.delayedCall(1500, () => this.maybeShowDebtNotice(tries + 1));
+      return;
+    }
+    this.noticeShown.add(key);
+    this.scene.launch('DebtNotice', { kind });
   }
 
   /** The month ended with unpaid debt: the run is over until the player restarts it. */
@@ -702,13 +827,16 @@ export class HudScene extends Phaser.Scene {
 
   /** The run was reset: every scene starts over from day one. */
   private onRunReset(): void {
-    for (const key of ['EndOfDay', 'Store', 'Goals', 'Collection', 'Relocate', 'Ledger', 'GameOver', 'Reset', 'Workshop']) {
+    for (const key of ['EndOfDay', 'Store', 'Goals', 'Collection', 'Relocate', 'Ledger', 'GameOver', 'Reset', 'Workshop', 'DebtNotice']) {
       if (this.scene.isActive(key) || this.scene.isPaused(key) || this.scene.isSleeping(key)) this.scene.stop(key);
     }
+    // The dig site sleeps while the player is in the workshop; a sleeping scene cannot rebuild its ground, so wake it.
+    if (this.scene.isSleeping('Dig')) this.scene.wake('Dig');
     this.time.delayedCall(0, () => this.scene.restart());
   }
 
   private openGoals(): void {
+    if (state.inDream) return;
     if (this.switching || this.storeOpen || this.scene.isActive('EndOfDay')) return;
     sfx.click();
     this.scene.launch('Goals');
@@ -725,6 +853,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   private onLevelUp(level: number, bonus: number): void {
+    if (state.inDream) return; // the dream levels up constantly: no star banner there
     sfx.newDay();
     this.goalPill.refresh();
     this.goalPill.bump();

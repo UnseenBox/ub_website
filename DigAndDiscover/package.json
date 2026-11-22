@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:crazygames": "tsc --noEmit && vite build --mode crazygames --outDir dist-crazygames",
+    "build:website": "tsc --noEmit && vite build --mode website --outDir dist-website",
     "build:crazygames-basic": "tsc --noEmit && vite build --mode crazygames-basic --outDir dist-crazygames-basic",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import '@fontsource/rye/400.css';
 import { state } from './core/GameState';
 import { BootScene } from './scenes/BootScene';
+import { DreamScene } from './scenes/DreamScene';
 import { DigScene } from './scenes/DigScene';
 import { WorkshopScene } from './scenes/WorkshopScene';
 import { HudScene } from './scenes/HudScene';
@@ -13,7 +14,9 @@ import { RelocateScene } from './scenes/RelocateScene';
 import { LedgerScene } from './scenes/LedgerScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { ResetScene } from './scenes/ResetScene';
+import { DebtNoticeScene } from './scenes/DebtNoticeScene';
 import { portal } from './ads/Portal';
+import { FEATURES } from './config/features';
 
 async function waitForFonts(): Promise<void> {
   if (!document.fonts) return;
@@ -32,7 +35,8 @@ async function waitForViewport(): Promise<void> {
 async function start(): Promise<void> {
   void portal.init(); // the ad SDK loads in the background and never blocks the game
   await Promise.all([waitForFonts(), waitForViewport()]);
-  document.getElementById('loading')?.remove();
+  // The new loading screen stays until the first scene is up (BootScene hides it).
+  if (!FEATURES.v2) document.getElementById('loading')?.remove();
   const game = new Phaser.Game({
     type: Phaser.AUTO, // WebGL with automatic Canvas fallback
     parent: 'game',
@@ -48,7 +52,7 @@ async function start(): Promise<void> {
     disableContextMenu: true,
     banner: false,
     // Scene order = draw order: the HUD always renders on top.
-    scene: [BootScene, DigScene, WorkshopScene, HudScene, EndOfDayScene, StoreScene, GoalsScene, CollectionScene, RelocateScene, LedgerScene, GameOverScene, ResetScene],
+    scene: [BootScene, DigScene, WorkshopScene, HudScene, EndOfDayScene, StoreScene, GoalsScene, CollectionScene, RelocateScene, LedgerScene, GameOverScene, ResetScene, DebtNoticeScene, DreamScene],
   });
   // Dev server only: handy for poking at the running game from the console / tests.
   if (import.meta.env.DEV) (window as unknown as { __dd: unknown }).__dd = { game, state };
