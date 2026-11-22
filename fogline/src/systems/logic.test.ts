@@ -9,7 +9,7 @@ import { ECONOMY, VIEW } from '../game/config';
 import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
 import { TOUCH_AIM_SENSITIVITY, TOUCH_LAYOUT, isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
-import { enterPhoneFullscreen } from '../game/phoneFullscreen';
+import { enterFullscreen } from '../game/phoneFullscreen';
 import { Abilities } from './Abilities';
 import { BunkerManager } from './BunkerManager';
 import { blastDamage, bulletDamage, killReward } from './CombatRules';
@@ -507,8 +507,9 @@ describe('view-model aiming', () => {
     }
   });
 
-  it('leaves the other view models on the legacy pivot behaviour', () => {
-    const model = resolveViewModel(WEAPONS.find((w) => w.id === 'm249')!);
+  it('a view model without photo settings keeps the legacy pivot behaviour', () => {
+    // Every shipped gun now uses a photo, so test the default model directly.
+    const model = resolveViewModel({ viewModel: undefined } as Parameters<typeof resolveViewModel>[0]);
     expect(model.muzzleLock).toBe(false);
     const p = computeViewModelPose({
       model, textureWidth: 300, textureHeight: 400, aimX: 20, aimY: 80, cursorX: 0, cursorY: 0,
@@ -534,29 +535,33 @@ describe('phone full screen', () => {
     };
   };
 
-  it('asks for full screen with the browser bars hidden, then locks landscape', async () => {
+  it('asks for full screen with the browser bars hidden, then locks landscape on phones', async () => {
     const { calls, deps: d } = deps();
-    expect(await enterPhoneFullscreen(d)).toBe(true);
+    expect(await enterFullscreen(d)).toBe(true);
     expect(calls).toEqual(['fs:hide', 'lock']);
   });
 
-  it('does nothing on desktop or when already full screen', async () => {
-    const a = deps({ isPhone: false });
-    expect(await enterPhoneFullscreen(a.deps)).toBe(false);
-    const b = deps({ isFullscreen: () => true });
-    expect(await enterPhoneFullscreen(b.deps)).toBe(false);
-    expect(a.calls.concat(b.calls)).toEqual([]);
+  it('goes full screen on desktop too, without locking orientation', async () => {
+    const { calls, deps: d } = deps({ isPhone: false });
+    expect(await enterFullscreen(d)).toBe(true);
+    expect(calls).toEqual(['fs:hide']);
+  });
+
+  it('does not ask again when already full screen', async () => {
+    const { calls, deps: d } = deps({ isFullscreen: () => true });
+    expect(await enterFullscreen(d)).toBe(true);
+    expect(calls).toEqual([]);
   });
 
   it('reports failure when the browser refuses or has no support, without throwing', async () => {
     const refused = deps({ target: { requestFullscreen: async () => { throw new Error('denied'); } } });
-    expect(await enterPhoneFullscreen(refused.deps)).toBe(false);
+    expect(await enterFullscreen(refused.deps)).toBe(false);
     const none = deps({ target: {} });
-    expect(await enterPhoneFullscreen(none.deps)).toBe(false);
+    expect(await enterFullscreen(none.deps)).toBe(false);
   });
 
   it('still succeeds when landscape lock is not allowed', async () => {
     const d = deps({ lockLandscape: async () => { throw new Error('not allowed'); } });
-    expect(await enterPhoneFullscreen(d.deps)).toBe(true);
+    expect(await enterFullscreen(d.deps)).toBe(true);
   });
 });

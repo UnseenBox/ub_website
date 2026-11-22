@@ -1,23 +1,23 @@
-// On phones the browser's address bar and toolbars leave the game in a small
-// window. Ask for real full screen (and landscape) on the first tap, which is the
-// user gesture browsers require. Android Chrome and most Android browsers support
-// this; iPhone Safari has no page full screen, so it keeps the add-to-home-screen route.
+// Full screen without a button. Browsers only allow entering full screen after a user
+// gesture (a tap, click or key press), so the game asks on the very first one. On
+// phones it also asks for landscape. Once the game is full screen the request stops;
+// if the player leaves full screen, F (or the menu button) brings it back.
 
 type FullscreenTarget = {
   requestFullscreen?: (options?: { navigationUI?: 'hide' | 'show' | 'auto' }) => Promise<void>;
   webkitRequestFullscreen?: () => Promise<void> | void;
 };
 
-export interface PhoneFullscreenDeps {
-  isPhone: boolean;
+export interface FullscreenDeps {
   target: FullscreenTarget;
   isFullscreen: () => boolean;
+  isPhone: boolean;
   lockLandscape: () => Promise<void> | void;
 }
 
-/** Try once to enter full screen. Returns true if the browser accepted the request. */
-export async function enterPhoneFullscreen(deps: PhoneFullscreenDeps): Promise<boolean> {
-  if (!deps.isPhone || deps.isFullscreen()) return false;
+/** Try to enter full screen. Returns true once the browser has accepted the request. */
+export async function enterFullscreen(deps: FullscreenDeps): Promise<boolean> {
+  if (deps.isFullscreen()) return true;
   const t = deps.target;
   try {
     if (t.requestFullscreen) await t.requestFullscreen({ navigationUI: 'hide' });
@@ -26,39 +26,35 @@ export async function enterPhoneFullscreen(deps: PhoneFullscreenDeps): Promise<b
   } catch {
     return false;
   }
-  try {
-    await deps.lockLandscape();
-  } catch {
-    /* orientation lock is optional */
+  if (deps.isPhone) {
+    try {
+      await deps.lockLandscape();
+    } catch {
+      /* orientation lock is optional */
+    }
   }
   return true;
 }
 
-/**
- * Wire the first-tap request. Keeps trying on later taps until a request is accepted
- * or the browser has no full-screen support; after the player leaves full screen
- * themselves it does not ask again.
- */
-export function installPhoneFullscreen(): void {
+/** Wire the automatic request: the first tap, click or key press puts the game full screen. */
+export function installAutoFullscreen(): void {
   const doc = document as Document & { webkitFullscreenElement?: Element | null };
   const el = document.documentElement as HTMLElement & FullscreenTarget;
+  if (!el.requestFullscreen && !el.webkitRequestFullscreen) return;
   const isPhone = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-  if (!isPhone || (!el.requestFullscreen && !el.webkitRequestFullscreen)) return;
-  let done = false;
-  const onTap = (): void => {
-    if (done) return;
-    void enterPhoneFullscreen({
-      isPhone,
-      target: el,
-      isFullscreen: () => !!(doc.fullscreenElement || doc.webkitFullscreenElement),
-      lockLandscape: () => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape'),
-    }).then((ok) => {
-      if (ok) {
-        done = true;
-        window.removeEventListener('pointerup', onTap, true);
-      }
+  const deps: FullscreenDeps = {
+    target: el,
+    isPhone,
+    isFullscreen: () => !!(doc.fullscreenElement || doc.webkitFullscreenElement),
+    lockLandscape: () =>
+      (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape'),
+  };
+  const events = ['pointerdown', 'keydown'] as const;
+  const ask = (): void => {
+    void enterFullscreen(deps).then((ok) => {
+      if (!ok) return;
+      for (const e of events) window.removeEventListener(e, ask, true);
     });
   };
-  // pointerup counts as a user activation; touchstart does not.
-  window.addEventListener('pointerup', onTap, true);
+  for (const e of events) window.addEventListener(e, ask, true);
 }

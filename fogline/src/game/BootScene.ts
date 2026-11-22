@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import m1aViewUrl from '../assets/m1a-view.png';
 import m4ViewUrl from '../assets/m4-view.png';
+import m249ViewUrl from '../assets/m249-view.png';
+import m32ViewUrl from '../assets/m32-view.png';
 import menuBgUrl from '../assets/main-menu.png';
 import menuButtonsUrl from '../assets/menu-buttons.png';
 import { audio } from '../audio/AudioManager';
@@ -23,6 +25,8 @@ export class BootScene extends Phaser.Scene {
     // Supplied bitmaps; everything else is generated below.
     this.load.image('view_service_photo', m1aViewUrl);
     this.load.image('view_m4_photo', m4ViewUrl);
+    this.load.image('view_m249_photo', m249ViewUrl);
+    this.load.image('view_m32_photo', m32ViewUrl);
     this.load.image(MENU_BG_TEXTURE, menuBgUrl);
     this.load.image(MENU_BUTTONS_TEXTURE, menuButtonsUrl);
   }
