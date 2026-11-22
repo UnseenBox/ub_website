@@ -6,6 +6,46 @@ import { VIEW } from './config';
 /** Crosshair pixels moved per pixel the aim thumb drags. */
 export const TOUCH_AIM_SENSITIVITY = 1.8;
 
+/** Aim assistance: enemies within this many pixels of the crosshair pull it toward them. */
+export const AIM_ASSIST_RADIUS = 120;
+/** Share of the remaining distance the crosshair closes each frame toward a target. */
+export const AIM_ASSIST_PULL = 0.8;
+/** Most the assistance can move the crosshair in one step, in pixels. */
+export const AIM_ASSIST_MAX = 70;
+/** Within this many pixels of a target point, the crosshair locks straight onto it. */
+export const AIM_ASSIST_SNAP = 40;
+
+/**
+ * How far to nudge the crosshair toward the nearest target point (an enemy's head or
+ * chest) within reach, so a slightly off-target tap still hits. Returns (0, 0) when no
+ * point is close enough.
+ */
+export function aimAssistOffset(
+  cursor: { x: number; y: number },
+  points: ReadonlyArray<{ x: number; y: number }>,
+  radius = AIM_ASSIST_RADIUS,
+  pull = AIM_ASSIST_PULL,
+  maxPull = AIM_ASSIST_MAX,
+  snap = AIM_ASSIST_SNAP,
+): { x: number; y: number } {
+  let best: { x: number; y: number } | null = null;
+  let bestDist = radius;
+  for (const p of points) {
+    const d = Math.hypot(p.x - cursor.x, p.y - cursor.y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = p;
+    }
+  }
+  if (!best || bestDist < 0.5) return { x: 0, y: 0 };
+  // Close enough that the shot would otherwise miss a body: lock onto it.
+  const amount = bestDist <= snap ? bestDist : Math.min(maxPull, bestDist * pull);
+  return {
+    x: ((best.x - cursor.x) / bestDist) * amount,
+    y: ((best.y - cursor.y) / bestDist) * amount,
+  };
+}
+
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 export interface TouchCircle { x: number; y: number; r: number }

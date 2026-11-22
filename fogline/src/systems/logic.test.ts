@@ -7,7 +7,7 @@ import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
 import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
-import { TOUCH_AIM_SENSITIVITY, TOUCH_LAYOUT, isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt } from '../game/touchControls';
+import { AIM_ASSIST_MAX, AIM_ASSIST_PULL, AIM_ASSIST_RADIUS, TOUCH_AIM_SENSITIVITY, TOUCH_LAYOUT, aimAssistOffset, isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { enterFullscreen } from '../game/phoneFullscreen';
 import { Abilities } from './Abilities';
@@ -563,5 +563,36 @@ describe('phone full screen', () => {
   it('still succeeds when landscape lock is not allowed', async () => {
     const d = deps({ lockLandscape: async () => { throw new Error('not allowed'); } });
     expect(await enterFullscreen(d.deps)).toBe(true);
+  });
+});
+
+describe('phone aim assistance', () => {
+  it('does nothing when no target is close enough', () => {
+    expect(aimAssistOffset({ x: 640, y: 300 }, [])).toEqual({ x: 0, y: 0 });
+    expect(aimAssistOffset({ x: 640, y: 300 }, [{ x: 640 + AIM_ASSIST_RADIUS + 10, y: 300 }])).toEqual({ x: 0, y: 0 });
+  });
+
+  it('pulls the crosshair most of the way toward a target within reach', () => {
+    const off = aimAssistOffset({ x: 640, y: 300 }, [{ x: 700, y: 300 }]);
+    expect(off.x).toBeCloseTo(AIM_ASSIST_PULL * 60, 6);
+    expect(off.y).toBeCloseTo(0, 6);
+  });
+
+  it('locks straight onto a target that is already close', () => {
+    const off = aimAssistOffset({ x: 640, y: 300 }, [{ x: 620, y: 300 }]);
+    expect(off.x).toBeCloseTo(-20, 6);
+    expect(off.y).toBeCloseTo(0, 6);
+  });
+
+  it('caps the pull so the crosshair never jumps far', () => {
+    const off = aimAssistOffset({ x: 640, y: 300 }, [{ x: 640, y: 300 - AIM_ASSIST_RADIUS + 1 }]);
+    expect(Math.hypot(off.x, off.y)).toBeLessThanOrEqual(AIM_ASSIST_MAX + 1e-9);
+    expect(off.x).toBeCloseTo(0, 6);
+    expect(off.y).toBeLessThan(0);
+  });
+
+  it('chooses the nearest of several targets', () => {
+    const off = aimAssistOffset({ x: 640, y: 300 }, [{ x: 700, y: 300 }, { x: 650, y: 300 }]);
+    expect(off.x).toBeCloseTo(10, 6);
   });
 });
