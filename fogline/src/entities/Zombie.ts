@@ -3,11 +3,36 @@ import { EnemyDef, HitZone, RigStyle } from '../data/enemies';
 import { FIELD } from '../game/config';
 import { project, Projected } from '../game/perspective';
 import { LEN, PART, ZOMBIE_ATLAS } from '../rendering/ZombieArt';
+import { SHAMBLER_HEIGHT, SHEET_PARTS, ZOMBIE_SHEET_TEXTURE } from '../rendering/zombieSheetFrames';
 
 export type ZombieState = 'emerge' | 'walk' | 'attack' | 'dying' | 'dead';
 type DeathStyle = 'side' | 'back' | 'crumple';
 
-const RIG_HEIGHT: Record<RigStyle, number> = { shamble: 424, run: 424, heavy: 424, bloat: 446, crawl: 168 };
+/** Shamblers are drawn from the cut figure art, SHAMBLER_HEIGHT units from feet to top of head. */
+const RIG_HEIGHT: Record<RigStyle, number> = { shamble: SHAMBLER_HEIGHT, run: 424, heavy: 424, bloat: 446, crawl: 168 };
+/** Shoulder pivot to the bottom of the arm, in figure units. */
+const ARM_REACH = SHEET_PARTS.armL.h * (1 - SHEET_PARTS.armL.oy);
+/** A lifted shin shortens by this share, as the knee bends toward the camera. */
+const KNEE_LIFT = 0.2;
+/** A lifted foot swings this far (rad) toward the centre line. */
+const FOOT_IN = 0.12;
+/** Before a strike the arms open this far (rad); at impact they reach this far in across the chest. */
+const ARM_OUT = 0.35;
+const ARM_IN = -0.12;
+
+/** Smoothstep: eases a 0–1 value in and out, so limbs accelerate and land softly. */
+function smooth(t: number): number {
+  const c = Math.min(1, Math.max(0, t));
+  return c * c * (3 - 2 * c);
+}
+
+/** Arm flare through an attack cycle (0–1): open, reach in before the strike at 0.66, then recover. */
+function strikeFlare(a: number): number {
+  if (a < 0.4) return ARM_OUT * smooth(a / 0.4);
+  if (a < 0.66) return ARM_OUT + (ARM_IN - ARM_OUT) * smooth((a - 0.4) / 0.26);
+  return ARM_IN * (1 - smooth((a - 0.66) / 0.34));
+}
+
 const STRIDE: Record<RigStyle, number> = { shamble: 0.95, run: 1.7, heavy: 0.9, bloat: 0.8, crawl: 0.55 };
 
 interface Seg { ax: number; ay: number; bx: number; by: number; r: number; zone: HitZone }
@@ -81,6 +106,8 @@ export class Zombie {
   private baseTint = 0xffffff;
   private segs: Seg[] = [];
   private headC = { x: 0, y: 0, r: 0 };
+  /** True for shamblers, whose parts come from the sprite sheet instead of the procedural atlas. */
+  private sheet = false;
 
   constructor(scene: Phaser.Scene) {
     const img = (ox: number, oy: number) => scene.add.image(0, 0, ZOMBIE_ATLAS, 'shadow').setOrigin(ox, oy);
@@ -107,20 +134,11 @@ export class Zombie {
 
   reset(def: EnemyDef, healthMul: number, speedMul: number, x: number, z: number, rng: () => number): void {
     this.def = def;
-    this.look = `${def.look}_${Math.floor(rng() * def.looks)}`;
-    const L = this.look;
-    this.torso.setFrame(`${L}_torso`);
-    this.torso.setOrigin(PART.torso.ox, PART.torso.oy);
-    this.head.setFrame(`${L}_head`);
-    for (let i = 0; i < 2; i++) {
-      this.ua[i].setFrame(`${L}_upperArm`);
-      this.fa[i].setFrame(`${L}_foreArm`);
-      this.hand[i].setFrame(`${L}_hand`);
-      this.thigh[i].setFrame(`${L}_thigh`);
-      this.shin[i].setFrame(`${L}_shin`);
-    }
-    const crawl = def.rig === 'crawl';
-    for (const p of [...this.thigh, ...this.shin]) p.setVisible(!crawl);
+    this.sheet = def.rig === 'shamble';
+    // Pooled zombies are built before the atlas exists, so the shadow needs its texture set here.
+    this.shadow.setTexture(ZOMBIE_ATLAS, 'shadow');
+    if (this.sheet) this.dressSheet();
+    else this.dressProcedural(def, rng);
     this.head.setVisible(true);
     this.maxHp = this.hp = def.health * healthMul;
     this.speed = def.speed * speedMul * (1 + (rng() * 2 - 1) * (def.speedJitter / def.speed));
@@ -157,6 +175,61 @@ export class Zombie {
     this.root.setScale(1);
     this.shadow.setAlpha(1);
     this.updateScreen();
+  }
+
+  /** Procedural looks: every part is painted into the shared zombie atlas. */
+  private dressProcedural(def: EnemyDef, rng: () => number): void {
+    this.look = `${def.look}_${Math.floor(rng() * def.looks)}`;
+    const L = this.look;
+    const T = ZOMBIE_ATLAS;
+    this.torso.setTexture(T, `${L}_torso`).setOrigin(PART.torso.ox, PART.torso.oy).setFlipX(false).setAlpha(1).setScale(1);
+    this.head.setTexture(T, `${L}_head`).setOrigin(PART.head.ox, PART.head.oy).setFlipX(false).setAlpha(1).setScale(1);
+    for (let i = 0; i < 2; i++) {
+      const flip = i === 0;
+      this.ua[i].setTexture(T, `${L}_upperArm`).setOrigin(PART.upperArm.ox, PART.upperArm.oy).setFlipX(flip).setAlpha(1).setScale(1).setVisible(true);
+      this.fa[i].setTexture(T, `${L}_foreArm`).setOrigin(PART.foreArm.ox, PART.foreArm.oy).setFlipX(flip).setAlpha(1).setScale(1).setVisible(true);
+      this.hand[i].setTexture(T, `${L}_hand`).setOrigin(PART.hand.ox, PART.hand.oy).setFlipX(flip).setAlpha(1).setScale(1).setVisible(true);
+      this.thigh[i].setTexture(T, `${L}_thigh`).setOrigin(PART.thigh.ox, PART.thigh.oy).setFlipX(flip).setAlpha(1).setScale(1);
+      this.shin[i].setTexture(T, `${L}_shin`).setOrigin(PART.shin.ox, PART.shin.oy).setFlipX(flip).setAlpha(1).setScale(1);
+    }
+    const crawl = def.rig === 'crawl';
+    for (const p of [...this.thigh, ...this.shin]) p.setVisible(!crawl);
+    this.layout([
+      this.shadow, this.shin[0], this.shin[1], this.thigh[0], this.thigh[1], this.torso, this.head,
+      this.ua[0], this.fa[0], this.hand[0], this.ua[1], this.fa[1], this.hand[1],
+    ]);
+  }
+
+  /**
+   * Shamblers: every joint is its own cut part. Each part rotates about its pivot in
+   * poseSheet, so the figure is articulated rather than frame-swapped.
+   */
+  private dressSheet(): void {
+    const T = ZOMBIE_SHEET_TEXTURE;
+    const parts: [Phaser.GameObjects.Image, keyof typeof SHEET_PARTS][] = [
+      [this.torso, 'torso'], [this.head, 'head'],
+      [this.ua[0], 'armL'], [this.ua[1], 'armR'],
+      [this.thigh[0], 'thighL'], [this.thigh[1], 'thighR'],
+      [this.shin[0], 'shinL'], [this.shin[1], 'shinR'],
+    ];
+    for (const [img, key] of parts) {
+      const p = SHEET_PARTS[key];
+      img.setTexture(T, p.name).setOrigin(p.ox, p.oy).setFlipX(false).setAlpha(1).setScale(1).setVisible(true);
+    }
+    for (let i = 0; i < 2; i++) {
+      this.fa[i].setVisible(false);
+      this.hand[i].setVisible(false);
+    }
+    // Arms and legs sit behind the torso, so the cut edges at the shoulders and hips are hidden.
+    this.layout([
+      this.shadow, this.thigh[0], this.thigh[1], this.shin[0], this.shin[1],
+      this.ua[0], this.ua[1], this.torso, this.head,
+    ]);
+  }
+
+  private layout(children: Phaser.GameObjects.GameObject[]): void {
+    this.root.removeAll(false);
+    this.root.add(children);
   }
 
   get alive(): boolean {
@@ -305,7 +378,135 @@ export class Zombie {
 
   // ------------------------------------------------------------ posing
 
+  /**
+   * Shambler pose. Each joint turns about its pivot: torso and head about the hips and neck,
+   * arms about the shoulders, legs about the hips and knees.
+   * Walking: each leg lifts for half a stride, the shin shortening and the foot swinging in,
+   * while the other leg takes the weight; the body dips on each step and sways over the stance
+   * leg, and the arms counter-swing. Attacking: the arms flare out, reach in front of the chest
+   * for the strike and recover, never crossing the body.
+   */
+  private poseSheet(): void {
+    const P = SHEET_PARTS;
+    const attacking = this.state === 'attack';
+    const moving = this.state === 'walk';
+    const phi = this.phase;
+    const s = moving ? Math.sin(phi) : 0;
+
+    // Legs: each lifts for half a stride, eased so the foot accelerates off and lands softly.
+    const lift = [0, 0];
+    for (let i = 0; i < 2; i++) lift[i] = moving ? smooth(Math.max(0, Math.sin(phi + (i ? Math.PI : 0)))) : 0;
+
+    // Arms: counter-swing while walking; flare, strike and recover while attacking.
+    const a = this.attackT;
+    const flare = attacking ? strikeFlare(a) : 0;
+    const lunge = attacking ? (a < 0.66 ? smooth((a - 0.3) / 0.36) : 1 - smooth((a - 0.66) / 0.34)) : 0;
+    const armRot = [0, 0];
+    const armSY = [1, 1];
+    for (let i = 0; i < 2; i++) {
+      const outward = i === 0 ? 1 : -1;
+      const swing = moving ? Math.sin(phi + (i ? 0 : Math.PI)) : 0;
+      armRot[i] = attacking ? outward * flare : outward * 0.07 * swing;
+      armSY[i] = 1 - (moving ? 0.05 * Math.max(0, swing) : 0);
+    }
+
+    // Upper body: dips on each step, sways over the stance leg, leans into the strike.
+    const bob = moving ? Math.abs(s) * 4 : Math.sin(this.time * 1.6 + this.wanderSeed) * 1.2;
+    const up = bob - 5 * lunge;
+    const sway = moving ? s * 2.5 : 0;
+    const lateral = sway + this.flinchDir * 9 * this.flinch;
+    let torsoRot = this.lean + this.flinchDir * 0.22 * this.flinch + (moving ? s * 0.025 : 0) + 0.08 * lunge;
+    if (this.staggerLeft > 0) torsoRot += Math.sin(this.time * 16) * 0.12;
+    let headRot = this.headTilt + Math.sin(this.time * 0.9 + this.wanderSeed) * 0.07 + this.flinchDir * 0.45 * this.flinch;
+
+    // Death, as on the procedural rig. A crumple also folds the legs.
+    let rootRot = 0, rootSY = 1, buckle = 0;
+    if (this.state === 'dying' || this.state === 'dead') {
+      const d = this.deathT;
+      if (this.deathStyle === 'crumple') {
+        buckle = Math.min(1, d / 0.45);
+        rootSY = 1 - 0.45 * buckle;
+        const fall = Math.max(0, (d - 0.4) / 0.6);
+        rootRot = this.deathDir * 1.5 * fall * fall;
+        torsoRot += this.deathDir * 0.3 * buckle;
+      } else if (this.deathStyle === 'side') {
+        const e = d * d;
+        rootRot = this.deathDir * (1.52 * e - (d > 0.85 ? Math.sin(((d - 0.85) / 0.15) * Math.PI) * 0.06 : 0));
+        torsoRot += this.deathDir * 0.2 * d;
+      } else {
+        rootSY = 1 - 0.74 * d * d;
+        rootRot = this.deathDir * 0.18 * d;
+        torsoRot += this.deathDir * 0.1;
+      }
+      headRot += this.deathDir * 0.5 * d;
+    }
+
+    // Torso and head: the torso turns about the hips; the head and arms are carried by it.
+    const cT = Math.cos(torsoRot), sT = Math.sin(torsoRot);
+    const hip = { x: P.torso.px + lateral, y: P.torso.py - up };
+    const inTorso = (lx: number, ly: number): { x: number; y: number } => ({
+      x: hip.x + lx * cT - ly * sT,
+      y: hip.y + lx * sT + ly * cT,
+    });
+    this.torso.setPosition(hip.x, hip.y).setRotation(torsoRot);
+
+    const neck = inTorso(P.head.px - P.torso.px, P.head.py - P.torso.py);
+    const headR = torsoRot * 0.5 + headRot;
+    this.head.setPosition(neck.x, neck.y).setRotation(headR);
+    this.headC.x = neck.x + (P.head.h / 2) * Math.sin(headR);
+    this.headC.y = neck.y - (P.head.h / 2) * Math.cos(headR);
+    this.headC.r = P.head.w * 0.42;
+
+    for (let i = 0; i < 2; i++) {
+      const part = i === 0 ? P.armL : P.armR;
+      const shoulder = inTorso(part.px - P.torso.px, part.py - P.torso.py);
+      const rot = torsoRot * 0.5 + armRot[i];
+      this.ua[i].setPosition(shoulder.x, shoulder.y).setRotation(rot).setScale(1, armSY[i]);
+      const reach = ARM_REACH * armSY[i];
+      const seg = this.segs[i];
+      seg.ax = shoulder.x; seg.ay = shoulder.y;
+      seg.bx = shoulder.x - Math.sin(rot) * reach; seg.by = shoulder.y + Math.cos(rot) * reach;
+      seg.r = 12; seg.zone = 'torso';
+    }
+
+    // Legs: thigh from the hip, shin from the knee. A lifted shin shortens and its foot swings in.
+    for (let i = 0; i < 2; i++) {
+      const thighP = i === 0 ? P.thighL : P.thighR;
+      const shinP = i === 0 ? P.shinL : P.shinR;
+      const hipX = thighP.px + lateral, hipY = thighP.py;
+      const thighRot = (i === 0 ? 0.03 : -0.03) * (moving ? Math.sin(phi + (i ? Math.PI : 0)) : 0);
+      const thighSY = 1 - 0.3 * buckle;
+      const kx = shinP.px - thighP.px, ky = (shinP.py - thighP.py) * thighSY;
+      const ct = Math.cos(thighRot), st = Math.sin(thighRot);
+      const kneeX = hipX + kx * ct - ky * st, kneeY = hipY + kx * st + ky * ct;
+      const inward = i === 0 ? -1 : 1;
+      const shinRot = thighRot + inward * FOOT_IN * lift[i];
+      const shinSY = (1 - KNEE_LIFT * lift[i]) * (1 - 0.5 * buckle);
+      this.thigh[i].setPosition(hipX, hipY).setRotation(thighRot).setScale(1, thighSY);
+      this.shin[i].setPosition(kneeX, kneeY).setRotation(shinRot).setScale(1, shinSY);
+
+      const hipSeg = this.segs[2 + i];
+      hipSeg.ax = hipX; hipSeg.ay = hipY; hipSeg.bx = kneeX; hipSeg.by = kneeY;
+      hipSeg.r = 20; hipSeg.zone = 'legs';
+      const shinLen = shinP.h * shinSY;
+      const footX = kneeX - Math.sin(shinRot) * shinLen, footY = kneeY + Math.cos(shinRot) * shinLen;
+      const shinSeg = this.segs[5 + i];
+      shinSeg.ax = kneeX; shinSeg.ay = kneeY; shinSeg.bx = footX; shinSeg.by = footY;
+      shinSeg.r = 17; shinSeg.zone = 'legs';
+    }
+
+    const st = this.segs[4];
+    const waist = inTorso(0, -12), chest = inTorso(0, -200);
+    st.ax = waist.x; st.ay = waist.y; st.bx = chest.x; st.by = chest.y; st.r = P.torso.w * 0.42; st.zone = 'torso';
+
+    this.applyRoot(rootRot, rootSY);
+  }
+
   private pose(): void {
+    if (this.sheet) {
+      this.poseSheet();
+      return;
+    }
     const style = this.def.rig;
     const t = this.phase;
     const s0 = -1, s1 = 1;
@@ -498,7 +699,12 @@ export class Zombie {
     this.headC.y = ny - cos(hr) * headLen;
     this.headC.r = style === 'bloat' ? 22 : 25;
 
-    // ---- container transform, fade, tint
+    this.applyRoot(rootRot, rootSY);
+  }
+
+  /** Shared tail of every pose: place the rig, fade it in and out, and tint it by distance. */
+  private applyRoot(rootRot: number, rootSY: number): void {
+    const style = this.def.rig;
     this.root.setScale(this.scale, this.scale * rootSY);
     this.root.setRotation(rootRot);
     let alpha = 1;
@@ -531,7 +737,7 @@ export class Zombie {
     if (s <= 0) return null;
     // quick reject by bounding radius
     const top = this.sy - RIG_HEIGHT[this.def.rig] * s * 1.05;
-    const halfW = (this.def.rig === 'bloat' ? 120 : 95) * s + 4;
+    const halfW = (this.def.rig === 'bloat' ? 120 : this.def.rig === 'shamble' ? 135 : 95) * s + 4;
     if (py < top - 4 || py > this.sy + 6 || px < this.sx - halfW || px > this.sx + halfW) return null;
     const rot = this.root.rotation;
     const dx = px - this.sx, dy = py - this.sy;

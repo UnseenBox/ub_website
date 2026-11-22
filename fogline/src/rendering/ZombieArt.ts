@@ -42,9 +42,6 @@ interface Look {
 }
 
 const LOOKS: Look[] = [
-  { key: 'shambler_0', skin: 0x767c6a, cloth: 0x6c675a, pants: 0x2e3542, shoe: 0x2a2420, hair: 0x2a221c, head: 'normal', torso: 'shirt', sleeve: 'short' },
-  { key: 'shambler_1', skin: 0x7e7d6b, cloth: 0x34322e, pants: 0x4a4436, shoe: 0x221d19, hair: 0x4a4038, head: 'normal', torso: 'jacket', sleeve: 'long' },
-  { key: 'shambler_2', skin: 0x6f7764, cloth: 0x58302a, pants: 0x2e3340, shoe: 0x2b2622, hair: 0x15110e, head: 'normal', torso: 'flannel', sleeve: 'long' },
   { key: 'runner_0', skin: 0x857f70, cloth: 0x454e56, pants: 0x29292c, shoe: 0x8d8a80, hair: 0x1a1512, head: 'scream', torso: 'hoodie', sleeve: 'long', sneakers: true },
   { key: 'runner_1', skin: 0x7b7565, cloth: 0x5f594b, pants: 0x4a3c33, shoe: 0x77746c, hair: 0x3b2d22, head: 'scream', torso: 'tank', sleeve: 'bare', sneakers: true },
   { key: 'plated_0', skin: 0x737868, cloth: 0x1d2024, pants: 0x22262d, shoe: 0x141416, hair: 0x111111, head: 'helmet', torso: 'armor', sleeve: 'armor' },

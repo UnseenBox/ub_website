@@ -4,7 +4,7 @@
 import { VIEW } from './config';
 
 /** Crosshair pixels moved per pixel the aim thumb drags. */
-export const TOUCH_AIM_SENSITIVITY = 1.8;
+export const TOUCH_AIM_SENSITIVITY = 2.0;
 
 /** Aim assistance: enemies within this many pixels of the crosshair pull it toward them. */
 export const AIM_ASSIST_RADIUS = 120;
