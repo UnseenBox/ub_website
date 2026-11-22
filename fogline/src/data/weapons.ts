@@ -208,7 +208,42 @@ export const WEAPONS: WeaponDef[] = [
     shake: 0,
     muzzleFlash: { scale: 0.75, tint: 0xffe2b0 },
     sound: { shot: 'shot_m4', reload: 'reload_m4', empty: 'empty_light', pitchJitter: 0.05 },
-    viewTexture: 'view_m4',
+    // Supplied photo of the carbine (1280×853, transparent background). The barrel
+    // axis is aligned to the crosshair the same way as the M1A.
+    viewTexture: 'view_m4_photo',
+    viewModel: {
+      pivotX: 620,
+      pivotY: 835,
+      scale: 0.74,
+      // Muzzle = the barrel opening (front face of the flash hider), and the stock end of
+      // the bore line, in photo pixels.
+      muzzleX: 368,
+      muzzleY: 84,
+      ejectX: 760,
+      ejectY: 330,
+      maxRot: 0.4,
+      sway: 0,
+      reloadTilt: 0.28,
+      switchDrop: 840,
+      muzzleLock: true,
+      muzzleLockX: 0,
+      muzzleLockY: 80,
+      barrelAlign: true,
+      tailX: 1150,
+      tailY: 560,
+      anchorX: 640,
+      anchorY: 8000,
+      aimX: 0.36,
+      aimY: 0.06,
+      muzzleGap: 70,
+      // Turns the photo back upright (its own pose, leaning left) instead of leaning right.
+      rotationTrim: -1.024,
+      gunShiftX: 55,
+      gunShiftY: -40,
+      // The muzzle is now the opening itself, so the spark needs no extra nudge.
+      flashOffsetX: 0,
+      flashOffsetY: 0,
+    },
     iconTexture: 'icon_m4',
     description: 'Full-auto carbine with red-dot optic. Fast, controllable, the backbone upgrade.',
   },

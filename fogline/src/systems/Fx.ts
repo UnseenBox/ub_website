@@ -110,7 +110,8 @@ export class Fx {
     });
     this.casings = scene.add.particles(0, 0, 'px', {
       emitting: false, speed: { min: 220, max: 320 }, angle: { min: 295, max: 330 }, gravityY: 1400, lifespan: 520,
-      scaleX: 1.8, scaleY: 0.8, rotate: { min: 0, max: 360 }, tint: [0xc8a050, 0xb08a3c],
+      // Brass shells, sized so they read clearly at the game's scale (about 36×16 px).
+      scaleX: 9, scaleY: 4, rotate: { min: 0, max: 360 }, tint: [0xc8a050, 0xb08a3c],
     }).setDepth(DEPTH.casings);
 
     for (let i = 0; i < 24; i++) {

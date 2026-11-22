@@ -508,7 +508,7 @@ describe('view-model aiming', () => {
   });
 
   it('leaves the other view models on the legacy pivot behaviour', () => {
-    const model = resolveViewModel(WEAPONS.find((w) => w.id === 'm4')!);
+    const model = resolveViewModel(WEAPONS.find((w) => w.id === 'm249')!);
     expect(model.muzzleLock).toBe(false);
     const p = computeViewModelPose({
       model, textureWidth: 300, textureHeight: 400, aimX: 20, aimY: 80, cursorX: 0, cursorY: 0,
