@@ -121,9 +121,12 @@ export class WeaponView {
     this.ejectPort.x = pose.ejectX;
     this.ejectPort.y = pose.ejectY;
 
+    // The spark (and its glow) can be nudged per weapon so it sits in the barrel opening.
+    const fx = this.muzzle.x + this.model.flashOffsetX;
+    const fy = this.muzzle.y + this.model.flashOffsetY;
     const flashOn = this.flashLeft > 0;
-    this.flash.setVisible(flashOn).setPosition(this.muzzle.x, this.muzzle.y);
-    this.flashLight.setVisible(flashOn).setPosition(this.muzzle.x, this.muzzle.y).setAlpha(0.35);
+    this.flash.setVisible(flashOn).setPosition(fx, fy);
+    this.flashLight.setVisible(flashOn).setPosition(fx, fy).setAlpha(0.35);
 
     // crosshair
     const g = this.cross;

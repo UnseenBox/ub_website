@@ -32,6 +32,8 @@ export const DEFAULT_VIEW_MODEL: ResolvedViewModel = {
   rotationTrim: 0,
   gunShiftX: 0,
   gunShiftY: 0,
+  flashOffsetX: 0,
+  flashOffsetY: 0,
 };
 
 export function resolveViewModel(def: WeaponDef): ResolvedViewModel {

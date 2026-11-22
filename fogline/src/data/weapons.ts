@@ -54,6 +54,12 @@ export interface WeaponViewModel {
    */
   gunShiftX?: number;
   gunShiftY?: number;
+  /**
+   * Screen-space nudge (px, +x right, +y down) of the muzzle flash and its glow only.
+   * Lets the spark sit in the barrel's opening without moving the aim geometry.
+   */
+  flashOffsetX?: number;
+  flashOffsetY?: number;
   /** Multiplier on idle sway (1 = normal, 0 = locked to aim). */
   sway: number;
   /** Multiplier on the reload tilt. */
@@ -172,6 +178,9 @@ export const WEAPONS: WeaponDef[] = [
       // Crosshair a little further left and lower relative to the muzzle.
       gunShiftX: 55,
       gunShiftY: -70,
+      // Move the spark down onto the barrel's opening (it was sitting above the tip).
+      flashOffsetX: 0,
+      flashOffsetY: 24,
     },
     iconTexture: 'icon_service',
     description: 'Semi-automatic battle rifle. Accurate, punchy, unlimited ammo. Click per shot.',
