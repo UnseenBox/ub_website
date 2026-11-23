@@ -1293,8 +1293,9 @@ export class Game {
   private handlePointer(realDt: number): void {
     const p = this.input.pointer;
     if (p.pressed) {
-      // Any press is "go again": after a miss or a goal it resets and starts the next pull at once.
-      if (this.state === 'missed' || (this.state === 'goal' && this.celebration.canRetry)) this.retryShot();
+      // A tap on the pitch after a miss is "go again": it resets and starts the next pull at once. After a goal
+      // only the AGAIN and NEXT MATCH buttons act, so a tap anywhere else must not replay the match.
+      if (this.state === 'missed') this.retryShot();
       if (this.state === 'ready') this.beginAim();
     }
     if (this.state !== 'aiming') return;

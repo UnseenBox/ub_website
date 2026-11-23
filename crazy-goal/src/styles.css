@@ -431,7 +431,8 @@ body {
   left: 50%;
   bottom: calc(5vh + env(safe-area-inset-bottom));
   display: flex;
-  gap: 14px;
+  align-items: center; /* each key keeps its own height: NEXT MATCH is taller than AGAIN */
+  gap: 18px;
   transform: translateX(-50%);
   animation: result-in 0.25s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
@@ -440,9 +441,19 @@ body {
   display: none;
 }
 
+/* AGAIN and NEXT MATCH are big, finger-sized keys: at least 56px tall, with clear space between them. */
 .result .btn {
   white-space: nowrap;
-  font-size: clamp(13px, 2.4vmin, 18px);
+  min-height: 56px;
+  padding: 0.7em 1.3em 0.65em;
+  font-size: clamp(14px, 2.4vmin, 18px);
+}
+
+/* NEXT MATCH is the one to press: taller and bigger than AGAIN, so it is the obvious target. */
+.result .btn-primary {
+  min-height: 66px;
+  padding: 0.7em 1.8em 0.65em;
+  font-size: clamp(18px, 3.2vmin, 24px);
 }
 
 .pause-button {
@@ -2011,7 +2022,7 @@ body {
   }
 
   .result {
-    gap: 10px;
+    gap: 16px;
     bottom: calc(9vh + env(safe-area-inset-bottom));
   }
 }
@@ -3393,6 +3404,10 @@ body {
 
   .result .btn {
     font-size: 14px;
+  }
+
+  .result .btn-primary {
+    font-size: 17px;
   }
 }
 
