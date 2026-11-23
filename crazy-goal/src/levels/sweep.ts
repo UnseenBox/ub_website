@@ -7,6 +7,7 @@ import { airSpeed, KICK, launchVz } from '../physics/Flight';
 import { FIXED_DT } from '../physics/PhysicsWorld';
 import { createBody } from '../physics/RigidBody';
 import { scoreShot } from '../scoring/ScoreSystem';
+import type { ShotResult } from '../scoring/ShotAnalyzer';
 import { Level } from './Level';
 import type { LevelDefinition } from './LevelDefinition';
 
@@ -26,6 +27,8 @@ export interface SweepResult {
   bend: number;
   /** The ball passed through the level's coin on the way in. */
   coin: boolean;
+  /** Every fact of the shot, the same ones the game scores and checks bonus objectives from. */
+  facts: ShotResult;
 }
 
 /** How the ball is struck: along the ground or lofted, and with how much bend. */
@@ -127,27 +130,24 @@ export function fireShot(def: LevelDefinition, index: number, angle: number, pow
     if (goal.contains(ghost.x, ghost.y)) {
       // Over the bar is not a goal.
       if (ghost.z > KICK.barZ) return null;
-      const card = scoreShot(
-        {
-          goal: true,
-          bounces,
-          touched,
-          did,
-          keeper: level.hasKeeper,
-          distance,
-          time,
-          power,
-          entrySpeed: Math.hypot(ghost.vx, ghost.vy),
-          entryOffset: (ghost.x - goal.cx) / (goal.width / 2),
-          boomerang,
-          minGoalDist,
-          maxHeight,
-          turned: ghost.turned,
-        },
-        0,
-        def.stars,
-      );
-      return { angle, power, bounces, did: [...did].join('+'), seconds: +time.toFixed(2), total: card.total, stars: card.stars, lines: card.lines.map((l) => l.label).join(', '), air: kick.air, bend: kick.bend, coin };
+      const facts: ShotResult = {
+        goal: true,
+        bounces,
+        touched,
+        did,
+        keeper: level.hasKeeper,
+        distance,
+        time,
+        power,
+        entrySpeed: Math.hypot(ghost.vx, ghost.vy),
+        entryOffset: (ghost.x - goal.cx) / (goal.width / 2),
+        boomerang,
+        minGoalDist,
+        maxHeight,
+        turned: ghost.turned,
+      };
+      const card = scoreShot(facts, 0, def.stars);
+      return { angle, power, bounces, did: [...did].join('+'), seconds: +time.toFixed(2), total: card.total, stars: card.stars, lines: card.lines.map((l) => l.label).join(', '), air: kick.air, bend: kick.bend, coin, facts };
     }
     if (Math.hypot(ghost.vx, ghost.vy) < 4 && i > 30 && ghost.z <= 0) return null;
   }

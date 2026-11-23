@@ -8,8 +8,15 @@ export const isCrazyGames = PORTAL === 'crazygames';
 const ADS_ON: boolean = import.meta.env.VITE_ADS === 'on';
 
 const SDK_URL = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
+/** The SDK throttles gameplay calls that come closer together than this (ms): it logs them as errors. */
+const GAMEPLAY_GAP_MS = 1000;
 /** How long boot waits for the SDK before playing on without it. */
-const SDK_TIMEOUT = 3000;
+/**
+ * CrazyGames builds have the SDK in place from the page's own script tag. This is how long to wait for the
+ * fallback fetch before starting to watch for it, and how long the watch goes on (once a second).
+ */
+const CG_SDK_TIMEOUT = 15000;
+const CG_SDK_WATCH_SECONDS = 30;
 /** Seconds between rewarded-ad offers. */
 const REWARD_COOLDOWN = 90;
 const REWARD_KEY = 'crazy-goal-rewarded-at';
@@ -33,6 +40,9 @@ interface CrazySdk {
     loadingStop(): void;
     gameplayStart(): void;
     gameplayStop(): void;
+    happytime(): void;
+    readonly settings?: { readonly muteAudio?: unknown } | null;
+    addSettingsChangeListener?(fn: () => void): void;
   };
   readonly ad: {
     requestAd(type: 'midgame' | 'rewarded', callbacks?: AdCallbacks): void;
@@ -73,36 +83,92 @@ const loadScript = (url: string, timeout: number): Promise<void> =>
 export class Portal {
   private sdk: CrazySdk | null = null;
   private playing = false;
+  /** What the SDK was last told about play, and when (a gameplay call waits for the gap after the last one). */
+  private sentPlaying = false;
+  private sentAt = 0;
+  private gameplayTimer = 0;
   private adOpen = false;
   private heldMuted = false;
   private loading = false;
   private ready = false;
   private lastMidroll = 0;
+  /** Set once the audio manager asks to be told about the platform's own mute toggle. */
+  private muteWatcher: ((muted: boolean) => void) | null = null;
 
   /** Boots the SDK in the background; never blocks the game. */
   async init(): Promise<void> {
     // Other portals and local builds should not download a third-party SDK at all.
     if (!isCrazyGames) return;
     try {
-      if (!window.CrazyGames?.SDK) await loadScript(SDK_URL, SDK_TIMEOUT);
-      const sdk = window.CrazyGames?.SDK;
-      if (!sdk) return;
-      await sdk.init();
-      // Every call throws outside local and crazygames environments.
-      if (sdk.environment !== 'local' && sdk.environment !== 'crazygames') return;
-      this.sdk = sdk;
-      // Boot may have finished while the SDK was in flight. Hand it the same two edges so
-      // the portal sees a complete loading span instead of only the stop.
-      if (this.ready) {
-        sdk.game.loadingStart();
-        sdk.game.loadingStop();
-      } else if (this.loading) {
-        sdk.game.loadingStart();
+      // The build's script tag normally has the SDK in place already. Only when it is missing do we fetch it here.
+      let sdk = window.CrazyGames?.SDK ?? null;
+      if (!sdk) {
+        try {
+          await loadScript(SDK_URL, CG_SDK_TIMEOUT);
+        } catch {
+          /* too slow or blocked: the watch below takes over */
+        }
+        sdk = window.CrazyGames?.SDK ?? null;
       }
-      // A press on Play may have happened before the SDK was live.
-      if (this.playing) sdk.game.gameplayStart();
+      // Still missing (a slow phone): keep looking for a while, rather than giving up for the whole session.
+      if (!sdk) sdk = await this.watchForSdk();
+      if (!sdk) return;
+      await this.attach(sdk);
     } catch {
       this.sdk = null;
+    }
+  }
+
+  /** Looks for the SDK once a second, for a while after boot. Returns it, or null when it never shows up. */
+  private async watchForSdk(): Promise<CrazySdk | null> {
+    for (let i = 0; i < CG_SDK_WATCH_SECONDS; i++) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 1000));
+      const sdk = window.CrazyGames?.SDK;
+      if (sdk) return sdk;
+    }
+    return null;
+  }
+
+  /**
+   * Starts the SDK and hands it the lifecycle signals the game has already sent, so a late start loses nothing.
+   */
+  private async attach(sdk: CrazySdk): Promise<void> {
+    await sdk.init();
+    // Every call throws outside local and crazygames environments.
+    if (sdk.environment !== 'local' && sdk.environment !== 'crazygames') return;
+    this.sdk = sdk;
+    // Boot may have finished while the SDK was in flight. Hand it the same two edges so
+    // the portal sees a complete loading span instead of only the stop.
+    if (this.ready) {
+      sdk.game.loadingStart();
+      sdk.game.loadingStop();
+    } else if (this.loading) {
+      sdk.game.loadingStart();
+    }
+    // A press on Play may have happened before the SDK was live.
+    if (this.playing) this.syncGameplay();
+    // The audio manager may already be waiting to hear the platform's mute setting.
+    if (this.muteWatcher) this.attachMuteWatcher(sdk, this.muteWatcher);
+  }
+
+  /**
+   * The CrazyGames SDK's own mute switch (the player muted the browser tab, or a site-wide
+   * control): "takes priority over in-game audio toggles", so the audio manager asks to hear
+   * about it here instead of reading it once. Safe to call before the SDK is ready; it is kept
+   * and attached once `init()` resolves.
+   */
+  watchMute(apply: (muted: boolean) => void): void {
+    this.muteWatcher = apply;
+    if (this.sdk) this.attachMuteWatcher(this.sdk, apply);
+  }
+
+  private attachMuteWatcher(sdk: CrazySdk, apply: (muted: boolean) => void): void {
+    try {
+      const read = (): boolean => sdk.game.settings?.muteAudio === true;
+      apply(read());
+      sdk.game.addSettingsChangeListener?.(() => apply(read()));
+    } catch {
+      /* no mute signal from the platform; the player's own toggle still works */
     }
   }
 
@@ -140,22 +206,46 @@ export class Portal {
   }
 
   gameplayStart(): void {
-    if (this.playing) return;
     this.playing = true;
+    this.syncGameplay();
+  }
+
+  gameplayStop(): void {
+    this.playing = false;
+    this.syncGameplay();
+  }
+
+  /**
+   * Tells the SDK what the game is doing, once: a repeat is not sent, and a change that comes sooner than the gap
+   * after the last call waits for it. The newest intent is the one sent.
+   */
+  private syncGameplay(): void {
+    if (this.gameplayTimer) return;
+    const wait = GAMEPLAY_GAP_MS - (Date.now() - this.sentAt);
+    if (wait > 0) {
+      this.gameplayTimer = window.setTimeout(() => {
+        this.gameplayTimer = 0;
+        this.syncGameplay();
+      }, wait);
+      return;
+    }
+    if (this.sentPlaying === this.playing) return;
+    this.sentPlaying = this.playing;
+    this.sentAt = Date.now();
     try {
-      this.sdk?.game.gameplayStart();
+      if (this.playing) this.sdk?.game.gameplayStart();
+      else this.sdk?.game.gameplayStop();
     } catch {
       /* reporting must never break the game */
     }
   }
 
-  gameplayStop(): void {
-    if (!this.playing) return;
-    this.playing = false;
+  /** The SDK's own celebration overlay, saved for the one thing in this game rare enough to earn it. */
+  happytime(): void {
     try {
-      this.sdk?.game.gameplayStop();
+      this.sdk?.game.happytime();
     } catch {
-      /* reporting must never break the game */
+      /* purely decorative */
     }
   }
 

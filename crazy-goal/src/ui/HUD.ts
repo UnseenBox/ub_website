@@ -6,6 +6,8 @@ import { MISS_LABEL } from '../goal/GoalDetector';
 import { formatScore, roundRect, signText, text, wrapText } from '../rendering/DrawUtils';
 import { C, FONT, rgba } from '../rendering/Palette';
 import { nextStarTarget, starHint } from '../progression/Progression';
+import { BONUS_OBJECTIVES, type BonusId } from '../scoring/Bonus';
+import { bonusFor } from '../levels/bonus';
 import arcadeStarUrl from '../assets/ui/arcade-star.png';
 import arcadeCoinUrl from '../assets/ui/arcade-coin.png';
 
@@ -24,6 +26,10 @@ const LINE_H = 30;
 const NEXT_H = 52;
 /** Extra height for the coins-earned line, drawn only when the goal paid something. */
 const COINS_H = 28;
+/** Extra card height for the XP line, and for the LEVEL UP pill. */
+const XP_H = 24;
+const BONUS_H = 24;
+const LEVELUP_H = 34;
 /** Extra height for the stars-to-the-next-ball line. */
 const BALL_H = 26;
 /** Gap between the alley wall and the duel's scoreboard. */
@@ -105,12 +111,23 @@ export class Hud {
     }
     if (g.state === 'menu') return;
 
-    if (g.tip && (g.state === 'ready' || g.state === 'aiming') && !g.paused) this.drawTip(ctx, g, u, g.tip.text);
-    // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
-    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active && !g.guideDef()) {
-      // (A lesson has its coach card up there instead: the stars are for later.)
+    if (g.tip && (g.state === 'ready' || g.state === 'aiming') && !g.paused) {
+      // A hint (six misses in a row) sits under the goal, clear of the controls; scoring tips sit under the kerb.
+      if (g.tip.key === 'hint') this.drawHintPill(ctx, g, u, g.tip.text);
+      else this.drawTip(ctx, g, u, g.tip.text);
+    }
+    // FRENZY: the run's lives, streak and score take the place of the star targets, through the whole run.
+    if (g.frenzy && !g.frenzy.over) {
       const keys = !cam.portrait && !g.input.pointer.touch && !COARSE.matches;
-      this.drawTargets(ctx, g, u, left, top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0));
+      this.drawFrenzyRow(ctx, g, u, left, top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0));
+    }
+    // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
+    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active && !g.frenzy) {
+      const keys = !cam.portrait && !g.input.pointer.touch && !COARSE.matches;
+      const colTop = top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0);
+      // A lesson has its coach card up there instead: the stars are for later. A match with a bonus objective still shows it.
+      if (!g.guideDef()) this.drawTargets(ctx, g, u, left, colTop);
+      else if (bonusFor(g.level.def.id)) this.drawBonusOnly(ctx, g, u, left, colTop);
     }
     if (g.state === 'missed') this.drawMiss(ctx, g, u);
     if (g.banner && g.banner.t < g.banner.dur) this.drawBannerText(ctx, g, u);
@@ -257,6 +274,29 @@ export class Hud {
     });
   }
 
+  /** On a guided match (its coach card is up) the stars stay away, but the bonus objective still shows, in their place. */
+  private drawBonusOnly(ctx: CanvasRenderingContext2D, g: Game, u: number, left: number, colTop: number): void {
+    const cam = g.camera;
+    const { arena } = g.level.def;
+    const id = bonusFor(g.level.def.id);
+    if (!id) return;
+    const done = g.record.bonus;
+    ctx.save();
+    if (!cam.portrait) {
+      ctx.translate(left, colTop);
+      ctx.scale(u, u);
+      this.drawBonusPill(ctx, 0, 0, id, done, false);
+    } else {
+      // Just under the goal, on the grass: the coach card covers the space above it.
+      ctx.translate(arena.x + arena.w / 2, arena.y + 70);
+      ctx.scale(u, u);
+      this.drawBonusPill(ctx, 0, 0, id, done, true);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
   /**
    * The star targets: `★ GOAL · ★★ 1,400 · ★★★ 2,600`, the stars already won on this level lit.
    * A row above the goal on a phone, a small card in the left column beside the alley otherwise.
@@ -273,6 +313,8 @@ export class Hud {
     ];
     const STAR = 17;
     const FS = 13;
+    const bonusId = bonusFor(g.level.def.id);
+    const bonusDone = g.record.bonus;
     // The first star not yet won is the one to play for: its chip is lit.
     const next = Math.min(3, earned + 1);
     const drawStars = (n: number, x: number, cy: number, on: boolean): void => {
@@ -304,6 +346,7 @@ export class Hud {
         drawStars(seg.n, 16, cy, on);
         text(ctx, seg.label, w - 16, cy + 1, { size: FS, color: on ? C.sun : rgba(C.white, 0.85), align: 'right', baseline: 'middle', weight: 900, spacing: 1 });
       });
+      if (bonusId) this.drawBonusPill(ctx, 0, h + 14, bonusId, bonusDone, false);
     } else {
       // One row, centred above the goal and kept inside the alley's width.
       const GAP = 20;
@@ -335,7 +378,81 @@ export class Hud {
         text(ctx, seg.label, x + sw, 1, { size: FS, color: on ? C.sun : rgba(C.white, 0.85), baseline: 'middle', weight: 900, spacing: 1 });
         x += segW + GAP;
       });
+      if (bonusId) this.drawBonusPill(ctx, 0, h / 2 + 14, bonusId, bonusDone, true);
     }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  /** The match's bonus objective, in a small pill under the star targets while aiming (BONUS DONE once it is met). */
+  private drawBonusPill(ctx: CanvasRenderingContext2D, x: number, y: number, id: BonusId, done: boolean, centred: boolean): void {
+    const label = `${tr(done ? 'BONUS DONE' : 'BONUS')}: ${tr(BONUS_OBJECTIVES[id].label)}`;
+    const size = 11;
+    const h = 22;
+    ctx.font = `900 ${size}px ${FONT}`;
+    const w = ctx.measureText(label).width + 22;
+    const left = centred ? x - w / 2 : x;
+    hudPill(ctx, left, y - h / 2, w, h, h / 2);
+    text(ctx, label, left + w / 2, y, { size, color: done ? C.sun : rgba(C.white, 0.9), align: 'center', baseline: 'middle', weight: 900, spacing: 1 });
+  }
+
+  /** FRENZY: the run's lives (balls), streak and score, in one pill where the star targets sit. */
+  private drawFrenzyRow(ctx: CanvasRenderingContext2D, g: Game, u: number, left: number, colTop: number): void {
+    const run = g.frenzy;
+    if (!run) return;
+    const cam = g.camera;
+    const { arena } = g.level.def;
+    ctx.save();
+    if (!cam.portrait) {
+      ctx.translate(left, colTop);
+      ctx.scale(u, u);
+      this.frenzyPill(ctx, 0, 0, run, false);
+    } else {
+      ctx.translate(arena.x + arena.w / 2, Math.max(cam.visible.y + 74 * u, arena.y - 215));
+      ctx.scale(u, u);
+      this.frenzyPill(ctx, 0, 0, run, true);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  private frenzyPill(ctx: CanvasRenderingContext2D, x: number, y: number, run: NonNullable<Game['frenzy']>, centred: boolean): void {
+    const label = `${tr('STREAK {n}', { n: run.streak })}   ${tr('SCORE {n}', { n: run.score })}`;
+    const size = 13;
+    const h = 34;
+    ctx.font = `900 ${size}px ${FONT}`;
+    const livesW = 3 * 18 + 6;
+    const w = livesW + ctx.measureText(label).width + 26;
+    const left = centred ? x - w / 2 : x;
+    hudPill(ctx, left, y - h / 2, w, h, h / 2);
+    for (let i = 0; i < 3; i++) {
+      const cx = left + 16 + i * 18 + 7;
+      ctx.beginPath();
+      ctx.arc(cx, y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = i < run.lives ? '#ffffff' : rgba(C.white, 0.22);
+      ctx.fill();
+      ctx.strokeStyle = C.navy;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    text(ctx, label, left + livesW + 16, y, { size, color: '#ffffff', baseline: 'middle', weight: 900, spacing: 1 });
+  }
+
+  /** The gentle hint after six misses in a row: one pill under the goal, until the next shot. */
+  private drawHintPill(ctx: CanvasRenderingContext2D, g: Game, u: number, str: string): void {
+    const { arena } = g.level.def;
+    ctx.save();
+    ctx.translate(arena.x + arena.w / 2, arena.y + 104);
+    ctx.scale(u, u);
+    const size = 11;
+    const h = 22;
+    const label = tr(str);
+    ctx.font = `900 ${size}px ${FONT}`;
+    const w = ctx.measureText(label).width + 22;
+    hudPill(ctx, -w / 2, -h / 2, w, h, h / 2);
+    text(ctx, label, 0, 0, { size, color: C.sun, align: 'center', baseline: 'middle', weight: 900, spacing: 1 });
     ctx.restore();
     ctx.globalAlpha = 1;
     ctx.textBaseline = 'alphabetic';
@@ -472,8 +589,15 @@ export class Hud {
     const solo = g.shotRule === 'free' && g.level.index >= 0;
     const next = solo ? nextStarTarget(g.level.def, g.record.stars) : null;
     const coins = solo ? g.goalCoins : 0;
+    // STREET LEAGUE: the LP this goal earned, shown beside the coins.
+    const lpGain = solo ? g.goalLp : 0;
+    // BONUS OBJECTIVE: the one this match asks for, when this goal met it.
+    const bonus = solo ? g.goalBonus : null;
     const ballGap = solo ? g.ballGap : null;
-    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + (coins > 0 ? COINS_H : 0) + (ballGap !== null ? BALL_H : 0);
+    // CLUB LEVEL: the XP this goal was worth, and the levels it reached (a LEVEL UP pill on the card).
+    const xp = solo ? g.goalXp : 0;
+    const levelUps = solo ? g.clubLevels : [];
+    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + ((coins > 0 || lpGain > 0) ? COINS_H : 0) + (xp > 0 ? XP_H : 0) + (levelUps.length > 0 ? LEVELUP_H : 0) + (ballGap !== null ? BALL_H : 0) + (bonus?.met ? BONUS_H : 0);
     // The card is enlarged with the HUD on a small screen, but never wider than the screen, and never so tall
     // that the AGAIN / NEXT buttons under it cover its last lines: a long list of tricks shrinks it to fit.
     const cam = g.camera;
@@ -600,17 +724,44 @@ export class Hud {
       const sub = card.newBest ? 'NEW BEST' : tr('BEST {n}', { n: formatScore(card.previousBest) });
       text(ctx, sub, cx, ty + 138, { size: 11, color: card.newBest ? C.terra : rgba(C.navy, 0.5), align: 'center', weight: 700, spacing: 3, alpha: tail });
       let ny = ty + 168;
-      if (coins > 0) {
-        // What the goal paid: the first clear and any star won for the first time.
-        const label = tr('+{n} COINS', { n: coins });
+      if (coins > 0 || lpGain > 0) {
+        // What the goal paid: coins (the first clear, and any star won for the first time), then the league points.
+        const lpLabel = lpGain > 0 ? tr('+{n} LP', { n: lpGain }) : '';
+        const label = coins > 0 ? `${tr('+{n} COINS', { n: coins })}${lpLabel ? ` · ${lpLabel}` : ''}` : lpLabel;
         ctx.font = `900 14px ${FONT}`;
         const lw = ctx.measureText(label).width;
-        const x0 = cx - (lw + 26) / 2;
-        ctx.globalAlpha = tail;
-        ctx.drawImage(arcadeCoin, x0, ny - 12, 22, 22);
-        ctx.globalAlpha = 1;
-        text(ctx, label, x0 + 30, ny, { size: 14, color: C.terra, baseline: 'middle', weight: 900, alpha: tail });
+        if (coins > 0) {
+          const x0 = cx - (lw + 26) / 2;
+          ctx.globalAlpha = tail;
+          ctx.drawImage(arcadeCoin, x0, ny - 12, 22, 22);
+          ctx.globalAlpha = 1;
+          text(ctx, label, x0 + 30, ny, { size: 14, color: C.terra, baseline: 'middle', weight: 900, alpha: tail });
+        } else {
+          text(ctx, label, cx, ny, { size: 14, color: C.greenDeep, align: 'center', baseline: 'middle', weight: 900, alpha: tail });
+        }
         ny += COINS_H;
+      }
+      if (bonus?.met) {
+        // BONUS: the objective was met; its coins show only on the first time.
+        const label = `${tr('BONUS!')} ${tr(BONUS_OBJECTIVES[bonus.id].label)}${bonus.coins > 0 ? ` · ${tr('+{n} COINS', { n: bonus.coins })}` : ''}`;
+        text(ctx, label, cx, ny, { size: 13, color: C.terra, align: 'center', baseline: 'middle', weight: 900, spacing: 0.5, alpha: tail });
+        ny += BONUS_H;
+      }
+      if (xp > 0) {
+        text(ctx, tr('+{n} XP', { n: xp }), cx, ny, { size: 13, color: C.greenDeep, align: 'center', baseline: 'middle', weight: 900, spacing: 1, alpha: tail });
+        ny += XP_H;
+      }
+      if (levelUps.length > 0) {
+        const label = `${tr('LEVEL UP! LV {n}', { n: levelUps[levelUps.length - 1].level })}${g.clubCoins > 0 ? ` · ${tr('+{n} COINS', { n: g.clubCoins })}` : ''}`;
+        ctx.font = `900 14px ${FONT}`;
+        const pw = ctx.measureText(label).width + 32;
+        ctx.globalAlpha = tail;
+        roundRect(ctx, cx - pw / 2, ny - 13, pw, 26, 13);
+        ctx.fillStyle = C.greenGame;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        text(ctx, label, cx, ny, { size: 14, color: '#ffffff', align: 'center', baseline: 'middle', weight: 900, spacing: 0.5, alpha: tail });
+        ny += LEVELUP_H;
       }
       if (solo) {
         if (next) {

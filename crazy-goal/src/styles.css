@@ -431,7 +431,8 @@ body {
   left: 50%;
   bottom: calc(5vh + env(safe-area-inset-bottom));
   display: flex;
-  gap: 14px;
+  align-items: center; /* each key keeps its own height: NEXT MATCH is taller than AGAIN */
+  gap: 18px;
   transform: translateX(-50%);
   animation: result-in 0.25s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
@@ -440,9 +441,19 @@ body {
   display: none;
 }
 
+/* AGAIN and NEXT MATCH are big, finger-sized keys: at least 56px tall, with clear space between them. */
 .result .btn {
   white-space: nowrap;
-  font-size: clamp(13px, 2.4vmin, 18px);
+  min-height: 56px;
+  padding: 0.7em 1.3em 0.65em;
+  font-size: clamp(14px, 2.4vmin, 18px);
+}
+
+/* NEXT MATCH is the one to press: taller and bigger than AGAIN, so it is the obvious target. */
+.result .btn-primary {
+  min-height: 66px;
+  padding: 0.7em 1.8em 0.65em;
+  font-size: clamp(18px, 3.2vmin, 24px);
 }
 
 .pause-button {
@@ -2011,7 +2022,7 @@ body {
   }
 
   .result {
-    gap: 10px;
+    gap: 16px;
     bottom: calc(9vh + env(safe-area-inset-bottom));
   }
 }
@@ -3394,6 +3405,10 @@ body {
   .result .btn {
     font-size: 14px;
   }
+
+  .result .btn-primary {
+    font-size: 17px;
+  }
 }
 
 /* Very small phones: the match controls shrink a little more. */
@@ -3963,4 +3978,489 @@ body {
 
 .toast-action {
   white-space: nowrap;
+}
+
+/* ---- CLUB LEVEL: a thin bar under the coin and star pills on the main menu ---- */
+.menu-meters {
+  display: grid;
+  justify-items: end;
+  gap: clamp(6px, 1.1vmin, 9px);
+}
+
+.club-bar {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  width: clamp(128px, 26vw, 184px);
+}
+
+.club-label {
+  font-size: clamp(10px, 1.6vmin, 12px);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #f7ffe9;
+  text-shadow: 0 2px 0 rgba(3, 26, 10, 0.5);
+  white-space: nowrap;
+}
+
+.club-track {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(3, 26, 10, 0.45);
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.club-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffe680, #ffc83a 55%, #f5a01c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: width 0.5s ease-out;
+}
+
+/* STREET LEAGUE (Step 10b): the menu's fourth card, the table sheet, and the season result card. */
+@media (max-width: 520px) {
+  .menu-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-items: center;
+    gap: 10px;
+    width: min(300px, 100%);
+  }
+
+  .menu-shortcut {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+.league-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100dvh - 24px);
+  min-height: 0;
+}
+
+.league-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Everything but the table keeps its size; the table takes what is left and scrolls. */
+.league-head,
+.league-legend,
+.league-subtitle,
+.league-prizes,
+.league-trophies {
+  flex: none;
+}
+
+.league-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.league-badge {
+  padding: 4px 14px;
+  border: 2px solid #13203d;
+  border-radius: 999px;
+  background: #e9d3b0;
+  color: #13203d;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.league-badge.is-silver {
+  background: #d9e1ea;
+}
+
+.league-badge.is-gold {
+  background: #ffd94d;
+}
+
+.league-days {
+  margin: 0;
+  color: #13203d;
+  font-weight: 900;
+}
+
+.league-table {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 5px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.league-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #13203d;
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 rgba(19, 32, 61, 0.15);
+}
+
+.league-row.is-promote {
+  background: #d9f5df;
+  box-shadow: inset 6px 0 0 #2fb35a;
+}
+
+.league-row.is-relegate {
+  background: #fde0da;
+  box-shadow: inset 6px 0 0 #e2402c;
+}
+
+.league-row.is-you {
+  outline: 3px solid #ffd94d;
+  outline-offset: -3px;
+}
+
+.league-pos {
+  font-weight: 900;
+  text-align: center;
+}
+
+.league-club {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.league-lp {
+  font-variant-numeric: tabular-nums;
+}
+
+.league-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #13203d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.league-legend > span::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-inline-end: 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.league-legend .is-promote-key::before {
+  background: #2fb35a;
+}
+
+.league-legend .is-relegate-key::before {
+  background: #e2402c;
+}
+
+.league-subtitle {
+  margin: 4px 0 0;
+  color: #13203d;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.league-prizes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.league-prize {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: 2px solid #13203d;
+  border-radius: 12px;
+  background: #fff8d6;
+  color: #13203d;
+  text-align: center;
+}
+
+.league-prize-place {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.league-prize-coins {
+  color: #b4560e;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.league-prize-trophy,
+.league-trophies {
+  margin: 0;
+  color: #13203d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.league-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: #13203d;
+  text-align: center;
+}
+
+.league-result-place {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.league-result-line {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.league-claim {
+  min-width: 180px;
+}
+
+.league-back {
+  align-self: center;
+}
+
+/* The side column (legend and prizes) stacks under the table in portrait. */
+.league-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* A short phone on its side: the table on the left, the legend and prizes on the right, so the table can scroll. */
+@media (max-height: 460px) and (min-aspect-ratio: 1/1) {
+  .league-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 14px;
+  }
+
+  .league-head {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .league-table {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .league-side {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-height: 0;
+    gap: 5px;
+  }
+
+  .league-prizes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .league-prize {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    text-align: start;
+  }
+}
+
+/* BONUS OBJECTIVES (Step 11): the medal on a match's tile once its objective is met. */
+.tile-medal {
+  position: absolute;
+  bottom: 8px;
+  inset-inline-end: 8px;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+
+.tile-medal .game-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* WORLDS (Step 12): the boss badge on a tile, the trophies row on the stadium list, and the WORLD COMPLETE panel. */
+.tile-boss {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  translate: -50% 0;
+  padding: 1px 8px;
+  border: 2px solid #13203d;
+  border-radius: 999px;
+  background: #e2402c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.world-trophies {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  color: #13203d;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.world-trophies-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.world-trophies-icon .game-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world-sheet {
+  text-align: center;
+}
+
+.world-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.world-trophy {
+  width: 96px;
+  height: 96px;
+}
+
+.world-trophy .game-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world-name {
+  margin: 0;
+  color: #13203d;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.world-stars {
+  margin: 0;
+  color: #13203d;
+  font-weight: 900;
+}
+
+.world-reward {
+  margin: 0;
+  color: #b4560e;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.world-next {
+  display: grid;
+  gap: 2px;
+  padding: 8px 18px;
+  border: 2px solid #13203d;
+  border-radius: 12px;
+  background: #fff8d6;
+  color: #13203d;
+}
+
+.world-next-label {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.world-next-name {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.world-next-theme {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Less dead time (Step 14): the ring on NEXT MATCH fills on a first clear, then the next match starts. */
+.result .btn-primary.is-timed::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 26px;
+  padding: 4px;
+  background: conic-gradient(#ffd94d calc(var(--ring, 0) * 1turn), rgba(255, 255, 255, 0.35) 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+/* FRENZY (Step 13): the menu button, the run's HUD, and the RUN OVER card. */
+.menu-frenzy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 58px;
+  gap: 2px;
+  border: 3px solid #13203d;
+  border-radius: 18px;
+  background: linear-gradient(#ff8a4c, #d0321e);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.menu-frenzy-label {
+  font-size: 20px;
+  letter-spacing: 0.08em;
+}
+
+.menu-frenzy-best {
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+.result.is-frenzy .btn-navy {
+  display: none;
 }

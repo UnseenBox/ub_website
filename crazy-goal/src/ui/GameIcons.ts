@@ -155,6 +155,24 @@ const RAW = {
      <path d="M5 44l17-18" stroke="#ffd94d" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="0.1 7"/>`,
     linear('gi-aim', '#ff7a5c', '#d0321e'),
   ),
+  /** The league: a gold cup on a blue plinth. */
+  trophy: svg(
+    `<path d="M14 7h20v12a10 10 0 0 1-20 0Z" fill="url(#gi-cup)" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+     <path d="M14 11H8a5 5 0 0 0 6 9M34 11h6a5 5 0 0 1-6 9" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+     <path d="M21 29h6v6h6v4H15v-4h6Z" fill="url(#gi-cup)" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>
+     <rect x="12" y="39" width="24" height="5" rx="2" fill="#2a6fc9" stroke="${INK}" stroke-width="2.6"/>
+     ${shine(19, 15, 2.2, 4.5, 14)}`,
+    linear('gi-cup', '#ffe680', '#f0a21c'),
+  ),
+  /** The bonus: a gold medal on two ribbons. */
+  medal: svg(
+    `<path d="M16 4l8 14M32 4l-8 14" stroke="#2a6fc9" stroke-width="6" stroke-linecap="round"/>
+     <path d="M16 4l8 14M32 4l-8 14" stroke="#e2402c" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="4 3"/>
+     <circle cx="24" cy="31" r="14" fill="url(#gi-medal)" stroke="${INK}" stroke-width="3"/>
+     <circle cx="24" cy="31" r="8" fill="none" stroke="#a86b00" stroke-width="2"/>
+     ${shine(19, 25, 3, 1.8, -30)}`,
+    linear('gi-medal', '#ffe680', '#f0a21c'),
+  ),
 } as const;
 
 export type IconName = keyof typeof RAW;

@@ -1,6 +1,7 @@
 import type { ArenaDef, GoalDef, GuideDef, LevelDefinition, MechanicDef, WallDef } from '../../src/levels/LevelDefinition';
 import { CAMPAIGN } from './campaign';
 import { roundedRect } from './shapes';
+import { bossIndices } from '../../src/progression/Worlds';
 
 /**
  * The matches of CRAZY KORA: one stadium after another, each built and polished on its own.
@@ -48,7 +49,7 @@ function level(id: string, name: string, hint: string, o: { walls?: WallDef[]; m
 /** One lesson of the tutorial. */
 const lesson = (id: string, name: string, hint: string, walls: WallDef[], stars: readonly [number, number], guide: GuideDef): LevelDefinition => level(id, name, hint, { walls, stars, guide });
 
-export const LEVELS: readonly LevelDefinition[] = [
+const LEVEL_LIST: readonly LevelDefinition[] = [
   // 1. Pull back, let go. Nothing in the way.
   lesson('match-01-straight', 'KICK OFF', 'Pull back, let go.', [], [1100, 1500], {
     move: 'straight',
@@ -117,3 +118,12 @@ export const LEVELS: readonly LevelDefinition[] = [
 
   ...CAMPAIGN,
 ];
+
+/** The campaign in play order, with each world's boss match marked. */
+export const LEVELS: readonly LevelDefinition[] = markBosses(LEVEL_LIST);
+
+/** The last level of each world is its boss match. */
+function markBosses(list: readonly LevelDefinition[]): readonly LevelDefinition[] {
+  const boss = new Set(bossIndices(list.length));
+  return list.map((def, i) => (boss.has(i) ? { ...def, boss: true } : def));
+}

@@ -14,6 +14,7 @@ import { drawMechanicGround, drawMechanicSolid, paintMechanicShadows } from './M
 import { C, rgba, SHADOW_ALPHA } from './Palette';
 import { paintPitch, pitchPath } from './PitchArt';
 import { drawCrowdFlashes, paintStands } from './StadiumArt';
+import { BOSS_CROWD_EXCITEMENT } from '../progression/Worlds';
 
 /** World units of static scenery kept beyond the screen edge, for shake and zoom to move into. */
 const CACHE_MARGIN = 90;
@@ -145,7 +146,7 @@ export class Renderer {
       ctx.drawImage(this.cache, r.x, r.y, r.w, r.h);
     }
     // The crowd's cameras: calm while you aim, a storm after a goal.
-    drawCrowdFlashes(ctx, level, time, g.state === 'goal' ? 1 : Math.min(1, g.goalFlash));
+    drawCrowdFlashes(ctx, level, time, Math.max(g.state === 'goal' ? 1 : Math.min(1, g.goalFlash), level.def.boss ? BOSS_CROWD_EXCITEMENT : 0));
 
     const aiming = g.state === 'aiming';
     const bx = ball.renderX + g.aimDraw.x;

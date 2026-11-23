@@ -147,4 +147,6 @@ export interface LevelDefinition {
   coin?: Point;
   /** Crazy Score needed for the second and third star. Any goal earns the first. */
   stars: readonly [number, number];
+  /** The last match of a world: its BOSS MATCH (set on the campaign by data/levels/matches.ts, see progression/Worlds). */
+  boss?: boolean;
 }
