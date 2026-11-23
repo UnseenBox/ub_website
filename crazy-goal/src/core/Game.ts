@@ -2,6 +2,7 @@ import type { Boost } from '../abilities/Cards';
 import { BOOST_COSTS } from '../abilities/Cards';
 import { abilityPrice, aimScale, curlScale, nextPrice, noUpgrades, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
 import { CLUB_START, ballIsOpen, gainXp, nextLockedBall, xpForScore, xpToNext, type LevelReward } from '../progression/Club';
+import { addLeagueLp, freshLeague, lpForGoal, settleLeague } from '../progression/League';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
@@ -271,6 +272,8 @@ export class Game {
   goalXp = 0;
   clubLevels: LevelReward[] = [];
   clubCoins = 0;
+  /** STREET LEAGUE: the LP this goal earned, for the goal card. */
+  goalLp = 0;
   /** The last solo goal was the level's first clear, and its coins have been doubled by an ad. */
   private goalFirstClear = false;
   private goalDoubled = false;
@@ -559,6 +562,7 @@ export class Game {
 
   /** What the main menu draws: where Continue goes, the wallet, the stars. */
   private menuInfo(): MenuInfo {
+    this.openLeagueWeek();
     const at = this.furthestUnlocked();
     return {
       stars: { n: this.totalStars(), max: this.maxStars() },
@@ -591,6 +595,7 @@ export class Game {
     data.seenSkins = [];
     data.club = { ...CLUB_START };
     data.grantedSkins = [];
+    data.league = freshLeague(new Date());
     this.skin = skinOf('classic');
     this.save.save();
     // Back to the title card, not into a match: a live match under the menu leaves the in-match controls
@@ -1499,6 +1504,23 @@ export class Game {
     this.events.emit('MECHANIC', e);
   };
 
+  /** STREET LEAGUE: a solo goal earns LP for the week's table, up to the daily cap for its match. */
+  private awardLeague(newStars: number): void {
+    this.openLeagueWeek();
+    const r = addLeagueLp(this.save.data.league, new Date(), this.level.def.id, lpForGoal(newStars));
+    this.save.data.league = r.league;
+    this.goalLp = r.gained;
+  }
+
+  /** STREET LEAGUE: when the week has changed, ends the last season and pays any prize nobody claimed. */
+  private openLeagueWeek(): void {
+    const s = settleLeague(this.save.data.league, new Date());
+    if (s.league === this.save.data.league) return;
+    this.save.data.league = s.league;
+    this.save.data.coins += s.coins;
+    this.save.save();
+  }
+
   /** Adds a goal's XP to the club, and pays each level it reaches. */
   private awardClub(score: number): void {
     const data = this.save.data;
@@ -1523,6 +1545,7 @@ export class Game {
     const goal = this.level.goal;
     const card = scoreShot(this.analyzer.finish(true, b, goal, this.level.hasKeeper), this.record.best, this.level.def.stars);
     const firstClear = this.record.goals === 0;
+    const starsBefore = this.record.stars;
     this.goalFirstClear = firstClear && this.shotRule === 'free';
     this.goalDoubled = false;
     this.missStreak = 0;
@@ -1533,6 +1556,7 @@ export class Game {
     this.goalXp = 0;
     this.clubLevels = [];
     this.clubCoins = 0;
+    this.goalLp = 0;
     // Solo coins are paid for progress only: the first clear, and each star won for the first time.
     if (this.shotRule === 'free') {
       const stars = Math.max(this.record.stars, card.stars);
@@ -1548,6 +1572,7 @@ export class Game {
     if (card.stars > this.record.stars) this.record.stars = card.stars;
     // CLUB LEVEL: every solo goal earns XP, replays too. Levels pay coins, and some give a ball or an ability.
     if (this.shotRule === 'free') this.awardClub(card.total);
+    if (this.shotRule === 'free') this.awardLeague(Math.max(0, card.stars - starsBefore));
     this.save.save();
     this.ballGap = this.shotRule === 'free' ? this.starsToNextBall() : null;
     if (this.shotRule === 'free') this.events.emit('LEVEL_GOAL', { level: this.level.index + 1, stars: card.stars, score: card.total, attempts: this.record.attempts, firstClear, bounces: card.bounces });

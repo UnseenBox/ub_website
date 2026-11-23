@@ -2,6 +2,7 @@ import type { Boost } from '../abilities/Cards';
 import { SKINS } from '../ball/Skins';
 import { noUpgrades, UPGRADE_MAX, type UpgradeLevels } from '../progression/Upgrades';
 import { CLUB_START, xpToNext, type Club } from '../progression/Club';
+import { freshLeague, parseLeague, type League } from '../progression/League';
 
 const KEY = 'crazy-goal-save';
 /**
@@ -47,6 +48,8 @@ export interface SaveData {
   club: Club;
   /** Balls a club level has unlocked for free, on top of the ones the stars open. */
   grantedSkins: string[];
+  /** STREET LEAGUE: the season in progress, the table standing, and the last season's prize. */
+  league: League;
 }
 
 const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0 });
@@ -66,6 +69,7 @@ const fresh = (): SaveData => ({
   upgrades: noUpgrades(),
   club: { ...CLUB_START },
   grantedSkins: [],
+  league: freshLeague(new Date()),
 });
 
 const volume = (v: unknown, fallback: number): number => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
@@ -122,6 +126,7 @@ export function parseSave(raw: string | null): SaveData {
     out.club = { level, xp: Math.min(num(data.club.xp), xpToNext(level) - 1) };
   }
   out.grantedSkins = strings(data.grantedSkins);
+  out.league = parseLeague(data.league, new Date());
   if (isRecord(data.upgrades)) {
     for (const id of ['power', 'curl', 'aim'] as const) out.upgrades[id] = Math.min(UPGRADE_MAX, Math.floor(num(data.upgrades[id])));
   }
