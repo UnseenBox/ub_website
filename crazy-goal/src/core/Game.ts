@@ -2,7 +2,7 @@ import type { Boost } from '../abilities/Cards';
 import { BOOST_COSTS } from '../abilities/Cards';
 import { abilityPrice, aimScale, curlScale, nextPrice, noUpgrades, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
 import { CLUB_START, ballIsOpen, gainXp, nextLockedBall, xpForScore, xpToNext, type LevelReward } from '../progression/Club';
-import { addLeagueLp, freshLeague, lpForGoal, settleLeague } from '../progression/League';
+import { addLeagueLp, claimLeague as claimPrize, freshLeague, lpForGoal, pendingResult, prizeFor, seasonClock, settleLeague, standings } from '../progression/League';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
@@ -66,7 +66,7 @@ import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
 import { traceShot, type Trace } from '../levels/sweep';
 import { portal, isCrazyGames } from '../portal/Portal';
 import { forgetStands } from '../rendering/StadiumArt';
-import { Overlay, setUiClick, type MenuInfo, type StoreInfo } from '../ui/Overlay';
+import { Overlay, setUiClick, type LeagueInfo, type MenuInfo, type StoreInfo } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
 import { GameLoop } from './GameLoop';
 import type { GameState } from './GameState';
@@ -392,6 +392,7 @@ export class Game {
       skinsSeen: () => this.markBallsSeen(),
       stars: () => ({ n: this.totalStars(), max: this.maxStars() }),
       menuInfo: () => this.menuInfo(),
+      claimSeasonPrize: () => this.claimSeasonPrize(),
       store: () => this.storeInfo(),
       buyUpgrade: (id) => this.buyUpgrade(id),
       buyAbilities: (id, count) => this.buyAbilities(id, count),
@@ -572,6 +573,7 @@ export class Game {
       continueName: this.levels[at]?.name ?? '',
       newBall: this.unseenBalls().length > 0,
       club: { level: this.save.data.club.level, xp: this.save.data.club.xp, need: xpToNext(this.save.data.club.level) },
+      league: this.leagueInfo(),
     };
   }
 
@@ -1518,6 +1520,28 @@ export class Game {
     if (s.league === this.save.data.league) return;
     this.save.data.league = s.league;
     this.save.data.coins += s.coins;
+    this.save.save();
+  }
+
+  /** STREET LEAGUE: the table for today, the prizes, the trophies, and the last season's result while its prize is unclaimed. */
+  private leagueInfo(): LeagueInfo {
+    const league = this.save.data.league;
+    const clock = seasonClock(new Date());
+    return {
+      division: league.division,
+      daysLeft: clock.daysLeft,
+      rows: standings(league, clock.dayIndex),
+      prizes: [1, 2, 3].map((position) => ({ position, ...prizeFor(position) })),
+      trophies: league.trophies,
+      pending: pendingResult(league),
+    };
+  }
+
+  /** CLAIM on the season result card: pays that season's prize, once. */
+  private claimSeasonPrize(): void {
+    const c = claimPrize(this.save.data.league);
+    this.save.data.league = c.league;
+    this.save.data.coins += c.coins;
     this.save.save();
   }
 

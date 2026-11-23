@@ -155,6 +155,15 @@ const RAW = {
      <path d="M5 44l17-18" stroke="#ffd94d" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="0.1 7"/>`,
     linear('gi-aim', '#ff7a5c', '#d0321e'),
   ),
+  /** The league: a gold cup on a blue plinth. */
+  trophy: svg(
+    `<path d="M14 7h20v12a10 10 0 0 1-20 0Z" fill="url(#gi-cup)" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+     <path d="M14 11H8a5 5 0 0 0 6 9M34 11h6a5 5 0 0 1-6 9" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+     <path d="M21 29h6v6h6v4H15v-4h6Z" fill="url(#gi-cup)" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>
+     <rect x="12" y="39" width="24" height="5" rx="2" fill="#2a6fc9" stroke="${INK}" stroke-width="2.6"/>
+     ${shine(19, 15, 2.2, 4.5, 14)}`,
+    linear('gi-cup', '#ffe680', '#f0a21c'),
+  ),
 } as const;
 
 export type IconName = keyof typeof RAW;

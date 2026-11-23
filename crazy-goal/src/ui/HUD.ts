@@ -475,11 +475,13 @@ export class Hud {
     const solo = g.shotRule === 'free' && g.level.index >= 0;
     const next = solo ? nextStarTarget(g.level.def, g.record.stars) : null;
     const coins = solo ? g.goalCoins : 0;
+    // STREET LEAGUE: the LP this goal earned, shown beside the coins.
+    const lpGain = solo ? g.goalLp : 0;
     const ballGap = solo ? g.ballGap : null;
     // CLUB LEVEL: the XP this goal was worth, and the levels it reached (a LEVEL UP pill on the card).
     const xp = solo ? g.goalXp : 0;
     const levelUps = solo ? g.clubLevels : [];
-    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + (coins > 0 ? COINS_H : 0) + (xp > 0 ? XP_H : 0) + (levelUps.length > 0 ? LEVELUP_H : 0) + (ballGap !== null ? BALL_H : 0);
+    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + ((coins > 0 || lpGain > 0) ? COINS_H : 0) + (xp > 0 ? XP_H : 0) + (levelUps.length > 0 ? LEVELUP_H : 0) + (ballGap !== null ? BALL_H : 0);
     // The card is enlarged with the HUD on a small screen, but never wider than the screen, and never so tall
     // that the AGAIN / NEXT buttons under it cover its last lines: a long list of tricks shrinks it to fit.
     const cam = g.camera;
@@ -606,16 +608,21 @@ export class Hud {
       const sub = card.newBest ? 'NEW BEST' : tr('BEST {n}', { n: formatScore(card.previousBest) });
       text(ctx, sub, cx, ty + 138, { size: 11, color: card.newBest ? C.terra : rgba(C.navy, 0.5), align: 'center', weight: 700, spacing: 3, alpha: tail });
       let ny = ty + 168;
-      if (coins > 0) {
-        // What the goal paid: the first clear and any star won for the first time.
-        const label = tr('+{n} COINS', { n: coins });
+      if (coins > 0 || lpGain > 0) {
+        // What the goal paid: coins (the first clear, and any star won for the first time), then the league points.
+        const lpLabel = lpGain > 0 ? tr('+{n} LP', { n: lpGain }) : '';
+        const label = coins > 0 ? `${tr('+{n} COINS', { n: coins })}${lpLabel ? ` · ${lpLabel}` : ''}` : lpLabel;
         ctx.font = `900 14px ${FONT}`;
         const lw = ctx.measureText(label).width;
-        const x0 = cx - (lw + 26) / 2;
-        ctx.globalAlpha = tail;
-        ctx.drawImage(arcadeCoin, x0, ny - 12, 22, 22);
-        ctx.globalAlpha = 1;
-        text(ctx, label, x0 + 30, ny, { size: 14, color: C.terra, baseline: 'middle', weight: 900, alpha: tail });
+        if (coins > 0) {
+          const x0 = cx - (lw + 26) / 2;
+          ctx.globalAlpha = tail;
+          ctx.drawImage(arcadeCoin, x0, ny - 12, 22, 22);
+          ctx.globalAlpha = 1;
+          text(ctx, label, x0 + 30, ny, { size: 14, color: C.terra, baseline: 'middle', weight: 900, alpha: tail });
+        } else {
+          text(ctx, label, cx, ny, { size: 14, color: C.greenDeep, align: 'center', baseline: 'middle', weight: 900, alpha: tail });
+        }
         ny += COINS_H;
       }
       if (xp > 0) {

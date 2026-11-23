@@ -3,6 +3,7 @@ import starUrl from '../assets/ui/arcade-star.png';
 import coinUrl from '../assets/ui/arcade-coin.png';
 import { lang, tr, type Lang } from '../core/i18n';
 import { chapterOf } from '../progression/Progression';
+import type { Division, SeasonResult, StandingRow } from '../progression/League';
 import type { Boost } from '../abilities/Cards';
 import { cardOf } from '../abilities/Cards';
 import { UPGRADE_MAX, type UpgradeId } from '../progression/Upgrades';
@@ -56,6 +57,8 @@ export interface OverlayHandlers {
   /** Buys `count` charges of an ability; false when the coins are short. */
   buyAbilities(id: Boost, count: number): boolean;
   resetProgress(): void;
+  /** CLAIM on the season result card: pays that season's prize, once. */
+  claimSeasonPrize(): void;
 }
 
 /** The store screen: shot upgrades with their level and next price, and abilities to stock up on. */
@@ -63,6 +66,16 @@ export interface StoreInfo {
   coins: number;
   upgrades: { id: UpgradeId; name: string; hint: string; level: number; price: number | null }[];
   abilities: { id: Boost; owned: number; single: number; pack: number }[];
+}
+
+/** STREET LEAGUE as the screen shows it: the division, the days left, the table, the prizes, and the last season's result while unclaimed. */
+export interface LeagueInfo {
+  division: Division;
+  daysLeft: number;
+  rows: StandingRow[];
+  prizes: { position: number; coins: number; trophy: boolean }[];
+  trophies: number;
+  pending: SeasonResult | null;
 }
 
 /** What the main menu draws. The Game fills it in; the Overlay never reads the save. */
@@ -78,6 +91,8 @@ export interface MenuInfo {
   newBall: boolean;
   /** CLUB LEVEL: the level, the XP into it, and the XP the level needs. */
   club: { level: number; xp: number; need: number };
+  /** STREET LEAGUE: the table, the prizes, and any season result whose prize is unclaimed. */
+  league: LeagueInfo;
 }
 
 export interface LevelTile {
@@ -195,6 +210,10 @@ export class Overlay {
   private readonly settings: HTMLElement;
   private readonly skins: HTMLElement;
   private readonly storeScreen: HTMLElement;
+  private readonly leagueScreen: HTMLElement;
+  private readonly leagueBody: HTMLElement;
+  private readonly resultScreen: HTMLElement;
+  private readonly resultBody: HTMLElement;
   private readonly storeBody: HTMLElement;
   private readonly storeCoins: HTMLElement;
   private readonly levelBody: HTMLElement;
@@ -305,7 +324,13 @@ export class Overlay {
     const storeArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
     storeArt.innerHTML = ICONS.store;
     storeButton.append(storeArt, el('span', 'menu-shortcut-label', 'STORE'));
-    shortcuts.append(stadiums, ballsButton, storeButton);
+    // STREET LEAGUE: the fourth card, with the trophy sticker. On a phone the four go in a 2 x 2 grid.
+    const leagueButton = button('menu-shortcut menu-shortcut-league', '', () => this.showLeague());
+    leagueButton.setAttribute('aria-label', tr('LEAGUE'));
+    const leagueArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
+    leagueArt.innerHTML = ICONS.trophy;
+    leagueButton.append(leagueArt, el('span', 'menu-shortcut-label', 'LEAGUE'));
+    shortcuts.append(stadiums, ballsButton, storeButton, leagueButton);
 
     // A duel against a friend, where the server is reachable.
     const secondary = el('div', 'menu-secondary');
@@ -376,9 +401,21 @@ export class Overlay {
     this.storeBody = el('div', 'store-body');
     storeSheet.append(el('h2', 'panel-title', 'STORE'), this.storeCoins, this.storeBody, backButton('btn btn-ghost', () => this.showMenu()));
     this.storeScreen.append(storeSheet);
+    // STREET LEAGUE: the table, with BACK always under it.
+    this.leagueScreen = el('div', 'screen levels league');
+    const leagueSheet = el('div', 'sheet sheet-wide league-sheet');
+    this.leagueBody = el('div', 'league-body');
+    leagueSheet.append(el('h2', 'panel-title', 'STREET LEAGUE'), this.leagueBody, backButton('btn btn-ghost league-back', () => this.showMenu()));
+    this.leagueScreen.append(leagueSheet);
+    // The season result: shown on the first open of a new week, until its prize is claimed.
+    this.resultScreen = el('div', 'screen levels league');
+    const resultSheet = el('div', 'sheet sheet-wide league-sheet');
+    this.resultBody = el('div', 'league-result');
+    resultSheet.append(el('h2', 'panel-title', 'SEASON RESULT'), this.resultBody);
+    this.resultScreen.append(resultSheet);
 
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen];
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -425,12 +462,13 @@ export class Overlay {
 
   /** True while the stadium list or the balls screen is up: menus, where the match's sound stops. */
   get inMenus(): boolean {
-    return this.root.classList.contains('is-open') && (!this.levels.hidden || !this.skins.hidden || !this.storeScreen.hidden);
+    return this.root.classList.contains('is-open') && (!this.levels.hidden || !this.skins.hidden || !this.storeScreen.hidden || !this.leagueScreen.hidden || !this.resultScreen.hidden);
   }
 
   showMenu(): void {
-    this.refreshMenu();
-    this.show(this.menu);
+    const info = this.refreshMenu();
+    // A season that has just ended comes first, until its prize is claimed.
+    this.show(info.league.pending ? this.resultScreen : this.menu);
   }
 
   showPause(): void {
@@ -467,7 +505,7 @@ export class Overlay {
   }
 
   menuVisible(): boolean {
-    return !this.menu.hidden;
+    return !this.menu.hidden || !this.resultScreen.hidden;
   }
 
   /** A short message with one action (the new-ball toast); it fades on its own or when tapped away. */
@@ -494,7 +532,7 @@ export class Overlay {
   }
 
   /** Redraws everything the menu shows from the current save. Cheap; called whenever any of it may have changed. */
-  refreshMenu(): void {
+  refreshMenu(): MenuInfo {
     const info = this.handlers.menuInfo();
     this.starText.textContent = tr('{n} / {max}', { n: info.stars.n, max: info.stars.max });
     this.starCount.setAttribute('aria-label', tr('STARS {n} / {max}', { n: info.stars.n, max: info.stars.max }));
@@ -507,6 +545,9 @@ export class Overlay {
     this.clubLabel.textContent = tr('CLUB LV {n}', { n: club.level });
     this.clubFill.style.width = `${Math.min(100, Math.round((club.xp / club.need) * 100))}%`;
     this.clubLabel.parentElement?.setAttribute('aria-label', `${tr('CLUB LV {n}', { n: club.level })}, ${club.xp} / ${club.need}`);
+    this.renderLeague(info.league);
+    this.renderResult(info.league.pending);
+    return info;
   }
 
   private showSettings(): void {
@@ -615,6 +656,66 @@ export class Overlay {
       ...abilities,
     );
     this.show(this.storeScreen);
+  }
+
+  /** STREET LEAGUE: the table, from the menu's info as it stands now. */
+  private showLeague(): void {
+    this.refreshMenu();
+    this.show(this.leagueScreen);
+  }
+
+  /** STREET LEAGUE: the division, the days left, the table with promotion and relegation, and the prizes. */
+  private renderLeague(league: LeagueInfo): void {
+    const head = el('div', 'league-head');
+    head.append(el('span', `league-badge is-${league.division.toLowerCase()}`, league.division), el('p', 'league-days', tr('{n} DAYS LEFT', { n: league.daysLeft })));
+    const table = el('div', 'league-table');
+    for (const row of league.rows) {
+      const zone = row.zone === 'promote' ? ' is-promote' : row.zone === 'relegate' ? ' is-relegate' : '';
+      const you = row.isPlayer ? ' is-you' : '';
+      const line = el('div', `league-row${zone}${you}`);
+      line.append(el('span', 'league-pos', String(row.position)), el('span', 'league-club', row.club), el('span', 'league-lp', tr('{n} LP', { n: row.lp })));
+      table.append(line);
+    }
+    const legend = el('div', 'league-legend');
+    if (league.division !== 'GOLD') legend.append(el('span', 'is-promote-key', 'PROMOTION'));
+    if (league.division !== 'BRONZE') legend.append(el('span', 'is-relegate-key', 'RELEGATION'));
+    const prizes = el('div', 'league-prizes');
+    const medal = ['1ST', '2ND', '3RD'];
+    for (const p of league.prizes) {
+      const cell = el('div', 'league-prize');
+      cell.append(el('span', 'league-prize-place', medal[p.position - 1]), el('span', 'league-prize-coins', tr('+{n} COINS', { n: p.coins })));
+      if (p.trophy) cell.append(el('span', 'league-prize-trophy', '+1 TROPHY'));
+      prizes.append(cell);
+    }
+    // The legend and the prizes sit in a side column, which a short (landscape) phone puts beside the table.
+    const side = el('div', 'league-side');
+    side.append(legend, el('h3', 'league-subtitle', 'PRIZES'), prizes, el('p', 'league-trophies', tr('{n} TROPHIES', { n: league.trophies })));
+    this.leagueBody.replaceChildren(head, table, side);
+  }
+
+  /** The season result: where the player finished, promotion or relegation, and the prize to CLAIM. */
+  private renderResult(result: SeasonResult | null): void {
+    if (!result) {
+      this.resultBody.replaceChildren();
+      return;
+    }
+    const place = tr(result.position <= 3 ? ['1ST PLACE', '2ND PLACE', '3RD PLACE'][result.position - 1] : '{n}TH PLACE', { n: result.position });
+    const zone =
+      result.zone === 'promote'
+        ? tr('PROMOTED TO {division}', { division: tr(result.nextDivision) })
+        : result.zone === 'relegate'
+          ? tr('RELEGATED TO {division}', { division: tr(result.nextDivision) })
+          : tr('STAYS IN {division}', { division: tr(result.division) });
+    const prize = `${tr('+{n} COINS', { n: result.coins })}${result.trophy ? ` · ${tr('+1 TROPHY')}` : ''}`;
+    this.resultBody.replaceChildren(
+      el('p', 'league-result-place', place),
+      el('p', 'league-result-line', zone),
+      el('p', 'league-result-line', prize),
+      button('btn btn-primary league-claim', 'CLAIM', () => {
+        this.handlers.claimSeasonPrize();
+        this.showMenu();
+      }),
+    );
   }
 
   private showSkins(): void {

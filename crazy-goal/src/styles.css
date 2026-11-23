@@ -4021,3 +4021,278 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   transition: width 0.5s ease-out;
 }
+
+/* STREET LEAGUE (Step 10b): the menu's fourth card, the table sheet, and the season result card. */
+@media (max-width: 520px) {
+  .menu-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-items: center;
+    gap: 10px;
+    width: min(300px, 100%);
+  }
+
+  .menu-shortcut {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+.league-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100dvh - 24px);
+  min-height: 0;
+}
+
+.league-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Everything but the table keeps its size; the table takes what is left and scrolls. */
+.league-head,
+.league-legend,
+.league-subtitle,
+.league-prizes,
+.league-trophies {
+  flex: none;
+}
+
+.league-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.league-badge {
+  padding: 4px 14px;
+  border: 2px solid #13203d;
+  border-radius: 999px;
+  background: #e9d3b0;
+  color: #13203d;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.league-badge.is-silver {
+  background: #d9e1ea;
+}
+
+.league-badge.is-gold {
+  background: #ffd94d;
+}
+
+.league-days {
+  margin: 0;
+  color: #13203d;
+  font-weight: 900;
+}
+
+.league-table {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 5px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.league-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #13203d;
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 rgba(19, 32, 61, 0.15);
+}
+
+.league-row.is-promote {
+  background: #d9f5df;
+  box-shadow: inset 6px 0 0 #2fb35a;
+}
+
+.league-row.is-relegate {
+  background: #fde0da;
+  box-shadow: inset 6px 0 0 #e2402c;
+}
+
+.league-row.is-you {
+  outline: 3px solid #ffd94d;
+  outline-offset: -3px;
+}
+
+.league-pos {
+  font-weight: 900;
+  text-align: center;
+}
+
+.league-club {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.league-lp {
+  font-variant-numeric: tabular-nums;
+}
+
+.league-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #13203d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.league-legend > span::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-inline-end: 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.league-legend .is-promote-key::before {
+  background: #2fb35a;
+}
+
+.league-legend .is-relegate-key::before {
+  background: #e2402c;
+}
+
+.league-subtitle {
+  margin: 4px 0 0;
+  color: #13203d;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.league-prizes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.league-prize {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: 2px solid #13203d;
+  border-radius: 12px;
+  background: #fff8d6;
+  color: #13203d;
+  text-align: center;
+}
+
+.league-prize-place {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.league-prize-coins {
+  color: #b4560e;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.league-prize-trophy,
+.league-trophies {
+  margin: 0;
+  color: #13203d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.league-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: #13203d;
+  text-align: center;
+}
+
+.league-result-place {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.league-result-line {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.league-claim {
+  min-width: 180px;
+}
+
+.league-back {
+  align-self: center;
+}
+
+/* The side column (legend and prizes) stacks under the table in portrait. */
+.league-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* A short phone on its side: the table on the left, the legend and prizes on the right, so the table can scroll. */
+@media (max-height: 460px) and (min-aspect-ratio: 1/1) {
+  .league-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 14px;
+  }
+
+  .league-head {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .league-table {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .league-side {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-height: 0;
+    gap: 5px;
+  }
+
+  .league-prizes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .league-prize {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    text-align: start;
+  }
+}
