@@ -1,6 +1,7 @@
 import type { Boost } from '../abilities/Cards';
 import { SKINS } from '../ball/Skins';
 import { noUpgrades, UPGRADE_MAX, type UpgradeLevels } from '../progression/Upgrades';
+import { CLUB_START, xpToNext, type Club } from '../progression/Club';
 
 const KEY = 'crazy-goal-save';
 /**
@@ -42,6 +43,10 @@ export interface SaveData {
   seenSkins: string[];
   /** Shot upgrades bought in the store, 0 to 3 each. */
   upgrades: UpgradeLevels;
+  /** CLUB LEVEL: the level and the XP into it. */
+  club: Club;
+  /** Balls a club level has unlocked for free, on top of the ones the stars open. */
+  grantedSkins: string[];
 }
 
 const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0 });
@@ -59,6 +64,8 @@ const fresh = (): SaveData => ({
   freeBoosts: {},
   seenSkins: [],
   upgrades: noUpgrades(),
+  club: { ...CLUB_START },
+  grantedSkins: [],
 });
 
 const volume = (v: unknown, fallback: number): number => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
@@ -109,6 +116,12 @@ export function parseSave(raw: string | null): SaveData {
       if (n > 0) out.freeBoosts[id] = n;
     }
   }
+  if (isRecord(data.club)) {
+    const level = Math.max(1, Math.floor(num(data.club.level)));
+    // Never more XP than the level holds: a bad value must not level up silently on load.
+    out.club = { level, xp: Math.min(num(data.club.xp), xpToNext(level) - 1) };
+  }
+  out.grantedSkins = strings(data.grantedSkins);
   if (isRecord(data.upgrades)) {
     for (const id of ['power', 'curl', 'aim'] as const) out.upgrades[id] = Math.min(UPGRADE_MAX, Math.floor(num(data.upgrades[id])));
   }

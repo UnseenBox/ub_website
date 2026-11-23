@@ -618,6 +618,9 @@ const AR: Readonly<Record<string, string>> = {
   'PERFECT HOUMA': 'حومة كاملة',
   'NEXT STAR AT {n}': 'النجمة التالية عند {n}',
   '+{n} COINS': '+{n} عملة',
+  'CLUB LV {n}': 'نادي المستوى {n}',
+  'LEVEL UP! LV {n}': 'ارتقاء! المستوى {n}',
+  '+{n} XP': '+{n} خبرة',
   '{n} STARS TO OPEN': '{n} نجمة للفتح',
   'YOU HAVE {have} OF {need} STARS': 'لديك {have} من {need} نجمة',
   // Onboarding (1.4).

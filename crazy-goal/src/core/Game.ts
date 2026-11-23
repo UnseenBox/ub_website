@@ -1,6 +1,7 @@
 import type { Boost } from '../abilities/Cards';
 import { BOOST_COSTS } from '../abilities/Cards';
 import { abilityPrice, aimScale, curlScale, nextPrice, noUpgrades, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
+import { CLUB_START, ballIsOpen, gainXp, nextLockedBall, xpForScore, xpToNext, type LevelReward } from '../progression/Club';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
@@ -38,7 +39,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, matchInfo, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
+import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, matchInfo, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
 import { ParticleSystem } from '../particles/ParticleSystem';
@@ -266,6 +267,10 @@ export class Game {
   coinTaken = false;
   /** Kora Coins the last solo goal paid (first clear and new stars), shown on the result card. */
   goalCoins = 0;
+  /** CLUB LEVEL on the goal card: the XP this goal was worth, the levels it reached, and the coins those paid. */
+  goalXp = 0;
+  clubLevels: LevelReward[] = [];
+  clubCoins = 0;
   /** The last solo goal was the level's first clear, and its coins have been doubled by an ad. */
   private goalFirstClear = false;
   private goalDoubled = false;
@@ -378,7 +383,7 @@ export class Game {
       },
       skins: () => {
         const total = this.totalStars();
-        return SKINS.map((s) => ({ ...s, open: total >= s.need, selected: s.id === this.skin.id }));
+        return SKINS.map((s) => ({ ...s, open: ballIsOpen(s, total, this.save.data.grantedSkins), selected: s.id === this.skin.id }));
       },
       pickSkin: (id) => this.useSkin(id),
       skinsSeen: () => this.markBallsSeen(),
@@ -497,9 +502,15 @@ export class Game {
     this.sounds.ui();
   }
 
+  /** Balls that are open (by stars or a club grant) and have not been shown to the player yet. */
+  private unseenBalls() {
+    const total = this.totalStars();
+    return SKINS.filter((s) => s.need > 0 && ballIsOpen(s, total, this.save.data.grantedSkins) && !this.save.data.seenSkins.includes(s.id));
+  }
+
   /** The balls screen was opened: every ball earned so far counts as seen, so the NEW dot goes. */
   private markBallsSeen(): void {
-    const open = unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins);
+    const open = this.unseenBalls();
     if (open.length === 0) return;
     for (const s of open) this.save.data.seenSkins.push(s.id);
     this.save.save();
@@ -512,7 +523,7 @@ export class Game {
    */
   private offerBallToast(): void {
     const tips = this.save.data.tips;
-    const fresh = unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).filter((s) => !tips.includes(`ball:${s.id}`));
+    const fresh = this.unseenBalls().filter((s) => !tips.includes(`ball:${s.id}`));
     if (fresh.length === 0) return;
     for (const s of fresh) tips.push(`ball:${s.id}`);
     this.save.save();
@@ -522,7 +533,7 @@ export class Game {
 
   /** Stars still missing for the next ball (for the result card), or null. */
   starsToNextBall(): number | null {
-    return starsToNextSkin(this.totalStars(), SKINS);
+    return starsToNextSkin(this.totalStars(), SKINS.filter((s) => !this.save.data.grantedSkins.includes(s.id)));
   }
 
   /** Stars won in the houmas alone: what opens chapters. */
@@ -555,7 +566,8 @@ export class Game {
       continueNumber: matchInfo(this.levels, at)[matchInfo(this.levels, at).lesson ? 'lesson' : 'match'] ?? at + 1,
       lesson: matchInfo(this.levels, at).lesson !== null,
       continueName: this.levels[at]?.name ?? '',
-      newBall: unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).length > 0,
+      newBall: this.unseenBalls().length > 0,
+      club: { level: this.save.data.club.level, xp: this.save.data.club.xp, need: xpToNext(this.save.data.club.level) },
     };
   }
 
@@ -577,6 +589,8 @@ export class Game {
     data.boostIntro = false;
     data.tips = [];
     data.seenSkins = [];
+    data.club = { ...CLUB_START };
+    data.grantedSkins = [];
     this.skin = skinOf('classic');
     this.save.save();
     // Back to the title card, not into a match: a live match under the menu leaves the in-match controls
@@ -1485,6 +1499,25 @@ export class Game {
     this.events.emit('MECHANIC', e);
   };
 
+  /** Adds a goal's XP to the club, and pays each level it reaches. */
+  private awardClub(score: number): void {
+    const data = this.save.data;
+    const xp = xpForScore(score);
+    const gain = gainXp(data.club, xp);
+    data.club = gain.club;
+    this.goalXp = xp;
+    this.clubLevels = gain.levels;
+    for (const reward of gain.levels) {
+      this.clubCoins += reward.coins;
+      if (reward.ability) data.freeBoosts[reward.ability] = (data.freeBoosts[reward.ability] ?? 0) + 1;
+      if (reward.ball) {
+        const next = nextLockedBall(SKINS, this.totalStars(), data.grantedSkins);
+        if (next) data.grantedSkins.push(next.id);
+      }
+    }
+    data.coins += this.clubCoins;
+  }
+
   private scoreGoal(): void {
     const b = this.ball.body;
     const goal = this.level.goal;
@@ -1497,6 +1530,9 @@ export class Game {
     this.record.goals++;
     this.lastScore = card.total;
     this.goalCoins = 0;
+    this.goalXp = 0;
+    this.clubLevels = [];
+    this.clubCoins = 0;
     // Solo coins are paid for progress only: the first clear, and each star won for the first time.
     if (this.shotRule === 'free') {
       const stars = Math.max(this.record.stars, card.stars);
@@ -1510,6 +1546,8 @@ export class Game {
     if (this.shotRule === 'free') this.offerGoalTips(card.lines.map((l) => l.label));
     if (card.newBest) this.record.best = card.total;
     if (card.stars > this.record.stars) this.record.stars = card.stars;
+    // CLUB LEVEL: every solo goal earns XP, replays too. Levels pay coins, and some give a ball or an ability.
+    if (this.shotRule === 'free') this.awardClub(card.total);
     this.save.save();
     this.ballGap = this.shotRule === 'free' ? this.starsToNextBall() : null;
     if (this.shotRule === 'free') this.events.emit('LEVEL_GOAL', { level: this.level.index + 1, stars: card.stars, score: card.total, attempts: this.record.attempts, firstClear, bounces: card.bounces });

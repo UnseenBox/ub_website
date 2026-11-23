@@ -24,6 +24,9 @@ const LINE_H = 30;
 const NEXT_H = 52;
 /** Extra height for the coins-earned line, drawn only when the goal paid something. */
 const COINS_H = 28;
+/** Extra card height for the XP line, and for the LEVEL UP pill. */
+const XP_H = 24;
+const LEVELUP_H = 34;
 /** Extra height for the stars-to-the-next-ball line. */
 const BALL_H = 26;
 /** Gap between the alley wall and the duel's scoreboard. */
@@ -473,7 +476,10 @@ export class Hud {
     const next = solo ? nextStarTarget(g.level.def, g.record.stars) : null;
     const coins = solo ? g.goalCoins : 0;
     const ballGap = solo ? g.ballGap : null;
-    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + (coins > 0 ? COINS_H : 0) + (ballGap !== null ? BALL_H : 0);
+    // CLUB LEVEL: the XP this goal was worth, and the levels it reached (a LEVEL UP pill on the card).
+    const xp = solo ? g.goalXp : 0;
+    const levelUps = solo ? g.clubLevels : [];
+    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + (coins > 0 ? COINS_H : 0) + (xp > 0 ? XP_H : 0) + (levelUps.length > 0 ? LEVELUP_H : 0) + (ballGap !== null ? BALL_H : 0);
     // The card is enlarged with the HUD on a small screen, but never wider than the screen, and never so tall
     // that the AGAIN / NEXT buttons under it cover its last lines: a long list of tricks shrinks it to fit.
     const cam = g.camera;
@@ -611,6 +617,22 @@ export class Hud {
         ctx.globalAlpha = 1;
         text(ctx, label, x0 + 30, ny, { size: 14, color: C.terra, baseline: 'middle', weight: 900, alpha: tail });
         ny += COINS_H;
+      }
+      if (xp > 0) {
+        text(ctx, tr('+{n} XP', { n: xp }), cx, ny, { size: 13, color: C.greenDeep, align: 'center', baseline: 'middle', weight: 900, spacing: 1, alpha: tail });
+        ny += XP_H;
+      }
+      if (levelUps.length > 0) {
+        const label = `${tr('LEVEL UP! LV {n}', { n: levelUps[levelUps.length - 1].level })}${g.clubCoins > 0 ? ` · ${tr('+{n} COINS', { n: g.clubCoins })}` : ''}`;
+        ctx.font = `900 14px ${FONT}`;
+        const pw = ctx.measureText(label).width + 32;
+        ctx.globalAlpha = tail;
+        roundRect(ctx, cx - pw / 2, ny - 13, pw, 26, 13);
+        ctx.fillStyle = C.greenGame;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        text(ctx, label, cx, ny, { size: 14, color: '#ffffff', align: 'center', baseline: 'middle', weight: 900, spacing: 0.5, alpha: tail });
+        ny += LEVELUP_H;
       }
       if (solo) {
         if (next) {

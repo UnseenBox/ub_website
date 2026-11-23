@@ -76,6 +76,8 @@ export interface MenuInfo {
   continueName: string;
   /** A ball has unlocked that the player has not been told about. */
   newBall: boolean;
+  /** CLUB LEVEL: the level, the XP into it, and the XP the level needs. */
+  club: { level: number; xp: number; need: number };
 }
 
 export interface LevelTile {
@@ -202,6 +204,8 @@ export class Overlay {
   private readonly starCount: HTMLElement;
   private readonly starText: HTMLElement;
   private readonly coinText: HTMLElement;
+  private readonly clubLabel: HTMLElement;
+  private readonly clubFill: HTMLElement;
   private readonly continueLine: HTMLElement;
   private readonly ballsDot: HTMLElement;
   private readonly sound: HTMLInputElement;
@@ -247,7 +251,16 @@ export class Overlay {
     this.starCount.append(starIcon, this.starText);
     const topRight = el('div', 'menu-top-right');
     topRight.append(coinPill, this.starCount);
-    top.append(gear, topRight);
+    // CLUB LEVEL: a thin bar under the coin and star pills.
+    const clubBar = el('div', 'club-bar');
+    this.clubLabel = el('span', 'club-label');
+    const clubTrack = el('div', 'club-track');
+    this.clubFill = el('span', 'club-fill');
+    clubTrack.append(this.clubFill);
+    clubBar.append(this.clubLabel, clubTrack);
+    const meters = el('div', 'menu-meters');
+    meters.append(topRight, clubBar);
+    top.append(gear, meters);
 
     const mark = el('h1', 'menu-logo');
     mark.setAttribute('aria-label', 'Crazy Kora');
@@ -490,6 +503,10 @@ export class Overlay {
     this.continueLine.textContent = `${tr(info.lesson ? 'LESSON {n}' : 'MATCH {n}', { n: info.continueNumber })} · ${tr(info.continueName)}`;
     this.playButton.setAttribute('aria-label', `${tr('PLAY')}, ${this.continueLine.textContent}`);
     this.ballsDot.hidden = !info.newBall;
+    const club = info.club;
+    this.clubLabel.textContent = tr('CLUB LV {n}', { n: club.level });
+    this.clubFill.style.width = `${Math.min(100, Math.round((club.xp / club.need) * 100))}%`;
+    this.clubLabel.parentElement?.setAttribute('aria-label', `${tr('CLUB LV {n}', { n: club.level })}, ${club.xp} / ${club.need}`);
   }
 
   private showSettings(): void {
