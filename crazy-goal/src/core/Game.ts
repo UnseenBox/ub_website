@@ -1,6 +1,6 @@
 import type { Boost } from '../abilities/Cards';
 import { BOOST_COSTS } from '../abilities/Cards';
-import { abilityPrice, aimScale, curlScale, nextPrice, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
+import { abilityPrice, aimScale, curlScale, nextPrice, noUpgrades, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
@@ -559,18 +559,29 @@ export class Game {
     };
   }
 
-  /** Erases every record and puts the player back on the first alley. */
+  /**
+   * Erases every record and every reward the player has earned, then puts them back on the title card.
+   * Sound, music, mute and language are kept: those are preferences, not progress.
+   */
   resetProgress(): void {
-    // Drop an armed boost first: loadLevel would otherwise refund it into the fresh wallet.
+    // Drop an armed boost first, so nothing is refunded into the wiped wallet.
     this.armedBoost = null;
     this.armedFree = false;
     this.tip = null;
-    this.save.data.levels = {};
-    this.save.data.coins = 0;
-    this.save.data.skin = 'classic';
+    const data = this.save.data;
+    data.levels = {};
+    data.coins = 0;
+    data.skin = 'classic';
+    data.upgrades = noUpgrades();
+    data.freeBoosts = {};
+    data.boostIntro = false;
+    data.tips = [];
+    data.seenSkins = [];
     this.skin = skinOf('classic');
     this.save.save();
-    this.loadLevel(0);
+    // Back to the title card, not into a match: a live match under the menu leaves the in-match controls
+    // drawn over it, and nothing can start a shot from there. returnToMenu() also shows the menu.
+    this.returnToMenu();
   }
 
   private setVolumes(sound: number, music: number): void {
@@ -1026,7 +1037,12 @@ export class Game {
 
   /** Leaves the title card. */
   play(): void {
-    if (this.state !== 'menu') return;
+    if (this.state !== 'menu') {
+      // Only ever a stuck menu over a live match. Put the game back on the title card first, so LET'S PLAY
+      // always starts a lesson instead of doing nothing. Anything else (a match with no menu) stays as it is.
+      if (!this.overlay.menuVisible()) return;
+      this.returnToMenu();
+    }
     this.audio.unlock();
     this.sounds.ui();
     this.overlay.hide();

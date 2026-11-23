@@ -510,10 +510,11 @@ export class Overlay {
       this.resetButton.textContent = tr('ARE YOU SURE? TAP AGAIN TO ERASE EVERYTHING.');
       return;
     }
-    this.handlers.resetProgress();
     this.resetArmed = false;
-    this.resetButton.textContent = tr('PROGRESS ERASED');
-    window.setTimeout(() => this.showMenu(), 600);
+    // The game puts itself back on the title card, which shows the menu at once. A delayed showMenu() used to
+    // run here, and could put the menu back over a match the player had just started.
+    this.handlers.resetProgress();
+    this.showToast(tr('PROGRESS ERASED'), '', () => {}, 2400);
   }
 
   /** The store: shot upgrades (three levels each) and abilities to stock up on, paid in coins. */
