@@ -8,6 +8,8 @@ export const isCrazyGames = PORTAL === 'crazygames';
 const ADS_ON: boolean = import.meta.env.VITE_ADS === 'on';
 
 const SDK_URL = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
+/** The SDK throttles gameplay calls that come closer together than this (ms): it logs them as errors. */
+const GAMEPLAY_GAP_MS = 1000;
 /** How long boot waits for the SDK before playing on without it. */
 /**
  * CrazyGames builds have the SDK in place from the page's own script tag. This is how long to wait for the
@@ -81,6 +83,10 @@ const loadScript = (url: string, timeout: number): Promise<void> =>
 export class Portal {
   private sdk: CrazySdk | null = null;
   private playing = false;
+  /** What the SDK was last told about play, and when (a gameplay call waits for the gap after the last one). */
+  private sentPlaying = false;
+  private sentAt = 0;
+  private gameplayTimer = 0;
   private adOpen = false;
   private heldMuted = false;
   private loading = false;
@@ -140,7 +146,7 @@ export class Portal {
       sdk.game.loadingStart();
     }
     // A press on Play may have happened before the SDK was live.
-    if (this.playing) sdk.game.gameplayStart();
+    if (this.playing) this.syncGameplay();
     // The audio manager may already be waiting to hear the platform's mute setting.
     if (this.muteWatcher) this.attachMuteWatcher(sdk, this.muteWatcher);
   }
@@ -200,20 +206,35 @@ export class Portal {
   }
 
   gameplayStart(): void {
-    if (this.playing) return;
     this.playing = true;
-    try {
-      this.sdk?.game.gameplayStart();
-    } catch {
-      /* reporting must never break the game */
-    }
+    this.syncGameplay();
   }
 
   gameplayStop(): void {
-    if (!this.playing) return;
     this.playing = false;
+    this.syncGameplay();
+  }
+
+  /**
+   * Tells the SDK what the game is doing, once: a repeat is not sent, and a change that comes sooner than the gap
+   * after the last call waits for it. The newest intent is the one sent.
+   */
+  private syncGameplay(): void {
+    if (this.gameplayTimer) return;
+    const wait = GAMEPLAY_GAP_MS - (Date.now() - this.sentAt);
+    if (wait > 0) {
+      this.gameplayTimer = window.setTimeout(() => {
+        this.gameplayTimer = 0;
+        this.syncGameplay();
+      }, wait);
+      return;
+    }
+    if (this.sentPlaying === this.playing) return;
+    this.sentPlaying = this.playing;
+    this.sentAt = Date.now();
     try {
-      this.sdk?.game.gameplayStop();
+      if (this.playing) this.sdk?.game.gameplayStart();
+      else this.sdk?.game.gameplayStop();
     } catch {
       /* reporting must never break the game */
     }
