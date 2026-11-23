@@ -32,12 +32,27 @@ function posterSaver(): Plugin {
   };
 }
 
+/**
+ * The CrazyGames SDK's own script tag, first in <head>, in the CrazyGames build only. The SDK then exists
+ * before any game code runs, so the loading and gameplay signals are never missed on a slow phone.
+ * The other builds do not load it at all.
+ */
+function crazySdkTag(enabled: boolean): Plugin {
+  return {
+    name: 'crazygames-sdk-tag',
+    transformIndexHtml() {
+      if (!enabled) return [];
+      return [{ tag: 'script', attrs: { src: 'https://sdk.crazygames.com/crazygames-sdk-v3.js' }, injectTo: 'head-prepend' }];
+    },
+  };
+}
+
 // Relative base so the build runs from any static path (itch.io, portals, a sub-folder).
 // The CrazyGames build (`--mode crazygames`, see .env.crazygames) goes to its own folder
 // so the zip for the portal is packed from there.
 export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [posterSaver()],
+  plugins: [posterSaver(), crazySdkTag(mode === 'crazygames')],
   // Duels talk to the website's API. In development that is the site running locally.
   server: { port: 5191, proxy: { '/api': 'http://localhost:3210' } },
   preview: { port: 4191 },

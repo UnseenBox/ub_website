@@ -9,7 +9,12 @@ const ADS_ON: boolean = import.meta.env.VITE_ADS === 'on';
 
 const SDK_URL = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
 /** How long boot waits for the SDK before playing on without it. */
-const SDK_TIMEOUT = 3000;
+/**
+ * CrazyGames builds have the SDK in place from the page's own script tag. This is how long to wait for the
+ * fallback fetch before starting to watch for it, and how long the watch goes on (once a second).
+ */
+const CG_SDK_TIMEOUT = 15000;
+const CG_SDK_WATCH_SECONDS = 30;
 /** Seconds between rewarded-ad offers. */
 const REWARD_COOLDOWN = 90;
 const REWARD_KEY = 'crazy-goal-rewarded-at';
@@ -89,28 +94,55 @@ export class Portal {
     // Other portals and local builds should not download a third-party SDK at all.
     if (!isCrazyGames) return;
     try {
-      if (!window.CrazyGames?.SDK) await loadScript(SDK_URL, SDK_TIMEOUT);
-      const sdk = window.CrazyGames?.SDK;
-      if (!sdk) return;
-      await sdk.init();
-      // Every call throws outside local and crazygames environments.
-      if (sdk.environment !== 'local' && sdk.environment !== 'crazygames') return;
-      this.sdk = sdk;
-      // Boot may have finished while the SDK was in flight. Hand it the same two edges so
-      // the portal sees a complete loading span instead of only the stop.
-      if (this.ready) {
-        sdk.game.loadingStart();
-        sdk.game.loadingStop();
-      } else if (this.loading) {
-        sdk.game.loadingStart();
+      // The build's script tag normally has the SDK in place already. Only when it is missing do we fetch it here.
+      let sdk = window.CrazyGames?.SDK ?? null;
+      if (!sdk) {
+        try {
+          await loadScript(SDK_URL, CG_SDK_TIMEOUT);
+        } catch {
+          /* too slow or blocked: the watch below takes over */
+        }
+        sdk = window.CrazyGames?.SDK ?? null;
       }
-      // A press on Play may have happened before the SDK was live.
-      if (this.playing) sdk.game.gameplayStart();
-      // The audio manager may already be waiting to hear the platform's mute setting.
-      if (this.muteWatcher) this.attachMuteWatcher(sdk, this.muteWatcher);
+      // Still missing (a slow phone): keep looking for a while, rather than giving up for the whole session.
+      if (!sdk) sdk = await this.watchForSdk();
+      if (!sdk) return;
+      await this.attach(sdk);
     } catch {
       this.sdk = null;
     }
+  }
+
+  /** Looks for the SDK once a second, for a while after boot. Returns it, or null when it never shows up. */
+  private async watchForSdk(): Promise<CrazySdk | null> {
+    for (let i = 0; i < CG_SDK_WATCH_SECONDS; i++) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 1000));
+      const sdk = window.CrazyGames?.SDK;
+      if (sdk) return sdk;
+    }
+    return null;
+  }
+
+  /**
+   * Starts the SDK and hands it the lifecycle signals the game has already sent, so a late start loses nothing.
+   */
+  private async attach(sdk: CrazySdk): Promise<void> {
+    await sdk.init();
+    // Every call throws outside local and crazygames environments.
+    if (sdk.environment !== 'local' && sdk.environment !== 'crazygames') return;
+    this.sdk = sdk;
+    // Boot may have finished while the SDK was in flight. Hand it the same two edges so
+    // the portal sees a complete loading span instead of only the stop.
+    if (this.ready) {
+      sdk.game.loadingStart();
+      sdk.game.loadingStop();
+    } else if (this.loading) {
+      sdk.game.loadingStart();
+    }
+    // A press on Play may have happened before the SDK was live.
+    if (this.playing) sdk.game.gameplayStart();
+    // The audio manager may already be waiting to hear the platform's mute setting.
+    if (this.muteWatcher) this.attachMuteWatcher(sdk, this.muteWatcher);
   }
 
   /**
