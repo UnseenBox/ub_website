@@ -1,4 +1,4 @@
-export type Command = 'restart' | 'pause' | 'mute' | 'debug' | 'confirm' | 'air' | 'bendLeft' | 'bendRight';
+export type Command = 'restart' | 'pause' | 'mute' | 'debug' | 'confirm' | 'air' | 'bendLeft' | 'bendRight' | 'heightUp' | 'heightDown';
 
 /** What the device-specific listeners report. Only InputManager implements it. */
 export interface InputSink {

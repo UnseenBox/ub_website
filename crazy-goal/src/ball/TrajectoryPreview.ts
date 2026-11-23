@@ -1,7 +1,7 @@
 import type { Level } from '../levels/Level';
 import { circle, Layer } from '../physics/Collider';
 import { FIXED_DT, type ContactListener } from '../physics/PhysicsWorld';
-import { launchVz } from '../physics/Flight';
+import { lobVz } from '../physics/Flight';
 import { copyMotion, createBody, type RigidBody } from '../physics/RigidBody';
 
 const MAX_POINTS = 64;
@@ -45,7 +45,7 @@ export class TrajectoryPreview {
   }
 
   /** `field`, when given, is applied to the ghost before every step (the magnet's pull). */
-  compute(level: Level, ball: RigidBody, dirX: number, dirY: number, speed: number, power: number, field: ((b: RigidBody) => void) | null = null, kick: { air: boolean; bend: number } = { air: false, bend: 0 }, full = false, reach = 1): void {
+  compute(level: Level, ball: RigidBody, dirX: number, dirY: number, speed: number, power: number, field: ((b: RigidBody) => void) | null = null, kick: { air: boolean; bend: number; height?: number | null } = { air: false, bend: 0 }, full = false, reach = 1): void {
     const g = this.ghost;
     const world = level.world;
     copyMotion(ball, g);
@@ -53,7 +53,7 @@ export class TrajectoryPreview {
     g.vy = dirY * speed;
     g.angVel = 0;
     g.z = kick.air ? 0.01 : 0;
-    g.vz = kick.air ? launchVz(power) : 0;
+    g.vz = kick.air ? lobVz(power, kick.height ?? null) : 0;
     g.bend = kick.bend;
     g.turned = 0;
     this.count = 0;

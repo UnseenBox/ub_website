@@ -251,7 +251,7 @@ export class Hud {
       // P, not Escape: in a browser Escape also leaves fullscreen, so the game leaves it alone.
       ['P', 'PAUSE'],
       ['M', g.audio.muted ? 'SOUND IS OFF' : 'SOUND'],
-      ...(parts.air ? ([['F', 'AIR']] as const) : []),
+      ...(parts.air ? ([['F', 'AIR'], ['W S', 'HEIGHT']] as const) : []),
       ...(parts.bend ? ([['Q E', 'BEND']] as const) : []),
     ];
   }

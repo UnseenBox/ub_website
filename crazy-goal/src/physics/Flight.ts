@@ -43,6 +43,27 @@ export const airSpeed = (power: number): number => 520 + 900 * Math.min(1, Math.
 
 export const launchVz = (power: number): number => KICK.vzMin + (KICK.vzMax - KICK.vzMin) * Math.min(1, Math.max(0, power));
 
+/**
+ * How high a lofted ball goes, as the player picks it: 0 is a low lob that still clears a car, 1 the highest
+ * (about 0.7 to 1.25 seconds in the air). The vertical speed is what sets the height.
+ */
+export const ALTITUDE = { vzMin: 300, vzMax: 560 } as const;
+
+/** The vertical speed of a chosen height, from 0 (low) to 1 (high). */
+export const altitudeVz = (height: number): number => ALTITUDE.vzMin + (ALTITUDE.vzMax - ALTITUDE.vzMin) * Math.min(1, Math.max(0, height));
+
+/** The height a strike picks on its own: the lob its power gives, as a share of the altitude range. */
+export const autoAltitude = (power: number): number => (launchVz(power) - ALTITUDE.vzMin) / (ALTITUDE.vzMax - ALTITUDE.vzMin);
+
+/** The vertical speed of a lofted shot: the height the player picked, or the power's own lob when there is none. */
+export const lobVz = (power: number, height: number | null): number => (height === null ? launchVz(power) : altitudeVz(height));
+
+/** A height the player picks moves in twentieths: the slider and the keys land on the same values. */
+export const snapHeight = (height: number): number => Math.round(Math.min(1, Math.max(0, height)) * 20) / 20;
+
+/** How far one press of W or S moves the height. */
+export const HEIGHT_KEY_STEP = 0.1;
+
 const smooth = (edge0: number, edge1: number, x: number): number => {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
