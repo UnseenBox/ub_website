@@ -110,6 +110,8 @@ export interface LevelTile {
   gate?: { need: number; have: number };
   /** The level's coin has not been collected yet. */
   coin?: boolean;
+  /** The match's bonus objective has been met: a medal on the tile. */
+  bonus?: boolean;
 }
 
 /** One chapter's gate, for the header on the map: stars asked, stars had, and whether it blocks. */
@@ -834,6 +836,13 @@ export class Overlay {
         b.setAttribute('aria-label', `${tr(tile.name)}, ${b.title}`);
       }
       b.append(el('span', 'tile-number', tile.label), nameLine, stars, bestLine);
+      if (tile.unlocked && tile.bonus) {
+        // The bonus objective was met on this match: a medal on the tile.
+        const medal = el('span', 'tile-medal');
+        medal.innerHTML = ICONS.medal;
+        b.append(medal);
+        b.setAttribute('aria-label', `${b.getAttribute('aria-label')}, ${tr('BONUS')}`);
+      }
       if (tile.unlocked && tile.coin) {
         // The alley's coin is still out there.
         const coin = el('span', 'tile-coin');

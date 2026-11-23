@@ -3,6 +3,8 @@ import { BOOST_COSTS } from '../abilities/Cards';
 import { abilityPrice, aimScale, curlScale, nextPrice, noUpgrades, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
 import { CLUB_START, ballIsOpen, gainXp, nextLockedBall, xpForScore, xpToNext, type LevelReward } from '../progression/Club';
 import { addLeagueLp, claimLeague as claimPrize, freshLeague, lpForGoal, pendingResult, prizeFor, seasonClock, settleLeague, standings } from '../progression/League';
+import { bonusFor } from '../levels/bonus';
+import { BONUS_COINS, bonusMet, type BonusId } from '../scoring/Bonus';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
@@ -274,6 +276,8 @@ export class Game {
   clubCoins = 0;
   /** STREET LEAGUE: the LP this goal earned, for the goal card. */
   goalLp = 0;
+  /** BONUS OBJECTIVE: the match's objective, whether this goal met it, and the coins it paid (once). */
+  goalBonus: { id: BonusId; met: boolean; coins: number } | null = null;
   /** The last solo goal was the level's first clear, and its coins have been doubled by an ad. */
   private goalFirstClear = false;
   private goalDoubled = false;
@@ -1196,7 +1200,7 @@ export class Game {
         const rec = this.save.level(def.id);
         const gate = isGateBlocked(this.save.data, this.levels, i) ? gateStatus(this.save.data, this.levels, chapterOf(i)) : undefined;
         const m = matchInfo(this.levels, i);
-        return { name: def.name, group: m.lesson ? 'TUTORIAL' : (def.world ?? 'OPENING SEASON'), label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin };
+        return { name: def.name, group: m.lesson ? 'TUTORIAL' : (def.world ?? 'OPENING SEASON'), label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin, bonus: rec.bonus };
       }),
       this.level.index,
       focus,
@@ -1567,7 +1571,8 @@ export class Game {
   private scoreGoal(): void {
     const b = this.ball.body;
     const goal = this.level.goal;
-    const card = scoreShot(this.analyzer.finish(true, b, goal, this.level.hasKeeper), this.record.best, this.level.def.stars);
+    const facts = this.analyzer.finish(true, b, goal, this.level.hasKeeper);
+    const card = scoreShot(facts, this.record.best, this.level.def.stars);
     const firstClear = this.record.goals === 0;
     const starsBefore = this.record.stars;
     this.goalFirstClear = firstClear && this.shotRule === 'free';
@@ -1581,6 +1586,7 @@ export class Game {
     this.clubLevels = [];
     this.clubCoins = 0;
     this.goalLp = 0;
+    this.goalBonus = null;
     // Solo coins are paid for progress only: the first clear, and each star won for the first time.
     if (this.shotRule === 'free') {
       const stars = Math.max(this.record.stars, card.stars);
@@ -1597,6 +1603,17 @@ export class Game {
     // CLUB LEVEL: every solo goal earns XP, replays too. Levels pay coins, and some give a ball or an ability.
     if (this.shotRule === 'free') this.awardClub(card.total);
     if (this.shotRule === 'free') this.awardLeague(Math.max(0, card.stars - starsBefore));
+    // BONUS OBJECTIVE: a solo goal that meets this match's objective pays BONUS_COINS, the first time only.
+    const bonusId = this.shotRule === 'free' ? bonusFor(this.level.def.id) : null;
+    if (bonusId) {
+      const met = bonusMet(bonusId, facts);
+      const paid = met && !this.record.bonus;
+      if (paid) {
+        this.record.bonus = true;
+        this.save.data.coins += BONUS_COINS;
+      }
+      this.goalBonus = { id: bonusId, met, coins: paid ? BONUS_COINS : 0 };
+    }
     this.save.save();
     this.ballGap = this.shotRule === 'free' ? this.starsToNextBall() : null;
     if (this.shotRule === 'free') this.events.emit('LEVEL_GOAL', { level: this.level.index + 1, stars: card.stars, score: card.total, attempts: this.record.attempts, firstClear, bounces: card.bounces });

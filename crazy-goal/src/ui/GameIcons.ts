@@ -164,6 +164,15 @@ const RAW = {
      ${shine(19, 15, 2.2, 4.5, 14)}`,
     linear('gi-cup', '#ffe680', '#f0a21c'),
   ),
+  /** The bonus: a gold medal on two ribbons. */
+  medal: svg(
+    `<path d="M16 4l8 14M32 4l-8 14" stroke="#2a6fc9" stroke-width="6" stroke-linecap="round"/>
+     <path d="M16 4l8 14M32 4l-8 14" stroke="#e2402c" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="4 3"/>
+     <circle cx="24" cy="31" r="14" fill="url(#gi-medal)" stroke="${INK}" stroke-width="3"/>
+     <circle cx="24" cy="31" r="8" fill="none" stroke="#a86b00" stroke-width="2"/>
+     ${shine(19, 25, 3, 1.8, -30)}`,
+    linear('gi-medal', '#ffe680', '#f0a21c'),
+  ),
 } as const;
 
 export type IconName = keyof typeof RAW;

@@ -21,6 +21,8 @@ export interface LevelRecord {
   coin: boolean;
   /** Stars already paid out in coins (never pay for the same star twice). */
   paidStars: number;
+  /** The match's bonus objective was met once, and its coins were paid then. */
+  bonus: boolean;
 }
 
 export interface SaveData {
@@ -52,7 +54,7 @@ export interface SaveData {
   league: League;
 }
 
-const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0 });
+const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0, bonus: false });
 
 const fresh = (): SaveData => ({
   version: SAVE_VERSION,
@@ -107,6 +109,7 @@ export function parseSave(raw: string | null): SaveData {
         goals: num(rec.goals),
         stars,
         coin: rec.coin === true,
+        bonus: rec.bonus === true,
         // A v1 star was always paid for in goal coins: migrate as `stars` so nobody is paid twice.
         paidStars: legacy || rec.paidStars === undefined ? stars : Math.min(3, num(rec.paidStars)),
       };

@@ -6,6 +6,8 @@ import { MISS_LABEL } from '../goal/GoalDetector';
 import { formatScore, roundRect, signText, text, wrapText } from '../rendering/DrawUtils';
 import { C, FONT, rgba } from '../rendering/Palette';
 import { nextStarTarget, starHint } from '../progression/Progression';
+import { BONUS_OBJECTIVES, type BonusId } from '../scoring/Bonus';
+import { bonusFor } from '../levels/bonus';
 import arcadeStarUrl from '../assets/ui/arcade-star.png';
 import arcadeCoinUrl from '../assets/ui/arcade-coin.png';
 
@@ -26,6 +28,7 @@ const NEXT_H = 52;
 const COINS_H = 28;
 /** Extra card height for the XP line, and for the LEVEL UP pill. */
 const XP_H = 24;
+const BONUS_H = 24;
 const LEVELUP_H = 34;
 /** Extra height for the stars-to-the-next-ball line. */
 const BALL_H = 26;
@@ -110,10 +113,12 @@ export class Hud {
 
     if (g.tip && (g.state === 'ready' || g.state === 'aiming') && !g.paused) this.drawTip(ctx, g, u, g.tip.text);
     // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
-    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active && !g.guideDef()) {
-      // (A lesson has its coach card up there instead: the stars are for later.)
+    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active) {
       const keys = !cam.portrait && !g.input.pointer.touch && !COARSE.matches;
-      this.drawTargets(ctx, g, u, left, top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0));
+      const colTop = top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0);
+      // A lesson has its coach card up there instead: the stars are for later. A match with a bonus objective still shows it.
+      if (!g.guideDef()) this.drawTargets(ctx, g, u, left, colTop);
+      else if (bonusFor(g.level.def.id)) this.drawBonusOnly(ctx, g, u, left, colTop);
     }
     if (g.state === 'missed') this.drawMiss(ctx, g, u);
     if (g.banner && g.banner.t < g.banner.dur) this.drawBannerText(ctx, g, u);
@@ -260,6 +265,29 @@ export class Hud {
     });
   }
 
+  /** On a guided match (its coach card is up) the stars stay away, but the bonus objective still shows, in their place. */
+  private drawBonusOnly(ctx: CanvasRenderingContext2D, g: Game, u: number, left: number, colTop: number): void {
+    const cam = g.camera;
+    const { arena } = g.level.def;
+    const id = bonusFor(g.level.def.id);
+    if (!id) return;
+    const done = g.record.bonus;
+    ctx.save();
+    if (!cam.portrait) {
+      ctx.translate(left, colTop);
+      ctx.scale(u, u);
+      this.drawBonusPill(ctx, 0, 0, id, done, false);
+    } else {
+      // Just under the goal, on the grass: the coach card covers the space above it.
+      ctx.translate(arena.x + arena.w / 2, arena.y + 70);
+      ctx.scale(u, u);
+      this.drawBonusPill(ctx, 0, 0, id, done, true);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
   /**
    * The star targets: `★ GOAL · ★★ 1,400 · ★★★ 2,600`, the stars already won on this level lit.
    * A row above the goal on a phone, a small card in the left column beside the alley otherwise.
@@ -276,6 +304,8 @@ export class Hud {
     ];
     const STAR = 17;
     const FS = 13;
+    const bonusId = bonusFor(g.level.def.id);
+    const bonusDone = g.record.bonus;
     // The first star not yet won is the one to play for: its chip is lit.
     const next = Math.min(3, earned + 1);
     const drawStars = (n: number, x: number, cy: number, on: boolean): void => {
@@ -307,6 +337,7 @@ export class Hud {
         drawStars(seg.n, 16, cy, on);
         text(ctx, seg.label, w - 16, cy + 1, { size: FS, color: on ? C.sun : rgba(C.white, 0.85), align: 'right', baseline: 'middle', weight: 900, spacing: 1 });
       });
+      if (bonusId) this.drawBonusPill(ctx, 0, h + 14, bonusId, bonusDone, false);
     } else {
       // One row, centred above the goal and kept inside the alley's width.
       const GAP = 20;
@@ -338,10 +369,23 @@ export class Hud {
         text(ctx, seg.label, x + sw, 1, { size: FS, color: on ? C.sun : rgba(C.white, 0.85), baseline: 'middle', weight: 900, spacing: 1 });
         x += segW + GAP;
       });
+      if (bonusId) this.drawBonusPill(ctx, 0, h / 2 + 14, bonusId, bonusDone, true);
     }
     ctx.restore();
     ctx.globalAlpha = 1;
     ctx.textBaseline = 'alphabetic';
+  }
+
+  /** The match's bonus objective, in a small pill under the star targets while aiming (BONUS DONE once it is met). */
+  private drawBonusPill(ctx: CanvasRenderingContext2D, x: number, y: number, id: BonusId, done: boolean, centred: boolean): void {
+    const label = `${tr(done ? 'BONUS DONE' : 'BONUS')}: ${tr(BONUS_OBJECTIVES[id].label)}`;
+    const size = 11;
+    const h = 22;
+    ctx.font = `900 ${size}px ${FONT}`;
+    const w = ctx.measureText(label).width + 22;
+    const left = centred ? x - w / 2 : x;
+    hudPill(ctx, left, y - h / 2, w, h, h / 2);
+    text(ctx, label, left + w / 2, y, { size, color: done ? C.sun : rgba(C.white, 0.9), align: 'center', baseline: 'middle', weight: 900, spacing: 1 });
   }
 
   /** A one-time scoring tip: up to two lines in a pill under the kerb, until the next shot. */
@@ -477,11 +521,13 @@ export class Hud {
     const coins = solo ? g.goalCoins : 0;
     // STREET LEAGUE: the LP this goal earned, shown beside the coins.
     const lpGain = solo ? g.goalLp : 0;
+    // BONUS OBJECTIVE: the one this match asks for, when this goal met it.
+    const bonus = solo ? g.goalBonus : null;
     const ballGap = solo ? g.ballGap : null;
     // CLUB LEVEL: the XP this goal was worth, and the levels it reached (a LEVEL UP pill on the card).
     const xp = solo ? g.goalXp : 0;
     const levelUps = solo ? g.clubLevels : [];
-    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + ((coins > 0 || lpGain > 0) ? COINS_H : 0) + (xp > 0 ? XP_H : 0) + (levelUps.length > 0 ? LEVELUP_H : 0) + (ballGap !== null ? BALL_H : 0);
+    const h = 58 + n * LINE_H + (hasCombo ? 42 : 0) + 164 + (solo ? NEXT_H : 0) + ((coins > 0 || lpGain > 0) ? COINS_H : 0) + (xp > 0 ? XP_H : 0) + (levelUps.length > 0 ? LEVELUP_H : 0) + (ballGap !== null ? BALL_H : 0) + (bonus?.met ? BONUS_H : 0);
     // The card is enlarged with the HUD on a small screen, but never wider than the screen, and never so tall
     // that the AGAIN / NEXT buttons under it cover its last lines: a long list of tricks shrinks it to fit.
     const cam = g.camera;
@@ -624,6 +670,12 @@ export class Hud {
           text(ctx, label, cx, ny, { size: 14, color: C.greenDeep, align: 'center', baseline: 'middle', weight: 900, alpha: tail });
         }
         ny += COINS_H;
+      }
+      if (bonus?.met) {
+        // BONUS: the objective was met; its coins show only on the first time.
+        const label = `${tr('BONUS!')} ${tr(BONUS_OBJECTIVES[bonus.id].label)}${bonus.coins > 0 ? ` · ${tr('+{n} COINS', { n: bonus.coins })}` : ''}`;
+        text(ctx, label, cx, ny, { size: 13, color: C.terra, align: 'center', baseline: 'middle', weight: 900, spacing: 0.5, alpha: tail });
+        ny += BONUS_H;
       }
       if (xp > 0) {
         text(ctx, tr('+{n} XP', { n: xp }), cx, ny, { size: 13, color: C.greenDeep, align: 'center', baseline: 'middle', weight: 900, spacing: 1, alpha: tail });
