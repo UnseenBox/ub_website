@@ -4,7 +4,18 @@ import { clamp01, easeOutBack, easeOutCubic, lerp, TAU } from '../core/math';
 import { CELEBRATION_TIMING } from '../goal/GoalCelebration';
 import { MISS_LABEL } from '../goal/GoalDetector';
 import { formatScore, roundRect, signText, text, wrapText } from '../rendering/DrawUtils';
-import { C, FONT, rgba } from '../rendering/Palette';
+import { C, FONT, FONT_SHADE, rgba } from '../rendering/Palette';
+import gooolUrl from '../assets/ui/gooool.webp?url';
+
+let gooolArt: HTMLImageElement | null = null;
+/** The GOOOOL! lettering, loaded the first time a goal needs it; the font lettering stands in until it arrives. */
+function gooolPicture(): HTMLImageElement {
+  if (!gooolArt) {
+    gooolArt = new Image();
+    gooolArt.src = gooolUrl;
+  }
+  return gooolArt;
+}
 import { nextStarTarget, starHint } from '../progression/Progression';
 import { BONUS_OBJECTIVES, type BonusId } from '../scoring/Bonus';
 import { bonusFor } from '../levels/bonus';
@@ -251,7 +262,7 @@ export class Hud {
       // P, not Escape: in a browser Escape also leaves fullscreen, so the game leaves it alone.
       ['P', 'PAUSE'],
       ['M', g.audio.muted ? 'SOUND IS OFF' : 'SOUND'],
-      ...(parts.air ? ([['F', 'AIR'], ['W S', 'HEIGHT']] as const) : []),
+      ...(parts.air ? ([['F', 'AIR']] as const) : []),
       ...(parts.bend ? ([['Q E', 'BEND']] as const) : []),
     ];
   }
@@ -557,17 +568,22 @@ export class Hud {
     const scale = slam * fit * lerp(1, 0.52, settle);
     ctx.scale(scale, scale);
     ctx.globalAlpha = clamp01(t / 0.05);
-    ctx.font = `900 150px ${FONT}`;
+    ctx.font = `900 150px ${FONT_SHADE}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    signText(ctx, 'GOAL!', 0, 0, C.sun, C.greenNight, 12, C.greenHi);
+    // The GOOOOL! lettering is a picture, drawn at the middle of the banner.
+    const goolW = 380;
+    const art = gooolPicture();
+    const goolH = art.complete && art.naturalWidth > 0 ? (goolW * art.naturalHeight) / art.naturalWidth : 0;
+    if (goolH > 0) ctx.drawImage(art, -goolW / 2, -goolH / 2, goolW, goolH);
+    else signText(ctx, 'GOAL!', 0, 0, C.sun, C.greenNight, 12, C.greenHi);
     // The best thing about the goal gets its own line before the score card takes over.
     const headline = g.celebration.card?.headline ?? '';
     const sub = headline && headline !== 'GOAL' ? clamp01((t - 0.18) / 0.12) * clamp01((CELEBRATION_TIMING.cardAt + 0.08 - t) / 0.16) : 0;
     if (sub > 0) {
       ctx.globalAlpha = sub;
       ctx.font = `900 40px ${FONT}`;
-      signText(ctx, headline, 0, 116, C.white, C.terraDark, 5);
+      signText(ctx, headline, 0, goolH > 0 ? goolH / 2 + 30 : 116, C.white, C.terraDark, 5);
     }
     ctx.restore();
     ctx.textBaseline = 'alphabetic';
@@ -695,7 +711,7 @@ export class Hud {
       ctx.translate(cx, ty + 62);
       const totalPop = 1 + 0.18 * g.juice.scorePulse;
       ctx.scale(totalPop, totalPop);
-      text(ctx, formatScore(cel.shownTotal), 0, 0, { size: 52, color: C.greenDeep, align: 'center', alpha: tail });
+      text(ctx, formatScore(cel.shownTotal), 0, 0, { size: 52, color: C.greenDeep, align: 'center', alpha: tail, family: FONT_SHADE });
       ctx.restore();
       // Three arcade stars, each landing with a pop.
       for (let i = 0; i < 3; i++) {

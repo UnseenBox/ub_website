@@ -6,6 +6,7 @@ import { drawAimGround, drawAimOver, drawGuidePath, drawKickBadge, drawTutorialG
 import { drawAbilityDemo } from './DemoArt';
 import { drawBlock, drawBoundaryJoint, paintStaticShadows } from './ArenaArt';
 import { drawBall, drawBallAura, drawBallShadow, drawTrail } from './BallArt';
+import { ballTexture } from './SphereBall';
 import { drawCoin } from './CoinArt';
 import { drawTag } from './DuelArt';
 import type { Camera, ViewRect } from './Camera';
@@ -204,7 +205,7 @@ export class Renderer {
       }
       drawBallAura(ctx, ball, bx, cy, auraColour, aura);
       if (lit) drawBoostUnder(ctx, ball, bx, cy, lit, time);
-      drawBall(ctx, ball, bx, cy, patch, g.skin.base);
+      drawBall(ctx, ball, bx, cy, patch, g.skin.base, g.skin.texture ? ballTexture(g.skin.texture) : null);
       if (lit) drawBoostOver(ctx, ball, bx, cy, lit, time);
       ctx.restore();
     };

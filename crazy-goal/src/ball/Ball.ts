@@ -37,6 +37,12 @@ export class Ball {
    */
   readonly patches = new Float32Array(PATCHES * 6);
 
+  /**
+   * The ball's own three axes, as rows, in screen terms, turned by the same roll as the patches. A picture
+   * wrapped on the ball reads this to show the part of it that faces the viewer.
+   */
+  readonly orient = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+
   /** Spring-driven deformation along `squashAngle`: negative is flattened, positive is stretched. */
   squash = 0;
   squashAngle = 0;
@@ -149,6 +155,16 @@ export class Ball {
       p[i] = x * c + (ay * z - az * y) * s + ax * dot;
       p[i + 1] = y * c + (az * x - ax * z) * s + ay * dot;
       p[i + 2] = z * c + (ax * y - ay * x) * s + az * dot;
+    }
+    const o = this.orient;
+    for (let i = 0; i < o.length; i += 3) {
+      const x = o[i];
+      const y = o[i + 1];
+      const z = o[i + 2];
+      const dot = (ax * x + ay * y + az * z) * (1 - c);
+      o[i] = x * c + (ay * z - az * y) * s + ax * dot;
+      o[i + 1] = y * c + (az * x - ax * z) * s + ay * dot;
+      o[i + 2] = z * c + (ax * y - ay * x) * s + az * dot;
     }
   }
 

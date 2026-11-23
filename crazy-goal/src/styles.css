@@ -15,7 +15,7 @@
   --red: #cd3a24;
   --red-deep: #8f2314;
   --cream: #f4ffe2;
-  --display: 'Lilita One', 'Baloo Bhaijaan 2', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
+  --display: 'Bungee', 'Lalezar', 'Arial Black', 'Trebuchet MS', system-ui, sans-serif;
   /* The outline round lettering on colour: arcade signage, readable on any background. */
   --ink-stroke: #0b3a17;
 }
@@ -1432,7 +1432,16 @@ body {
 
 .menu-secondary .menu-duel {
   position: relative;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.menu-secondary .menu-frenzy {
   flex: 1 1 0;
+  width: auto;
   min-width: 0;
 }
 
@@ -1721,7 +1730,7 @@ body {
 /* Arabic letters join, so they cannot be spaced apart, and the display face has none of them. */
 [dir='rtl'] * {
   letter-spacing: 0 !important;
-  font-family: 'Baloo Bhaijaan 2', 'Segoe UI', Tahoma, 'Noto Kufi Arabic', 'Geeza Pro', system-ui, sans-serif;
+  font-family: 'Lalezar', 'Segoe UI', Tahoma, 'Noto Kufi Arabic', 'Geeza Pro', system-ui, sans-serif;
 }
 
 @keyframes screen-in {
@@ -2461,8 +2470,7 @@ body {
 
 .kick-dock[hidden],
 .kick-modes[hidden],
-.kick-bend[hidden],
-.kick-height[hidden] {
+.kick-bend[hidden] {
   display: none;
 }
 
@@ -2572,23 +2580,6 @@ body {
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
 }
 
-.kick-auto {
-  padding: 0;
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.kick-auto.is-auto {
-  color: #bfe8ff;
-}
-
-.kick-auto:focus-visible {
-  outline: 3px solid var(--sun);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
 /* BEND: the curve it makes, over the dial. */
 .kick-bend {
   position: relative;
@@ -2671,46 +2662,6 @@ body {
   border-radius: 8px;
 }
 
-/* HEIGHT: how high the lob goes. A vertical slider on a phone, where up is higher; dimmed while the shot is on the ground. */
-.kick-height {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 2px;
-  width: 58px;
-  transition: opacity 0.2s;
-}
-
-.kick-height.is-off {
-  opacity: 0.5;
-}
-
-.kick-height .kick-head {
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-
-.kick-height .kick-title {
-  font-size: 10px;
-  letter-spacing: 0.06em;
-}
-
-.kick-height-track {
-  position: relative;
-  width: 58px;
-  height: 84px;
-}
-
-.kick-height-range {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 84px;
-  height: 58px;
-  transform: translate(-50%, -50%) rotate(-90deg);
-}
-
 /* A lesson points at the control it wants: a pulsing ring and a finger. */
 .kick-finger {
   position: absolute;
@@ -2770,33 +2721,6 @@ body {
   .kick-bend {
     width: 100%;
     min-width: 0;
-  }
-
-  .kick-height {
-    width: 100%;
-  }
-
-  .kick-height .kick-head {
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: space-between;
-  }
-
-  .kick-height .kick-title {
-    font-size: 11px;
-    letter-spacing: 0.1em;
-  }
-
-  .kick-height-track {
-    width: 100%;
-    height: 40px;
-  }
-
-  .kick-height-range {
-    position: static;
-    width: 100%;
-    height: 40px;
-    transform: none;
   }
 }
 
@@ -3189,7 +3113,7 @@ body {
   }
 }
 
-/* ---- Lettering: Lilita One, outlined and dropped like the logo ---- */
+/* ---- Lettering: Bungee, outlined and dropped like the logo ---- */
 body {
   font-weight: 400;
 }
@@ -3649,6 +3573,35 @@ body {
 .menu-shortcut-icon .game-icon {
   width: 82%;
   height: 82%;
+}
+
+/* The shortcuts are the pictures themselves: no white card behind them. The name sits on a navy plate. */
+.menu-shortcut {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.menu-shortcut:hover,
+.menu-shortcut:active {
+  box-shadow: none;
+}
+
+.menu-shortcut-picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.menu-shortcut .menu-shortcut-label {
+  padding: 4px 10px 3px;
+  color: #fff;
+  background: linear-gradient(180deg, #2c3a63 0%, var(--navy) 60%, #141c33 100%);
+  border-radius: 10px;
+  box-shadow: 0 3px 0 #0d1226, inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
 }
 
 .store-sheet {

@@ -1,6 +1,6 @@
 import { tr } from '../core/i18n';
 import { snapBend } from '../core/Guide';
-import { snapHeight, type ShotType } from '../physics/Flight';
+import type { ShotType } from '../physics/Flight';
 import { footballUrl } from './Football';
 import { bendGlyph, ICON } from './KickIcons';
 
@@ -14,22 +14,14 @@ export interface KickControlsHandlers {
   type(): ShotType;
   /** -1 (left) to 1 (right). */
   bend(): number;
-  /** The height of the lob, 0 (low) to 1 (high): the one picked, or the power's own while it is automatic. */
-  height(): number;
-  /** True while the height is the automatic one the power gives. */
-  heightAuto(): boolean;
   setType(type: ShotType): void;
   setBend(bend: number): void;
-  /** Picking a height makes the shot a lofted one. */
-  setHeight(height: number): void;
-  /** Back to the height the power gives on its own. */
-  resetHeight(): void;
   /** A click for the ear when a dial lands on a notch. */
   tick?(): void;
 }
 
 /**
- * The free-kick controls: a GROUND and an AIR button, a BEND dial with a live curve, and a HEIGHT slider for the lob.
+ * The free-kick controls: a GROUND and an AIR button, and a BEND dial with a live curve.
  * Every control has its name on screen, and each is a real button or range input, so touch, mouse and keyboard all work.
  */
 export class KickControls {
@@ -41,9 +33,6 @@ export class KickControls {
   private readonly bendValue: HTMLElement;
   private readonly range: HTMLInputElement;
   private readonly curve: SVGElement;
-  private readonly heightBox: HTMLElement;
-  private readonly heightValue: HTMLButtonElement;
-  private readonly heightRange: HTMLInputElement;
   private last = '';
 
   constructor(private readonly handlers: KickControlsHandlers) {
@@ -111,48 +100,8 @@ export class KickControls {
     bendFinger.innerHTML = ICON.tap;
     this.bendBox.append(bendHead, this.curve, this.range, bendFinger);
 
-    // HEIGHT: how high the lob goes. Its value says AUTO while the power picks it; tapping a picked value gives it back.
-    this.heightBox = document.createElement('div');
-    this.heightBox.className = 'kick-height';
-    this.heightBox.setAttribute('role', 'group');
-    this.heightBox.setAttribute('aria-label', tr('HEIGHT'));
-    this.heightValue = document.createElement('button');
-    this.heightValue.type = 'button';
-    this.heightValue.className = 'kick-value kick-auto';
-    this.heightValue.addEventListener('click', () => {
-      if (this.handlers.heightAuto()) return;
-      this.handlers.resetHeight();
-      this.feedback();
-      this.refresh();
-    });
-    const heightHead = document.createElement('div');
-    heightHead.className = 'kick-head';
-    heightHead.append(this.title('HEIGHT'), this.heightValue);
-    const track = document.createElement('div');
-    track.className = 'kick-height-track';
-    this.heightRange = document.createElement('input');
-    this.heightRange.type = 'range';
-    this.heightRange.className = 'kick-range kick-height-range';
-    this.heightRange.min = '0';
-    this.heightRange.max = '100';
-    this.heightRange.step = '5';
-    this.heightRange.value = '0';
-    // The slider runs low to high from left to right in its own frame; the CSS turns it upright.
-    this.heightRange.dir = 'ltr';
-    this.heightRange.setAttribute('aria-label', tr('HEIGHT'));
-    this.heightRange.addEventListener('input', () => {
-      const before = this.handlers.height();
-      const height = snapHeight(Number(this.heightRange.value) / 100);
-      this.handlers.setHeight(height);
-      if (height !== before && (height === 0 || height === 1)) this.feedback();
-      this.heightRange.value = String(Math.round(height * 100));
-      this.refresh();
-    });
-    this.heightRange.addEventListener('keydown', (e) => e.stopPropagation());
-    track.append(this.heightRange);
-    this.heightBox.append(heightHead, track);
 
-    this.el.append(this.modes, this.bendBox, this.heightBox);
+    this.el.append(this.modes, this.bendBox);
   }
 
   private makeButton(label: string, icon: string, type: ShotType): HTMLButtonElement {
@@ -206,17 +155,14 @@ export class KickControls {
     const parts = this.handlers.parts();
     const type = this.handlers.type();
     const bend = this.handlers.bend();
-    const height = this.handlers.height();
-    const auto = this.handlers.heightAuto();
     const hint = this.handlers.hint();
-    const key = `${visible}|${parts.air}|${parts.bend}|${type}|${bend}|${height.toFixed(2)}|${auto}|${hint}`;
+    const key = `${visible}|${parts.air}|${parts.bend}|${type}|${bend}|${hint}`;
     if (key === this.last) return;
     this.last = key;
     const show = visible && (parts.air || parts.bend);
     this.el.hidden = !show;
     if (!show) return;
     this.modes.hidden = !parts.air;
-    this.heightBox.hidden = !parts.air;
     this.bendBox.hidden = !parts.bend;
 
     this.ground.classList.toggle('is-on', type === 'ground');
@@ -237,14 +183,5 @@ export class KickControls {
     const left = Math.max(0, -bend) * 50;
     const right = Math.max(0, bend) * 50;
     this.range.style.setProperty('--fill', `linear-gradient(90deg, transparent ${50 - left}%, var(--sun) ${50 - left}%, var(--sun) ${50 + right}%, transparent ${50 + right}%)`);
-
-    // HEIGHT: dimmed until the shot is a lofted one, and its value says AUTO while the power picks the height.
-    const pctHeight = Math.round(height * 100);
-    this.heightBox.classList.toggle('is-off', type !== 'air');
-    this.heightRange.value = String(pctHeight);
-    this.heightRange.style.setProperty('--fill', `linear-gradient(90deg, var(--sun) ${pctHeight}%, transparent ${pctHeight}%)`);
-    this.heightValue.textContent = auto ? tr('AUTO') : `${pctHeight}%`;
-    this.heightValue.classList.toggle('is-auto', auto);
-    this.heightRange.setAttribute('aria-valuetext', auto ? tr('AUTO') : `${pctHeight}%`);
   }
 }

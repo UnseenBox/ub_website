@@ -1,6 +1,10 @@
 import { ICONS, type IconName } from './GameIcons';
 import starUrl from '../assets/ui/arcade-star.png';
 import coinUrl from '../assets/ui/arcade-coin.png';
+import stadiumsIcon from '../assets/icons/menu-stadiums.webp';
+import ballsIcon from '../assets/icons/menu-balls.webp';
+import leagueIcon from '../assets/icons/menu-league.webp';
+import storeIcon from '../assets/icons/menu-store.webp';
 import { lang, tr, type Lang } from '../core/i18n';
 import { chapterOf } from '../progression/Progression';
 import type { Division, SeasonResult, StandingRow } from '../progression/League';
@@ -8,8 +12,22 @@ import type { Boost } from '../abilities/Cards';
 import { cardOf } from '../abilities/Cards';
 import { UPGRADE_MAX, type UpgradeId } from '../progression/Upgrades';
 import { ABILITY_ICON } from './abilityIcons';
-import { football, footballSvg } from './Football';
 import { logoSvg } from './Logo';
+import { sphereSnapshot } from '../rendering/SphereBall';
+import type { TextureId } from '../ball/Skins';
+
+/** A menu shortcut's picture: the illustration itself, in the square the old icon took. */
+function pictureArt(src: string): HTMLElement {
+  const art = document.createElement('span');
+  art.className = 'menu-shortcut-art menu-shortcut-icon';
+  const img = document.createElement('img');
+  img.className = 'menu-shortcut-picture';
+  img.src = src;
+  img.alt = '';
+  img.draggable = false;
+  art.append(img);
+  return art;
+}
 
 export interface SkinTile {
   id: string;
@@ -19,6 +37,7 @@ export interface SkinTile {
   need: number;
   open: boolean;
   selected: boolean;
+  texture: TextureId;
 }
 
 export interface OverlayHandlers {
@@ -333,32 +352,22 @@ export class Overlay {
     const shortcuts = el('div', 'menu-shortcuts');
     const stadiums = button('menu-shortcut menu-shortcut-stadiums', '', handlers.levels);
     stadiums.setAttribute('aria-label', tr('STADIUMS'));
-    const stadiumsArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
-    stadiumsArt.innerHTML = ICONS.goal;
+    const stadiumsArt = pictureArt(stadiumsIcon);
     stadiums.append(stadiumsArt, el('span', 'menu-shortcut-label', 'STADIUMS'));
     const ballsButton = button('menu-shortcut menu-shortcut-balls', '', () => this.showSkins());
     ballsButton.setAttribute('aria-label', tr('BALLS'));
-    // Three of the balls to collect, piled up.
-    const ballsArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
-    ballsArt.innerHTML =
-      `<svg class="game-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">` +
-      football(14, 30, 11, { base: '#fff4e0', patch: '#f08a24' }) +
-      football(35, 30, 11, { base: '#fbf7ee', patch: '#1f5fa8' }) +
-      football(24, 20, 13) +
-      `</svg>`;
+    const ballsArt = pictureArt(ballsIcon);
     this.ballsDot = el('span', 'menu-new-dot');
     this.ballsDot.hidden = true;
     ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'), this.ballsDot);
     const storeButton = button('menu-shortcut menu-shortcut-store', '', () => this.showStore());
     storeButton.setAttribute('aria-label', tr('STORE'));
-    const storeArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
-    storeArt.innerHTML = ICONS.store;
+    const storeArt = pictureArt(storeIcon);
     storeButton.append(storeArt, el('span', 'menu-shortcut-label', 'STORE'));
     // STREET LEAGUE: the fourth card, with the trophy sticker. On a phone the four go in a 2 x 2 grid.
     const leagueButton = button('menu-shortcut menu-shortcut-league', '', () => this.showLeague());
     leagueButton.setAttribute('aria-label', tr('LEAGUE'));
-    const leagueArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
-    leagueArt.innerHTML = ICONS.trophy;
+    const leagueArt = pictureArt(leagueIcon);
     leagueButton.append(leagueArt, el('span', 'menu-shortcut-label', 'LEAGUE'));
     shortcuts.append(stadiums, ballsButton, storeButton, leagueButton);
 
@@ -839,7 +848,15 @@ export class Overlay {
         b.setAttribute('aria-label', `${tr(skin.name)}, ${skin.open ? tr(skin.selected ? 'SELECTED' : 'UNLOCKED') : tr('{n} STARS', { n: skin.need })}`);
         // The real ball in this skin's colours.
         const ball = el('span', 'skin-ball');
-        ball.innerHTML = footballSvg('skin-ball-art', { base: skin.base, patch: skin.patch });
+        // A still of the painted sphere, made once the picture has loaded.
+        const art = document.createElement('img');
+        art.className = 'skin-ball-art';
+        art.alt = '';
+        art.draggable = false;
+        void sphereSnapshot(skin.texture, 128).then((url) => {
+          if (url) art.src = url;
+        });
+        ball.append(art);
         b.append(ball, el('span', 'tile-name', skin.name), el('span', 'skin-need', skin.open ? (skin.selected ? '●' : '') : tr('{n} STARS', { n: skin.need })));
         return b;
       }),

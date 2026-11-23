@@ -67,7 +67,7 @@ const fresh = (): SaveData => ({
   muted: false,
   sound: 0.3,
   music: 0.2,
-  skin: 'classic',
+  skin: 'tex-hex',
   coins: 0,
   tips: [],
   boostIntro: false,
