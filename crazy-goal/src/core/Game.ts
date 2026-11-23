@@ -776,7 +776,7 @@ export class Game {
   }
 
   /**
-   * Skips the tutorial: every lesson counts as played (a goal, no stars, so the stars are still there to
+   * Skips the tutorial: every lesson counts as played (a goal and one star, so the stars are still there to
    * win) and the first real match starts. The lessons stay in the stadium list for anyone who wants them.
    */
   private skipTutorial(): void {
@@ -788,6 +788,9 @@ export class Game {
       }
       const rec = this.save.level(def.id);
       if (rec.goals === 0) rec.goals = 1;
+      // A skipped lesson counts as won with one star. It is marked as paid, so that star never pays coins later.
+      rec.stars = Math.max(rec.stars, 1);
+      rec.paidStars = Math.max(rec.paidStars, 1);
     });
     if (first < 0) return;
     this.save.save();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STUCK_MISSES, isStuck, starsToNextSkin, unseenSkins, CHAPTERS, FIRST_CLEAR_MIN_COINS, GATE_PER_CHAPTER, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, matchInfo, nextStarTarget, starHint, totalStars } from './Progression';
+import { STUCK_MISSES, isStuck, starsToNextSkin, unseenSkins, CHAPTERS, FIRST_CLEAR_MIN_COINS, CHAPTER_GATES, STAR_COINS, chapterGate, chapterOf, chapterStart, chapterTitle, classicStars, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, matchInfo, nextStarTarget, starHint, totalStars } from './Progression';
 
 const levels = Array.from({ length: 47 }, (_, i) => ({ id: `level-${String(i + 1).padStart(2, '0')}` }));
 const rec = (goals: number, stars = goals > 0 ? 1 : 0) => ({ goals, stars });
@@ -99,32 +99,33 @@ describe('starHint', () => {
 });
 
 describe('chapter star gates', () => {
-  /** A save with goals on levels 0..upTo (inclusive) and `stars` stars each. */
-  const progress = (upTo: number, starsEach: number | ((i: number) => number)) => {
+  /** A save where every level up to `upTo` (inclusive) has a goal, and the first `stars` of them carry one star each. */
+  const withStars = (upTo: number, stars: number) => {
     const save: { levels: Record<string, { goals: number; stars: number }> } = { levels: {} };
-    for (let i = 0; i <= upTo; i++) save.levels[levels[i].id] = { goals: 1, stars: typeof starsEach === 'number' ? starsEach : starsEach(i) };
+    for (let i = 0; i <= upTo; i++) save.levels[levels[i].id] = { goals: 1, stars: i < stars ? 1 : 0 };
     return save;
   };
 
-  it('asks ten stars per chapter after the first', () => {
-    expect(GATE_PER_CHAPTER).toBe(10);
+  it('asks for one figure per chapter, and chapter 1 is free', () => {
+    expect(CHAPTER_GATES).toEqual([0, 0, 6, 14, 22, 30, 38, 46, 54]);
     expect(chapterGate(1)).toBe(0);
-    expect(chapterGate(2)).toBe(10);
-    expect(chapterGate(8)).toBe(70);
+    expect(chapterGate(2)).toBe(6);
+    expect(chapterGate(3)).toBe(14);
+    expect(chapterGate(8)).toBe(54);
+    expect(chapterGate(9)).toBe(54); // past the table: the last figure
   });
 
   it('keeps the first level of a chapter locked one star short, and opens it at the gate', () => {
     const first = chapterStart(3);
     const need = chapterGate(3);
-    const save = progress(first - 1, 1);
-    expect(classicStars(save)).toBe(first);
-    expect(first).toBeLessThan(need);
+    const save = withStars(first - 1, need - 1);
+    expect(classicStars(save)).toBe(need - 1);
     expect(isLevelUnlocked(save, levels, first - 1)).toBe(true);
     expect(isLevelUnlocked(save, levels, first)).toBe(false);
     expect(isGateBlocked(save, levels, first)).toBe(true);
-    expect(gateStatus(save, levels, 3)).toEqual({ need, have: first, open: false });
-    // Style stars make up the difference.
-    const better = progress(first - 1, (i) => (i < need - first ? 2 : 1));
+    expect(gateStatus(save, levels, 3)).toEqual({ need, have: need - 1, open: false });
+    // The gate's last star opens it.
+    const better = withStars(first - 1, need);
     expect(classicStars(better)).toBe(need);
     expect(isLevelUnlocked(better, levels, first)).toBe(true);
     expect(isGateBlocked(better, levels, first)).toBe(false);
@@ -132,7 +133,8 @@ describe('chapter star gates', () => {
 
   it('does not gate levels inside a chapter, only the first of the chapter', () => {
     const first = chapterStart(3);
-    const save = progress(first, 1); // the first level scored on: grandfathered open, next level opens by the old rule
+    // A goal anywhere in the chapter opens it, whatever the stars: the next level follows by the usual rule.
+    const save = withStars(first, 0);
     expect(isLevelUnlocked(save, levels, first + 1)).toBe(true);
   });
 
@@ -142,23 +144,36 @@ describe('chapter star gates', () => {
   });
 
   it('grandfathers a chapter in which any level already has a goal', () => {
-    // An old save with goals up to the last level of the 7th world, one star each: 42 stars, chapter 7 asks for 60.
-    const save = progress(41, 1);
+    // An old save with goals up to the last level of the 7th world, one star each: 42 stars. Chapter 7 asks for 46.
+    const save = withStars(41, 42);
     expect(classicStars(save)).toBe(42);
     expect(isLevelUnlocked(save, levels, chapterStart(7))).toBe(true);
-    // The finals have no goals yet and 42 < 70: that gate still applies.
+    // The finals have no goals yet and 42 < 54: that gate still applies.
     expect(isGateBlocked(save, levels, chapterStart(8))).toBe(true);
   });
 
   it('only counts level stars: Free Kicks stars do not open chapters', () => {
     const first = chapterStart(3);
-    expect(isLevelUnlocked(progress(first - 1, 1), levels, first)).toBe(false);
-    expect(totalStars(progress(first - 1, 1), 20)).toBe(first + 20);
+    const save = withStars(first - 1, chapterGate(3) - 1);
+    expect(isLevelUnlocked(save, levels, first)).toBe(false);
+    expect(totalStars(save, 20)).toBe(chapterGate(3) - 1 + 20);
+  });
+
+  it('a skipped tutorial (eight lessons, one star each) plus one star on matches 2 and 3 opens chapter 2 at once', () => {
+    // Levels 0-7 are the lessons, 8 and 9 are matches 2 and 3, 10 is match 4 (ICE RINK, first of chapter 2).
+    const save = withStars(9, 10);
+    expect(classicStars(save)).toBe(10);
+    expect(isGateBlocked(save, levels, 10)).toBe(false);
+    expect(isLevelUnlocked(save, levels, 10)).toBe(true);
+  });
+
+  it('chapter 3 stays shut at 10 stars and opens at 14, so chapter 2 must be played too', () => {
+    const first = chapterStart(3);
+    expect(isLevelUnlocked(withStars(first - 1, 10), levels, first)).toBe(false);
+    // Skip, matches 2 and 3, then one star on each of chapter 2's five matches: 15 stars.
+    expect(isLevelUnlocked(withStars(first - 1, 15), levels, first)).toBe(true);
   });
 });
-
-
-
 
 describe('ball unlocks', () => {
   const skins = [

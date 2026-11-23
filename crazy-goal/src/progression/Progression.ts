@@ -49,8 +49,12 @@ export const chapterStart = (chapter: number): number => (chapter <= 1 ? 0 : CHA
 
 const goalsOf = (save: ProgressSave, id: string): number => save.levels[id]?.goals ?? 0;
 
-/** Stars needed per chapter after the first: chapter `c` opens at `GATE_PER_CHAPTER * (c - 1)`. A world has about five matches, so a star and a half each is enough. */
-export const GATE_PER_CHAPTER = 10;
+/**
+ * Stars needed to open each chapter, indexed by chapter number (1-based; index 0 is unused). Chapter 1 is free,
+ * chapter 2 asks for 6, and every chapter after asks for 8 more, so a world of about five matches needs roughly
+ * 1.6 stars a match. Chapter 8 (BIG MATCHES) asks for 54.
+ */
+export const CHAPTER_GATES: readonly number[] = [0, 0, 6, 14, 22, 30, 38, 46, 54];
 
 /** Stars won in the houmas alone: Free Kicks does not open chapters. */
 export function classicStars(save: ProgressSave): number {
@@ -59,8 +63,8 @@ export function classicStars(save: ProgressSave): number {
   return sum;
 }
 
-/** Stars the first level of a chapter asks for. */
-export const chapterGate = (chapter: number): number => (chapter <= 1 ? 0 : GATE_PER_CHAPTER * (chapter - 1));
+/** Stars the first level of a chapter asks for. Chapters past the table keep the last figure. */
+export const chapterGate = (chapter: number): number => CHAPTER_GATES[Math.max(0, Math.min(CHAPTER_GATES.length - 1, chapter))];
 
 /** Index range [from, to) of a chapter's levels in a list of `count` levels. */
 function chapterRange(chapter: number, count: number): [number, number] {
