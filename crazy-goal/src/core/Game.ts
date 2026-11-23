@@ -4,6 +4,7 @@ import { abilityPrice, aimScale, curlScale, nextPrice, noUpgrades, powerScale, U
 import { CLUB_START, ballIsOpen, gainXp, nextLockedBall, xpForScore, xpToNext, type LevelReward } from '../progression/Club';
 import { addLeagueLp, claimLeague as claimPrize, freshLeague, lpForGoal, pendingResult, prizeFor, seasonClock, settleLeague, standings } from '../progression/League';
 import { bonusFor } from '../levels/bonus';
+import { BOSS_COIN_MULTIPLIER, WORLD_COUNT, WORLD_REWARD, nextWorld, worldOf, worldRange, worldStars, worldTitle, worldThemeName } from '../progression/Worlds';
 import { BONUS_COINS, bonusMet, type BonusId } from '../scoring/Bonus';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
@@ -68,7 +69,7 @@ import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
 import { traceShot, type Trace } from '../levels/sweep';
 import { portal, isCrazyGames } from '../portal/Portal';
 import { forgetStands } from '../rendering/StadiumArt';
-import { Overlay, setUiClick, type LeagueInfo, type MenuInfo, type StoreInfo } from '../ui/Overlay';
+import { Overlay, setUiClick, type LeagueInfo, type MenuInfo, type StoreInfo, type WorldInfo } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
 import { GameLoop } from './GameLoop';
 import type { GameState } from './GameState';
@@ -278,6 +279,8 @@ export class Game {
   goalLp = 0;
   /** BONUS OBJECTIVE: the match's objective, whether this goal met it, and the coins it paid (once). */
   goalBonus: { id: BonusId; met: boolean; coins: number } | null = null;
+  /** WORLDS: the world a boss match has just completed, whose panel is due after the celebration. */
+  pendingWorld: WorldInfo | null = null;
   /** The last solo goal was the level's first clear, and its coins have been doubled by an ad. */
   private goalFirstClear = false;
   private goalDoubled = false;
@@ -602,6 +605,8 @@ export class Game {
     data.club = { ...CLUB_START };
     data.grantedSkins = [];
     data.league = freshLeague(new Date());
+    data.worlds = [];
+    this.pendingWorld = null;
     this.skin = skinOf('classic');
     this.save.save();
     // Back to the title card, not into a match: a live match under the menu leaves the in-match controls
@@ -1200,11 +1205,12 @@ export class Game {
         const rec = this.save.level(def.id);
         const gate = isGateBlocked(this.save.data, this.levels, i) ? gateStatus(this.save.data, this.levels, chapterOf(i)) : undefined;
         const m = matchInfo(this.levels, i);
-        return { name: def.name, group: m.lesson ? 'TUTORIAL' : (def.world ?? 'OPENING SEASON'), label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin, bonus: rec.bonus };
+        return { name: def.name, group: m.lesson ? 'TUTORIAL' : (def.world ?? 'OPENING SEASON'), label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin, bonus: rec.bonus, boss: def.boss === true };
       }),
       this.level.index,
       focus,
       gates,
+      { won: this.save.data.worlds.length, total: WORLD_COUNT },
     );
     this.abilities.refresh(BOOST_COSTS);
     this.remember('levels');
@@ -1549,6 +1555,29 @@ export class Game {
     this.save.save();
   }
 
+  /** WORLDS: the first time a world's boss match is cleared, the world is complete: a trophy, its reward, and a panel. */
+  private completeWorldIfBoss(): void {
+    if (!this.level.def.boss) return;
+    const world = worldOf(this.level.index);
+    const data = this.save.data;
+    if (data.worlds.includes(world)) return;
+    data.worlds.push(world);
+    data.coins += WORLD_REWARD;
+    const count = this.levels.length;
+    const { stars, max } = worldStars(world, count, (i) => data.levels[this.levels[i].id]?.stars ?? 0);
+    const next = nextWorld(world);
+    this.pendingWorld = {
+      world,
+      title: worldTitle(world),
+      stars,
+      max,
+      reward: WORLD_REWARD,
+      trophies: data.worlds.length,
+      nextTitle: next ? worldTitle(next) : null,
+      nextTheme: next ? worldThemeName(this.levels[worldRange(next, count)[0]].theme) : null,
+    };
+  }
+
   /** Adds a goal's XP to the club, and pays each level it reaches. */
   private awardClub(score: number): void {
     const data = this.save.data;
@@ -1591,6 +1620,8 @@ export class Game {
     if (this.shotRule === 'free') {
       const stars = Math.max(this.record.stars, card.stars);
       this.goalCoins = coinsForGoal({ firstClear, oldStars: this.record.paidStars, newStars: stars, total: card.total });
+      // A boss match pays double.
+      if (this.level.def.boss) this.goalCoins *= BOSS_COIN_MULTIPLIER;
       this.record.paidStars = Math.max(this.record.paidStars, stars);
       this.save.data.coins += this.goalCoins;
       portal.gameplayStop();
@@ -1602,6 +1633,7 @@ export class Game {
     if (card.stars > this.record.stars) this.record.stars = card.stars;
     // CLUB LEVEL: every solo goal earns XP, replays too. Levels pay coins, and some give a ball or an ability.
     if (this.shotRule === 'free') this.awardClub(card.total);
+    if (this.shotRule === 'free') this.completeWorldIfBoss();
     if (this.shotRule === 'free') this.awardLeague(Math.max(0, card.stars - starsBefore));
     // BONUS OBJECTIVE: a solo goal that meets this match's objective pays BONUS_COINS, the first time only.
     const bonusId = this.shotRule === 'free' ? bonusFor(this.level.def.id) : null;
@@ -1803,6 +1835,13 @@ export class Game {
     const want = this.shotRule === 'free' && this.state === 'goal' && this.celebration.active && this.celebration.t >= CELEBRATION_TIMING.buttonsAfter && !this.paused;
     if (want === this.buttonsUp && !force) return;
     this.buttonsUp = want;
+    // A world just completed: its panel comes up first, and the result card follows it.
+    if (want && this.pendingWorld && !force) {
+      const info = this.pendingWorld;
+      this.pendingWorld = null;
+      this.overlay.showWorld(info, () => this.syncButtons(true));
+      return;
+    }
     const double = want && this.doubleOffer();
     this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1), double);
     if (double) this.events.emit('AD_OFFERED', { kind: 'double' });

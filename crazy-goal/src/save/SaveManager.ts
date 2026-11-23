@@ -2,6 +2,7 @@ import type { Boost } from '../abilities/Cards';
 import { SKINS } from '../ball/Skins';
 import { noUpgrades, UPGRADE_MAX, type UpgradeLevels } from '../progression/Upgrades';
 import { CLUB_START, xpToNext, type Club } from '../progression/Club';
+import { WORLD_COUNT } from '../progression/Worlds';
 import { freshLeague, parseLeague, type League } from '../progression/League';
 
 const KEY = 'crazy-goal-save';
@@ -52,6 +53,8 @@ export interface SaveData {
   grantedSkins: string[];
   /** STREET LEAGUE: the season in progress, the table standing, and the last season's prize. */
   league: League;
+  /** WORLDS: the worlds whose boss match has been cleared (each one pays its reward once). */
+  worlds: number[];
 }
 
 const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0, bonus: false });
@@ -72,6 +75,7 @@ const fresh = (): SaveData => ({
   club: { ...CLUB_START },
   grantedSkins: [],
   league: freshLeague(new Date()),
+  worlds: [],
 });
 
 const volume = (v: unknown, fallback: number): number => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
@@ -130,6 +134,9 @@ export function parseSave(raw: string | null): SaveData {
   }
   out.grantedSkins = strings(data.grantedSkins);
   out.league = parseLeague(data.league, new Date());
+  if (Array.isArray(data.worlds)) {
+    out.worlds = [...new Set(data.worlds.map((w) => num(w)))].filter((w) => Number.isInteger(w) && w >= 1 && w <= WORLD_COUNT);
+  }
   if (isRecord(data.upgrades)) {
     for (const id of ['power', 'curl', 'aim'] as const) out.upgrades[id] = Math.min(UPGRADE_MAX, Math.floor(num(data.upgrades[id])));
   }

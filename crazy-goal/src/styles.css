@@ -4312,3 +4312,110 @@ body {
   width: 100%;
   height: 100%;
 }
+
+/* WORLDS (Step 12): the boss badge on a tile, the trophies row on the stadium list, and the WORLD COMPLETE panel. */
+.tile-boss {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  translate: -50% 0;
+  padding: 1px 8px;
+  border: 2px solid #13203d;
+  border-radius: 999px;
+  background: #e2402c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.world-trophies {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  color: #13203d;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.world-trophies-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.world-trophies-icon .game-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world-sheet {
+  text-align: center;
+}
+
+.world-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.world-trophy {
+  width: 96px;
+  height: 96px;
+}
+
+.world-trophy .game-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world-name {
+  margin: 0;
+  color: #13203d;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.world-stars {
+  margin: 0;
+  color: #13203d;
+  font-weight: 900;
+}
+
+.world-reward {
+  margin: 0;
+  color: #b4560e;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.world-next {
+  display: grid;
+  gap: 2px;
+  padding: 8px 18px;
+  border: 2px solid #13203d;
+  border-radius: 12px;
+  background: #fff8d6;
+  color: #13203d;
+}
+
+.world-next-label {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.world-next-name {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.world-next-theme {
+  font-size: 12px;
+  font-weight: 800;
+}

@@ -95,6 +95,20 @@ export interface MenuInfo {
   league: LeagueInfo;
 }
 
+/** WORLD COMPLETE, as the panel shows it: the world, its stars, its reward, and a preview of the next world. */
+export interface WorldInfo {
+  world: number;
+  /** English; `tr()` translates it. */
+  title: string;
+  stars: number;
+  max: number;
+  reward: number;
+  trophies: number;
+  nextTitle: string | null;
+  /** The next world's theme, as a label (English; `tr()` translates it). */
+  nextTheme: string | null;
+}
+
 export interface LevelTile {
   name: string;
   /** The heading it is listed under (English; `tr()` translates it) and the number printed on the tile. */
@@ -110,6 +124,8 @@ export interface LevelTile {
   gate?: { need: number; have: number };
   /** The level's coin has not been collected yet. */
   coin?: boolean;
+  /** The match is its world's boss: a red BOSS badge on the tile. */
+  boss?: boolean;
   /** The match's bonus objective has been met: a medal on the tile. */
   bonus?: boolean;
 }
@@ -212,6 +228,8 @@ export class Overlay {
   private readonly settings: HTMLElement;
   private readonly skins: HTMLElement;
   private readonly storeScreen: HTMLElement;
+  private readonly worldScreen: HTMLElement;
+  private readonly worldBody: HTMLElement;
   private readonly leagueScreen: HTMLElement;
   private readonly leagueBody: HTMLElement;
   private readonly resultScreen: HTMLElement;
@@ -415,9 +433,15 @@ export class Overlay {
     this.resultBody = el('div', 'league-result');
     resultSheet.append(el('h2', 'panel-title', 'SEASON RESULT'), this.resultBody);
     this.resultScreen.append(resultSheet);
+    // WORLD COMPLETE: the first time a world's boss match is cleared.
+    this.worldScreen = el('div', 'screen levels world');
+    const worldSheet = el('div', 'sheet sheet-wide world-sheet');
+    this.worldBody = el('div', 'world-body');
+    worldSheet.append(el('h2', 'panel-title', 'WORLD COMPLETE'), this.worldBody);
+    this.worldScreen.append(worldSheet);
 
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen];
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen, this.worldScreen);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen, this.worldScreen];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -720,6 +744,32 @@ export class Overlay {
     );
   }
 
+  /** WORLD COMPLETE: the panel for a world just completed, with its stars, its trophy and reward, and the next world. */
+  showWorld(info: WorldInfo, onContinue: () => void): void {
+    const trophy = el('div', 'world-trophy');
+    trophy.innerHTML = ICONS.trophy;
+    const next = el('div', 'world-next');
+    if (info.nextTitle !== null) {
+      next.append(el('span', 'world-next-label', 'NEXT WORLD'), el('span', 'world-next-name', info.nextTitle));
+      if (info.nextTheme !== null) next.append(el('span', 'world-next-theme', info.nextTheme));
+    } else {
+      next.append(el('span', 'world-next-label', 'ALL WORLDS WON'));
+    }
+    this.worldBody.replaceChildren(
+      trophy,
+      el('p', 'world-name', info.title),
+      el('p', 'world-stars', tr('STARS {n} / {max}', { n: info.stars, max: info.max })),
+      el('p', 'world-reward', tr('+{n} COINS', { n: info.reward })),
+      next,
+      el('p', 'world-trophies', tr('WORLD TROPHIES {n} / {max}', { n: info.trophies, max: 8 })),
+      button('btn btn-primary world-continue', 'CONTINUE', () => {
+        this.show(null);
+        onContinue();
+      }),
+    );
+    this.show(this.worldScreen);
+  }
+
   private showSkins(): void {
     this.handlers.skinsSeen();
     const skins = this.handlers.skins();
@@ -744,7 +794,13 @@ export class Overlay {
     this.show(this.skins);
   }
 
-  showLevels(tiles: readonly LevelTile[], current: number, focus?: number, gates: Readonly<Record<number, ChapterGate>> = {}): void {
+  showLevels(
+    tiles: readonly LevelTile[],
+    current: number,
+    focus?: number,
+    gates: Readonly<Record<number, ChapterGate>> = {},
+    worlds: { won: number; total: number } = { won: 0, total: 0 },
+  ): void {
     const { n, max } = this.handlers.stars();
     const open = tiles.filter((t) => t.unlocked).length;
     const pct = max > 0 ? Math.round((n / max) * 100) : 0;
@@ -765,6 +821,12 @@ export class Overlay {
     fill.style.width = `${pct}%`;
     bar.append(fill);
     this.levelProgress.append(top, bar);
+    // WORLD TROPHIES: one for each world whose boss match has been cleared.
+    const trophyRow = el('p', 'world-trophies');
+    const trophyIcon = el('span', 'world-trophies-icon');
+    trophyIcon.innerHTML = ICONS.trophy;
+    trophyRow.append(trophyIcon, el('span', 'world-trophies-text', tr('WORLD TROPHIES {n} / {max}', { n: worlds.won, max: worlds.total })));
+    this.levelProgress.append(trophyRow);
 
     this.levelBody.innerHTML = '';
     let chapter = '';
@@ -836,6 +898,11 @@ export class Overlay {
         b.setAttribute('aria-label', `${tr(tile.name)}, ${b.title}`);
       }
       b.append(el('span', 'tile-number', tile.label), nameLine, stars, bestLine);
+      if (tile.boss) {
+        // The world's last match: a red badge on the tile, whether or not it is open yet.
+        b.append(el('span', 'tile-boss', tr('BOSS')));
+        b.setAttribute('aria-label', `${b.getAttribute('aria-label')}, ${tr('BOSS MATCH')}`);
+      }
       if (tile.unlocked && tile.bonus) {
         // The bonus objective was met on this match: a medal on the tile.
         const medal = el('span', 'tile-medal');

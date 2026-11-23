@@ -565,7 +565,7 @@ function drawStands(ctx: CanvasRenderingContext2D, view: ViewRect, level: Level)
     glow.addColorStop(1, rgba(mood.screen, 0));
     ctx.fillStyle = glow;
     ctx.fillRect(x, y, w, h);
-    text(ctx, level.def.name, x + w / 2, y + h / 2 + 2, { size: 38, color: mood.screen, align: 'center', baseline: 'middle', weight: 900, spacing: 4 });
+    text(ctx, level.def.boss ? 'BOSS MATCH' : level.def.name, x + w / 2, y + h / 2 + 2, { size: 38, color: mood.screen, align: 'center', baseline: 'middle', weight: 900, spacing: 4 });
   }
 
   // Floodlights on the bowl's corners: a pool of light and the lamp head.
