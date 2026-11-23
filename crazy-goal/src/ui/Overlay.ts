@@ -502,10 +502,19 @@ export class Overlay {
   private show(screen: HTMLElement | null): void {
     for (const s of this.screens) s.hidden = s !== screen;
     this.root.classList.toggle('is-open', screen !== null);
-    this.pauseButton.hidden = screen !== null;
     if (screen) this.result.hidden = true;
     if (screen === this.menu) this.playButton.focus({ preventScroll: true });
     else screen?.querySelector('button')?.focus({ preventScroll: true });
+  }
+
+  /** Whether any screen of the overlay is up (menu, stadiums, balls, store, settings, pause, league, world, run over). */
+  get open(): boolean {
+    return this.root.classList.contains('is-open');
+  }
+
+  /** The in-match controls as the Game allows them: the pause button shows only when nothing is over the match. */
+  setControlsAllowed(allowed: boolean): void {
+    this.pauseButton.hidden = !allowed;
   }
 
   /** True while the stadium list or the balls screen is up: menus, where the match's sound stops. */

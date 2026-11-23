@@ -806,7 +806,7 @@ export class Game {
   /** What the coach card shows, or null while something else is over the screen. */
   private guideInfo(): GuideInfo | null {
     const def = this.guideDef();
-    if (!def || this.paused || this.duel.active) return null;
+    if (!def || !this.controlsAllowed() || this.duel.active) return null;
     if (this.state === 'menu' || this.state === 'goal' || this.state === 'replay') return null;
     const series = def.series ?? 'tutorial';
     const lessons = this.levels.filter((l) => l.guide && (l.guide.series ?? 'tutorial') === series);
@@ -885,8 +885,17 @@ export class Game {
   }
 
   /** The free-kick controls: solo play, ball waiting or being aimed, nothing over the screen. */
+  /**
+   * The in-match controls (the kick, the abilities and their coin pill, the pause button, the coach card) show
+   * only in a match with nothing over it: a match state, not paused, and no screen of the overlay up (menu,
+   * stadiums, balls, store, settings, pause, league, world, run over).
+   */
+  controlsAllowed(): boolean {
+    return this.state !== 'menu' && !this.paused && !this.overlay.open;
+  }
+
   private kickVisible(): boolean {
-    return this.shotRule === 'free' && !this.duelScore && !this.duel.active && !this.paused && (this.state === 'ready' || this.state === 'aiming');
+    return this.controlsAllowed() && this.shotRule === 'free' && !this.duelScore && !this.duel.active && (this.state === 'ready' || this.state === 'aiming');
   }
 
   /** F flips between ground and air; Q and E step the bend left and right through straight and half and full. */
@@ -978,6 +987,7 @@ export class Game {
   /** The solo ability shop is for free play only, while the ball waits to be struck. */
   private shopVisible(): boolean {
     return (
+      this.controlsAllowed() &&
       this.shotRule === 'free' &&
       // The boost column is introduced at houma 6; before that it would only be clutter.
       this.save.data.boostIntro &&
@@ -1350,6 +1360,7 @@ export class Game {
       this.updateVisuals(dt, realDt);
     }
     this.updateGuide();
+    this.overlay.setControlsAllowed(this.controlsAllowed());
     this.kickControls.refresh();
     this.guideCard.refresh();
     input.endFrame();
