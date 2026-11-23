@@ -621,6 +621,15 @@ const AR: Readonly<Record<string, string>> = {
   'CLUB LV {n}': 'نادي المستوى {n}',
   'LEVEL UP! LV {n}': 'ارتقاء! المستوى {n}',
   '+{n} XP': '+{n} خبرة',
+  // FRENZY.
+  'FRENZY': 'جنون',
+  'RUN OVER': 'انتهت الجولة',
+  'MENU': 'القائمة',
+  'STREAK {n}': 'سلسلة {n}',
+  'SCORE {n}': 'النقاط {n}',
+  'BEST STREAK {n}': 'أفضل سلسلة {n}',
+  'GOALS {n}': 'أهداف {n}',
+  'COINS EARNED +{n}': 'عملات مكتسبة +{n}',
   // WORLDS and BOSS MATCHES.
   'WORLD COMPLETE': 'اكتمل العالم',
   'BOSS': 'الزعيم',

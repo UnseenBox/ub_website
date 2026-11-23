@@ -5,6 +5,7 @@ import { CLUB_START, ballIsOpen, gainXp, nextLockedBall, xpForScore, xpToNext, t
 import { addLeagueLp, claimLeague as claimPrize, freshLeague, lpForGoal, pendingResult, prizeFor, seasonClock, settleLeague, standings } from '../progression/League';
 import { bonusFor } from '../levels/bonus';
 import { hintText } from '../levels/hints';
+import { FRENZY_COIN_PER_GOAL, frenzyPool, frenzyUnlocked, livesAfterGoal, newFrenzyRun, type FrenzyRun } from '../progression/Frenzy';
 import { BOSS_COIN_MULTIPLIER, WORLD_COUNT, WORLD_REWARD, nextWorld, worldOf, worldRange, worldStars, worldTitle, worldThemeName } from '../progression/Worlds';
 import { BONUS_COINS, bonusMet, type BonusId } from '../scoring/Bonus';
 import { AudioManager } from '../audio/AudioManager';
@@ -289,6 +290,8 @@ export class Game {
   advanceT = -1;
   /** WORLDS: the world a boss match has just completed, whose panel is due after the celebration. */
   pendingWorld: WorldInfo | null = null;
+  /** FRENZY: the run in progress, or null on the campaign. */
+  frenzy: FrenzyRun | null = null;
   /** The last solo goal was the level's first clear, and its coins have been doubled by an ad. */
   private goalFirstClear = false;
   private goalDoubled = false;
@@ -408,6 +411,7 @@ export class Game {
       stars: () => ({ n: this.totalStars(), max: this.maxStars() }),
       menuInfo: () => this.menuInfo(),
       claimSeasonPrize: () => this.claimSeasonPrize(),
+      frenzy: () => this.startFrenzy(),
       store: () => this.storeInfo(),
       buyUpgrade: (id) => this.buyUpgrade(id),
       buyAbilities: (id, count) => this.buyAbilities(id, count),
@@ -589,6 +593,7 @@ export class Game {
       newBall: this.unseenBalls().length > 0,
       club: { level: this.save.data.club.level, xp: this.save.data.club.xp, need: xpToNext(this.save.data.club.level) },
       league: this.leagueInfo(),
+      frenzy: { unlocked: frenzyUnlocked((id) => this.save.data.levels[id]?.goals ?? 0), best: this.save.data.frenzyBest },
     };
   }
 
@@ -615,6 +620,8 @@ export class Game {
     data.league = freshLeague(new Date());
     data.worlds = [];
     this.pendingWorld = null;
+    data.frenzyBest = 0;
+    this.frenzy = null;
     this.skin = skinOf('classic');
     this.save.save();
     // Back to the title card, not into a match: a live match under the menu leaves the in-match controls
@@ -1066,6 +1073,7 @@ export class Game {
   /** Back to the title card, on the furthest solo houma reached. */
   returnToMenu(): void {
     portal.gameplayStop();
+    this.frenzy = null;
     // Silence first, so loading the menu's backdrop stadium does not start its crowd for a moment.
     this.soundInMatch = false;
     this.audio.setMusicOn(false);
@@ -1261,6 +1269,10 @@ export class Game {
   /** Between houmas: the portal may take a midgame break first, then the next street loads. */
   nextLevel(): void {
     this.audio.stop('goal');
+    if (this.frenzy) {
+      this.frenzyNextShot();
+      return;
+    }
     if (this.level.index + 1 >= this.levels.length) {
       this.openLevels();
       return;
@@ -1427,7 +1439,7 @@ export class Game {
     this.stillFor = 0;
     this.flightFor = 0;
     this.goalCine = false;
-    this.record.attempts++;
+    if (!this.frenzy) this.record.attempts++;
     this.save.save();
     this.setState('flight');
     this.events.emit('BALL_LAUNCHED', { x: b.x, y: b.y, dirX: shot.dirX, dirY: shot.dirY, power: shot.power, speed });
@@ -1574,6 +1586,78 @@ export class Game {
     this.save.save();
   }
 
+  /** FRENZY: an endless run of random cleared matches, one shot each, with three lives. */
+  startFrenzy(): void {
+    if (!frenzyUnlocked((id) => this.save.data.levels[id]?.goals ?? 0)) return;
+    this.audio.unlock();
+    this.sounds.ui();
+    this.overlay.hide();
+    this.paused = false;
+    this.frenzy = newFrenzyRun();
+    portal.gameplayStart();
+    this.remember('game');
+    this.frenzyNextShot();
+  }
+
+  /** The next match of the run, picked at random from the matches already cleared, ready for its one shot. */
+  private frenzyNextShot(): void {
+    const run = this.frenzy;
+    if (!run || run.over) return;
+    const cleared = this.levels
+      .map((_, i) => i)
+      .filter((i) => matchInfo(this.levels, i).lesson === null && (this.save.data.levels[this.levels[i].id]?.goals ?? 0) > 0);
+    const pool = frenzyPool(cleared, (i) => chapterOf(i), run.goals);
+    if (pool.length === 0) return;
+    const index = pool[Math.floor(Math.random() * pool.length)];
+    this.overlay.hide();
+    this.loadLevel(index);
+  }
+
+  /** A goal in a run: the streak, the score, two coins, a bonus life every five goals, and the best streak kept. */
+  private frenzyScored(total: number): void {
+    const run = this.frenzy;
+    if (!run) return;
+    run.goals++;
+    run.streak++;
+    run.bestStreak = Math.max(run.bestStreak, run.streak);
+    run.score += total;
+    run.lives = livesAfterGoal(run.lives, run.goals);
+    run.coins += FRENZY_COIN_PER_GOAL;
+    this.goalCoins = FRENZY_COIN_PER_GOAL;
+    this.save.data.coins += FRENZY_COIN_PER_GOAL;
+    if (run.streak > this.save.data.frenzyBest) this.save.data.frenzyBest = run.streak;
+  }
+
+  /** A miss in a run: a life goes, and the streak breaks. */
+  private frenzyMissed(): void {
+    const run = this.frenzy;
+    if (!run) return;
+    run.lives--;
+    run.streak = 0;
+  }
+
+  /** The missed shot is over: the next match starts while a life is left, otherwise the run ends. */
+  private frenzyAdvance(): void {
+    const run = this.frenzy;
+    if (!run || run.over) return;
+    if (run.lives <= 0) this.frenzyOver();
+    else this.frenzyNextShot();
+  }
+
+  /** RUN OVER: the streak, the score, the best streak kept, and the coins the run paid. */
+  private frenzyOver(): void {
+    const run = this.frenzy;
+    if (!run || run.over) return;
+    run.over = true;
+    portal.gameplayStop();
+    this.save.save();
+    this.overlay.showRunOver(
+      { streak: run.bestStreak, score: run.score, best: this.save.data.frenzyBest, coins: run.coins, goals: run.goals },
+      () => this.startFrenzy(),
+      () => this.returnToMenu(),
+    );
+  }
+
   /** WORLDS: the first time a world's boss match is cleared, the world is complete: a trophy, its reward, and a panel. */
   private completeWorldIfBoss(): void {
     if (!this.level.def.boss) return;
@@ -1623,11 +1707,14 @@ export class Game {
     const card = scoreShot(facts, this.record.best, this.level.def.stars);
     const firstClear = this.record.goals === 0;
     const starsBefore = this.record.stars;
-    this.goalFirstClear = firstClear && this.shotRule === 'free';
+    // A FRENZY shot keeps the campaign's records, stars, coins and rewards out of it.
+    const frenzy = this.frenzy !== null;
+    const campaign = this.shotRule === 'free' && !frenzy;
+    this.goalFirstClear = campaign && firstClear;
     this.goalDoubled = false;
     this.missStreak = 0;
     this.stuckAnnounced = false;
-    this.record.goals++;
+    if (!frenzy) this.record.goals++;
     this.lastScore = card.total;
     this.goalCoins = 0;
     this.goalXp = 0;
@@ -1636,7 +1723,7 @@ export class Game {
     this.goalLp = 0;
     this.goalBonus = null;
     // Solo coins are paid for progress only: the first clear, and each star won for the first time.
-    if (this.shotRule === 'free') {
+    if (campaign) {
       const stars = Math.max(this.record.stars, card.stars);
       this.goalCoins = coinsForGoal({ firstClear, oldStars: this.record.paidStars, newStars: stars, total: card.total });
       // A boss match pays double.
@@ -1647,15 +1734,15 @@ export class Game {
       // The one moment in the whole campaign rare enough for the platform's own celebration: finishing it.
       if (firstClear && this.level.index === this.levels.length - 1) portal.happytime();
     }
-    if (this.shotRule === 'free') this.offerGoalTips(card.lines.map((l) => l.label));
-    if (card.newBest) this.record.best = card.total;
-    if (card.stars > this.record.stars) this.record.stars = card.stars;
+    if (campaign) this.offerGoalTips(card.lines.map((l) => l.label));
+    if (campaign && card.newBest) this.record.best = card.total;
+    if (campaign && card.stars > this.record.stars) this.record.stars = card.stars;
     // CLUB LEVEL: every solo goal earns XP, replays too. Levels pay coins, and some give a ball or an ability.
-    if (this.shotRule === 'free') this.awardClub(card.total);
-    if (this.shotRule === 'free') this.completeWorldIfBoss();
-    if (this.shotRule === 'free') this.awardLeague(Math.max(0, card.stars - starsBefore));
+    if (campaign) this.awardClub(card.total);
+    if (campaign) this.completeWorldIfBoss();
+    if (campaign) this.awardLeague(Math.max(0, card.stars - starsBefore));
     // BONUS OBJECTIVE: a solo goal that meets this match's objective pays BONUS_COINS, the first time only.
-    const bonusId = this.shotRule === 'free' ? bonusFor(this.level.def.id) : null;
+    const bonusId = campaign ? bonusFor(this.level.def.id) : null;
     if (bonusId) {
       const met = bonusMet(bonusId, facts);
       const paid = met && !this.record.bonus;
@@ -1665,9 +1752,10 @@ export class Game {
       }
       this.goalBonus = { id: bonusId, met, coins: paid ? BONUS_COINS : 0 };
     }
+    if (frenzy) this.frenzyScored(card.total);
     this.save.save();
-    this.ballGap = this.shotRule === 'free' ? this.starsToNextBall() : null;
-    if (this.shotRule === 'free') this.events.emit('LEVEL_GOAL', { level: this.level.index + 1, stars: card.stars, score: card.total, attempts: this.record.attempts, firstClear, bounces: card.bounces });
+    this.ballGap = campaign ? this.starsToNextBall() : null;
+    if (campaign) this.events.emit('LEVEL_GOAL', { level: this.level.index + 1, stars: card.stars, score: card.total, attempts: this.record.attempts, firstClear, bounces: card.bounces });
 
     b.drag = NET_DRAG;
     this.goalFlash = 1;
@@ -1706,13 +1794,14 @@ export class Game {
     b.bend = 0;
     this.path.push(b.x, b.y);
     this.missKind = forced ?? classifyMiss(this.analyzer.finish(false, b, this.level.goal, this.level.hasKeeper));
-    if (this.shotRule === 'free') {
+    if (this.shotRule === 'free' && !this.frenzy) {
       this.missStreak++;
       // Six misses in a row on one match: a gentle hint, from what the sweep says scores on it.
       const hint = this.missStreak === HINT_MISSES ? hintText(this.level.def.id) : null;
       if (hint) this.tip = { key: 'hint', text: hint };
     }
     this.setState('missed');
+    if (this.frenzy) this.frenzyMissed();
     this.events.emit('SHOT_FAILED', { kind: this.missKind, x: b.x, y: b.y });
     if (this.shotRule === 'single') this.onShotEnd?.({ goal: false, score: 0, path: this.path, events: this.shotEvents, movers: this.shotMovers });
   }
@@ -1720,6 +1809,11 @@ export class Game {
   /** A retry is gameplay again: the goal that stopped the portal must hand it back. */
   private retryShot(): void {
     if (this.state === 'menu') return;
+    if (this.frenzy) {
+      // In a run a press after a miss moves on to the next match, never back to the same one.
+      if (this.state === 'missed') this.frenzyAdvance();
+      return;
+    }
     this.resetShot();
     if (!this.paused) portal.gameplayStart();
   }
@@ -1870,7 +1964,7 @@ export class Game {
     if (!want) this.advanceT = -1;
     else if (this.goalFirstClear && this.advanceT < 0) this.advanceT = 0;
     const double = want && this.doubleOffer();
-    this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1), double);
+    this.overlay.setResult(want, this.frenzy !== null || (this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1)), double, this.frenzy !== null);
     if (double) this.events.emit('AD_OFFERED', { kind: 'double' });
     if (want && !force) {
       if (!this.paused) this.offerBallToast();
@@ -1897,7 +1991,10 @@ export class Game {
     boostFeedback(this, dt);
     this.duel.update(realDt);
 
-    if (this.shotRule === 'free' && this.state === 'missed' && this.stateT >= (this.missKind === 'miss' ? MISS_HOLD : NEAR_MISS_HOLD)) this.resetShot();
+    if (this.frenzy) {
+      // In a run the missed shot is over: a short beat later the next match starts, or the run ends.
+      if (this.state === 'missed' && this.stateT >= (this.missKind === 'miss' ? MISS_HOLD : NEAR_MISS_HOLD)) this.frenzyAdvance();
+    } else if (this.shotRule === 'free' && this.state === 'missed' && this.stateT >= (this.missKind === 'miss' ? MISS_HOLD : NEAR_MISS_HOLD)) this.resetShot();
     this.abilities.refresh(BOOST_COSTS);
   }
 }

@@ -116,8 +116,13 @@ export class Hud {
       if (g.tip.key === 'hint') this.drawHintPill(ctx, g, u, g.tip.text);
       else this.drawTip(ctx, g, u, g.tip.text);
     }
+    // FRENZY: the run's lives, streak and score take the place of the star targets, through the whole run.
+    if (g.frenzy && !g.frenzy.over) {
+      const keys = !cam.portrait && !g.input.pointer.touch && !COARSE.matches;
+      this.drawFrenzyRow(ctx, g, u, left, top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0));
+    }
     // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
-    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active) {
+    if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active && !g.frenzy) {
       const keys = !cam.portrait && !g.input.pointer.touch && !COARSE.matches;
       const colTop = top + 18 * u + (keys ? (40 + this.keyList(g).length * 28) * u : 0);
       // A lesson has its coach card up there instead: the stars are for later. A match with a bonus objective still shows it.
@@ -390,6 +395,49 @@ export class Hud {
     const left = centred ? x - w / 2 : x;
     hudPill(ctx, left, y - h / 2, w, h, h / 2);
     text(ctx, label, left + w / 2, y, { size, color: done ? C.sun : rgba(C.white, 0.9), align: 'center', baseline: 'middle', weight: 900, spacing: 1 });
+  }
+
+  /** FRENZY: the run's lives (balls), streak and score, in one pill where the star targets sit. */
+  private drawFrenzyRow(ctx: CanvasRenderingContext2D, g: Game, u: number, left: number, colTop: number): void {
+    const run = g.frenzy;
+    if (!run) return;
+    const cam = g.camera;
+    const { arena } = g.level.def;
+    ctx.save();
+    if (!cam.portrait) {
+      ctx.translate(left, colTop);
+      ctx.scale(u, u);
+      this.frenzyPill(ctx, 0, 0, run, false);
+    } else {
+      ctx.translate(arena.x + arena.w / 2, Math.max(cam.visible.y + 74 * u, arena.y - 215));
+      ctx.scale(u, u);
+      this.frenzyPill(ctx, 0, 0, run, true);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  private frenzyPill(ctx: CanvasRenderingContext2D, x: number, y: number, run: NonNullable<Game['frenzy']>, centred: boolean): void {
+    const label = `${tr('STREAK {n}', { n: run.streak })}   ${tr('SCORE {n}', { n: run.score })}`;
+    const size = 13;
+    const h = 34;
+    ctx.font = `900 ${size}px ${FONT}`;
+    const livesW = 3 * 18 + 6;
+    const w = livesW + ctx.measureText(label).width + 26;
+    const left = centred ? x - w / 2 : x;
+    hudPill(ctx, left, y - h / 2, w, h, h / 2);
+    for (let i = 0; i < 3; i++) {
+      const cx = left + 16 + i * 18 + 7;
+      ctx.beginPath();
+      ctx.arc(cx, y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = i < run.lives ? '#ffffff' : rgba(C.white, 0.22);
+      ctx.fill();
+      ctx.strokeStyle = C.navy;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    text(ctx, label, left + livesW + 16, y, { size, color: '#ffffff', baseline: 'middle', weight: 900, spacing: 1 });
   }
 
   /** The gentle hint after six misses in a row: one pill under the goal, until the next shot. */

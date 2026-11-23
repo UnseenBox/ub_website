@@ -55,6 +55,8 @@ export interface SaveData {
   league: League;
   /** WORLDS: the worlds whose boss match has been cleared (each one pays its reward once). */
   worlds: number[];
+  /** FRENZY: the longest streak of goals in a row, across every run. */
+  frenzyBest: number;
 }
 
 const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0, bonus: false });
@@ -76,6 +78,7 @@ const fresh = (): SaveData => ({
   grantedSkins: [],
   league: freshLeague(new Date()),
   worlds: [],
+  frenzyBest: 0,
 });
 
 const volume = (v: unknown, fallback: number): number => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
@@ -134,6 +137,8 @@ export function parseSave(raw: string | null): SaveData {
   }
   out.grantedSkins = strings(data.grantedSkins);
   out.league = parseLeague(data.league, new Date());
+  const frenzyBest = num(data.frenzyBest);
+  out.frenzyBest = frenzyBest > 0 ? Math.floor(frenzyBest) : 0;
   if (Array.isArray(data.worlds)) {
     out.worlds = [...new Set(data.worlds.map((w) => num(w)))].filter((w) => Number.isInteger(w) && w >= 1 && w <= WORLD_COUNT);
   }

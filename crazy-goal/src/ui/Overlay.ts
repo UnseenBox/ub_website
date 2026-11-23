@@ -29,6 +29,8 @@ export interface OverlayHandlers {
   home(): void;
   /** Portals without duels (their server lives elsewhere) hide the tile. */
   canDuel(): boolean;
+  /** FRENZY: start an endless run. */
+  frenzy(): void;
   /** A rewarded ad for coins, from the pause menu. */
   reward(): void;
   levels(): void;
@@ -93,6 +95,8 @@ export interface MenuInfo {
   club: { level: number; xp: number; need: number };
   /** STREET LEAGUE: the table, the prizes, and any season result whose prize is unclaimed. */
   league: LeagueInfo;
+  /** FRENZY: whether it is open, and the best streak. */
+  frenzy: { unlocked: boolean; best: number };
 }
 
 /** WORLD COMPLETE, as the panel shows it: the world, its stars, its reward, and a preview of the next world. */
@@ -230,6 +234,10 @@ export class Overlay {
   private readonly storeScreen: HTMLElement;
   private readonly worldScreen: HTMLElement;
   private readonly worldBody: HTMLElement;
+  private readonly frenzyButton: HTMLButtonElement;
+  private readonly frenzyBest: HTMLElement;
+  private readonly runOverScreen: HTMLElement;
+  private readonly runOverBody: HTMLElement;
   private readonly leagueScreen: HTMLElement;
   private readonly leagueBody: HTMLElement;
   private readonly resultScreen: HTMLElement;
@@ -357,6 +365,12 @@ export class Overlay {
     // A duel against a friend, where the server is reachable.
     const secondary = el('div', 'menu-secondary');
     if (handlers.canDuel()) secondary.append(button('menu-duel', 'DUEL A FRIEND', handlers.duel));
+    // FRENZY: the big secondary button, once match 4 has been cleared; its best streak shows under the name.
+    this.frenzyButton = button('menu-frenzy', '', () => handlers.frenzy());
+    this.frenzyBest = el('span', 'menu-frenzy-best', '');
+    this.frenzyButton.append(el('span', 'menu-frenzy-label', 'FRENZY'), this.frenzyBest);
+    this.frenzyButton.hidden = true;
+    secondary.append(this.frenzyButton);
 
     const menuPanel = el('div', 'menu-panel');
     menuPanel.append(mark, hero, shortcuts, secondary);
@@ -441,9 +455,15 @@ export class Overlay {
     this.worldBody = el('div', 'world-body');
     worldSheet.append(el('h2', 'panel-title', 'WORLD COMPLETE'), this.worldBody);
     this.worldScreen.append(worldSheet);
+    // RUN OVER: a FRENZY run has ended: its streak, score, the best streak, and the coins it paid.
+    this.runOverScreen = el('div', 'screen levels world');
+    const runOverSheet = el('div', 'sheet sheet-wide world-sheet');
+    this.runOverBody = el('div', 'world-body');
+    runOverSheet.append(el('h2', 'panel-title', 'RUN OVER'), this.runOverBody);
+    this.runOverScreen.append(runOverSheet);
 
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen, this.worldScreen);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen, this.worldScreen];
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen, this.worldScreen, this.runOverScreen);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen, this.worldScreen, this.runOverScreen];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -575,6 +595,8 @@ export class Overlay {
     this.clubLabel.parentElement?.setAttribute('aria-label', `${tr('CLUB LV {n}', { n: club.level })}, ${club.xp} / ${club.need}`);
     this.renderLeague(info.league);
     this.renderResult(info.league.pending);
+    this.frenzyButton.hidden = !info.frenzy.unlocked;
+    this.frenzyBest.textContent = tr('BEST {n}', { n: info.frenzy.best });
     return info;
   }
 
@@ -744,6 +766,26 @@ export class Overlay {
         this.showMenu();
       }),
     );
+  }
+
+  /** RUN OVER: the stats of a FRENZY run, with AGAIN (a new run) and MENU. */
+  showRunOver(stats: { streak: number; score: number; best: number; coins: number; goals: number }, onAgain: () => void, onMenu: () => void): void {
+    this.runOverBody.replaceChildren(
+      el('p', 'world-stars', tr('STREAK {n}', { n: stats.streak })),
+      el('p', 'world-name', tr('SCORE {n}', { n: stats.score })),
+      el('p', 'world-stars', tr('BEST STREAK {n}', { n: stats.best })),
+      el('p', 'world-stars', tr('GOALS {n}', { n: stats.goals })),
+      el('p', 'world-reward', tr('COINS EARNED +{n}', { n: stats.coins })),
+      button('btn btn-primary run-again', 'AGAIN', () => {
+        this.show(null);
+        onAgain();
+      }),
+      button('btn btn-ghost run-menu', 'MENU', () => {
+        this.show(null);
+        onMenu();
+      }),
+    );
+    this.show(this.runOverScreen);
   }
 
   /** WORLD COMPLETE: the panel for a world just completed, with its stars, its trophy and reward, and the next world. */
@@ -953,8 +995,10 @@ export class Overlay {
     if (p >= 0) this.nextButton.style.setProperty('--ring', p.toFixed(3));
   }
 
-  setResult(visible: boolean, hasNext: boolean, double = false): void {
+  setResult(visible: boolean, hasNext: boolean, double = false, frenzy = false): void {
     this.result.hidden = !visible;
+    // In a run a shot is one-off: the card offers the next match only, no AGAIN.
+    this.result.classList.toggle('is-frenzy', frenzy);
     this.doubleButton.hidden = !(visible && double);
     this.nextButton.textContent = tr(hasNext ? 'NEXT MATCH' : 'STADIUMS');
   }
