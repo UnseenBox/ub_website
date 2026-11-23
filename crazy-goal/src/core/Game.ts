@@ -4,6 +4,7 @@ import { abilityPrice, aimScale, curlScale, nextPrice, noUpgrades, powerScale, U
 import { CLUB_START, ballIsOpen, gainXp, nextLockedBall, xpForScore, xpToNext, type LevelReward } from '../progression/Club';
 import { addLeagueLp, claimLeague as claimPrize, freshLeague, lpForGoal, pendingResult, prizeFor, seasonClock, settleLeague, standings } from '../progression/League';
 import { bonusFor } from '../levels/bonus';
+import { hintText } from '../levels/hints';
 import { BOSS_COIN_MULTIPLIER, WORLD_COUNT, WORLD_REWARD, nextWorld, worldOf, worldRange, worldStars, worldTitle, worldThemeName } from '../progression/Worlds';
 import { BONUS_COINS, bonusMet, type BonusId } from '../scoring/Bonus';
 import { AudioManager } from '../audio/AudioManager';
@@ -84,8 +85,13 @@ const STILL_SECONDS = 0.1;
 /** No shot is allowed to run longer than this, whatever the street does to it. */
 const MAX_FLIGHT = 9;
 /** How long the miss label holds before the ball is put back, by how close it was. */
-const MISS_HOLD = 0.5;
-const NEAR_MISS_HOLD = 0.8;
+// A miss hands the ball back after this long on its own (a press retries at once, at any time).
+const MISS_HOLD = 0.3;
+const NEAR_MISS_HOLD = 0.35;
+/** A first clear moves on to the next match by itself after this long, unless AGAIN or pause stops it. */
+const AUTO_ADVANCE_SECONDS = 4;
+/** Misses in a row on one match before a gentle hint pill (what the sweep says scores there). */
+const HINT_MISSES = 6;
 /** Drag on a ball that is over the line: the net takes the pace off it. */
 const NET_DRAG = 5.5;
 /** Points kept of a shot's path, one every few physics steps. */
@@ -279,6 +285,8 @@ export class Game {
   goalLp = 0;
   /** BONUS OBJECTIVE: the match's objective, whether this goal met it, and the coins it paid (once). */
   goalBonus: { id: BonusId; met: boolean; coins: number } | null = null;
+  /** Seconds the NEXT MATCH ring has filled on a first clear, or -1 when it is not running. */
+  advanceT = -1;
   /** WORLDS: the world a boss match has just completed, whose panel is due after the celebration. */
   pendingWorld: WorldInfo | null = null;
   /** The last solo goal was the level's first clear, and its coins have been doubled by an ad. */
@@ -1096,6 +1104,8 @@ export class Game {
     if (this.state === 'menu' || paused === this.paused) return;
     this.paused = paused;
     if (paused) {
+      // Pause stops the countdown to the next match.
+      this.advanceT = -1;
       if (this.state === 'aiming') this.cancelAim();
       if (reportToPortal) portal.gameplayStop();
       if (this.duel.active) this.duel.showPause();
@@ -1313,6 +1323,15 @@ export class Game {
         if (input.consume('confirm') && this.state === 'goal' && this.celebration.canRetry) this.nextLevel();
         this.handlePointer(realDt);
       }
+      // The ring on NEXT MATCH fills on a first clear; when it is full, the next match starts by itself.
+      if (this.advanceT >= 0) {
+        this.advanceT += realDt;
+        if (this.advanceT >= AUTO_ADVANCE_SECONDS) {
+          this.advanceT = -1;
+          this.nextLevel();
+        }
+      }
+      this.overlay.setAdvance(this.advanceT < 0 ? -1 : this.advanceT / AUTO_ADVANCE_SECONDS);
       this.stateT += realDt;
       const dt = this.time.step(realDt);
       this.simulate(dt);
@@ -1687,7 +1706,12 @@ export class Game {
     b.bend = 0;
     this.path.push(b.x, b.y);
     this.missKind = forced ?? classifyMiss(this.analyzer.finish(false, b, this.level.goal, this.level.hasKeeper));
-    if (this.shotRule === 'free') this.missStreak++;
+    if (this.shotRule === 'free') {
+      this.missStreak++;
+      // Six misses in a row on one match: a gentle hint, from what the sweep says scores on it.
+      const hint = this.missStreak === HINT_MISSES ? hintText(this.level.def.id) : null;
+      if (hint) this.tip = { key: 'hint', text: hint };
+    }
     this.setState('missed');
     this.events.emit('SHOT_FAILED', { kind: this.missKind, x: b.x, y: b.y });
     if (this.shotRule === 'single') this.onShotEnd?.({ goal: false, score: 0, path: this.path, events: this.shotEvents, movers: this.shotMovers });
@@ -1842,6 +1866,9 @@ export class Game {
       this.overlay.showWorld(info, () => this.syncButtons(true));
       return;
     }
+    // A first clear moves on by itself: the ring on NEXT MATCH starts filling once the result card is up.
+    if (!want) this.advanceT = -1;
+    else if (this.goalFirstClear && this.advanceT < 0) this.advanceT = 0;
     const double = want && this.doubleOffer();
     this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1), double);
     if (double) this.events.emit('AD_OFFERED', { kind: 'double' });

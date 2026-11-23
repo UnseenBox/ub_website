@@ -253,6 +253,8 @@ export class Overlay {
   private readonly playButton: HTMLButtonElement;
   private readonly result: HTMLElement;
   private readonly nextButton: HTMLButtonElement;
+  /** The NEXT MATCH ring's fill, 0 to 1, or -1 when there is no ring. */
+  private advanceShown = -1;
   private readonly doubleButton: HTMLButtonElement;
   private readonly rewardButton: HTMLButtonElement;
   private readonly screens: HTMLElement[];
@@ -941,6 +943,14 @@ export class Overlay {
   /** Shows or hides the "x2 COINS" ad button on the result card. */
   setDouble(visible: boolean): void {
     this.doubleButton.hidden = !visible;
+  }
+
+  /** The NEXT MATCH ring on a first clear: how far it has filled, 0 to 1; -1 takes it away. */
+  setAdvance(p: number): void {
+    if (p === this.advanceShown) return;
+    this.advanceShown = p;
+    this.nextButton.classList.toggle('is-timed', p >= 0);
+    if (p >= 0) this.nextButton.style.setProperty('--ring', p.toFixed(3));
   }
 
   setResult(visible: boolean, hasNext: boolean, double = false): void {

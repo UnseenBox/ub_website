@@ -111,7 +111,11 @@ export class Hud {
     }
     if (g.state === 'menu') return;
 
-    if (g.tip && (g.state === 'ready' || g.state === 'aiming') && !g.paused) this.drawTip(ctx, g, u, g.tip.text);
+    if (g.tip && (g.state === 'ready' || g.state === 'aiming') && !g.paused) {
+      // A hint (six misses in a row) sits under the goal, clear of the controls; scoring tips sit under the kerb.
+      if (g.tip.key === 'hint') this.drawHintPill(ctx, g, u, g.tip.text);
+      else this.drawTip(ctx, g, u, g.tip.text);
+    }
     // What each star needs, in the corner of the screen where nothing else is, and only while aiming.
     if ((g.state === 'ready' || g.state === 'aiming') && !g.paused && g.shotRule === 'free' && g.level.index >= 0 && !g.duel.active) {
       const keys = !cam.portrait && !g.input.pointer.touch && !COARSE.matches;
@@ -386,6 +390,24 @@ export class Hud {
     const left = centred ? x - w / 2 : x;
     hudPill(ctx, left, y - h / 2, w, h, h / 2);
     text(ctx, label, left + w / 2, y, { size, color: done ? C.sun : rgba(C.white, 0.9), align: 'center', baseline: 'middle', weight: 900, spacing: 1 });
+  }
+
+  /** The gentle hint after six misses in a row: one pill under the goal, until the next shot. */
+  private drawHintPill(ctx: CanvasRenderingContext2D, g: Game, u: number, str: string): void {
+    const { arena } = g.level.def;
+    ctx.save();
+    ctx.translate(arena.x + arena.w / 2, arena.y + 104);
+    ctx.scale(u, u);
+    const size = 11;
+    const h = 22;
+    const label = tr(str);
+    ctx.font = `900 ${size}px ${FONT}`;
+    const w = ctx.measureText(label).width + 22;
+    hudPill(ctx, -w / 2, -h / 2, w, h, h / 2);
+    text(ctx, label, 0, 0, { size, color: C.sun, align: 'center', baseline: 'middle', weight: 900, spacing: 1 });
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
   }
 
   /** A one-time scoring tip: up to two lines in a pill under the kerb, until the next shot. */

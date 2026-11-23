@@ -4419,3 +4419,17 @@ body {
   font-size: 12px;
   font-weight: 800;
 }
+
+/* Less dead time (Step 14): the ring on NEXT MATCH fills on a first clear, then the next match starts. */
+.result .btn-primary.is-timed::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 26px;
+  padding: 4px;
+  background: conic-gradient(#ffd94d calc(var(--ring, 0) * 1turn), rgba(255, 255, 255, 0.35) 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
