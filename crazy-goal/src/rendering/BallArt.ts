@@ -2,6 +2,7 @@ import type { Ball } from '../ball/Ball';
 import type { BallTrail } from '../ball/BallTrail';
 import { clamp, easeOutBack, TAU } from '../core/math';
 import { C, rgba, SHADOW_ALPHA } from './Palette';
+import { paintSphere, type BallTexture } from './SphereBall';
 
 /** Angular radius of a pentagon patch, in radians. */
 const PATCH = 0.4;
@@ -73,7 +74,7 @@ export function drawBallAura(ctx: CanvasRenderingContext2D, ball: Ball, x: numbe
  * The football. Its twelve pentagons live on a sphere that really rotates as the ball rolls,
  * so the pattern slides across the face and foreshortens at the edge.
  */
-export function drawBall(ctx: CanvasRenderingContext2D, ball: Ball, x: number, y: number, patch: string = C.ink, base: string = C.bone): void {
+export function drawBall(ctx: CanvasRenderingContext2D, ball: Ball, x: number, y: number, patch: string = C.ink, base: string = C.bone, texture: BallTexture | null = null): void {
   const pop = easeOutBack(ball.spawn);
   if (pop <= 0) return;
   const r = ball.radius;
@@ -93,6 +94,18 @@ export function drawBall(ctx: CanvasRenderingContext2D, ball: Ball, x: number, y
   ctx.rotate(angle);
   ctx.scale(1 + k, 1 - k * 0.75);
   ctx.rotate(-angle);
+
+  if (texture?.loaded) {
+    // The picture is wrapped round the ball and turns with its roll; the sphere's own shading gives the form.
+    paintSphere(ctx, texture, ball.orient, r);
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, TAU);
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
 
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, TAU);

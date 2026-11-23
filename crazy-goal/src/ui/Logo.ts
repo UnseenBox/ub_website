@@ -4,10 +4,10 @@ import { uniqueIds } from './GameIcons';
 /**
  * The CRAZY KORA wordmark as a vector, so it is sharp at any size on any screen: CRAZY in sun yellow
  * over KORA in hot pink, each letter with a solid 3D edge under it, the ball for the O and a green dot.
- * Drawn in Lilita One (bundled with the game).
+ * Drawn in Bungee (bundled with the game).
  */
 
-const FACE = `font-family="'Lilita One', 'Arial Rounded MT Bold', sans-serif" font-weight="400"`;
+const FACE = `font-family="'Bungee', 'Arial Black', sans-serif" font-weight="400"`;
 
 /** One line of lettering: the deep edge, the mid edge, then the face with a gradient and a soft top light. */
 function word(text: string, x: number, y: number, size: number, grad: string, mid: string, deep: string, spacing: number): string {

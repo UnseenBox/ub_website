@@ -67,7 +67,7 @@ import { KickControls } from '../ui/KickControls';
 import { GuideCard, type GuideInfo } from '../ui/GuideCard';
 import { GUIDE_ASSIST_MISSES, guideAssist, guideNeed, guideShot, snapBend, type GuideNeed } from './Guide';
 import type { GuideDef } from '../levels/LevelDefinition';
-import { airSpeed, autoAltitude, HEIGHT_KEY_STEP, KICK, lobVz, snapHeight, type ShotType } from '../physics/Flight';
+import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
 import { traceShot, type Trace } from '../levels/sweep';
 import { portal, isCrazyGames } from '../portal/Portal';
 import { forgetStands } from '../rendering/StadiumArt';
@@ -312,8 +312,8 @@ export class Game {
   abilityDemo: { boost: Boost; plain: Trace; boosted: Trace } | null = null;
   private guideKey = '';
   /** How the next solo shot is struck: along the ground or lofted, and how much it bends (-1 to 1). */
-  /** The free-kick choices: GROUND or AIR, the bend, and the height of a lob (null: the power picks it). */
-  readonly kick: { type: ShotType; bend: number; height: number | null } = { type: 'ground', bend: 0, height: null };
+  /** The free-kick choices: GROUND or AIR, and the bend. */
+  readonly kick: { type: ShotType; bend: number } = { type: 'ground', bend: 0 };
   private replay: Replay | null = null;
 
   private path = new ShotPath();
@@ -447,15 +447,6 @@ export class Game {
       },
       setBend: (bend) => {
         this.kick.bend = snapBend(bend);
-      },
-      height: () => this.aimHeight(),
-      heightAuto: () => this.kick.height === null,
-      setHeight: (height) => {
-        this.kick.type = 'air';
-        this.kick.height = snapHeight(height);
-      },
-      resetHeight: () => {
-        this.kick.height = null;
       },
       tick: () => this.sounds.ui(),
     });
@@ -619,7 +610,7 @@ export class Game {
     const data = this.save.data;
     data.levels = {};
     data.coins = 0;
-    data.skin = 'classic';
+    data.skin = 'tex-hex';
     data.upgrades = noUpgrades();
     data.freeBoosts = {};
     data.boostIntro = false;
@@ -632,7 +623,7 @@ export class Game {
     this.pendingWorld = null;
     data.frenzyBest = 0;
     this.frenzy = null;
-    this.skin = skinOf('classic');
+    this.skin = skinOf('tex-hex');
     this.save.save();
     // Back to the title card, not into a match: a live match under the menu leaves the in-match controls
     // drawn over it, and nothing can start a shot from there. returnToMenu() also shows the menu.
@@ -752,7 +743,6 @@ export class Game {
     if (this.guideDef()) {
       this.kick.type = 'ground';
       this.kick.bend = 0;
-      this.kick.height = null;
     }
     this.resetShot();
   }
@@ -909,30 +899,16 @@ export class Game {
     return this.controlsAllowed() && this.shotRule === 'free' && !this.duelScore && !this.duel.active && (this.state === 'ready' || this.state === 'aiming');
   }
 
-  /** The height the lob takes right now: the one the player picked, or the power's own while it is automatic. */
-  aimHeight(): number {
-    return this.kick.height ?? autoAltitude(this.shot.power);
-  }
-
-  /** F flips between ground and air; Q and E step the bend; W and S (or the arrows) raise and lower the lob. */
+  /** F flips between ground and air; Q and E step the bend left and right through straight and half and full. */
   private kickKeys(): void {
     const input = this.input;
     const air = input.consume('air');
     const left = input.consume('bendLeft');
     const right = input.consume('bendRight');
-    const up = input.consume('heightUp');
-    const down = input.consume('heightDown');
-    if (!(air || left || right || up || down) || !this.kickVisible()) return;
+    if (!(air || left || right) || !this.kickVisible()) return;
     const parts = this.kickParts();
     if (air && parts.air) {
       this.kick.type = this.kick.type === 'air' ? 'ground' : 'air';
-      this.sounds.ui();
-    }
-    if ((up || down) && parts.air) {
-      // A height is a lofted shot: raising or lowering the ball turns the air on.
-      const step = up === down ? 0 : up ? HEIGHT_KEY_STEP : -HEIGHT_KEY_STEP;
-      this.kick.type = 'air';
-      this.kick.height = snapHeight(this.aimHeight() + step);
       this.sounds.ui();
     }
     if ((left || right) && parts.bend) {
@@ -960,10 +936,10 @@ export class Game {
   }
 
   /** How a solo shot is struck; duels play with a plain ground ball. The store's CURL bends it further. */
-  private currentKick(): { air: boolean; bend: number; height: number | null } {
-    if (this.shotRule !== 'free') return { air: false, bend: 0, height: null };
+  private currentKick(): { air: boolean; bend: number } {
+    if (this.shotRule !== 'free') return { air: false, bend: 0 };
     const curl = this.upgraded() ? curlScale(this.save.data.upgrades.curl) : 1;
-    return { air: this.kick.type === 'air', bend: this.kick.bend * curl, height: this.kick.height };
+    return { air: this.kick.type === 'air', bend: this.kick.bend * curl };
   }
 
   /**
@@ -1451,7 +1427,7 @@ export class Game {
     b.angVel = shot.spin;
     const kick = this.currentKick();
     b.z = kick.air ? 0.01 : 0;
-    b.vz = kick.air ? lobVz(shot.power, kick.height) : 0;
+    b.vz = kick.air ? launchVz(shot.power) : 0;
     b.bend = kick.bend;
     b.turned = 0;
     this.ball.stretch(shot.dirX, shot.dirY, 0.1 + 0.2 * shot.power);

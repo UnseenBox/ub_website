@@ -8,11 +8,6 @@ const KEYS: Readonly<Record<string, Command>> = {
   KeyF: 'air',
   KeyQ: 'bendLeft',
   KeyE: 'bendRight',
-  // W and S, or the arrow keys, raise and lower the lob.
-  KeyW: 'heightUp',
-  KeyS: 'heightDown',
-  ArrowUp: 'heightUp',
-  ArrowDown: 'heightDown',
   F3: 'debug',
   Space: 'confirm',
   Enter: 'confirm',

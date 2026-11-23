@@ -18,17 +18,19 @@ export interface TextStyle {
   align?: CanvasTextAlign;
   baseline?: CanvasTextBaseline;
   weight?: number;
+  /** The face: the game's lettering by default; the biggest titles pass FONT_SHADE. */
+  family?: string;
   /** Extra space between letters, in world units. */
   spacing?: number;
   alpha?: number;
 }
 
 export function text(ctx: CanvasRenderingContext2D, str: string, x: number, y: number, s: TextStyle): void {
-  ctx.font = `${s.weight ?? 900} ${s.size}px ${FONT}`;
+  ctx.font = `${s.weight ?? 900} ${s.size}px ${s.family ?? FONT}`;
   ctx.textAlign = s.align ?? 'left';
   ctx.textBaseline = s.baseline ?? 'alphabetic';
   // Spacing letters apart breaks Arabic, whose letters join.
-  // Lilita One is set close: the spacing callers ask for is scaled down to suit it.
+  // Bungee is set wider and looser than the old face: the spacing callers ask for is scaled down to suit it.
   ctx.letterSpacing = `${rtl ? 0 : (s.spacing ?? 0) * 0.35}px`;
   ctx.fillStyle = s.color;
   if (s.alpha !== undefined) ctx.globalAlpha = s.alpha;

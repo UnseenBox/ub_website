@@ -38,8 +38,8 @@ describe('parseSave', () => {
   });
 
   it('does not announce balls a v1 player already owns', () => {
-    const s = parseSave(JSON.stringify(v1)); // 4 stars: classic (0) and orange (3)
-    expect(s.seenSkins).toEqual(['classic', 'orange']);
+    const s = parseSave(JSON.stringify(v1)); // 4 stars: only the free ball (need 0) is open
+    expect(s.seenSkins).toEqual(['tex-hex']);
   });
 
   it('round-trips a v2 save', () => {
