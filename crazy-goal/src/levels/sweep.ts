@@ -3,7 +3,7 @@ import { BALL_TUNING } from '../ball/Ball';
 import { speedForPower } from '../ball/ShotController';
 import type { MechEventKind } from '../mechanics/Mechanic';
 import { circle, Layer, type Surface } from '../physics/Collider';
-import { airSpeed, KICK, launchVz } from '../physics/Flight';
+import { airSpeed, KICK, lobVz } from '../physics/Flight';
 import { FIXED_DT } from '../physics/PhysicsWorld';
 import { createBody } from '../physics/RigidBody';
 import { scoreShot } from '../scoring/ScoreSystem';
@@ -35,6 +35,8 @@ export interface SweepResult {
 export interface Kick {
   air: boolean;
   bend: number;
+  /** The height of a lofted shot, 0 (low) to 1 (high); null lets the power pick it, as a strike does. */
+  height?: number | null;
   /** An ability riding on the shot (fire, magnet, rubber). */
   boost?: Boost | null;
 }
@@ -87,7 +89,7 @@ export function fireShot(def: LevelDefinition, index: number, angle: number, pow
   ghost.vx = Math.cos(a) * speed;
   ghost.vy = Math.sin(a) * speed;
   ghost.z = kick.air ? 0.01 : 0;
-  ghost.vz = kick.air ? launchVz(power) : 0;
+  ghost.vz = kick.air ? lobVz(power, kick.height ?? null) : 0;
   ghost.bend = kick.bend;
   level.arm(kick.boost ?? null, ghost);
   const goal = level.goal;
@@ -211,7 +213,7 @@ export function traceShot(def: LevelDefinition, index: number, angle: number, po
   ghost.vx = Math.cos(a) * speed;
   ghost.vy = Math.sin(a) * speed;
   ghost.z = kick.air ? 0.01 : 0;
-  ghost.vz = kick.air ? launchVz(power) : 0;
+  ghost.vz = kick.air ? lobVz(power, kick.height ?? null) : 0;
   ghost.bend = kick.bend;
   level.arm(kick.boost ?? null, ghost);
   const trace: Trace = { pts: [ghost.x, ghost.y, 0], scored: false, seconds: 0, marks: [] };

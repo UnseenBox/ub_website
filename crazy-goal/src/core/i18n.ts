@@ -758,6 +758,8 @@ const AR: Readonly<Record<string, string>> = {
   LEFT: 'يسار',
   RIGHT: 'يمين',
   STRAIGHT: 'مستقيم',
+  HEIGHT: 'الارتفاع',
+  AUTO: 'تلقائي',
   // The tutorial.
   'STRAIGHT SHOT': 'تسديدة مستقيمة',
   'BEND IT': 'لُفّها',

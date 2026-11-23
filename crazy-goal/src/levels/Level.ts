@@ -25,18 +25,21 @@ const SMOOTH_TURN = 0.5;
 
 export type BlockKind = 'rail' | 'kerb' | WallKind;
 
-/** How each kind of block bounces and how tall it is drawn. */
-const BLOCKS: Readonly<Record<BlockKind, { restitution: number; friction: number; lift: number; surface: Surface; clear?: number }>> = {
+/**
+ * How each kind of block bounces and how tall it is drawn. `clear` is the height a flying ball must be above to pass
+ * over it. `interiorClear` is the same for a block inside the arena: a boundary wall stays solid at every height.
+ */
+const BLOCKS: Readonly<Record<BlockKind, { restitution: number; friction: number; lift: number; surface: Surface; clear?: number; interiorClear?: number }>> = {
   rail: { restitution: 0.8, friction: 0.12, lift: 30, surface: 'rail' },
   // The near edge of the alley is a low kerb, so it never hides the ball.
   kerb: { restitution: 0.8, friction: 0.12, lift: 8, surface: 'kerb' },
-  wall: { restitution: 0.82, friction: 0.1, lift: 22, surface: 'wall' },
-  hedge: { restitution: 0.62, friction: 0.22, lift: 26, surface: 'hedge' },
-  crate: { restitution: 0.52, friction: 0.25, lift: 24, surface: 'crate' },
-  car: { restitution: 1.12, friction: 0.08, lift: 22, surface: 'car' },
+  wall: { restitution: 0.82, friction: 0.1, lift: 22, surface: 'wall', interiorClear: 30 },
+  hedge: { restitution: 0.62, friction: 0.22, lift: 26, surface: 'hedge', interiorClear: 40 },
+  crate: { restitution: 0.52, friction: 0.25, lift: 24, surface: 'crate', interiorClear: 28 },
+  car: { restitution: 1.12, friction: 0.08, lift: 22, surface: 'car', interiorClear: 44 },
   shutter: { restitution: 0.7, friction: 0.1, lift: 40, surface: 'gate' },
-  // A free-standing advertising board: solid at every height, so a lob does not clear it.
-  adboard: { restitution: 0.82, friction: 0.1, lift: 28, surface: 'wall' },
+  // A free-standing advertising board: a lofted ball goes over it, a ball on the ground does not.
+  adboard: { restitution: 0.82, friction: 0.1, lift: 28, surface: 'wall', interiorClear: 60 },
   // A defender in the wall: a dead thud, and a lofted ball goes over his head.
   defender: { restitution: 0.52, friction: 0.25, lift: 24, surface: 'crate', clear: KICK.wallClear },
 };
@@ -246,7 +249,9 @@ export class Level {
 
   private addBlock(kind: BlockKind, x: number, y: number, w: number, h: number, angle: number, boundary = false, trim?: readonly [number, number], along?: number): void {
     const spec = BLOCKS[kind];
-    const body = this.world.addStatic(createBody({ shape: box(w, h), surface: spec.surface, x, y, angle, restitution: spec.restitution, friction: spec.friction, clear: spec.clear }));
+    // A wall inside the arena can be lofted over; the boundary, the rails and the defenders keep their own rule.
+    const clear = boundary ? spec.clear : (spec.interiorClear ?? spec.clear);
+    const body = this.world.addStatic(createBody({ shape: box(w, h), surface: spec.surface, x, y, angle, restitution: spec.restitution, friction: spec.friction, clear }));
     const block: Block = { body, kind, x, y, w, h, angle, lift: spec.lift, hit: 0, hitNx: 0, hitNy: 0, gone: false, boundary, trim, along, theme: this.def.theme };
     this.blocks.push(block);
     this.blockOf.set(body.id, block);

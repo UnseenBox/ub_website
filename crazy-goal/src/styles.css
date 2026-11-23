@@ -2432,23 +2432,25 @@ body {
   display: none;
 }
 
-/* ---- The free-kick dock: pictures, no words. Bottom centre on a phone, left side on a wide screen. ---- */
+/* ---- The free-kick dock: GROUND or AIR, a BEND dial and a HEIGHT slider for the lob. A row of big controls at the
+   bottom centre of a phone; a column down the left of a wide screen. Every control is labelled. ---- */
 .kick-dock {
   position: fixed;
   left: 50%;
   bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 20;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: stretch;
+  gap: 8px;
   width: max-content;
-  max-width: calc(100vw - 136px);
-  padding: 8px 12px 8px 8px;
+  max-width: calc(100vw - 20px);
+  padding: 8px 10px;
+  color: #fff;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 48%),
     linear-gradient(180deg, rgba(42, 58, 106, 0.95), rgba(17, 26, 51, 0.97));
   border: 2px solid rgba(255, 255, 255, 0.28);
-  border-radius: 32px;
+  border-radius: 26px;
   box-shadow:
     0 6px 0 rgba(0, 0, 0, 0.35),
     0 10px 24px rgba(0, 0, 0, 0.3),
@@ -2459,67 +2461,75 @@ body {
 
 .kick-dock[hidden],
 .kick-modes[hidden],
-.kick-bend[hidden] {
+.kick-bend[hidden],
+.kick-height[hidden] {
   display: none;
 }
 
-/* One pill with two positions: a green ball-shaped thumb springs between GROUND and AIR. */
+/* GROUND and AIR: two big buttons with the name under the picture. The lit one is the shot that will be struck. */
 .kick-modes {
-  position: relative;
   display: flex;
   flex: none;
-  padding: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 30px;
-  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
-}
-
-.kick-modes::before {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 46px;
-  height: 46px;
-  content: '';
-  background: radial-gradient(circle at 50% 28%, #4ff07c, var(--green-deep));
-  border: 3px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(76, 225, 108, 0.3), 0 0 20px rgba(76, 225, 108, 0.7), 0 3px 0 rgba(0, 0, 0, 0.3);
-  transition: transform 0.34s cubic-bezier(0.3, 1.7, 0.5, 1);
-}
-
-.kick-modes.is-air::before {
-  transform: translateX(46px);
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
 }
 
 .kick-mode {
   position: relative;
-  width: 46px;
-  height: 46px;
-  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 60px;
+  height: 56px;
+  padding: 4px;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  background: transparent;
-  border: 0;
-  border-radius: 50%;
-  transition: transform 0.14s cubic-bezier(0.2, 1.6, 0.4, 1);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.24);
+  border-radius: 16px;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25);
+  transition:
+    transform 0.14s cubic-bezier(0.2, 1.6, 0.4, 1),
+    background 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .kick-mode svg {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 26px;
+  height: 26px;
   filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.3));
-  opacity: 0.62;
-  transition: opacity 0.2s, transform 0.3s cubic-bezier(0.3, 1.7, 0.5, 1);
+  opacity: 0.7;
+  transition:
+    opacity 0.2s,
+    transform 0.3s cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+
+.kick-mode.is-on {
+  background: radial-gradient(circle at 50% 28%, #4ff07c, var(--green-deep));
+  border-color: #fff;
+  box-shadow:
+    0 0 0 3px rgba(76, 225, 108, 0.3),
+    0 0 18px rgba(76, 225, 108, 0.6),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.2);
 }
 
 .kick-mode.is-on svg {
   opacity: 1;
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
-.kick-mode:active svg {
-  transform: scale(0.88);
+.kick-mode:active {
+  transform: scale(0.94);
 }
 
 .kick-mode.is-burst::after {
@@ -2528,45 +2538,79 @@ body {
   content: '';
   pointer-events: none;
   border: 3px solid #fff;
-  border-radius: 50%;
+  border-radius: 18px;
   animation: kick-burst 0.55s ease-out both;
 }
 
+.kick-mode:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: -2px;
+}
+
+/* Each control's title, and the value it is set to in the sun colour. */
+.kick-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 16px;
+}
+
+.kick-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.kick-value {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--sun);
+  white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.kick-auto {
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.kick-auto.is-auto {
+  color: #bfe8ff;
+}
+
+.kick-auto:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* BEND: the curve it makes, over the dial. */
 .kick-bend {
   position: relative;
-  display: block;
-  flex: 1 1 120px;
-  min-width: 110px;
-  padding: 0 4px;
-  border-radius: 18px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 224px;
+  min-width: 104px;
   cursor: pointer;
-}
-
-.kick-modes[hidden] + .kick-bend {
-  width: 200px;
-}
-
-.kick-bend::after {
-  position: absolute;
-  top: 54px;
-  left: 50%;
-  width: 3px;
-  height: 14px;
-  margin-left: -1.5px;
-  content: '';
-  pointer-events: none;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 2px;
+  border-radius: 18px;
 }
 
 .kick-curve {
   display: block;
-  cursor: pointer;
   width: 100%;
-  height: 42px;
+  height: 36px;
   overflow: visible;
+  cursor: pointer;
   filter: drop-shadow(0 0 7px rgba(255, 200, 58, 0.6));
-  opacity: 0.5;
+  opacity: 0.55;
   transition: opacity 0.2s;
 }
 
@@ -2574,10 +2618,11 @@ body {
   opacity: 1;
 }
 
+/* The dial, shared by BEND and HEIGHT: a wide track with the ball as its knob. */
 .kick-range {
   display: block;
   width: 100%;
-  height: 32px;
+  height: 36px;
   margin: 0;
   background: transparent;
   cursor: pointer;
@@ -2586,23 +2631,23 @@ body {
 }
 
 .kick-range::-webkit-slider-runnable-track {
-  height: 12px;
+  height: 14px;
   background: var(--fill, none), rgba(255, 255, 255, 0.16);
-  border-radius: 6px;
+  border-radius: 7px;
   box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .kick-range::-moz-range-track {
-  height: 12px;
+  height: 14px;
   background: var(--fill, none), rgba(255, 255, 255, 0.16);
-  border-radius: 6px;
+  border-radius: 7px;
   box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .kick-range::-webkit-slider-thumb {
-  width: 34px;
-  height: 34px;
-  margin-top: -11px;
+  width: 38px;
+  height: 38px;
+  margin-top: -12px;
   background: var(--ball, #fff) center / 100% 100% no-repeat;
   border: 3px solid var(--sun);
   border-radius: 50%;
@@ -2612,8 +2657,8 @@ body {
 }
 
 .kick-range::-moz-range-thumb {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   background: var(--ball, #fff) center / 100% 100% no-repeat;
   border: 3px solid var(--sun);
   border-radius: 50%;
@@ -2626,9 +2671,44 @@ body {
   border-radius: 8px;
 }
 
-.kick-mode:focus-visible {
-  outline: 3px solid var(--sun);
-  outline-offset: -2px;
+/* HEIGHT: how high the lob goes. A vertical slider on a phone, where up is higher; dimmed while the shot is on the ground. */
+.kick-height {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 58px;
+  transition: opacity 0.2s;
+}
+
+.kick-height.is-off {
+  opacity: 0.5;
+}
+
+.kick-height .kick-head {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.kick-height .kick-title {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.kick-height-track {
+  position: relative;
+  width: 58px;
+  height: 84px;
+}
+
+.kick-height-range {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 84px;
+  height: 58px;
+  transform: translate(-50%, -50%) rotate(-90deg);
 }
 
 /* A lesson points at the control it wants: a pulsing ring and a finger. */
@@ -2663,10 +2743,74 @@ body {
   animation: kick-slide 1.6s ease-in-out infinite;
 }
 
+/* A wide screen has stands on both sides of the pitch: the dock is a column down the left, its controls flat. */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) {
+  .kick-dock {
+    left: calc(14px + env(safe-area-inset-left));
+    bottom: 14px;
+    flex-direction: column;
+    gap: 8px;
+    width: 240px;
+    max-width: none;
+    padding: 10px 12px;
+    transform: none;
+    animation-name: kick-rise-side;
+  }
+
+  .kick-modes {
+    flex-direction: row;
+  }
+
+  .kick-mode {
+    flex: 1 1 0;
+    width: auto;
+    height: 58px;
+  }
+
+  .kick-bend {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .kick-height {
+    width: 100%;
+  }
+
+  .kick-height .kick-head {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .kick-height .kick-title {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+
+  .kick-height-track {
+    width: 100%;
+    height: 40px;
+  }
+
+  .kick-height-range {
+    position: static;
+    width: 100%;
+    height: 40px;
+    transform: none;
+  }
+}
+
 @keyframes kick-rise {
   from {
     opacity: 0;
     transform: translate(-50%, 24px) scale(0.9);
+  }
+}
+
+@keyframes kick-rise-side {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.9);
   }
 }
 
@@ -2708,6 +2852,13 @@ body {
   }
   50% {
     transform: translateX(14px);
+  }
+}
+
+/* On a phone the dock runs the width of the screen along the bottom, so the pause button lifts above it while it shows. */
+@media (max-aspect-ratio: 5/4) {
+  body:has(.kick-dock:not([hidden])) .pause-button {
+    bottom: calc(156px + env(safe-area-inset-bottom));
   }
 }
 
@@ -2894,22 +3045,6 @@ body {
 
 /* A wide screen has stands on both sides of the pitch: the dock and the card sit over them. */
 @media (orientation: landscape) and (min-aspect-ratio: 5/4) {
-  .kick-dock {
-    left: calc(14px + env(safe-area-inset-left));
-    bottom: 14px;
-    flex-direction: column;
-    gap: 6px;
-    width: 188px;
-    max-width: none;
-    padding: 10px 12px;
-    transform: none;
-    animation-name: kick-rise-side;
-  }
-
-  .kick-bend {
-    width: 100%;
-  }
-
   .guide-card {
     top: 14px;
     right: calc(14px + env(safe-area-inset-right));
@@ -2922,13 +3057,6 @@ body {
   .coin-pill {
     right: auto;
     left: calc(14px + env(safe-area-inset-left));
-  }
-
-  @keyframes kick-rise-side {
-    from {
-      opacity: 0;
-      transform: translateY(24px) scale(0.9);
-    }
   }
 }
 
@@ -2951,7 +3079,7 @@ body {
     top: auto;
     right: auto;
     left: 50%;
-    bottom: calc(110px + env(safe-area-inset-bottom));
+    bottom: calc(160px + env(safe-area-inset-bottom));
     flex-direction: row;
     align-items: flex-end;
     justify-content: center;
@@ -3408,13 +3536,6 @@ body {
 
   .result .btn-primary {
     font-size: 17px;
-  }
-}
-
-/* Very small phones: the match controls shrink a little more. */
-@media (max-width: 370px), (max-height: 380px) {
-  .kick-dock {
-    zoom: 0.72;
   }
 }
 
