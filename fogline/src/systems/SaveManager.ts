@@ -5,10 +5,12 @@ export interface SaveData {
   volumes: { master: number; sfx: number; music: number };
   bestWave: number;
   bestKills: number;
+  /** The first-time briefing has been shown or skipped. */
+  tutorialSeen: boolean;
 }
 
 const KEY = 'fogline.save.v1';
-const DEFAULTS: SaveData = { volumes: { master: 0.8, sfx: 0.9, music: 0.45 }, bestWave: 0, bestKills: 0 };
+const DEFAULTS: SaveData = { volumes: { master: 0.8, sfx: 0.9, music: 0.45 }, bestWave: 0, bestKills: 0, tutorialSeen: false };
 
 export const SaveManager = {
   load(): SaveData {
@@ -20,6 +22,7 @@ export const SaveManager = {
         volumes: { ...DEFAULTS.volumes, ...(d.volumes ?? {}) },
         bestWave: Number(d.bestWave) || 0,
         bestKills: Number(d.bestKills) || 0,
+        tutorialSeen: d.tutorialSeen === true,
       };
     } catch {
       return structuredClone(DEFAULTS);

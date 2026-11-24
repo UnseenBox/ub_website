@@ -347,6 +347,7 @@ describe('Shop', () => {
   };
   it('buying the M4 deducts exactly its price once', () => {
     const s = setup(1500);
+    s.weapons.unlockForCleared(1);
     const m4 = WEAPONS.find((w) => w.id === 'm4')!;
     expect(s.item('weapon:m4').buy()).toBe(true);
     expect(s.economy.cash).toBe(1500 - m4.price);
@@ -355,8 +356,22 @@ describe('Shop', () => {
     expect(s.item('weapon:m4').buy()).toBe(false);
     expect(s.economy.cash).toBe(1500 - m4.price);
   });
+  it('weapons stay locked until their wave is cleared', () => {
+    const s = setup(100000);
+    expect(s.item('weapon:m4').status()).toBe('locked');
+    expect(s.item('weapon:m4').buy()).toBe(false);
+    expect(s.economy.cash).toBe(100000);
+    expect(s.weapons.unlockForCleared(0)).toEqual([]);
+    const fresh = s.weapons.unlockForCleared(1).map((d) => d.id);
+    expect(fresh).toContain('m4');
+    expect(fresh).not.toContain('m249');
+    expect(s.item('weapon:m4').status()).toBe('ok');
+    expect(s.item('weapon:m4').buy()).toBe(true);
+    expect(s.item('weapon:m249').status()).toBe('locked');
+  });
   it('refuses unaffordable items without changing state', () => {
     const s = setup(100);
+    s.weapons.unlockForCleared(3);
     expect(s.item('weapon:m249').status()).toBe('cash');
     expect(s.item('weapon:m249').buy()).toBe(false);
     expect(s.economy.cash).toBe(100);

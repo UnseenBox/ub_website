@@ -85,6 +85,8 @@ export interface WeaponDef {
   shortName: string;
   slot: 1 | 2 | 3 | 4;
   price: number;
+  /** Cleared-wave number that puts the weapon on sale in the armory (0 = from the start). */
+  unlockAfterWave: number;
   kind: WeaponKind;
   mode: FireMode;
   damage: number;
@@ -126,6 +128,7 @@ export const WEAPONS: WeaponDef[] = [
     shortName: 'M1A',
     slot: 1,
     price: 0,
+    unlockAfterWave: 0,
     kind: 'hitscan',
     mode: 'semi',
     damage: 38,
@@ -191,6 +194,7 @@ export const WEAPONS: WeaponDef[] = [
     shortName: 'M4',
     slot: 2,
     price: 1100,
+    unlockAfterWave: 1,
     kind: 'hitscan',
     mode: 'auto',
     damage: 30,
@@ -253,6 +257,7 @@ export const WEAPONS: WeaponDef[] = [
     shortName: 'M249',
     slot: 3,
     price: 3200,
+    unlockAfterWave: 3,
     kind: 'hitscan',
     mode: 'auto',
     damage: 40,
@@ -315,6 +320,7 @@ export const WEAPONS: WeaponDef[] = [
     shortName: 'M32',
     slot: 4,
     price: 4000,
+    unlockAfterWave: 5,
     kind: 'grenade',
     mode: 'semi',
     damage: 260,

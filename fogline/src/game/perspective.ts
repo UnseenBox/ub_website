@@ -1,4 +1,4 @@
-import { FIELD, VIEW } from './config';
+import { FIELD, VIEW, WINDOW } from './config';
 
 export interface Projected {
   sx: number;
@@ -26,4 +26,14 @@ export function groundAt(sx: number, sy: number): { x: number; z: number } {
 
 export function screenYOfGround(z: number): number {
   return VIEW.horizonY + (VIEW.camHeight * VIEW.focal) / z;
+}
+
+/**
+ * Half the width (m) of the bunker window at distance z: the opening between the jambs, where
+ * the ground at that distance meets the frame. Zombies must stay within it to be seen.
+ */
+export function windowHalfWidth(z: number): number {
+  const y = screenYOfGround(z);
+  const jamb = WINDOW.topX + ((WINDOW.bottomX - WINDOW.topX) * (y - WINDOW.topY)) / (VIEW.height - WINDOW.topY);
+  return ((VIEW.centerX - jamb) * z) / VIEW.focal;
 }

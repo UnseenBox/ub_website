@@ -21,7 +21,9 @@ import { SupportSystem } from '../systems/SupportSystem';
 import { WaveManager } from '../systems/WaveManager';
 import { WeaponManager } from '../systems/WeaponManager';
 import { HUD } from '../ui/HUD';
+import { Tutorial } from '../ui/Tutorial';
 import { toggleFullscreen } from '../ui/widgets';
+import { fireAllowed, wavesAllowed } from './tutorialSteps';
 import { isTestMode } from './testMode';
 import { AIM_ASSIST_RADIUS as AIM_ASSIST_REACH, aimAssistOffset, isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt, TouchButton } from './touchControls';
 import { TouchUI } from '../ui/TouchUI';
@@ -71,6 +73,7 @@ export class GameScene extends Phaser.Scene {
   private ambientLeft = 3;
   private wind: LoopHandle | null = null;
   private music: LoopHandle | null = null;
+  private tutorial: Tutorial | null = null;
   private over = false;
   private hoverZone: string | null = null;
   /** Exposed for automated tests (window.__fogline). */
@@ -80,7 +83,7 @@ export class GameScene extends Phaser.Scene {
     super('Game');
   }
 
-  create(data?: { openShop?: boolean }): void {
+  create(data?: { openShop?: boolean; tutorial?: boolean }): void {
     this.over = false;
     this.trigger = false;
     resetTouchPointerIds(this);
@@ -143,6 +146,7 @@ export class GameScene extends Phaser.Scene {
       if (this.waves.phase === 'idle') this.startNextWave();
     });
     (window as unknown as { __fogline: GameScene }).__fogline = this;
+    if (data?.tutorial) this.startTutorial();
     if (data?.openShop) this.time.delayedCall(0, () => this.openShop());
   }
 
@@ -187,6 +191,9 @@ export class GameScene extends Phaser.Scene {
       if (reward > 0) this.economy.earn(reward, 'wave');
       this.weapons.topUpStarter();
       audio.play('wave_clear', { volume: 0.7 });
+      for (const def of this.weapons.unlockForCleared(wave)) {
+        this.fx.floatText(VIEW.centerX, VIEW.hudTop - 120, `${def.shortName} UNLOCKED — BUY IN THE ARMORY${this.touchUi.isEnabled ? '' : ' [SPACE]'}`, '#e8c060', 18);
+      }
       if (wave < this.waves.totalWaves) {
         this.hud.banner(`SECTOR CLEAR — WAVE ${wave}`, `Completion bonus +$${reward}\n${this.touchUi.isEnabled ? `SHOP for the armory  ·  tap DEPLOY for wave ${wave + 1}` : `[SPACE] armory  ·  [ENTER] deploy wave ${wave + 1}`}`, 999, true);
       } else {
@@ -321,6 +328,7 @@ export class GameScene extends Phaser.Scene {
         if (p.y >= VIEW.hudTop) return;
         const button = touchButtonAt(p.x, p.y, this.touchUi.deployVisible);
         if (button) {
+          if (button === 'fire' && !this.fireAllowed()) return;
           if (button !== 'fire' || this.firePointerId === null) this.pressTouchButton(button, p);
           return;
         }
@@ -337,7 +345,7 @@ export class GameScene extends Phaser.Scene {
         this.weapons.reload();
         return;
       }
-      if (p.leftButtonDown() && p.y < VIEW.hudTop) this.trigger = true;
+      if (p.leftButtonDown() && p.y < VIEW.hudTop && this.fireAllowed()) this.trigger = true;
     });
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
@@ -384,6 +392,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private teardown(): void {
+    this.tutorial?.destroy();
+    this.tutorial = null;
     this.wind?.stop(0.3);
     this.music?.stop(0.6);
     this.support.clear();
@@ -393,10 +403,35 @@ export class GameScene extends Phaser.Scene {
     audio.setLoopsPaused(false);
   }
 
+  /** The first-time briefing, or a replay of it from the menu. */
+  private startTutorial(): void {
+    this.tutorial = new Tutorial(this, {
+      weapons: this.weapons,
+      enemies: this.enemies,
+      waves: this.waves,
+      touch: this.touchUi.isEnabled,
+      clearBanner: () => this.hud.clearBanner(),
+      onFinish: () => this.finishTutorial(),
+    });
+  }
+
+  private finishTutorial(): void {
+    SaveManager.update((d) => {
+      d.tutorialSeen = true;
+    });
+    this.tutorial = null;
+  }
+
+  /** Fire is held back while the briefing talks, so a click on Continue never shoots. */
+  private fireAllowed(): boolean {
+    return !this.tutorial || fireAllowed(this.tutorial.stepId);
+  }
+
   // ------------------------------------------------------------ actions
 
   startNextWave(): boolean {
     if (this.over) return false;
+    if (this.tutorial && !wavesAllowed(this.tutorial.stepId)) return false;
     const ok = this.waves.startNext();
     if (ok) this.hud.clearBanner();
     return ok;
@@ -405,7 +440,10 @@ export class GameScene extends Phaser.Scene {
   selectWeapon(slot: number): void {
     if (!this.weapons.selectSlot(slot)) {
       const def = WEAPONS.find((w) => w.slot === slot);
-      if (def && !this.weapons.owns(def.id)) {
+      if (def && !this.weapons.isUnlocked(def.id)) {
+        audio.play('deny', { volume: 0.5 });
+        this.fx.floatText(VIEW.centerX, VIEW.hudTop - 90, `${def.shortName} LOCKED — CLEAR WAVE ${def.unlockAfterWave} TO UNLOCK`, '#ff9a70', 16);
+      } else if (def && !this.weapons.owns(def.id)) {
         audio.play('deny', { volume: 0.5 });
         this.fx.floatText(VIEW.centerX, VIEW.hudTop - 90, `${def.shortName} NOT OWNED — BUY IN THE ARMORY${this.touchUi.isEnabled ? '' : ' [SPACE]'}`, '#ff9a70', 16);
       }
@@ -571,6 +609,7 @@ export class GameScene extends Phaser.Scene {
 
   override update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05);
+    this.tutorial?.update(dt);
     const p = this.input.activePointer;
     // The crosshair is exactly where the mouse is (or where the touch aim pad
     // has dragged it); the gun is then rotated to point its barrel at it.

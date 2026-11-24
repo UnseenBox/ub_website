@@ -43,7 +43,9 @@ interface Pooled<T> { obj: T; life: number; max: number }
  * object pools so firing at 13 rounds/s allocates nothing.
  */
 export class Fx {
+  private readonly scene: Phaser.Scene;
   private blood: EmitterSet;
+  private inkDrops: EmitterSet;
   private gore: EmitterSet;
   private mist: EmitterSet;
   private dust: EmitterSet;
@@ -68,6 +70,11 @@ export class Fx {
 
   constructor(scene: Phaser.Scene) {
     const mk = (tex: string, cfg: EmitterConfig) => new EmitterSet(scene, tex, cfg, DEPTH.worldFx);
+    this.scene = scene;
+    this.inkDrops = mk('dot', {
+      speed: { min: 80, max: 240 }, angle: { min: 225, max: 315 }, gravityY: 540, lifespan: { min: 320, max: 620 },
+      scale: { start: 0.9, end: 0.3 }, tint: [0x050404, 0x0e0b0a], alpha: { start: 1, end: 0.2 },
+    });
     this.blood = mk('dot', {
       speed: { min: 60, max: 300 }, angle: { min: 195, max: 345 }, gravityY: 760, lifespan: { min: 260, max: 640 },
       scale: { start: 0.7, end: 0.25 }, tint: [0x5a0806, 0x7a120c, 0x3d0504], alpha: { start: 1, end: 0.6 },
@@ -208,6 +215,28 @@ export class Fx {
     this.gore.burst(x, y, scale, 10);
     this.blood.burst(x, y, scale, 30);
     this.mist.burst(x, y, scale * 1.6, 4);
+  }
+
+  /**
+   * Black ink welling up out of the ground where a zombie dies. A pool spreads across the
+   * ground under its feet; a dark mass then rises from the same spot and swallows the body,
+   * and fades. Droplets are thrown up as it rises.
+   */
+  blackSplash(x: number, groundY: number, scale: number, bodyW: number, bodyH: number): void {
+    // Above the battlefield fog and the parapet, so the ink reads as dark; the wire still hides the feet.
+    const depth = DEPTH.worldFx;
+    const poolScale = (1.1 * bodyW) / 384;
+    const pool = this.scene.add.image(x, groundY, 'ink_puddle').setDepth(depth - 1).setScale(0.3 * poolScale);
+    this.scene.tweens.add({ targets: pool, scale: poolScale, duration: 90, ease: 'Sine.easeOut' });
+    this.scene.tweens.add({ targets: pool, alpha: 0, duration: 220, delay: 150, onComplete: () => pool.destroy() });
+
+    const massX = (1.1 * bodyW) / 384;
+    const massY = (0.85 * bodyH) / 512;
+    const mass = this.scene.add.image(x, groundY, 'ink_drip').setOrigin(0.5, 1).setDepth(depth + 1).setScale(0.7 * massX, 0.02 * massY);
+    this.scene.tweens.add({ targets: mass, scaleX: massX, scaleY: massY, duration: 110, ease: 'Cubic.easeOut' });
+    this.scene.tweens.add({ targets: mass, alpha: 0, duration: 240, delay: 170, onComplete: () => mass.destroy() });
+
+    this.inkDrops.burst(x, groundY - 0.3 * bodyH, scale, 14);
   }
 
   /** Blood fountain from a headless neck (called for a few frames). */

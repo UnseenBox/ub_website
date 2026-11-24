@@ -129,8 +129,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
   brute: {
     id: 'brute',
     name: 'Brute',
-    // Half again as tall as a man and twice as wide: a wall of dead flesh.
-    height: 2.8,
+    // Taller than a doorframe and twice as wide: a wall of dead flesh.
+    height: 3.6,
     health: 900,
     speed: 1.3,
     speedJitter: 0.12,

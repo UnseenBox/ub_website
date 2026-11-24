@@ -139,11 +139,11 @@ export class ShopScene extends Phaser.Scene {
     for (const c of this.cards) {
       const st = c.item.status();
       c.price.setText(st === 'owned' || st === 'maxed' ? '' : `$${c.item.price().toLocaleString('en-US')}`);
-      c.price.setColor(st === 'cash' ? '#c86050' : '#c8d890');
+      c.price.setColor(st === 'cash' ? '#c86050' : st === 'locked' ? '#7a7a6a' : '#c8d890');
       c.stock.setText(c.item.stock());
       c.status.setText(STATUS_TEXT[st]);
-      c.status.setColor(st === 'owned' || st === 'maxed' ? '#a8c890' : '#ff8060');
-      c.container.setAlpha(st === 'ok' ? 1 : st === 'owned' || st === 'maxed' ? 0.7 : 0.82);
+      c.status.setColor(st === 'owned' || st === 'maxed' ? '#a8c890' : st === 'locked' ? '#9a9a88' : '#ff8060');
+      c.container.setAlpha(st === 'ok' ? 1 : st === 'owned' || st === 'maxed' ? 0.7 : st === 'locked' ? 0.6 : 0.82);
     }
   }
 

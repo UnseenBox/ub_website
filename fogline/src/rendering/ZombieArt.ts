@@ -47,8 +47,6 @@ const LOOKS: Look[] = [
   { key: 'plated_0', skin: 0x737868, cloth: 0x1d2024, pants: 0x22262d, shoe: 0x141416, hair: 0x111111, head: 'helmet', torso: 'armor', sleeve: 'armor' },
   { key: 'plated_1', skin: 0x7c7e6d, cloth: 0x272c31, pants: 0x2a2e26, shoe: 0x141416, hair: 0x111111, head: 'helmet', torso: 'armor', sleeve: 'armor' },
   { key: 'carrier_0', skin: 0x7c7a5c, cloth: 0x6f6a58, pants: 0x3a3a33, shoe: 0x2a2420, hair: 0x2a221c, head: 'bloat', torso: 'bloat', sleeve: 'bare' },
-  { key: 'brute_0', skin: 0x80766a, cloth: 0x2c231c, pants: 0x2b2620, shoe: 0x1a1612, hair: 0x15110e, head: 'normal', torso: 'bloat', sleeve: 'bare' },
-  { key: 'brute_1', skin: 0x6d7468, cloth: 0x37302a, pants: 0x232a2c, shoe: 0x1a1612, hair: 0x2a221c, head: 'scream', torso: 'bloat', sleeve: 'bare' },
   { key: 'crawler_0', skin: 0x6b7062, cloth: 0x4b4a40, pants: 0x2f2f2c, shoe: 0x22201d, hair: 0x1a1512, head: 'scream', torso: 'shirt', sleeve: 'bare' },
 ];
 

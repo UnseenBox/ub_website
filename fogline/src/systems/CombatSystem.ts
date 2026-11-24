@@ -147,6 +147,7 @@ export class CombatSystem {
   damage(z: Zombie, amount: number, zone: HitZone, dir: number, source: DamageSource, flash: number, react = true): void {
     if (!z.alive || amount <= 0) return;
     z.hp -= amount;
+    if (zone === 'legs' && z.alive) z.hurtLegs();
     if (react) {
       z.hitReact(dir || 1, Math.min(1, amount / (z.maxHp * 0.6) + 0.35), zone === 'head', flash);
       if (amount >= z.def.staggerThreshold) z.stagger(0.45);
@@ -159,11 +160,12 @@ export class CombatSystem {
     z.resolved = true;
     z.killedByHeadshot = headshot;
     z.kill(headshot ? 'headshot' : source === 'blast' || source === 'support' ? 'blast' : 'bullet', dir);
+    // The body disappears at once; black ink wells up from the ground and swallows where it stood.
+    this.fx.blackSplash(z.sx, z.sy, z.scale, z.screenWidth, z.screenHeight);
+    z.vanish();
     this.stats.kills++;
     if (headshot) {
       this.stats.headshotKills++;
-      z.headScreen(tmp);
-      this.fx.headshotGore(tmp.x, tmp.y, z.scale);
       audio.play('headshot_confirm', { volume: 0.5 });
     }
     const reward = killReward(z.def, headshot);

@@ -1,17 +1,16 @@
 import Phaser from 'phaser';
 import { EnemyDef, HitZone, RigStyle } from '../data/enemies';
 import { FIELD } from '../game/config';
-import { project, Projected } from '../game/perspective';
+import { project, Projected, windowHalfWidth } from '../game/perspective';
 import { LEN, PART, ZOMBIE_ATLAS } from '../rendering/ZombieArt';
-import { SHAMBLER_HEIGHT, SHEET_PARTS, ZOMBIE_SHEET_TEXTURE } from '../rendering/zombieSheetFrames';
+import { SHAMBLER_HEIGHT } from '../rendering/zombieSheetFrames';
+import { FIGURES, Figure } from '../rendering/figures';
 
 export type ZombieState = 'emerge' | 'walk' | 'attack' | 'dying' | 'dead';
 type DeathStyle = 'side' | 'back' | 'crumple';
 
 /** Shamblers are drawn from the cut figure art, SHAMBLER_HEIGHT units from feet to top of head. */
 const RIG_HEIGHT: Record<RigStyle, number> = { shamble: SHAMBLER_HEIGHT, run: 424, heavy: 424, bloat: 446, crawl: 168 };
-/** Shoulder pivot to the bottom of the arm, in figure units. */
-const ARM_REACH = SHEET_PARTS.armL.h * (1 - SHEET_PARTS.armL.oy);
 /** A lifted shin shortens by this share, as the knee bends toward the camera. */
 const KNEE_LIFT = 0.2;
 /** A lifted foot swings this far (rad) toward the centre line. */
@@ -43,6 +42,10 @@ export function depthForZ(z: number): number {
 
 const tmpP: Projected = { sx: 0, sy: 0, ppm: 0 };
 const TAU = Math.PI * 2;
+/** A shot to the legs slows a zombie to this share of its speed for this many seconds. */
+export const LEG_SLOW = { factor: 0.55, seconds: 2.5 } as const;
+/** Half the width of a zombie's body (m), kept clear of the window frame. */
+const BODY_HALF_M = 0.25;
 
 /**
  * One enemy: logic state plus an articulated, camera-facing rig built from
@@ -90,6 +93,8 @@ export class Zombie {
   staggerLeft = 0;
   burnLeft = 0;
   slowLeft = 0;
+  /** Seconds left of the leg-wound slow. */
+  legsHurtLeft = 0;
   private attackT = 0;
   private struck = false;
   private deathT = 0;
@@ -106,8 +111,10 @@ export class Zombie {
   private baseTint = 0xffffff;
   private segs: Seg[] = [];
   private headC = { x: 0, y: 0, r: 0 };
-  /** True for shamblers, whose parts come from the sprite sheet instead of the procedural atlas. */
-  private sheet = false;
+  /** Set for enemies drawn from a cut figure (shambler, brute); null for the procedural looks. */
+  private figure: Figure | null = null;
+  /** Feet to top of head in figure units: the scale the rig is drawn at. */
+  private rigHeight = 0;
 
   constructor(scene: Phaser.Scene) {
     const img = (ox: number, oy: number) => scene.add.image(0, 0, ZOMBIE_ATLAS, 'shadow').setOrigin(ox, oy);
@@ -134,10 +141,11 @@ export class Zombie {
 
   reset(def: EnemyDef, healthMul: number, speedMul: number, x: number, z: number, rng: () => number): void {
     this.def = def;
-    this.sheet = def.rig === 'shamble';
+    this.figure = FIGURES[def.look] ?? null;
+    this.rigHeight = this.figure ? this.figure.height : RIG_HEIGHT[def.rig];
     // Pooled zombies are built before the atlas exists, so the shadow needs its texture set here.
     this.shadow.setTexture(ZOMBIE_ATLAS, 'shadow');
-    if (this.sheet) this.dressSheet();
+    if (this.figure) this.dressSheet(this.figure);
     else this.dressProcedural(def, rng);
     this.head.setVisible(true);
     this.maxHp = this.hp = def.health * healthMul;
@@ -159,6 +167,7 @@ export class Zombie {
     this.staggerLeft = 0;
     this.burnLeft = 0;
     this.slowLeft = 0;
+    this.legsHurtLeft = 0;
     this.attackT = rng() * 0.5;
     this.struck = false;
     this.deathT = 0;
@@ -201,20 +210,20 @@ export class Zombie {
   }
 
   /**
-   * Shamblers: every joint is its own cut part. Each part rotates about its pivot in
-   * poseSheet, so the figure is articulated rather than frame-swapped.
+   * Cut-out figures (shambler, brute): every joint is its own part. Each part rotates about
+   * its pivot in poseSheet, so the figure is articulated rather than frame-swapped.
    */
-  private dressSheet(): void {
-    const T = ZOMBIE_SHEET_TEXTURE;
-    const parts: [Phaser.GameObjects.Image, keyof typeof SHEET_PARTS][] = [
+  private dressSheet(fig: Figure): void {
+    const P = fig.parts;
+    const parts: [Phaser.GameObjects.Image, keyof Figure['parts']][] = [
       [this.torso, 'torso'], [this.head, 'head'],
       [this.ua[0], 'armL'], [this.ua[1], 'armR'],
       [this.thigh[0], 'thighL'], [this.thigh[1], 'thighR'],
       [this.shin[0], 'shinL'], [this.shin[1], 'shinR'],
     ];
     for (const [img, key] of parts) {
-      const p = SHEET_PARTS[key];
-      img.setTexture(T, p.name).setOrigin(p.ox, p.oy).setFlipX(false).setAlpha(1).setScale(1).setVisible(true);
+      const p = P[key];
+      img.setTexture(fig.texture, p.name).setOrigin(p.ox, p.oy).setFlipX(false).setAlpha(1).setScale(1).setVisible(true);
     }
     for (let i = 0; i < 2; i++) {
       this.fa[i].setVisible(false);
@@ -232,12 +241,29 @@ export class Zombie {
     this.root.add(children);
   }
 
+  /** Height of the body on screen, in pixels, from the feet to the top of the head. */
+  get screenHeight(): number {
+    return this.scale * this.rigHeight;
+  }
+
+  /** Full width of the body on screen, in pixels (widest span of the cut figure). */
+  get screenWidth(): number {
+    return 2 * (this.figure ? this.figure.halfWidth : 95) * this.scale;
+  }
+
   get alive(): boolean {
     return this.active && (this.state === 'emerge' || this.state === 'walk' || this.state === 'attack');
   }
 
   get slowFactor(): number {
-    return this.slowLeft > 0 ? 0.45 : 1;
+    const cryo = this.slowLeft > 0 ? 0.45 : 1;
+    const legs = this.legsHurtLeft > 0 ? LEG_SLOW.factor : 1;
+    return Math.min(cryo, legs);
+  }
+
+  /** A shot to the legs: the zombie drags itself along more slowly for a few seconds. */
+  hurtLegs(): void {
+    this.legsHurtLeft = LEG_SLOW.seconds;
   }
 
   /** Returns true when an attack strike lands this frame. */
@@ -248,6 +274,7 @@ export class Zombie {
     this.hitFlash = Math.max(0, this.hitFlash - dt);
     if (this.burnLeft > 0) this.burnLeft = Math.max(0, this.burnLeft - dt);
     if (this.slowLeft > 0) this.slowLeft = Math.max(0, this.slowLeft - dt);
+    if (this.legsHurtLeft > 0) this.legsHurtLeft = Math.max(0, this.legsHurtLeft - dt);
     const slow = this.slowFactor;
 
     switch (this.state) {
@@ -309,8 +336,10 @@ export class Zombie {
     if (this.state !== 'dying' && this.state !== 'dead') {
       const t = Phaser.Math.Clamp((this.z - FIELD.attackZ) / (FIELD.spawnZ - FIELD.attackZ), 0, 1);
       const wander = Math.sin(this.time * 0.35 + this.wanderSeed) * 1.6 * t;
-      const desired = this.targetX + (this.spawnX - this.targetX) * t + wander;
-      this.x += (desired - this.x) * Math.min(1, dt * 2);
+      // Stay inside the bunker window: it narrows toward the wall, and the body keeps clear of the frame.
+      const lim = windowHalfWidth(this.z) - BODY_HALF_M;
+      const desired = Phaser.Math.Clamp(this.targetX + (this.spawnX - this.targetX) * t + wander, -lim, lim);
+      this.x = Phaser.Math.Clamp(this.x + (desired - this.x) * Math.min(1, dt * 2), -lim, lim);
     }
 
     this.updateScreen();
@@ -323,7 +352,7 @@ export class Zombie {
   push(dx: number): void {
     this.x += dx;
     this.spawnX += dx;
-    this.targetX = Phaser.Math.Clamp(this.targetX + dx, -FIELD.attackHalfWidth * 1.15, FIELD.attackHalfWidth * 1.15);
+    this.targetX = Phaser.Math.Clamp(this.targetX + dx, -FIELD.attackHalfWidth, FIELD.attackHalfWidth);
   }
 
   hitReact(dir: number, strength: number, headshot: boolean, color = 0xffffff): void {
@@ -371,7 +400,7 @@ export class Zombie {
     this.sx = tmpP.sx;
     this.sy = tmpP.sy;
     this.ppm = tmpP.ppm;
-    this.scale = (tmpP.ppm * this.def.height) / RIG_HEIGHT[this.def.rig];
+    this.scale = (tmpP.ppm * this.def.height) / this.rigHeight;
     this.root.setPosition(this.sx, this.sy);
     this.root.setDepth(depthForZ(this.z));
   }
@@ -387,7 +416,8 @@ export class Zombie {
    * for the strike and recover, never crossing the body.
    */
   private poseSheet(): void {
-    const P = SHEET_PARTS;
+    const fig = this.figure as Figure;
+    const P = fig.parts;
     const attacking = this.state === 'attack';
     const moving = this.state === 'walk';
     const phi = this.phase;
@@ -462,7 +492,7 @@ export class Zombie {
       const shoulder = inTorso(part.px - P.torso.px, part.py - P.torso.py);
       const rot = torsoRot * 0.5 + armRot[i];
       this.ua[i].setPosition(shoulder.x, shoulder.y).setRotation(rot).setScale(1, armSY[i]);
-      const reach = ARM_REACH * armSY[i];
+      const reach = fig.armReach * armSY[i];
       const seg = this.segs[i];
       seg.ax = shoulder.x; seg.ay = shoulder.y;
       seg.bx = shoulder.x - Math.sin(rot) * reach; seg.by = shoulder.y + Math.cos(rot) * reach;
@@ -503,7 +533,7 @@ export class Zombie {
   }
 
   private pose(): void {
-    if (this.sheet) {
+    if (this.figure) {
       this.poseSheet();
       return;
     }
@@ -736,8 +766,8 @@ export class Zombie {
     const s = this.scale;
     if (s <= 0) return null;
     // quick reject by bounding radius
-    const top = this.sy - RIG_HEIGHT[this.def.rig] * s * 1.05;
-    const halfW = (this.def.rig === 'bloat' ? 120 : this.def.rig === 'shamble' ? 135 : 95) * s + 4;
+    const top = this.sy - this.rigHeight * s * 1.05;
+    const halfW = (this.figure ? this.figure.halfWidth : this.def.rig === 'bloat' ? 120 : 95) * s + 4;
     if (py < top - 4 || py > this.sy + 6 || px < this.sx - halfW || px > this.sx + halfW) return null;
     const rot = this.root.rotation;
     const dx = px - this.sx, dy = py - this.sy;

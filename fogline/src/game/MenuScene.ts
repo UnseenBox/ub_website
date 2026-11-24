@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { audio, LoopHandle } from '../audio/AudioManager';
 import { SaveManager } from '../systems/SaveManager';
-import { MONO, toggleFullscreen } from '../ui/widgets';
+import { MONO, button, toggleFullscreen } from '../ui/widgets';
 import { artButton } from '../ui/buttonArt';
 import { VIEW } from './config';
 import { isTestMode } from './testMode';
@@ -26,6 +26,7 @@ export class MenuScene extends Phaser.Scene {
     artButton(this, bx, 352, 340, 60, MENU_BUTTON_FRAMES.armory, () => this.openArmory(), 10);
     artButton(this, bx, 428, 340, 60, MENU_BUTTON_FRAMES.settings, () => this.openSettings(), 10);
     artButton(this, bx, 504, 340, 60, MENU_BUTTON_FRAMES.store, () => this.openArmory(), 10);
+    button(this, 150, 652, 220, 40, 'REPLAY BRIEFING', () => this.startBriefing(), 10);
     if (isTestMode()) {
       this.add.text(VIEW.centerX, 430, 'TEST MODE — ALL WEAPONS & GEAR UNLOCKED', {
         fontFamily: MONO, fontSize: '12px', color: '#c8a040', stroke: '#000', strokeThickness: 3,
@@ -75,6 +76,12 @@ export class MenuScene extends Phaser.Scene {
   private deploy(): void {
     audio.unlock();
     audio.play('radio', { volume: 0.6 });
-    this.scene.start('Game');
+    // The first deployment is preceded by the briefing; after that it goes straight to the field.
+    this.scene.start('Game', SaveManager.load().tutorialSeen ? undefined : { tutorial: true });
+  }
+
+  private startBriefing(): void {
+    audio.unlock();
+    this.scene.start('Game', { tutorial: true });
   }
 }

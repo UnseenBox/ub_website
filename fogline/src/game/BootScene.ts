@@ -6,13 +6,14 @@ import m32ViewUrl from '../assets/m32-view.png';
 import menuBgUrl from '../assets/main-menu.png';
 import menuButtonsUrl from '../assets/menu-buttons.png';
 import zombieSheetUrl from '../assets/zombie-parts.png';
+import bruteSheetUrl from '../assets/brute-parts.png';
 import { audio } from '../audio/AudioManager';
 import { buildEnvironmentTextures } from '../rendering/EnvironmentArt';
 import { buildFxTextures } from '../rendering/FxArt';
 import { buildHudTextures } from '../rendering/HudArt';
 import { buildWeaponTextures } from '../rendering/WeaponArt';
 import { ZOMBIE_ATLAS, buildZombieAtlas } from '../rendering/ZombieArt';
-import { SHEET_PARTS, ZOMBIE_SHEET_TEXTURE } from '../rendering/zombieSheetFrames';
+import { FIGURES } from '../rendering/figures';
 import { SaveManager } from '../systems/SaveManager';
 import { VIEW } from './config';
 import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from './textureKeys';
@@ -31,7 +32,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('view_m32_photo', m32ViewUrl);
     this.load.image(MENU_BG_TEXTURE, menuBgUrl);
     this.load.image(MENU_BUTTONS_TEXTURE, menuButtonsUrl);
-    this.load.image(ZOMBIE_SHEET_TEXTURE, zombieSheetUrl);
+    this.load.image(FIGURES.shambler.texture, zombieSheetUrl);
+    this.load.image(FIGURES.brute.texture, bruteSheetUrl);
   }
 
   create(): void {
@@ -48,8 +50,10 @@ export class BootScene extends Phaser.Scene {
       const z = buildZombieAtlas();
       const tex = this.textures.addCanvas(ZOMBIE_ATLAS, z.canvas)!;
       for (const f of z.frames) tex.add(f.name, 0, f.x, f.y, f.w, f.h);
-      const sheet = this.textures.get(ZOMBIE_SHEET_TEXTURE);
-      for (const f of Object.values(SHEET_PARTS)) sheet.add(f.name, 0, f.x, f.y, f.w, f.h);
+      for (const fig of Object.values(FIGURES)) {
+        const figTex = this.textures.get(fig.texture);
+        for (const f of Object.values(fig.parts)) figTex.add(f.name, 0, f.x, f.y, f.w, f.h);
+      }
 
       // Crop the supplied button sheet into five frames. The labels are baked
       // into the art; artButton() draws the slices without any text overlay.

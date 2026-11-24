@@ -168,7 +168,7 @@ export class HUD {
       const selected = weapons.current.def.id === w.id;
       s.shade.setVisible(!st.owned);
       s.icon.setAlpha(st.owned ? 1 : 0.35);
-      setText(s.top, st.owned ? '' : `$${w.price}`);
+      setText(s.top, st.owned ? '' : st.unlocked ? `$${w.price}` : 'LOCKED');
       setText(s.bottom, st.owned ? `${w.shortName}  ${st.reserve === Infinity ? `${st.mag}/∞` : `${st.mag}/${st.reserve}`}` : `${w.shortName}`);
       s.bottom.setColor(st.owned && st.mag === 0 && st.reserve === 0 ? '#ff6040' : st.owned ? '#d0d0b8' : '#7a7a6a');
       if (selected) this.drawFrame(s, 0xe8b440, 1, 3);

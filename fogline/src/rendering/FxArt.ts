@@ -204,6 +204,99 @@ function scorch(): HTMLCanvasElement {
   return canvas;
 }
 
+/** Ink pool: a flat, ragged puddle of black ink lying on the ground, painted at 384x160. */
+function inkPuddle(seed: number): HTMLCanvasElement {
+  const W = 384, H = 160;
+  const { canvas, ctx } = makeCanvas(W, H);
+  const rng = mulberry32(seed);
+  ctx.fillStyle = 'rgba(6,4,4,0.97)';
+  ctx.beginPath();
+  const N = 56;
+  for (let i = 0; i <= N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    const k = 1 + rand(rng, -0.1, 0.08) + (i % 7 === 0 ? 0.1 : 0);
+    const x = W / 2 + Math.cos(a) * 168 * k;
+    const y = H / 2 + Math.sin(a) * 62 * k;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  // spatter thrown out across the ground around the pool
+  for (let i = 0; i < 18; i++) {
+    const a = rng() * Math.PI * 2;
+    const d = rand(rng, 150, 180);
+    ctx.fillStyle = `rgba(6,4,4,${rand(rng, 0.7, 0.97).toFixed(2)})`;
+    ctx.beginPath();
+    ctx.ellipse(W / 2 + Math.cos(a) * d, H / 2 + Math.sin(a) * d * 0.36, rand(rng, 2, 6), rand(rng, 1.5, 4), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return canvas;
+}
+
+/**
+ * Inverted ink drip: black ink lying on the ground with long drips climbing up from it, each
+ * one bulbous at the tip, streaked with a little gloss, and spatter thrown around. Painted at 384x512.
+ */
+function inkDrip(seed: number): HTMLCanvasElement {
+  const W = 384, H = 512;
+  const { canvas, ctx } = makeCanvas(W, H);
+  const rng = mulberry32(seed);
+  const base = H - 64;
+  ctx.fillStyle = 'rgba(6,4,4,0.98)';
+
+  // the pool the ink lies in, lumpy around its edge
+  ctx.beginPath();
+  const N = 44;
+  for (let i = 0; i <= N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    const k = 1 + rand(rng, -0.07, 0.07);
+    const x = W / 2 + Math.cos(a) * (W / 2 - 16) * k;
+    const y = base + Math.sin(a) * 52 * k;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // one drip: a tapering tendril climbing from the pool, with a bulb at its tip
+  const drip = (x0: number, h: number, w0: number): void => {
+    const steps = 48;
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const x = x0 + Math.sin(t * 4 + x0) * 3 * t;
+      const y = base - t * h;
+      ctx.beginPath();
+      ctx.arc(x, y, w0 * (1 - 0.55 * t), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(x0 + Math.sin(4 + x0) * 3, base - h, w0 * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    if (w0 > 14) {
+      // a thin gloss highlight down the thicker drips
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x0 - w0 * 0.35, base - h * 0.12);
+      ctx.lineTo(x0 - w0 * 0.35, base - h * 0.62);
+      ctx.stroke();
+    }
+  };
+  // thick sheets across the body first, then thinner drips between them
+  for (let i = 0; i < 5; i++) drip(rand(rng, 40, W - 40), rand(rng, 0.45 * H, 0.66 * H), rand(rng, 28, 38));
+  for (let i = 0; i < 12; i++) drip(rand(rng, 20, W - 20), rand(rng, 0.35 * H, 0.8 * H), rand(rng, 9, 17));
+
+  // spatter thrown out above the pool
+  for (let i = 0; i < 46; i++) {
+    ctx.fillStyle = `rgba(6,4,4,${rand(rng, 0.7, 0.97).toFixed(2)})`;
+    ctx.beginPath();
+    ctx.arc(rand(rng, 10, W - 10), rand(rng, 20, base - 40), rand(rng, 1, 4), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return canvas;
+}
+
 export function buildFxTextures(scene: Phaser.Scene): void {
   add(scene, 'flash_0', muzzleFlash(1));
   add(scene, 'flash_1', muzzleFlash(2));
@@ -221,6 +314,8 @@ export function buildFxTextures(scene: Phaser.Scene): void {
   add(scene, 'rotor', rotor());
   add(scene, 'grenade', grenade());
   add(scene, 'scorch', scorch());
+  add(scene, 'ink_puddle', inkPuddle(8));
+  add(scene, 'ink_drip', inkDrip(9));
   const px = makeCanvas(4, 4);
   px.ctx.fillStyle = '#fff';
   px.ctx.fillRect(0, 0, 4, 4);

@@ -17,6 +17,13 @@ export const VIEW = {
   wallTop: 522,
 } as const;
 
+/**
+ * The bunker window: the opening between the concrete jambs, painted in EnvironmentArt's
+ * frame. Its left jamb runs from (topX, topY) down to (bottomX, bottom of the screen); the
+ * right jamb mirrors it. Zombies are kept inside this opening.
+ */
+export const WINDOW = { topX: 70, topY: 26, bottomX: 112 } as const;
+
 export const FIELD = {
   /** Distance (m) where enemies spawn, inside the fog. */
   spawnZ: 95,
@@ -24,8 +31,8 @@ export const FIELD = {
   attackZ: 4.3,
   /** Lateral spread (m, +/-) at spawn. */
   spawnHalfWidth: 46,
-  /** Lateral spread (m, +/-) at the bunker line. */
-  attackHalfWidth: 2.5,
+  /** Lateral spread (m, +/-) at the bunker line: kept inside the window (see windowHalfWidth). */
+  attackHalfWidth: 2.1,
   /** Furthest distance the ground math will report. */
   maxZ: 400,
 } as const;

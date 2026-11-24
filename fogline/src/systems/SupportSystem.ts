@@ -28,6 +28,8 @@ export class SupportSystem {
   private heliFire = 0;
   private heliTarget: { x: number } = { x: 0 };
   private heliLoop: LoopHandle | null = null;
+  /** Radio chatter that runs for as long as the gunship is fighting. */
+  private chopperRadio: LoopHandle | null = null;
   private strikes: Strike[] = [];
   private nukeT = -1;
   private nukeBlastT = -1;
@@ -63,6 +65,8 @@ export class SupportSystem {
     this.rotor.setVisible(true);
     this.heliLoop?.stop(0.1);
     this.heliLoop = audio.loop('heli_loop', 0.0, 'sfx', 0.1);
+    this.chopperRadio?.stop(0.1);
+    this.chopperRadio = audio.loop('chopper_radio', 0.5, 'sfx', 0.3);
     audio.play('radio', { volume: 0.6 });
   }
 
@@ -132,6 +136,8 @@ export class SupportSystem {
       this.rotor.setVisible(false);
       this.heliLoop?.stop(0.5);
       this.heliLoop = null;
+      this.chopperRadio?.stop(0.5);
+      this.chopperRadio = null;
     }
   }
 
@@ -204,6 +210,8 @@ export class SupportSystem {
     this.rotor.setVisible(false);
     this.heliLoop?.stop(0.2);
     this.heliLoop = null;
+    this.chopperRadio?.stop(0.2);
+    this.chopperRadio = null;
     for (const s of this.strikes) {
       s.reticle.destroy();
       s.beam.destroy();

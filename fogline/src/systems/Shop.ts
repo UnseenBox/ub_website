@@ -6,7 +6,7 @@ import { EconomyManager } from './EconomyManager';
 import { WeaponManager } from './WeaponManager';
 
 export type ShopCategory = 'weapons' | 'mods' | 'support' | 'bunker';
-export type ItemStatus = 'ok' | 'owned' | 'full' | 'cash' | 'maxed' | 'needs';
+export type ItemStatus = 'ok' | 'owned' | 'full' | 'cash' | 'maxed' | 'needs' | 'locked';
 
 export interface ShopItem {
   id: string;
@@ -37,6 +37,7 @@ export const STATUS_TEXT: Record<ItemStatus, string> = {
   cash: 'NEED CASH',
   maxed: 'MAXED',
   needs: 'BUY WEAPON',
+  locked: 'LOCKED',
 };
 
 /**
@@ -52,8 +53,8 @@ export function buildCatalog(d: ShopDeps): ShopItem[] {
       items.push({
         id: `weapon:${w.id}`, category: 'weapons', name: w.name, icon: w.iconTexture, key: String(w.slot), description: w.description,
         price: () => w.price,
-        stock: () => (d.weapons.owns(w.id) ? 'OWNED' : ''),
-        status: () => withCash(w.price, d.weapons.owns(w.id) ? 'owned' : 'ok'),
+        stock: () => (d.weapons.owns(w.id) ? 'OWNED' : d.weapons.isUnlocked(w.id) ? '' : `CLEAR WAVE ${w.unlockAfterWave}`),
+        status: () => withCash(w.price, d.weapons.owns(w.id) ? 'owned' : d.weapons.isUnlocked(w.id) ? 'ok' : 'locked'),
         buy() {
           if (this.status() !== 'ok') return false;
           if (!d.economy.spend(w.price, this.id)) return false;

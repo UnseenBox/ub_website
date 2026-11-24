@@ -4,6 +4,8 @@ import { Emitter } from './Emitter';
 export interface WeaponState {
   def: WeaponDef;
   owned: boolean;
+  /** Unlocked by clearing waves: on sale in the armory, owned or not. */
+  unlocked: boolean;
   mag: number;
   reserve: number;
 }
@@ -41,7 +43,7 @@ export class WeaponManager {
 
   constructor() {
     for (const def of WEAPONS) {
-      this.states.set(def.id, { def, owned: def.price === 0, mag: def.magazine, reserve: def.startReserve });
+      this.states.set(def.id, { def, owned: def.price === 0, unlocked: def.unlockAfterWave <= 0, mag: def.magazine, reserve: def.startReserve });
     }
     this.currentId = WEAPONS[0].id;
   }
@@ -68,10 +70,27 @@ export class WeaponManager {
     return this.states.get(id)?.owned ?? false;
   }
 
+  isUnlocked(id: string): boolean {
+    return this.states.get(id)?.unlocked ?? false;
+  }
+
+  /** A wave was cleared: unlock every weapon it has earned. Returns the newly unlocked ones. */
+  unlockForCleared(cleared: number): WeaponDef[] {
+    const fresh: WeaponDef[] = [];
+    for (const s of this.states.values()) {
+      if (!s.unlocked && s.def.unlockAfterWave <= cleared) {
+        s.unlocked = true;
+        fresh.push(s.def);
+      }
+    }
+    return fresh;
+  }
+
   grant(id: string): void {
     const s = this.states.get(id);
     if (!s) return;
     s.owned = true;
+    s.unlocked = true;
     s.mag = s.def.magazine;
     s.reserve = s.def.startReserve;
     this.events.emit('ammo', { def: s.def, mag: s.mag, reserve: s.reserve });

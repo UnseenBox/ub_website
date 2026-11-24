@@ -51,6 +51,29 @@ export function registerFoglineOverrides(): void {
   audio.registerOverride('ui_hover', `${ROOT}/hover.mp3`);
   audio.registerOverride('ui_click', `${ROOT}/click.mp3`);
 
+  // Supplied in-game music, wave cue and shambler groans. Each shambler groan picks one of
+  // the three recordings at random, as the synthesized set did.
+  audio.registerOverride('drone_loop', `${ROOT}/bg-music.mp3`);
+  audio.registerOverride('wave_start', `${ROOT}/wave-start.mp3`);
+  audio.registerOverride('groan_shambler_0', `${ROOT}/zombie-1.mp3`);
+  audio.registerOverride('groan_shambler_1', `${ROOT}/zombie-2.mp3`);
+  audio.registerOverride('groan_shambler_2', `${ROOT}/zombie-3.mp3`);
+
+  // Weapon-switch click; the nuke warning is a jet flyover in place of the siren; the gunship's radio chatter.
+  audio.registerOverride('switch_weapon', `${ROOT}/change-weapon.mp3`);
+  audio.registerOverride('siren', `${ROOT}/fighter-jet.mp3`);
+  audio.registerOverride('chopper_radio', `${ROOT}/chopper-radio.mp3`);
+
+  // Supplied empty-gun click, gunship gunfire, bunker hit and projectile blast.
+  for (const key of ['empty_light', 'empty_heavy']) {
+    audio.registerOverride(key, `${ROOT}/empty-gun-shot.mp3`);
+  }
+  audio.registerOverride('shot_chain', `${ROOT}/chopper-firing.mp3`);
+  for (const key of ['bunker_hit_0', 'bunker_hit_1']) {
+    audio.registerOverride(key, `${ROOT}/bunker-hit.mp3`);
+  }
+  audio.registerOverride('explosion_small', `${ROOT}/projectile-explosion.mp3`);
+
   // No "Kill sfx 3" was supplied; "killing sfx" serves as the third cue.
   audio.registerOverride('headshot_confirm', [
     `${ROOT}/kill-1.mp3`,

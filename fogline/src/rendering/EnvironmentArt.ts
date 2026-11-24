@@ -2,7 +2,7 @@
 // skyline, perspective ground, props, sandbag parapet, shutters and overlays.
 
 import Phaser from 'phaser';
-import { VIEW } from '../game/config';
+import { VIEW, WINDOW } from '../game/config';
 import {
   Rng, bloodStain, cylinderGradient, hex, makeCanvas, mix, mulberry32, rand, scratches, shadeColor, softCircle, speckle,
 } from './CanvasUtil';
@@ -620,7 +620,7 @@ function paintParapet(): HTMLCanvasElement {
     let x = -rand(rng, 20, 70) - (r % 2) * 50;
     while (x < W + 10) {
       const w = row.w * rand(rng, 0.88, 1.08);
-      const base = mix(0x6e6450, 0x4e4636, rng() * 0.6);
+      const base = mix(0x9c8c64, 0x7a6c4c, rng() * 0.6);
       sandbag(ctx, rng, x, row.y + rand(rng, -3, 3) - (r === 0 ? rand(rng, 0, 6) : 0), w, row.h, base);
       x += w - 10;
     }
@@ -631,8 +631,16 @@ function paintParapet(): HTMLCanvasElement {
   sh.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = sh;
   ctx.fillRect(0, 0, W, 40);
+  // concrete coping along the top of the wall, so the wall's line reads at a glance
+  const coping = ctx.createLinearGradient(0, 0, 0, 16);
+  coping.addColorStop(0, '#a4a79e');
+  coping.addColorStop(1, '#5c5e57');
+  ctx.fillStyle = coping;
+  ctx.fillRect(0, 0, W, 16);
+  ctx.fillStyle = 'rgba(20,20,18,0.55)';
+  ctx.fillRect(0, 16, W, 3);
   // barbed wire along the top
-  ctx.strokeStyle = 'rgba(28,28,26,0.95)';
+  ctx.strokeStyle = 'rgba(196,196,186,0.92)';
   ctx.lineWidth = 1.3;
   for (let i = 0; i < 120; i++) {
     const cx = i * 11 + 4;
@@ -640,7 +648,7 @@ function paintParapet(): HTMLCanvasElement {
     ctx.ellipse(cx, 20, 14, 18, 0.45, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.fillStyle = 'rgba(28,28,26,0.95)';
+  ctx.fillStyle = 'rgba(196,196,186,0.92)';
   for (let i = 0; i < 200; i++) ctx.fillRect(rng() * W, rand(rng, 2, 38), 3, 1.2);
   // ammo crate on the left, radio on the right
   ctx.fillStyle = cylinderGradient(ctx, 150, 280, 0x4a4c2e, 0.2, 0.5);
@@ -679,8 +687,8 @@ function paintFrame(): HTMLCanvasElement {
     for (const p of pts) ctx.lineTo(p[0], p[1]);
     ctx.closePath();
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#2a2b29');
-    g.addColorStop(1, '#3d3d38');
+    g.addColorStop(0, '#4b4d48');
+    g.addColorStop(1, '#6a6a62');
     ctx.fillStyle = g;
     ctx.fill();
     ctx.clip();
@@ -688,8 +696,8 @@ function paintFrame(): HTMLCanvasElement {
     speckle(ctx, rng, bx, by, bw, bh, Math.round(density * 0.9), '#6a6a62', 1.6, 0.05, 0.25);
     scratches(ctx, rng, bx, by, bw, bh, Math.round(density * 0.25), '#0c0c0a', 26, 0.45, true);
     ctx.restore();
-    ctx.strokeStyle = 'rgba(130,130,120,0.35)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(216,216,200,0.7)';
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.moveTo(pts[1][0], pts[1][1]);
     ctx.lineTo(pts[2][0], pts[2][1]);
@@ -700,8 +708,8 @@ function paintFrame(): HTMLCanvasElement {
   for (let x = 0; x <= W; x += 24) lip.push([x, 16 + rand(rng, -3, 5)]);
   lip.push([W, 0]);
   concrete(lip);
-  concrete([[0, 30], [0, 18], [70, 26], [112, H], [0, H]]);
-  concrete([[W, 30], [W, 18], [W - 70, 26], [W - 112, H], [W, H]]);
+  concrete([[0, 30], [0, 18], [WINDOW.topX, WINDOW.topY], [WINDOW.bottomX, H], [0, H]]);
+  concrete([[W, 30], [W, 18], [W - WINDOW.topX, WINDOW.topY], [W - WINDOW.bottomX, H], [W, H]]);
   // rebar stubs
   ctx.strokeStyle = '#3a2a1c';
   ctx.lineWidth = 3;
