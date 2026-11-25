@@ -7,8 +7,8 @@ import { ModeOutcome, RunRewards } from '../systems/Retention';
 import { MODS, SUPPORT, DEFENSES } from '../data/upgrades';
 import { weaponById } from '../data/weapons';
 import {
-  BUNKER_STAR_FRACTION, MissionOutcome, MissionResult, actOpen, bonusText, isActFinale, missionAfter, nextUnlockHint,
-  playerPower, starTotals, veteranMedals, workshopOpen,
+  BUNKER_STAR_FRACTION, MissionOutcome, MissionResult, actOpen, isActFinale, missionAfter, nextUnlockHint,
+  playerPower, veteranMedals, workshopOpen,
 } from '../systems/Campaign';
 import { ACT_STAR_GATE } from '../data/missions';
 import { recruitById } from '../data/squad';
@@ -17,6 +17,7 @@ import { portal } from '../portal/Portal';
 import { RETRY_CASH_BONUS } from '../portal/adRules';
 import { MONO, STENCIL, button } from '../ui/widgets';
 import { VIEW } from './config';
+import { bonusValue } from '../ui/messages';
 import { keyHint } from './touchControls';
 
 export interface ResultsData {
@@ -74,7 +75,7 @@ export class ResultsScene extends Phaser.Scene {
       : mode === 'surge' ? `FOG SURGE · ${mission.name.toUpperCase()} · ${mission.place}`
       : mode === 'endless' ? `LAST STAND · ${mission.place}`
       : `MISSION ${mission.number} · ${mission.name.toUpperCase()} · ${mission.place}`;
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, win ? 0x000000 : 0x1a0000, 0.8).setOrigin(0).setInteractive();
+    this.add.rectangle(0, 0, VIEW.width, VIEW.height, win ? 0x000000 : 0x1a0000, 0.94).setOrigin(0).setInteractive();
     this.add.text(VIEW.centerX, 70, title, {
       fontFamily: STENCIL, fontSize: '64px', color: win || mode === 'endless' ? '#d8e0b0' : '#d84030', stroke: '#000', strokeThickness: 8,
     }).setOrigin(0.5);
@@ -85,70 +86,100 @@ export class ResultsScene extends Phaser.Scene {
     if (mode) this.drawScore(mode, outcome as ModeOutcome, result.wavesCleared);
     else if (!training) this.drawStars(mission.bonus, data);
 
-    // Battle stats.
-    const rows: [string, string][] = [
+    // Battle stats: one tile each.
+    const tiles: [string, string][] = [
       ['WAVES', mode === 'endless' ? `${result.wavesCleared}` : `${result.wavesCleared} / ${result.totalWaves}`],
       ['KILLS', `${result.kills}`],
-      ['HEADSHOT KILLS', `${result.headshots}`],
+      ['HEADSHOTS', `${result.headshots}`],
       ['ACCURACY', `${Math.round(result.accuracy * 100)}%`],
     ];
-    if (result.vehicles !== undefined) rows.push(['VEHICLES SAVED', `${result.saved} / ${result.vehicles}`]);
-    if (result.assetFraction !== undefined) rows.push(['TARGET HEALTH', `${Math.round(result.assetFraction * 100)}%`]);
-    const boxH = 24 + rows.length * 25;
-    this.add.rectangle(VIEW.centerX, 322 + boxH / 2, 420, boxH, 0x0c0d0c, 0.85).setStrokeStyle(1, 0x4a4c48);
-    rows.forEach(([k, v], i) => {
-      this.add.text(VIEW.centerX - 190, 334 + i * 25, k, { fontFamily: MONO, fontSize: '15px', color: '#9a9a86' });
-      this.add.text(VIEW.centerX + 190, 334 + i * 25, v, { fontFamily: MONO, fontSize: '15px', color: '#e0dcc0' }).setOrigin(1, 0);
+    if (result.vehicles !== undefined) tiles.push(['SAVED', `${result.saved} / ${result.vehicles}`]);
+    if (result.assetFraction !== undefined) tiles.push(['TARGET', `${Math.round(result.assetFraction * 100)}%`]);
+    const tw = 118, tg = 10;
+    const tx0 = VIEW.centerX - (tiles.length * tw + (tiles.length - 1) * tg) / 2;
+    tiles.forEach(([k, v], i) => {
+      const x = tx0 + i * (tw + tg);
+      this.add.rectangle(x, 300, tw, 66, 0x0c0d0c, 0.9).setOrigin(0).setStrokeStyle(1, 0x4a4c48);
+      this.add.text(x + tw / 2, 310, k, { fontFamily: MONO, fontSize: '11px', color: '#9a9a86' }).setOrigin(0.5, 0);
+      this.add.text(x + tw / 2, 328, v, { fontFamily: STENCIL, fontSize: '26px', color: '#e0dcc0' }).setOrigin(0.5, 0);
     });
 
-    // Rewards and what comes next.
+    // Rewards: a supplies headline, chips for what was earned, and one line about what comes next.
     const p = profile.get();
-    const lines: string[] = [];
     const rw = data.rewards;
+    const chips: string[] = [];
+    const notes: string[] = [];
+    let nextLine: string | null = null;
+    let gauge: { power: number; threat: number } | null = null;
     if (mode) {
       const earned = outcome.supplies + (rw?.supplies ?? 0);
       const total = data.saved ? p.supplies : p.supplies + earned;
       const why = mode === 'surge' && outcome.firstClear ? "  (TODAY'S FIRST WIN)" : '';
-      this.suppliesText = this.add.text(VIEW.centerX, 334 + boxH + 18, `+${earned} SUPPLIES${why}   ·   TOTAL ${total}`, {
+      this.suppliesText = this.add.text(VIEW.centerX, 392, `+${earned} SUPPLIES${why}   ·   TOTAL ${total}`, {
         fontFamily: STENCIL, fontSize: '26px', color: '#c8d890', stroke: '#000', strokeThickness: 5,
       }).setOrigin(0.5, 0);
-      for (const ms of (outcome as ModeOutcome).milestones) lines.push(`WAVE ${ms.wave} REACHED FOR THE FIRST TIME  +${ms.supplies}`);
-      lines.push(...rewardLines(rw));
-      if (!data.saved) lines.push('TEST MODE: this result is not saved');
+      for (const ms of (outcome as ModeOutcome).milestones) chips.push(`WAVE ${ms.wave} +${ms.supplies}`);
+      chips.push(...rewardLines(rw));
+      if (!data.saved) notes.push('TEST MODE: this result is not saved');
     } else if (!training) {
       const earned = outcome.supplies + (rw?.supplies ?? 0) + (data.contested ?? 0);
       const total = data.saved ? p.supplies : p.supplies + earned;
-      if (data.contested) lines.push(`CONTESTED GROUND RETAKEN  +${data.contested}`);
-      this.suppliesText = this.add.text(VIEW.centerX, 334 + boxH + 18, `+${earned} SUPPLIES${outcome.firstClear ? '  (FIRST CLEAR BONUS)' : ''}   ·   TOTAL ${total}`, {
+      this.suppliesText = this.add.text(VIEW.centerX, 392, `+${earned} SUPPLIES${outcome.firstClear ? '  ·  FIRST CLEAR' : ''}   ·   TOTAL ${total}`, {
         fontFamily: STENCIL, fontSize: '26px', color: '#c8d890', stroke: '#000', strokeThickness: 5,
       }).setOrigin(0.5, 0);
-      lines.push(...rewardLines(rw));
-      if (outcome.veteranMedal) lines.push(`VETERAN MEDAL EARNED  ✪  (${veteranMedals(p)} of ${MISSIONS.length})`);
-      for (const w of outcome.unlockedWeapons) lines.push(`${weaponById(w).name.toUpperCase()} ADDED TO YOUR ARSENAL`);
-      for (const g of outcome.unlockedGear) lines.push(`${gearName(g).toUpperCase()} UNLOCKED`);
-      for (const r of outcome.unlockedRecruits ?? []) lines.push(`${recruitById(r)!.name.toUpperCase()} JOINS THE SQUAD`);
+      if (data.contested) chips.push(`CONTESTED RETAKEN +${data.contested}`);
+      chips.push(...rewardLines(rw));
+      if (outcome.veteranMedal) chips.push(`VETERAN MEDAL ${veteranMedals(p)}/${MISSIONS.length}`);
+      for (const w of outcome.unlockedWeapons) chips.push(`UNLOCK ${weaponById(w).shortName}`);
+      for (const g of outcome.unlockedGear) chips.push(`UNLOCK ${gearName(g)}`);
+      for (const r of outcome.unlockedRecruits ?? []) chips.push(`JOINS ${recruitById(r)!.name.split(' ')[0]}`);
       const next = missionAfter(mission.id);
-      if (!data.saved) lines.push('TEST MODE: this result is not saved');
+      if (!data.saved) notes.push('TEST MODE: this result is not saved');
       else if (win && outcome.firstClear && isActFinale(mission)) {
-        if (!next) lines.push('THE BLOOM IS DEAD. THE COAST IS CLEAR.');
-        else if (actOpen(p, next.act)) lines.push(`ACT ${mission.act} COMPLETE. Act ${next.act} is open on the map.`);
-        else lines.push(`ACT ${mission.act} COMPLETE. Earn ${ACT_STAR_GATE[next.act]} stars to open Act ${next.act}: replay missions for stars.`);
-      }
-      else if (!win) {
+        nextLine = !next ? 'The Bloom is dead. The coast is clear.'
+          : actOpen(p, next.act) ? `Act ${next.act} is open on the map.`
+          : `Earn ${ACT_STAR_GATE[next.act]} stars to open Act ${next.act}.`;
+      } else if (!win) {
         const power = playerPower(p);
-        lines.push(power < mission.threat
-          ? `Your power ${power} is below this mission's threat ${mission.threat}. Spend Supplies in the Workshop.`
-          : 'So close. Try a different loadout, or replay earlier missions for stars and Supplies.');
+        gauge = { power, threat: mission.threat };
+        nextLine = power < mission.threat ? 'Spend Supplies in the Workshop.' : 'So close. Try another loadout.';
       } else {
-        const hint = nextUnlockHint(p);
-        if (hint) lines.push(hint);
+        nextLine = nextUnlockHint(p);
       }
-      const stars = starTotals(p);
-      lines.push(`Campaign stars ${stars.earned} / ${stars.total}`);
     }
-    this.add.text(VIEW.centerX, 334 + boxH + 58, lines.join('\n'), {
-      fontFamily: MONO, fontSize: '15px', color: '#e8c060', align: 'center', lineSpacing: 4, wordWrap: { width: 580 },
-    }).setOrigin(0.5, 0);
+
+    // The crate icon sits left of the supplies headline.
+    if (this.suppliesText) {
+      const sw = this.suppliesText.width;
+      this.add.graphics({ x: VIEW.centerX - sw / 2 - 22, y: 409 })
+        .fillStyle(0x5a6a3a, 1).fillRect(-11, -9, 22, 18)
+        .lineStyle(2, 0x2e361e, 1).strokeRect(-11, -9, 22, 18).lineBetween(-11, -9, 11, 9).lineBetween(11, -9, -11, 9);
+    }
+
+    // A defeat shows the power the player had against the threat of the mission.
+    let cy = win ? 430 : 470;
+    if (gauge) {
+      const { power, threat } = gauge;
+      const max = Math.max(power, threat) * 1.25;
+      const bw = 360, bx = VIEW.centerX - bw / 2, by = 458;
+      this.add.text(VIEW.centerX, 430, `POWER ${power}   ·   THREAT ${threat}`, {
+        fontFamily: MONO, fontSize: '13px', color: power >= threat ? '#a8e090' : '#ff9a70',
+      }).setOrigin(0.5, 0);
+      this.add.graphics()
+        .fillStyle(0x0c0d0c, 1).fillRect(bx, by, bw, 12)
+        .fillStyle(power >= threat ? 0x6aae4a : 0xc89a30, 1).fillRect(bx, by, bw * (power / max), 12)
+        .fillStyle(0xff7a5a, 1).fillRect(bx + bw * (threat / max) - 1, by - 5, 3, 22);
+      cy = 492;
+    }
+
+    cy = this.chipRows(chips, cy);
+    if (nextLine) {
+      const ny = cy + 14;
+      this.add.rectangle(VIEW.centerX - 10, ny, 570, 40, 0x1c1d1a, 0.92).setStrokeStyle(2, 0xc8a040);
+      this.add.text(VIEW.centerX, ny, nextLine, { fontFamily: MONO, fontSize: '15px', color: '#e8c060' }).setOrigin(0.5);
+      cy = ny + 20;
+    }
+    if (notes.length) this.add.text(VIEW.centerX, cy + 14, notes.join('\n'), { fontFamily: MONO, fontSize: '12px', color: '#8a8a76' }).setOrigin(0.5, 0);
 
     // Radio debrief after a win.
     if (win && mission.debrief.length) {
@@ -233,26 +264,28 @@ export class ResultsScene extends Phaser.Scene {
     }
   }
 
-  private drawStars(goal: Parameters<typeof bonusText>[0], data: ResultsData): void {
+  private drawStars(goal: Parameters<typeof bonusValue>[0], data: ResultsData): void {
     const { outcome, result } = data;
-    for (let i = 0; i < 3; i++) {
+    const xs = [-74, 0, 74].map((d) => VIEW.centerX + d);
+    xs.forEach((x, i) => {
       const lit = i < outcome.stars;
-      const g = this.add.graphics({ x: VIEW.centerX + (i - 1) * 74, y: 182 });
+      const g = this.add.graphics({ x, y: 182 });
       drawStar(g, lit ? GOLD : DIM, i === 1 ? 34 : 28);
       if (lit) {
         g.setScale(0);
         this.tweens.add({ targets: g, scale: 1, duration: 260, delay: 350 + i * 260, ease: 'Back.Out', onStart: () => audio.play('ui_click', { volume: 0.8, rate: 1 + i * 0.12 }) });
       }
-    }
-    const checks: [boolean, string][] = [
-      [result.victory, 'Complete the objective'],
-      [outcome.bunkerStar, `Bunker above ${Math.round(BUNKER_STAR_FRACTION * 100)}%`],
-      [outcome.bonusMet, bonusText(goal)],
+    });
+    // Under each star: the reason it was earned, as an icon and a short value.
+    const reasons: [boolean, (g: Phaser.GameObjects.Graphics, c: number) => void, string][] = [
+      [result.victory, drawTick, ''],
+      [outcome.bunkerStar, drawShield, `${Math.round(BUNKER_STAR_FRACTION * 100)}%`],
+      [outcome.bonusMet, drawReticle, bonusValue(goal)],
     ];
-    checks.forEach(([ok, label], i) => {
-      const y = 236 + i * 24;
-      this.add.text(VIEW.centerX - 150, y, ok ? '★' : '☆', { fontFamily: MONO, fontSize: '16px', color: ok ? '#e8c060' : '#6a6a5e' });
-      this.add.text(VIEW.centerX - 124, y, label, { fontFamily: MONO, fontSize: '16px', color: ok ? '#e0dcc0' : '#7a7a6c' });
+    reasons.forEach(([ok, draw, value], i) => {
+      const x = xs[i];
+      draw(this.add.graphics({ x: value ? x - 22 : x, y: 248 }), ok ? GOLD : DIM);
+      if (value) this.add.text(x - 8, 248, value, { fontFamily: MONO, fontSize: '15px', color: ok ? '#e0dcc0' : '#6a6a5e' }).setOrigin(0, 0.5);
     });
   }
 
@@ -265,6 +298,34 @@ export class ResultsScene extends Phaser.Scene {
       fontFamily: MONO, fontSize: '17px', color: o.newBest ? '#a8e090' : '#b8b4a0',
     }).setOrigin(0.5);
     if (o.newBest && o.score > 0) audio.play('wave_clear', { volume: 0.6, rate: 1.2 });
+  }
+
+  /** Reward and unlock chips, centred in rows. Returns the y just below the last row. */
+  private chipRows(chips: string[], y: number): number {
+    if (!chips.length) return y;
+    const maxW = 600, gap = 8, rowH = 26;
+    const placed: { t: Phaser.GameObjects.Text; x: number; w: number; row: number }[] = [];
+    const rowW: number[] = [];
+    let row = 0, cur = 0;
+    for (const c of chips) {
+      const t = this.add.text(0, 0, c, { fontFamily: MONO, fontSize: '12px', color: '#e8c060' }).setDepth(2);
+      const w = t.width + 20;
+      if (cur > 0 && cur + w > maxW) {
+        rowW.push(cur - gap);
+        row++;
+        cur = 0;
+      }
+      placed.push({ t, x: cur, w, row });
+      cur += w + gap;
+    }
+    rowW.push(cur - gap);
+    for (const c of placed) {
+      const ox = VIEW.centerX - rowW[c.row] / 2;
+      const yy = y + c.row * rowH;
+      this.add.rectangle(ox + c.x, yy, c.w, 20, 0x1a1b18, 0.95).setOrigin(0, 0.5).setStrokeStyle(1, 0x7a6420).setDepth(1);
+      c.t.setPosition(ox + c.x + 10, yy).setOrigin(0, 0.5);
+    }
+    return y + (row + 1) * rowH;
   }
 
   /** Leaves the results; a CrazyGames midgame break may run first (never in the first missions, three minutes apart). */
@@ -289,6 +350,22 @@ function rewardLines(rw: RunRewards | undefined): string[] {
   }
   for (const s of rw.skins) out.push(`MASTERY: ${weaponById(s.weapon).shortName} ${SKINS[s.skin].name.toUpperCase()} SKIN UNLOCKED (WORKSHOP)`);
   return out;
+}
+
+function drawTick(g: Phaser.GameObjects.Graphics, c: number): void {
+  g.lineStyle(4, c, 1).beginPath().moveTo(-9, 0).lineTo(-3, 6).lineTo(9, -7).strokePath();
+}
+
+function drawShield(g: Phaser.GameObjects.Graphics, c: number): void {
+  g.fillStyle(c, 1).fillPoints([
+    new Phaser.Math.Vector2(-8, -9), new Phaser.Math.Vector2(8, -9), new Phaser.Math.Vector2(8, 0),
+    new Phaser.Math.Vector2(0, 9), new Phaser.Math.Vector2(-8, 0),
+  ], true);
+}
+
+function drawReticle(g: Phaser.GameObjects.Graphics, c: number): void {
+  g.lineStyle(2, c, 1).strokeCircle(0, 0, 8).lineBetween(-13, 0, -5, 0).lineBetween(13, 0, 5, 0)
+    .lineBetween(0, -13, 0, -5).lineBetween(0, 13, 0, 5);
 }
 
 export function drawStar(g: Phaser.GameObjects.Graphics, color: number, r: number): void {

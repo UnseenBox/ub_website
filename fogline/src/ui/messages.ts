@@ -32,3 +32,31 @@ export function appendLog<T>(log: T[], line: T, max = 40): void {
   log.push(line);
   if (log.length > max) log.splice(0, log.length - max);
 }
+
+/** The short value shown under a bonus star (the full goal is on the map). */
+export function bonusValue(goal: import('../data/missions').BonusGoal): string {
+  switch (goal.kind) {
+    case 'headshots': return `${goal.count}`;
+    case 'accuracy': return `${Math.round(goal.fraction * 100)}%`;
+    case 'assetHealth': return `${Math.round(goal.fraction * 100)}%`;
+    case 'saveAll': return 'ALL';
+    case 'noSupport': return goal.id === 'nuke' ? 'NO NUKE' : goal.id === 'gunship' ? 'NO GUNSHIP' : 'NO LANCE';
+  }
+}
+
+/** Up to three one-word tags that say what is new about an enemy (shown on its threat card). */
+export function threatTags(def: import('../data/enemies').EnemyDef): string[] {
+  const s = def.special;
+  const tags: string[] = [];
+  if (def.boss) tags.push('BOSS');
+  if (s?.ranged) tags.push('RANGED');
+  if (s?.howl) tags.push('HOWLS');
+  if (s?.burstInto) tags.push('SPLITS');
+  if (s?.detonateDamage || s?.deathBlast) tags.push('EXPLODES');
+  if (s?.burrow) tags.push('BURROWS');
+  if (s?.sporeCloud) tags.push('CLOUDS');
+  if (def.speed >= 3.5) tags.push('FAST');
+  if (def.armoredZones.length > 0 || def.staggerThreshold >= 700) tags.push('ARMOURED');
+  if (def.zoneMultiplier.head >= 1.2 && tags.length < 3) tags.push('HEAD');
+  return tags.slice(0, 3);
+}

@@ -42,3 +42,24 @@ describe('battle text rules', () => {
     expect(log[39]).toBe(49);
   });
 });
+
+import { ENEMIES } from '../data/enemies';
+import { bonusValue, threatTags } from './messages';
+
+describe('results and threat text', () => {
+  it('shows a short value for each bonus star', () => {
+    expect(bonusValue({ kind: 'headshots', count: 12 })).toBe('12');
+    expect(bonusValue({ kind: 'accuracy', fraction: 0.7 })).toBe('70%');
+    expect(bonusValue({ kind: 'saveAll' })).toBe('ALL');
+    expect(bonusValue({ kind: 'noSupport', id: 'gunship' })).toBe('NO GUNSHIP');
+  });
+
+  it('tags the new things about an enemy, three at most', () => {
+    expect(threatTags(ENEMIES.spitter)).toEqual(['RANGED', 'HEAD']);
+    expect(threatTags(ENEMIES.howler)).toEqual(['HOWLS', 'HEAD']);
+    expect(threatTags(ENEMIES.sapper)).toEqual(['EXPLODES', 'FAST']);
+    expect(threatTags(ENEMIES.juggernaut)).toEqual(['ARMOURED']);
+    expect(threatTags(ENEMIES.bloom)[0]).toBe('BOSS');
+    for (const def of Object.values(ENEMIES)) expect(threatTags(def).length).toBeLessThanOrEqual(3);
+  });
+});

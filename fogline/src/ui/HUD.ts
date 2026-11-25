@@ -80,6 +80,8 @@ export class HUD {
   private hintBox: Phaser.GameObjects.Container | null = null;
   private pendingHint: { caps: string[]; label: string } | null = null;
   private hintLeft = 0;
+  private threatBox: Phaser.GameObjects.Container | null = null;
+  private threatLeft = 0;
   private pips: Phaser.GameObjects.Graphics;
   private card: Phaser.GameObjects.Container | null = null;
   /** Every radio line of this battle in full, for the radio log in the pause menu. */
@@ -278,6 +280,22 @@ export class HUD {
     this.showHint(caps, label);
   }
 
+  /** New enemies: a card per enemy (name and up to three tags), top right, for a few seconds. */
+  threatCards(cards: { name: string; tags: string[] }[]): void {
+    this.threatBox?.destroy();
+    const s = this.scene;
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    cards.slice(0, 2).forEach((c, i) => {
+      const y = i * 74;
+      parts.push(s.add.rectangle(0, y, 268, 66, 0x000000, 0.82).setOrigin(0).setStrokeStyle(2, 0xc8e070));
+      parts.push(s.add.text(12, y + 7, 'NEW THREAT', { fontFamily: MONO, fontSize: '11px', color: '#c8e070' }));
+      parts.push(s.add.text(12, y + 24, c.name.toUpperCase(), { fontFamily: STENCIL, fontSize: '20px', color: '#f1ead0' }));
+      parts.push(s.add.text(12, y + 47, c.tags.join('  ·  '), { fontFamily: MONO, fontSize: '11px', color: '#c8d0b0' }));
+    });
+    this.threatBox = s.add.container(VIEW.width - 282, 150, parts).setDepth(DEPTH.banner + 1);
+    this.threatLeft = 4.5;
+  }
+
   /** A banner or a wave card is on screen: messages take turns. */
   private busy(): boolean {
     return this.bannerLeft > 0 || this.bannerSticky || this.card !== null;
@@ -380,6 +398,9 @@ export class HUD {
   }
 
   hideBanner(): void {
+    this.threatBox?.destroy();
+    this.threatBox = null;
+    this.threatLeft = 0;
     this.bannerLeft = 0;
     this.bannerSticky = false;
     this.bannerTitle.setVisible(false);
@@ -404,6 +425,14 @@ export class HUD {
       if (this.hintLeft <= 0) {
         this.hintBox?.destroy();
         this.hintBox = null;
+      }
+    }
+    if (this.threatLeft > 0) {
+      this.threatLeft -= dt;
+      this.threatBox?.setAlpha(Math.min(1, this.threatLeft / 0.6));
+      if (this.threatLeft <= 0) {
+        this.threatBox?.destroy();
+        this.threatBox = null;
       }
     }
     if (this.pendingHint && !this.busy()) {

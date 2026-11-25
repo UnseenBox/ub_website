@@ -3,6 +3,7 @@ import { audio, LoopHandle } from '../audio/AudioManager';
 import { BUNKER_UPGRADE, DEFENSES, MODS, REPAIR_AMOUNT, SUPPORT, WALL_DURATION } from '../data/upgrades';
 import { CLASSIC_WEAPONS, MOUNTED_WEAPONS, WEAPONS, WEAPON_ORDER, WeaponDef, weaponById } from '../data/weapons';
 import { ENEMIES } from '../data/enemies';
+import { threatTags } from '../ui/messages';
 import { MissionDef, TRAINING, newEnemiesInMissionWave, plural } from '../data/missions';
 import { newEnemiesInWave } from '../data/waves';
 import { FIELD, VIEW } from './config';
@@ -371,17 +372,13 @@ export class GameScene extends Phaser.Scene {
         : mode === 'endless' ? (wave > 1 ? newEnemiesInWave(wave - 1, this.mission.waves) : [])
         : mode === 'surge' ? []
         : newEnemiesInMissionWave(this.mission.id, wave);
-      const fresh = freshIds.map((id) => `NEW: ${ENEMIES[id].name.toUpperCase()}`);
       this.hud.banner(
         `WAVE ${mode === 'endless' ? wave : `${wave}/${this.waves.totalWaves}`} — ${def.name.toUpperCase()}`,
-        fresh.length ? `Hostiles inbound\n${fresh.join('  ·  ')}` : 'Hostiles inbound',
+        'Hostiles inbound',
         3.8,
       );
-      // Dr. Varga explains each new enemy the first time it appears.
-      if (!this.training && !mode) {
-        const intel = freshIds.map((id) => ENEMIES[id].intel).filter((t): t is string => !!t);
-        if (intel.length) this.hud.radio(intel.map((text) => ({ who: 'VARGA', text })));
-      }
+      // A new enemy gets a threat card. Its full description is in Field Notes (HQ).
+      if (freshIds.length) this.hud.threatCards(freshIds.map((id) => ({ name: ENEMIES[id].name, tags: threatTags(ENEMIES[id]) })));
       audio.play('wave_start', { volume: 0.75 });
     });
     this.waves.events.on('start', () => this.hud.clearBanner());
