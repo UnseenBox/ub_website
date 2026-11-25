@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
+import { BLEED, MAX_SCREEN, designPoint } from './screen';
 import { audio, LoopHandle } from '../audio/AudioManager';
 import { BUNKER_UPGRADE, DEFENSES, MODS, REPAIR_AMOUNT, SUPPORT, WALL_DURATION } from '../data/upgrades';
 import { CLASSIC_WEAPONS, MOUNTED_WEAPONS, WEAPONS, WEAPON_ORDER, WeaponDef, weaponById } from '../data/weapons';
 import { ENEMIES } from '../data/enemies';
-import { threatTags } from '../ui/messages';
-import { MissionDef, TRAINING, newEnemiesInMissionWave, plural } from '../data/missions';
+import { stripChips, threatTags } from '../ui/messages';
+import { ITEM_ICON } from '../ui/iconPaths';
+import { MissionDef, TRAINING, newEnemiesInMissionWave } from '../data/missions';
 import { newEnemiesInWave } from '../data/waves';
 import { FIELD, VIEW } from './config';
 import { DEPTH } from './depths';
@@ -38,7 +40,7 @@ import type { ResultsData } from './ResultsScene';
 import { SupportSystem } from '../systems/SupportSystem';
 import { WaveManager } from '../systems/WaveManager';
 import { WeaponManager } from '../systems/WeaponManager';
-import { HUD } from '../ui/HUD';
+import { HUD, type HintPart } from '../ui/HUD';
 import { Tutorial } from '../ui/Tutorial';
 import { toggleFullscreen } from '../ui/widgets';
 import { fireAllowed, wavesAllowed } from './tutorialSteps';
@@ -280,12 +282,28 @@ export class GameScene extends Phaser.Scene {
       weapons: this.weapons, abilities: this.abilities, economy: this.economy, bunker: this.bunker, waves: this.waves, support: this.support,
       offers: (id) => this.offers(id),
       weaponSlots: this.weaponSlots,
+      touch: () => this.touchUi?.isEnabled ?? this.prefersTouch(),
     }, {
       weapon: (slot) => this.selectWeapon(slot),
       mod: (i) => this.activateMod(MODS[i].id),
       support: (i) => this.useSupport(i),
       defense: (i) => this.useDefense(i),
-      focus: () => this.activateFocus(),
+      focus: () => {
+        this.cardClickAt = this.input.activePointer.downTime;
+        this.activateFocus();
+      },
+      flare: () => {
+        this.cardClickAt = this.input.activePointer.downTime;
+        this.fireFlare();
+      },
+      armory: () => {
+        this.cardClickAt = this.input.activePointer.downTime;
+        this.openShop();
+      },
+      nextWave: () => {
+        this.cardClickAt = this.input.activePointer.downTime;
+        this.startNextWave();
+      },
     });
     this.squad.onLine = (who, text) => this.hud.radio([{ who, text }]);
 
@@ -305,20 +323,14 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', () => this.teardown());
 
     const m = this.mission;
-    const begin = this.touchUi.isEnabled ? 'Tap DEPLOY to begin  ·  SHOP for the armory' : '[ENTER] begin  ·  [SPACE] armory';
+    // The objective strip says what to do, so a campaign mission starts without a banner.
     if (this.training) {
-      this.hud.banner('TRAINING', `The classic eight waves. Nothing here is saved.\n${begin}`, 999, true);
+      this.hud.banner('TRAINING', null, 2.4);
     } else {
-      const title = m.mode === 'surge' ? `FOG SURGE — ${m.name.toUpperCase()}` : m.mode === 'endless' ? 'LAST STAND' : `MISSION ${m.number} — ${m.name.toUpperCase()}${m.veteran ? '  ·  VETERAN' : ''}`;
-      const goal = m.mode === 'surge' ? `Hold the line  ·  ${(m.modifiers?.tags ?? []).join(' + ')}`
-        : m.mode === 'endless' ? 'Hold as long as you can'
-        : this.objectiveLine();
-      this.hud.banner(
-        title,
-        `${test ? 'TEST LOADOUT  ·  ' : ''}${goal}`,
-        999,
-        true,
-      );
+      if (m.mode === 'surge') this.hud.banner('FOG SURGE', { icon: 'bolt', text: (m.modifiers?.tags ?? []).join(' + '), tone: 'gold' }, 2.4);
+      else if (m.mode === 'endless') this.hud.banner('LAST STAND', null, 2.4);
+      else if (m.veteran) this.hud.banner('VETERAN', { icon: 'medal', text: m.name.toUpperCase(), tone: 'gold' }, 2.4);
+      this.refreshStrip();
       this.hud.radio(m.brief);
       this.time.delayedCall(1200, () => this.startHints());
     }
@@ -372,13 +384,10 @@ export class GameScene extends Phaser.Scene {
         : mode === 'endless' ? (wave > 1 ? newEnemiesInWave(wave - 1, this.mission.waves) : [])
         : mode === 'surge' ? []
         : newEnemiesInMissionWave(this.mission.id, wave);
-      this.hud.banner(
-        `WAVE ${mode === 'endless' ? wave : `${wave}/${this.waves.totalWaves}`} — ${def.name.toUpperCase()}`,
-        'Hostiles inbound',
-        3.8,
-      );
+      // The pips in the strip count the waves; the title only marks the moment.
+      this.hud.banner(`WAVE ${wave}`, { icon: 'wave', text: def.name.toUpperCase() }, 2.4);
       // A new enemy gets a threat card. Its full description is in Field Notes (HQ).
-      if (freshIds.length) this.hud.threatCards(freshIds.map((id) => ({ name: ENEMIES[id].name, tags: threatTags(ENEMIES[id]) })));
+      if (freshIds.length) this.hud.threatCards(freshIds.map((id) => ({ def: ENEMIES[id], tags: threatTags(ENEMIES[id]) })));
       audio.play('wave_start', { volume: 0.75 });
     });
     this.waves.events.on('start', () => this.hud.clearBanner());
@@ -394,9 +403,9 @@ export class GameScene extends Phaser.Scene {
         const touch = this.touchUi.isEnabled;
         this.hud.waveCard(wave, reward, { label: 'ARMORY', key: touch ? null : 'SPACE' }, { label: `WAVE ${wave + 1}`, key: touch ? null : 'ENTER' });
       } else if (this.objective.pending) {
-        this.hud.banner('FIELD CLEAR', 'The last vehicles are rolling out. Cover them.', 999, true);
+        this.hud.banner('FIELD CLEAR', { icon: 'truck', text: 'COVER THEM', tone: 'gold' }, 999, true);
       } else {
-        this.hud.banner('MISSION COMPLETE', `Final bonus +$${reward}`, 999, true);
+        this.hud.banner('MISSION COMPLETE', { icon: 'cash', text: `+${reward}`, tone: 'gold' }, 999, true);
       }
     });
     this.waves.events.on('victory', () => {
@@ -451,21 +460,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.bunker.revive(REVIVE_SHARE);
-    this.hud.banner('REINFORCEMENTS', 'Kestrel dropped a fresh squad and sandbags. Hold the line!', 2.6);
+    this.hud.banner('REINFORCEMENTS', { icon: 'shield', text: 'SQUAD + SANDBAGS', tone: 'green' }, 2.6);
     audio.play('wave_clear', { volume: 0.7 });
   }
   private hintCheckLeft = 0;
-
-  private objectiveLine(): string {
-    const o = this.mission.objective;
-    switch (o.kind) {
-      case 'hold': return 'Hold the line';
-      case 'protect': return `Protect the ${o.name.toLowerCase()}`;
-      case 'evacuate': return `Get ${o.mustSave} of ${o.vehicles} ${plural(o.name).toLowerCase()} through`;
-      case 'nests': return `Destroy ${o.count} fog nests`;
-      case 'boss': return `Kill ${ENEMIES[o.enemy].name.toUpperCase()}`;
-    }
-  }
+  /** When the last press landed on a card between waves. */
+  private cardClickAt = -1;
 
   // ------------------------------------------------------------ field targets
 
@@ -540,7 +540,7 @@ export class GameScene extends Phaser.Scene {
     this.bossPhase = 0;
     this.bossSummonLeft = z.def.boss!.summon.interval;
     const pods = z.def.boss!.pods ?? 0;
-    this.hud.banner(z.def.name.toUpperCase(), pods ? 'Burst the spore pods first. Then the head.' : 'Only the head bleeds.', 3.5);
+    this.hud.banner(z.def.name.toUpperCase(), { icon: 'head', text: pods ? 'PODS FIRST' : 'HEAD ONLY', tone: 'gold' }, 3.5);
     if (pods) this.spawnPods(z, pods);
     audio.play('groan_plated_0', { volume: 1, rate: 0.55 });
     this.cameras.main.shake(900, 0.004);
@@ -571,12 +571,12 @@ export class GameScene extends Phaser.Scene {
     if (def.pods && !this.podsRegrown && frac <= 0.5) {
       this.podsRegrown = true;
       this.spawnPods(b, def.pods);
-      this.hud.banner('THE BLOOM REGROWS ITS PODS', 'Burst them again.', 2.5);
+      this.hud.banner('PODS REGROWN', { icon: 'head', text: 'BURST THEM', tone: 'gold' }, 2.5);
     }
     while (this.bossPhase < def.phases.length && frac <= def.phases[this.bossPhase]) {
       this.bossPhase++;
       b.rage = def.rageSpeed ** this.bossPhase;
-      this.hud.banner(`${b.def.name.toUpperCase()} IS ENRAGED`, 'It is moving faster.', 2.5);
+      this.hud.banner('ENRAGED', { icon: 'fast', text: 'FASTER', tone: 'red' }, 2.5);
       this.bossSummon(def.summon.count + 2, 'runner');
     }
     this.bossSummonLeft -= dt;
@@ -624,7 +624,7 @@ export class GameScene extends Phaser.Scene {
     pod.img.destroy();
     pod.bar.destroy();
     this.shootables.remove(pod.thing);
-    if (!this.pods.some((p) => p.alive)) this.hud.banner('THE BLOOM IS EXPOSED', 'Pods down. Hit the head!', 2.2);
+    if (!this.pods.some((p) => p.alive)) this.hud.banner('EXPOSED', { icon: 'head', text: 'HIT THE HEAD', tone: 'gold' }, 2.2);
   }
 
   private drawPodBars(): void {
@@ -676,34 +676,43 @@ export class GameScene extends Phaser.Scene {
 
   private startHints(): void {
     const touch = this.touchUi.isEnabled;
-    this.hint('aim', touch ? [] : ['LMB'], touch ? 'Drag to aim' : 'Fire · headshots pay most');
-    if (this.night && !touch) this.hint('flare', ['Q'], 'Flare over the field');
-    if (this.weaponSlots.length > 1) this.hint('switch', touch ? [] : ['1', String(this.weaponSlots.length)], touch ? 'Tap a gun to switch' : 'Switch guns');
+    this.hint('aim', touch
+      ? [{ icon: 'touch', label: 'DRAG TO AIM' }]
+      : [{ icon: 'mouse', label: 'AIM' }, { icon: 'mouse', label: 'FIRE' }]);
+    if (this.night) this.hint('flare', touch ? [{ icon: 'flare', label: 'TAP THE FLARE' }] : [{ key: 'Q', icon: 'flare', label: 'FLARE' }]);
+    if (this.weaponSlots.length > 1) {
+      this.hint('switch', touch
+        ? [{ icon: 'touch', label: 'TAP A GUN' }]
+        : [{ key: '1' }, { key: String(this.weaponSlots.length), label: 'SWITCH' }]);
+    }
   }
 
   /** Shows a control hint once ever (remembered in the profile). */
-  private hint(id: HintId, caps: string[], label: string): void {
+  private hint(id: HintId, parts: HintPart[]): void {
     if (this.training || this.hintsShown.has(id)) return;
     this.hintsShown.add(id);
-    this.hud.hint(caps, label);
+    this.hud.hint(parts);
     if (!isTestMode()) profile.update((d) => { if (!d.hints.includes(id)) d.hints.push(id); });
   }
 
   /** Hints that wait for a moment in battle: low ammo, a mod or support in hand. */
   private checkHints(): void {
     if (this.training) return;
+    const touch = this.touchUi.isEnabled;
+    const key = (k: string): string | undefined => (touch ? undefined : k);
     const cur = this.weapons.current;
     if (cur.mag <= Math.ceil(cur.def.magazine * 0.3)) {
-      this.hint('reload', this.touchUi.isEnabled ? [] : ['R'], 'Reload soon');
+      this.hint('reload', [{ key: key('R'), icon: 'replay', label: 'RELOAD' }]);
     }
     for (const [id, m] of this.abilities.mods) {
-      if (m.charges > 0) this.hint('mod', [MODS.find((x) => x.id === id)!.key], `${MODS.find((x) => x.id === id)!.name} ready`);
+      if (m.charges <= 0) continue;
+      const def = MODS.find((x) => x.id === id)!;
+      this.hint('mod', [{ key: key(def.key), icon: ITEM_ICON[id], label: def.short }]);
     }
-    for (const [id, s] of this.abilities.support) {
-      if (s.charges > 0) {
-        const def = SUPPORT.find((x) => x.id === id)!;
-        this.hint('support', this.touchUi.isEnabled ? [] : [def.key], `${def.name} ready`);
-      }
+    for (const [id, st] of this.abilities.support) {
+      if (st.charges <= 0) continue;
+      const def = SUPPORT.find((x) => x.id === id)!;
+      this.hint('support', [{ key: key(def.key), icon: ITEM_ICON[id], label: 'READY' }]);
     }
   }
 
@@ -824,7 +833,7 @@ export class GameScene extends Phaser.Scene {
       const was = this.focusMeter;
       this.focusMeter = Math.min(1, this.focusMeter + (headshot ? 0.12 : 0.04));
       if (was < 1 && this.focusMeter >= 1) {
-        this.hint('focus', this.touchUi.isEnabled ? [] : ['SHIFT'], this.touchUi.isEnabled ? 'Tap FOCUS to slow time' : 'Slow time');
+        this.hint('focus', [{ key: this.touchUi.isEnabled ? undefined : 'SHIFT', icon: 'eye', label: 'SLOW TIME' }]);
         audio.play('ui_click', { volume: 0.6, rate: 0.7 });
       }
     }
@@ -847,7 +856,7 @@ export class GameScene extends Phaser.Scene {
     this.focusMeter = 0;
     this.focusLeft = FOCUS_SECONDS;
     audio.play('focus_in', { volume: 0.8 });
-    this.focusTint ??= this.add.rectangle(0, 0, VIEW.width, VIEW.hudTop, 0x4060a0, 0.14).setOrigin(0).setDepth(DEPTH.overlay - 2);
+    this.focusTint ??= this.add.rectangle(-BLEED.x, -BLEED.y, MAX_SCREEN.width, VIEW.hudTop + BLEED.y, 0x4060a0, 0.14).setOrigin(0).setDepth(DEPTH.overlay - 2);
     this.focusTint.setVisible(true);
   }
 
@@ -1019,18 +1028,21 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       audio.unlock();
+      // A click on a card over the field is that card's, not a shot or an aim.
+      if (p.downTime === this.cardClickAt) return;
       if (p.wasTouch) {
         document.body.classList.add('touched');
         this.touchUi.setEnabled(true);
         // HUD slots handle their own taps; only the battlefield is routed here.
-        if (p.y >= VIEW.hudTop) return;
-        const button = touchButtonAt(p.x, p.y, this.touchUi.deployVisible);
+        const at = designPoint(p);
+        if (at.y >= VIEW.hudTop) return;
+        const button = touchButtonAt(at.x, at.y, this.touchUi.deployVisible);
         if (button) {
           if (button === 'fire' && !this.fireAllowed()) return;
           if (button !== 'fire' || this.firePointerId === null) this.pressTouchButton(button, p);
           return;
         }
-        if (this.aimPointerId === null && isAimTouch(p.x, p.y)) {
+        if (this.aimPointerId === null && isAimTouch(at.x, at.y)) {
           this.aimPointerId = p.id;
           this.touchLast.x = p.x;
           this.touchLast.y = p.y;
@@ -1043,7 +1055,7 @@ export class GameScene extends Phaser.Scene {
         this.weapons.reload();
         return;
       }
-      if (p.leftButtonDown() && p.y < VIEW.hudTop && this.fireAllowed()) this.trigger = true;
+      if (p.leftButtonDown() && designPoint(p).y < VIEW.hudTop && this.fireAllowed()) this.trigger = true;
     });
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
@@ -1123,6 +1135,7 @@ export class GameScene extends Phaser.Scene {
       waves: this.waves,
       touch: this.touchUi.isEnabled,
       clearBanner: () => this.hud.clearBanner(),
+      slots: this.hud.slots,
       onFinish: () => this.finishTutorial(),
     });
   }
@@ -1144,6 +1157,23 @@ export class GameScene extends Phaser.Scene {
   /** Fire is held back while the briefing talks, so a click on Continue never shoots. */
   private fireAllowed(): boolean {
     return !this.tutorial || fireAllowed(this.tutorial.stepId);
+  }
+
+  /** The objective, the bonus star's progress and the waves, across the top. */
+  private refreshStrip(): void {
+    if (this.training) return;
+    const o = this.objective;
+    const stats = this.combat.stats;
+    const asset = o.targets[0];
+    this.hud.setStrip(stripChips(this.mission.objective, this.mission.mode ? null : this.mission.bonus, {
+      asset: asset && asset.max > 0 ? asset.hp / asset.max : 1,
+      nestsLeft: o.nestsLeft,
+      saved: o.saved,
+      lost: o.lost,
+      headshots: stats.headshotKills,
+      accuracy: stats.shots ? stats.hits / stats.shots : null,
+      supportsUsed: [...this.supportsUsed],
+    }));
   }
 
   // ------------------------------------------------------------ actions
@@ -1275,7 +1305,8 @@ export class GameScene extends Phaser.Scene {
     const top = VIEW.hudTop;
     const metal = 0x2a2e26, edge = 0x14160f, light = 0x4a5040;
     // Door pillars and the roof bar, with a lighter inner lip.
-    g.fillStyle(metal, 1).fillRect(0, 0, 86, top).fillRect(VIEW.width - 86, 0, 86, top).fillRect(0, 0, VIEW.width, 52);
+    g.fillStyle(metal, 1).fillRect(-BLEED.x, -BLEED.y, 86 + BLEED.x, top + BLEED.y).fillRect(VIEW.width - 86, -BLEED.y, 86 + BLEED.x, top + BLEED.y)
+      .fillRect(-BLEED.x, -BLEED.y, MAX_SCREEN.width, 52 + BLEED.y);
     g.fillStyle(light, 1).fillRect(80, 46, 6, top - 46).fillRect(VIEW.width - 86, 46, 6, top - 46).fillRect(80, 46, VIEW.width - 160, 6);
     g.fillStyle(edge, 1);
     for (let y = 70; y < top; y += 42) {
@@ -1286,8 +1317,8 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(0x0c0d0a, 1).fillRect(86, 58, VIEW.width - 172, 5);
     g.lineStyle(8, 0x1a1c16, 1).strokeRoundedRect(VIEW.width - 74, 180, 40, 160, 14);
     // The skid below the door.
-    g.fillStyle(0x1a1c16, 1).fillRect(0, top - 26, VIEW.width, 12);
-    const shade = this.add.rectangle(0, 0, VIEW.width, top, 0x000000, 0).setOrigin(0).setDepth(DEPTH.frame + 4);
+    g.fillStyle(0x1a1c16, 1).fillRect(-BLEED.x, top - 26, MAX_SCREEN.width, 12);
+    const shade = this.add.rectangle(-BLEED.x, -BLEED.y, MAX_SCREEN.width, top + BLEED.y, 0x000000, 0).setOrigin(0).setDepth(DEPTH.frame + 4);
     const rotor = audio.loop('heli_loop', 0.45, 'sfx', 1.5);
     return { frame: g, shade, rotor, bump: 3, t: 0 };
   }
@@ -1431,8 +1462,9 @@ export class GameScene extends Phaser.Scene {
     // The crosshair is exactly where the mouse is (or where the touch aim pad
     // has dragged it); the gun is then rotated to point its barrel at it.
     const touchMode = this.touchUi.isEnabled;
-    const rawX = Phaser.Math.Clamp(touchMode ? this.touchCursor.x : p.x, 0, VIEW.width);
-    const rawY = Phaser.Math.Clamp(touchMode ? this.touchCursor.y : p.y, 0, VIEW.hudTop);
+    const mouse = designPoint(p);
+    const rawX = Phaser.Math.Clamp(touchMode ? this.touchCursor.x : mouse.x, 0, VIEW.width);
+    const rawY = Phaser.Math.Clamp(touchMode ? this.touchCursor.y : mouse.y, 0, VIEW.hudTop);
     // On touch the crosshair also gets a little aim assistance toward nearby enemies.
     const assisted = touchMode ? this.assistAim(rawX, rawY) : { x: rawX, y: rawY };
     const cursorAimX = assisted.x;
@@ -1441,7 +1473,7 @@ export class GameScene extends Phaser.Scene {
     this.aimCursorY = cursorAimY;
     const gunAimX = cursorAimX;
     const gunAimY = cursorAimY;
-    const pointerY = touchMode ? 300 : p.y;
+    const pointerY = touchMode ? 300 : mouse.y;
 
     // Focus slows the world; the player's hands (aim, fire, reload) keep real time.
     this.updateFocus(dt);
@@ -1456,7 +1488,7 @@ export class GameScene extends Phaser.Scene {
       for (const ev of this.objective.update(wdt, this.waves.phase === 'active')) this.onObjectiveEvent(ev);
       if (this.awaitingObjective && !this.objective.pending && !this.objective.failed) {
         this.awaitingObjective = false;
-        this.hud.banner('MISSION COMPLETE', 'Everyone got out.', 999, true);
+        this.hud.banner('MISSION COMPLETE', { icon: 'truck', text: 'ALL OUT', tone: 'green' }, 999, true);
         this.time.delayedCall(2200, () => this.endRun(true));
       }
       this.updateBoss(wdt);
@@ -1473,8 +1505,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.over) this.playSeconds += dt;
     if (this.chopper) this.updateChopper(dt);
     this.targetView.sync(this.objective.targets, wdt);
-    const status = this.objective.status();
-    this.hud.setObjective(status);
+    this.refreshStrip();
     this.abilities.update(dt);
     this.combat.setActiveMods(this.abilities.activeMods(this.activeMods));
     this.bunker.update(dt);

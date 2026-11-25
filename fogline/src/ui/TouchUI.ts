@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH } from '../game/depths';
-import { TOUCH_LAYOUT, TouchButton, TouchCircle } from '../game/touchControls';
+import { edgeShift } from '../game/screen';
+import { TOUCH_LAYOUT, TouchButton, TouchCircle, touchLayout } from '../game/touchControls';
 
 const MONO = 'Consolas, "Courier New", monospace';
 const STENCIL = 'Impact, "Arial Narrow Bold", "Arial Black", sans-serif';
@@ -111,7 +112,15 @@ export class TouchUI {
 
     this.reloading = state.reloading;
     this.reloadArc = state.reloadProgress;
-    for (const [key, b] of this.buttons) this.drawRound(key, b);
+    // The buttons follow the screen's edges, which move when the browser's bars or full screen change.
+    const layout = touchLayout();
+    for (const [key, b] of this.buttons) {
+      if (key !== 'deploy') b.c = layout[key];
+      b.label.setPosition(b.c.x, key === 'fire' ? b.c.y - 22 : b.c.y);
+      this.drawRound(key, b);
+    }
+    const aimX = 200 - edgeShift();
+    this.aimLabel.setX(aimX);
 
     // faint aim pad hint that fades after the first touch
     this.hintLeft = Math.max(0, this.hintLeft - dt);
@@ -121,13 +130,13 @@ export class TouchUI {
     if (a > 0) {
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 2.4);
       g.lineStyle(3, 0xe0dcc0, (0.22 + 0.12 * pulse) * a);
-      g.strokeCircle(200, 448, 78);
+      g.strokeCircle(aimX, 448, 78);
       g.lineStyle(2, 0xe0dcc0, 0.16 * a);
-      g.strokeCircle(200, 448, 36);
-      g.lineBetween(200 - 108, 448, 200 - 52, 448);
-      g.lineBetween(200 + 52, 448, 200 + 108, 448);
-      g.lineBetween(200, 448 - 108, 200, 448 - 52);
-      g.lineBetween(200, 448 + 52, 200, 448 + 108);
+      g.strokeCircle(aimX, 448, 36);
+      g.lineBetween(aimX - 108, 448, aimX - 52, 448);
+      g.lineBetween(aimX + 52, 448, aimX + 108, 448);
+      g.lineBetween(aimX, 448 - 108, aimX, 448 - 52);
+      g.lineBetween(aimX, 448 + 52, aimX, 448 + 108);
     }
     this.aimLabel.setAlpha(0.75 * a);
 

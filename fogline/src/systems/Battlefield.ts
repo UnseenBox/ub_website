@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { BLEED, MAX_SCREEN } from '../game/screen';
+import { addWalls } from '../rendering/Margins';
 import { LOCATIONS, LocationDef, LocationId } from '../data/locations';
 import { VIEW } from '../game/config';
 import { DEPTH } from '../game/depths';
@@ -72,7 +74,8 @@ export class Battlefield {
     this.shutters = scene.add.image(0, VIEW.hudTop, 'shutters').setOrigin(0).setDepth(DEPTH.shutters);
     this.shutterY = this.shutterTarget = VIEW.hudTop + 10;
     scene.add.image(0, 0, 'frame').setOrigin(0).setDepth(DEPTH.frame);
-    this.grain = scene.add.tileSprite(0, 0, VIEW.width, VIEW.height, 'grain').setOrigin(0).setDepth(DEPTH.overlay - 1).setAlpha(0.045);
+    addWalls(scene, DEPTH.frame);
+    this.grain = scene.add.tileSprite(-BLEED.x, -BLEED.y, MAX_SCREEN.width, MAX_SCREEN.height, 'grain').setOrigin(0).setDepth(DEPTH.overlay - 1).setAlpha(0.045);
   }
 
   /** A river across the field, with the bridge deck running over it down the middle. */

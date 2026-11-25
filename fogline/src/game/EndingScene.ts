@@ -3,7 +3,8 @@ import { audio } from '../audio/AudioManager';
 import { starTotals } from '../systems/Campaign';
 import { profile } from '../systems/Profile';
 import { endlessOpen } from '../systems/Retention';
-import { MONO, STENCIL, button } from '../ui/widgets';
+import { BODY, C, STENCIL, centreRow, chip, portraitTexture, pushButton, text } from '../ui/kit';
+import { backdrop } from '../rendering/Margins';
 import { VIEW } from './config';
 
 type Line = { who?: string; text: string };
@@ -44,24 +45,36 @@ export class EndingScene extends Phaser.Scene {
     const finalAct = (data.act ?? 3) >= 4;
     const LINES = finalAct ? ACT4_LINES : ACT3_LINES;
     this.input.setDefaultCursor('default');
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x0a0b09).setOrigin(0);
+    backdrop(this, 0x0a0b09);
     // A pale dawn rising behind the text.
-    const dawn = this.add.rectangle(0, VIEW.height, VIEW.width, VIEW.height, 0xd8c090, 0.0).setOrigin(0, 1);
+    const dawn = backdrop(this, 0xd8c090, 0);
     this.tweens.add({ targets: dawn, fillAlpha: 0.12, duration: 9000 });
-    this.add.text(VIEW.centerX, 70, finalAct ? 'CLEAR SKIES' : 'THE FOG LIFTS', { fontFamily: STENCIL, fontSize: '56px', color: '#e8e0c0', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5);
+    text(this, VIEW.centerX, 62, finalAct ? 'CLEAR SKIES' : 'THE FOG LIFTS', { size: 56, font: STENCIL, color: C.title }).setOrigin(0.5);
     const p = profile.get();
     const stars = starTotals(p);
-    this.add.text(VIEW.centerX, 118, finalAct ? `CAMPAIGN COMPLETE  ·  ★ ${stars.earned}/${stars.total}` : `ACT 3 COMPLETE  ·  ★ ${stars.earned}/${stars.total}`, { fontFamily: MONO, fontSize: '15px', color: '#e8c060' }).setOrigin(0.5);
+    centreRow([
+      chip(this, { icon: 'check', iconColor: C.ok, text: finalAct ? 'CAMPAIGN' : 'ACT 3', tone: 'green', size: 18 }),
+      chip(this, { icon: 'star', text: `${stars.earned}/${stars.total}`, tone: 'gold', size: 18 }),
+    ], VIEW.centerX, 120);
 
-    let y = 170;
-    const texts: Phaser.GameObjects.Text[] = [];
+    // The story, line by line: narration centred, radio lines beside the speaker's portrait.
+    let y = 154;
+    const texts: (Phaser.GameObjects.Text | Phaser.GameObjects.Image)[] = [];
     LINES.forEach((l, i) => {
-      const t = this.add.text(VIEW.centerX, y, l.who ? `${l.who}: ${l.text}` : l.text, {
-        fontFamily: MONO, fontSize: '16px', color: l.who ? '#d0ccb4' : '#a8b8a0', align: 'center', wordWrap: { width: 900 }, lineSpacing: 4,
-      }).setOrigin(0.5, 0).setAlpha(0);
-      y += t.height + 16;
-      texts.push(t);
-      this.tweens.add({ targets: t, alpha: 1, duration: 900, delay: 600 + i * 1700 });
+      const shown: (Phaser.GameObjects.Text | Phaser.GameObjects.Image)[] = [];
+      if (l.who) {
+        const who = text(this, 268, y, l.who, { size: 13, color: C.brass, bold: true, spacing: 2 });
+        const said = text(this, 268, y + 17, l.text, { size: 17, font: BODY, wrap: 790 });
+        shown.push(this.add.image(230, y + 23, portraitTexture(this, l.who, 44)).setScale(0.5), who, said);
+        y += Math.max(54, said.height + 28);
+      } else {
+        const said = text(this, VIEW.centerX, y, l.text, { size: 17, font: BODY, color: C.soft, wrap: 900, align: 'center' }).setOrigin(0.5, 0);
+        shown.push(said);
+        y += said.height + 14;
+      }
+      for (const o of shown) o.setAlpha(0);
+      texts.push(...shown);
+      this.tweens.add({ targets: shown, alpha: 1, duration: 900, delay: 600 + i * 1700 });
     });
     const end = 600 + LINES.length * 1700;
     let shown = false;
@@ -69,12 +82,12 @@ export class EndingScene extends Phaser.Scene {
       if (shown) return;
       shown = true;
       audio.play('wave_clear', { volume: 0.6, rate: 0.8 });
-      const hook = !finalAct
-        ? 'ACT 4 — THE FOG RETURNS waits on the map, once you have the stars for it.'
-        : endlessOpen(p) ? 'LAST STAND and Veteran missions are waiting: see how long the line holds.' : '';
-      if (hook) this.add.text(VIEW.centerX, VIEW.height - 130, hook, { fontFamily: MONO, fontSize: '15px', color: '#e8c060' }).setOrigin(0.5);
-      button(this, VIEW.centerX - 170, VIEW.height - 70, 300, 50, 'TO THE HQ', () => this.scene.start('HQ', { tab: 'endless' }), 10, 0x5fae3c);
-      button(this, VIEW.centerX + 170, VIEW.height - 70, 300, 50, 'VALLEY MAP  [ENTER]', () => this.scene.start('Map'), 10, 0xc8a040);
+      const next = !finalAct
+        ? chip(this, { icon: 'lock', text: 'ACT 4', tone: 'gold', size: 18 })
+        : endlessOpen(p) ? chip(this, { icon: 'wave', text: 'LAST STAND · VETERAN', tone: 'gold', size: 18 }) : null;
+      if (next) centreRow([next], VIEW.centerX, VIEW.height - 118);
+      pushButton(this, VIEW.centerX - 150, VIEW.height - 56, { w: 260, h: 56, size: 26, icon: 'radio', label: 'HQ', onClick: () => this.scene.start('HQ', { tab: 'endless' }) });
+      pushButton(this, VIEW.centerX + 150, VIEW.height - 56, { w: 260, h: 56, size: 26, icon: 'map', label: 'MAP', key: 'ENTER', tone: 'go', onClick: () => this.scene.start('Map') });
       this.input.keyboard!.once('keydown-ENTER', () => this.scene.start('Map'));
     };
     this.time.delayedCall(end, finish);

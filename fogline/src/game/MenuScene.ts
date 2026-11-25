@@ -1,12 +1,15 @@
 import Phaser from 'phaser';
 import { audio, LoopHandle } from '../audio/AudioManager';
 import { MISSIONS } from '../data/missions';
-import { campaignComplete, nextMission, nextUnlockHint, starTotals, workshopOpen } from '../systems/Campaign';
+import { campaignComplete, nextMission, starTotals, workshopOpen } from '../systems/Campaign';
 import { defaultProfile, profile } from '../systems/Profile';
 import { hqWaiting } from '../systems/Retention';
 import type { GameStartData } from './GameScene';
-import { MONO, button, toggleFullscreen } from '../ui/widgets';
+import { toggleFullscreen } from '../ui/widgets';
+import { C, MONO, STENCIL, box, chip, pushButton, text } from '../ui/kit';
 import { artButton } from '../ui/buttonArt';
+import { SCREEN } from './screen';
+import { backdrop } from '../rendering/Margins';
 import { VIEW } from './config';
 import { isTestMode } from './testMode';
 import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES } from './textureKeys';
@@ -21,8 +24,18 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.input.setDefaultCursor('default');
-    this.add.image(0, 0, MENU_BG_TEXTURE).setOrigin(0).setDisplaySize(VIEW.width, VIEW.height);
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x000000, 0.25).setOrigin(0);
+    // The painting covers the whole screen, whatever its shape. It is pinned by its left
+    // edge and (nearly) its top, so what gets cut off never includes the logo.
+    const art = this.add.image(0, 0, MENU_BG_TEXTURE).setOrigin(0);
+    const cover = (): void => {
+      const k = Math.max(SCREEN.width / VIEW.width, SCREEN.height / VIEW.height);
+      const spare = (VIEW.height * k - SCREEN.height) / 2;
+      art.setDisplaySize(VIEW.width * k, VIEW.height * k).setPosition(-SCREEN.mx, -SCREEN.my - Math.min(spare, 40 * k));
+    };
+    cover();
+    this.scale.on(Phaser.Scale.Events.RESIZE, cover);
+    this.events.once('shutdown', () => this.scale.off(Phaser.Scale.Events.RESIZE, cover));
+    backdrop(this, 0x000000, 0.25);
 
     const bx = VIEW.centerX + 120;
     // CONTINUE goes to the valley map (a brand-new player goes straight into mission 1);
@@ -33,29 +46,34 @@ export class MenuScene extends Phaser.Scene {
     artButton(this, bx, 352, 340, 60, MENU_BUTTON_FRAMES.armory, () => this.openArmory(), 10);
     artButton(this, bx, 428, 340, 60, MENU_BUTTON_FRAMES.settings, () => this.openSettings(), 10);
     artButton(this, bx, 504, 340, 60, MENU_BUTTON_FRAMES.store, () => this.openArmory(), 10);
-    button(this, 150, 652, 240, 40, 'TRAINING & BRIEFING', () => this.startBriefing(), 10);
+    pushButton(this, 130, 660, { w: 216, h: 48, size: 22, icon: 'book', label: 'TRAINING', onClick: () => this.startBriefing() }).c.setDepth(10);
     if (isTestMode()) {
       this.add.text(VIEW.centerX, 430, 'TEST MODE — ALL WEAPONS & GEAR UNLOCKED', {
         fontFamily: MONO, fontSize: '12px', color: '#c8a040', stroke: '#000', strokeThickness: 3,
       }).setOrigin(0.5);
     }
 
-    // Campaign progress under the buttons: where the player is and what comes next.
+    // Campaign progress: the next mission beside CONTINUE, the totals in the corner.
     const save = profile.get();
     const next = nextMission(save);
-    const stars = starTotals(save);
-    const hint = nextUnlockHint(save);
-    const lines = [
-      campaignComplete(save)
-        ? `CAMPAIGN COMPLETE  ·  ★ ${stars.earned}/${stars.total}  ·  SUPPLIES ${save.supplies}`
-        : `NEXT: ACT ${next.act} · MISSION ${next.number} — ${next.name.toUpperCase()}  ·  ★ ${stars.earned}/${stars.total}  ·  SUPPLIES ${save.supplies}`,
-    ];
-    if (hint) lines.push(hint);
-    const waiting = hqWaiting(save, Date.now());
-    if (waiting.length) lines.push(`WAITING AT HQ: ${waiting.join(' · ')}`);
-    this.add.text(bx, 560, lines.join('\n'), {
-      fontFamily: MONO, fontSize: '14px', color: '#e0d8b0', stroke: '#000', strokeThickness: 4, align: 'center', lineSpacing: 4,
-    }).setOrigin(0.5, 0);
+    const played = Object.values(save.missions).some((r) => r.plays > 0);
+    const where = campaignComplete(save)
+      ? chip(this, { icon: 'check', iconColor: C.ok, text: 'COMPLETE', tone: 'green', size: 18 })
+      : chip(this, { icon: 'play', text: `${next.number} ${next.name.toUpperCase()}`, tone: 'gold', size: 18 });
+    where.c.setPosition(bx + 184, 200 - where.h / 2).setDepth(10);
+    if (played) {
+      const totals = [
+        chip(this, { icon: 'star', text: `${starTotals(save).earned}`, tone: 'gold', size: 20 }),
+        chip(this, { icon: 'crate', iconColor: C.brass, text: `${save.supplies}`, size: 20 }),
+      ];
+      const waiting = hqWaiting(save, Date.now()).length;
+      if (waiting) totals.push(chip(this, { icon: 'radio', iconColor: C.red, text: `${waiting}`, tone: 'red', size: 20 }));
+      let tx = VIEW.width - 22 - totals.reduce((w, t) => w + t.w + 8, -8);
+      for (const t of totals) {
+        t.c.setPosition(tx, 22).setDepth(10);
+        tx += t.w + 8;
+      }
+    }
     this.add.text(VIEW.width - 12, VIEW.height - 10, 'original prototype · supplied art and audio', {
       fontFamily: MONO, fontSize: '11px', color: '#5a5a50',
     }).setOrigin(1, 1);
@@ -111,26 +129,37 @@ export class MenuScene extends Phaser.Scene {
     audio.unlock();
     const p = profile.get();
     if (!Object.values(p.missions).some((r) => r.plays > 0)) return this.deploy();
-    const bg = this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x000000, 0.7).setOrigin(0).setInteractive();
-    const box = this.add.rectangle(VIEW.centerX, VIEW.height / 2, 620, 240, 0x1c1d1a, 0.98).setStrokeStyle(2, 0xc84030);
-    const t = this.add.text(VIEW.centerX, VIEW.height / 2 - 70, 'START A NEW CAMPAIGN?', { fontFamily: MONO, fontSize: '24px', color: '#e8e0c0' }).setOrigin(0.5);
-    const s = this.add.text(VIEW.centerX, VIEW.height / 2 - 30, 'Every mission, star, Supply, weapon and upgrade will be erased.\nThis cannot be undone.', {
-      fontFamily: MONO, fontSize: '14px', color: '#c8b8a0', align: 'center',
-    }).setOrigin(0.5, 0);
+    const bg = backdrop(this, 0x000000, 0.75).setInteractive();
+    const panel = box(this, VIEW.centerX - 300, VIEW.height / 2 - 140, 600, 280, C.night, C.goLine);
+    const t = text(this, VIEW.centerX, VIEW.height / 2 - 92, 'NEW CAMPAIGN?', { size: 40, font: STENCIL }).setOrigin(0.5);
+    // What would be lost, as pictures and numbers.
+    const lost = [
+      chip(this, { icon: 'star', text: `${starTotals(p).earned}`, tone: 'red', size: 24 }),
+      chip(this, { icon: 'crate', text: `${p.supplies}`, tone: 'red', size: 24 }),
+      chip(this, { icon: 'cross', text: 'NO UNDO', tone: 'red', size: 24 }),
+    ];
+    let lx = VIEW.centerX - lost.reduce((w, c) => w + c.w + 12, -12) / 2;
+    for (const c of lost) {
+      c.c.setPosition(lx, VIEW.height / 2 - 40);
+      lx += c.w + 12;
+    }
     const close = (): void => {
       this.confirm?.destroy();
       this.confirm = null;
     };
-    const erase = button(this, VIEW.centerX - 150, VIEW.height / 2 + 70, 260, 44, 'ERASE AND START', () => {
-      profile.update((d) => {
-        const keep = { volumes: d.volumes, tutorialSeen: d.tutorialSeen };
-        Object.assign(d, defaultProfile(), keep);
-      });
-      close();
-      this.scene.restart();
-    }, 10, 0xc84030);
-    const cancel = button(this, VIEW.centerX + 150, VIEW.height / 2 + 70, 260, 44, 'CANCEL', close, 10, 0x5a5a50);
-    this.confirm = this.add.container(0, 0, [bg, box, t, s, erase, cancel]).setDepth(100);
+    const erase = pushButton(this, VIEW.centerX - 140, VIEW.height / 2 + 78, {
+      w: 250, h: 56, size: 26, icon: 'replay', label: 'ERASE', tone: 'go',
+      onClick: () => {
+        profile.update((d) => {
+          const keep = { volumes: d.volumes, tutorialSeen: d.tutorialSeen };
+          Object.assign(d, defaultProfile(), keep);
+        });
+        close();
+        this.scene.restart();
+      },
+    });
+    const cancel = pushButton(this, VIEW.centerX + 140, VIEW.height / 2 + 78, { w: 250, h: 56, size: 26, icon: 'back', label: 'KEEP', onClick: close });
+    this.confirm = this.add.container(0, 0, [bg, panel, t, ...lost.map((c) => c.c), erase.c, cancel.c]).setDepth(100);
   }
 
   private startBriefing(): void {

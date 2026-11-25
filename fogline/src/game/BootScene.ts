@@ -14,7 +14,6 @@ import { buildAct3Textures } from '../rendering/Act3Art';
 import { buildAct4Textures } from '../rendering/Act4Art';
 import { portal } from '../portal/Portal';
 import { buildLocationTextures } from '../rendering/LocationArt';
-import { buildHudTextures } from '../rendering/HudArt';
 import { buildWeaponTextures } from '../rendering/WeaponArt';
 import { ZOMBIE_ATLAS, buildZombieAtlas } from '../rendering/ZombieArt';
 import { FIGURES } from '../rendering/figures';
@@ -54,7 +53,6 @@ export class BootScene extends Phaser.Scene {
       buildAct4Textures(this);
       buildWeaponTextures(this);
       buildFxTextures(this);
-      buildHudTextures(this);
       const z = buildZombieAtlas();
       const tex = this.textures.addCanvas(ZOMBIE_ATLAS, z.canvas)!;
       for (const f of z.frames) tex.add(f.name, 0, f.x, f.y, f.w, f.h);

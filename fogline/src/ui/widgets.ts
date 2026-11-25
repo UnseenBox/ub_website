@@ -1,39 +1,27 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
+import { designPoint } from '../game/screen';
+import { MONO, STENCIL, pushButton, type ButtonTone } from './kit';
 
-export const MONO = 'Consolas, "Courier New", monospace';
-export const STENCIL = 'Impact, "Arial Narrow Bold", "Arial Black", sans-serif';
+export { MONO, STENCIL };
 
-/** Dark gunmetal button with a stencilled label. */
+const TONE_OF: Record<number, ButtonTone> = { 0xc84030: 'go', 0x5fae3c: 'buy', 0xc8a040: 'brass', 0xe8c060: 'brass' };
+
+/** A bordered button with a stencilled label; the accent colour picks its tone. */
 export function button(
-  scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void, depth = 0, accent = 0xc8a040,
+  scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void, depth = 0, accent = 0x55554a,
 ): Phaser.GameObjects.Container {
-  const bg = scene.add.rectangle(0, 0, w, h, 0x222423).setStrokeStyle(2, 0x0a0a0a);
-  const lip = scene.add.rectangle(0, -h / 2 + 2, w - 4, 2, 0x5a5c58);
-  const edge = scene.add.rectangle(-w / 2 + 3, 0, 4, h - 8, accent);
-  const t = scene.add.text(6, 0, label, { fontFamily: STENCIL, fontSize: `${Math.round(h * 0.46)}px`, color: '#e0dcc0', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
-  const c = scene.add.container(x, y, [bg, lip, edge, t]).setDepth(depth).setSize(w, h);
-  c.setInteractive({ useHandCursor: true });
-  c.on('pointerover', () => {
-    bg.setFillStyle(0x34363a);
-    audio.play('ui_hover', { volume: 0.55 });
-  });
-  c.on('pointerout', () => bg.setFillStyle(0x222423));
-  c.on('pointerdown', () => {
-    void audio.unlock().then(() => audio.play('ui_click', { volume: 0.7 }));
-    onClick();
-  });
-  return c;
+  return pushButton(scene, x, y, { w, h, label, onClick, tone: TONE_OF[accent] ?? 'plain' }).c.setDepth(depth);
 }
 
 /** Horizontal slider 0..1. */
 export function slider(
   scene: Phaser.Scene, x: number, y: number, w: number, label: string, value: number, onChange: (v: number) => void, depth = 0,
 ): void {
-  scene.add.text(x, y - 18, label, { fontFamily: MONO, fontSize: '13px', color: '#b8b8a0' }).setDepth(depth);
-  const track = scene.add.rectangle(x, y, w, 8, 0x0e0f0e).setOrigin(0, 0.5).setStrokeStyle(1, 0x4a4c48).setDepth(depth);
-  const fill = scene.add.rectangle(x + 1, y, (w - 2) * value, 6, 0x8a9a50).setOrigin(0, 0.5).setDepth(depth);
-  const knob = scene.add.rectangle(x + w * value, y, 12, 20, 0xc8c0a0).setStrokeStyle(2, 0x111111).setDepth(depth + 1);
+  scene.add.text(x, y - 27, label, { fontFamily: MONO, fontSize: '13px', fontStyle: 'bold', color: '#b8b298' }).setDepth(depth);
+  const track = scene.add.rectangle(x, y, w, 8, 0x2e3026).setOrigin(0, 0.5).setStrokeStyle(1, 0x44443a).setDepth(depth);
+  const fill = scene.add.rectangle(x + 1, y, (w - 2) * value, 6, 0xd3a948).setOrigin(0, 0.5).setDepth(depth);
+  const knob = scene.add.rectangle(x + w * value, y, 12, 20, 0xf1ead0).setStrokeStyle(2, 0x12130f).setDepth(depth + 1);
   const pct = scene.add.text(x + w + 12, y, `${Math.round(value * 100)}%`, { fontFamily: MONO, fontSize: '13px', color: '#d8d8c0' }).setOrigin(0, 0.5).setDepth(depth);
   const zone = scene.add.zone(x - 8, y - 14, w + 16, 28).setOrigin(0).setInteractive({ useHandCursor: true }).setDepth(depth + 2);
   let dragging = false;
@@ -48,9 +36,9 @@ export function slider(
   zone.on('pointerdown', (p: Phaser.Input.Pointer) => {
     audio.play('ui_click', { volume: 0.55 });
     dragging = true;
-    set(p.x);
+    set(designPoint(p).x);
   });
-  scene.input.on('pointermove', (p: Phaser.Input.Pointer) => { if (dragging && p.isDown) set(p.x); });
+  scene.input.on('pointermove', (p: Phaser.Input.Pointer) => { if (dragging && p.isDown) set(designPoint(p).x); });
   scene.input.on('pointerup', () => { dragging = false; });
   void track;
 }

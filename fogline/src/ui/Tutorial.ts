@@ -5,7 +5,7 @@ import { LEG_SLOW, Zombie } from '../entities/Zombie';
 import { VIEW, WINDOW } from '../game/config';
 import { DEPTH } from '../game/depths';
 import { buildSteps, canAdvance, Facts, GATE_PAUSE_SECONDS, StepId, TutorialStep } from '../game/tutorialSteps';
-import { HUD_LAYOUT } from '../rendering/HudArt';
+import { HUD_AREA, type HudSlots, type SlotRect } from './hudLayout';
 import { EnemyManager } from '../systems/EnemyManager';
 import { WaveManager } from '../systems/WaveManager';
 import { WeaponManager } from '../systems/WeaponManager';
@@ -32,6 +32,8 @@ export interface TutorialDeps {
   waves: WaveManager;
   touch: boolean;
   clearBanner: () => void;
+  /** Where the HUD put its slots, so the briefing can ring them. */
+  slots: HudSlots;
   onFinish: () => void;
 }
 
@@ -354,20 +356,21 @@ export class Tutorial {
     });
   }
 
-  /** Rings round the four weapon slots, with the keys 1 to 4 above them. */
+  private ringSlot(r: SlotRect, delay: number): void {
+    this.hudRing(r.x + r.w / 2, r.y + r.h / 2, r.w + 8, r.h + 8, delay);
+  }
+
+  /** Rings round the weapon slots, with their number keys above them. */
   private slotRings(): void {
-    const sec = HUD_LAYOUT.sections.weapons;
-    for (let i = 0; i < sec.count; i++) {
-      const x = sec.x + (sec.slotW + HUD_LAYOUT.gap) * i + sec.slotW / 2;
-      const y = HUD_LAYOUT.slotY + HUD_LAYOUT.slotH / 2;
-      this.hudRing(x, y, sec.slotW + 8, HUD_LAYOUT.slotH + 8, i * 220);
-      this.keyCap(String(i + 1), x, HUD_LAYOUT.slotY - 26, 34, i * 220);
-    }
+    this.deps.slots.weapons.forEach((r, i) => {
+      this.ringSlot(r, i * 220);
+      this.keyCap(String(i + 1), r.x + r.w / 2, HUD_AREA.top - 20, 34, i * 220);
+    });
   }
 
   private ammoRing(): void {
-    this.hudRing(1088, 560, 176, 58, 0);
-    this.keyCap('R', 1196, 520, 40, 0);
+    this.hudRing(1188, 554, 164, 68, 0);
+    this.keyCap('R', 1084, 540, 40, 0);
   }
 
   /** Markers on the practice zombie: head, body and legs, and what each one does. */
@@ -392,20 +395,14 @@ export class Tutorial {
   }
 
   private bunkerRing(): void {
-    const s = HUD_LAYOUT.status;
-    this.hudRing(s.x + s.w / 2, HUD_LAYOUT.slotY + HUD_LAYOUT.slotH / 2, s.w + 8, HUD_LAYOUT.slotH + 8, 0);
+    const s = HUD_AREA.status;
+    this.hudRing(s.x + s.w / 2, HUD_AREA.top + HUD_AREA.height / 2, s.w, HUD_AREA.slotH + 8, 0);
   }
 
   /** Rings chase along the mods, support and defences, one after another. */
   private arsenalRings(): void {
-    let delay = 0;
-    for (const sec of [HUD_LAYOUT.sections.mods, HUD_LAYOUT.sections.support, HUD_LAYOUT.sections.defense]) {
-      for (let i = 0; i < sec.count; i++) {
-        const x = sec.x + (sec.slotW + HUD_LAYOUT.gap) * i + sec.slotW / 2;
-        this.hudRing(x, HUD_LAYOUT.slotY + HUD_LAYOUT.slotH / 2, sec.slotW + 8, HUD_LAYOUT.slotH + 8, delay);
-        delay += 180;
-      }
-    }
+    const { mods, support, defense } = this.deps.slots;
+    [...mods, ...support, ...defense].forEach((r, i) => this.ringSlot(r, i * 180));
   }
 
   /** A confetti burst for the last step. */

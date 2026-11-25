@@ -1,22 +1,50 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
 import { BUNKER_TRACK, MAX_LEVEL, TRACKS, TrackId, bunkerHealth } from '../data/workshop';
-import { weaponById } from '../data/weapons';
+import { WEAPONS, WeaponDef, weaponById } from '../data/weapons';
 import {
   ATTACHMENTS, attachmentStatus, attachmentsOpen, buyAttachment, buyBunkerUpgrade, buyUpgrade, bunkerUpgradeStatus, fitAttachment,
   fittedAttachment, ownedWeapons, playerPower, playerWeapon, upgradeStatus, weaponLevels,
 } from '../systems/Campaign';
 import { attachmentById } from '../data/attachments';
-import { drawLock } from '../ui/icons';
 import { gainChip } from '../ui/messages';
 import { profile } from '../systems/Profile';
 import { SKINS, SkinId } from '../data/retention';
-import { skinTexture } from '../rendering/SkinArt';
 import { activeSkin, masteryStatus, ownedSkins, setSkin } from '../systems/Retention';
-import { MONO, STENCIL, button } from '../ui/widgets';
+import { ITEM_ICON, WEAPON_ICON, icon, type IconName } from '../ui/icons';
+import { C, STENCIL, box, chip, css, meter, pushButton, row, text, type Part } from '../ui/kit';
+import { backdrop } from '../rendering/Margins';
 import { VIEW } from './config';
 
 const BUNKER = 'bunker';
+/** Left column, and where the detail column starts. */
+const LIST_X = 28, LIST_W = 306, X0 = 360, W = VIEW.width - X0 - 28, TOP = 96;
+
+const STAT_ICON: Record<TrackId, IconName> = { damage: 'skull', handling: 'bolt', magazine: 'plus', reload: 'clock' };
+
+/** A weapon's strength on one track: bigger is better. */
+function score(def: WeaponDef, track: TrackId): number {
+  if (track === 'damage') return def.damage * (def.pellets ?? 1);
+  if (track === 'handling') return def.fireRate;
+  if (track === 'magazine') return def.magazine;
+  return 1 / def.reloadTime;
+}
+
+/** How full a stat bar is: this gun against the best gun there is, with room left for upgrades. */
+function barFraction(def: WeaponDef, track: TrackId): number {
+  const best = Math.max(...WEAPONS.map((w) => score(w, track)));
+  return Phaser.Math.Clamp(Math.sqrt(score(def, track) / best) * 0.82, 0.06, 0.94);
+}
+
+/** The stat as the player knows it, small, under its bar. */
+function statValue(def: WeaponDef, track: TrackId): string {
+  if (track === 'damage') return `${def.damage.toFixed(0)}${def.pellets ? ` × ${def.pellets}` : ''}`;
+  if (track === 'handling') return `${def.fireRate.toFixed(1)}/s`;
+  if (track === 'magazine') return `${def.magazine}`;
+  return `${def.reloadTime.toFixed(2)}s`;
+}
+
+type Add = <T extends Phaser.GameObjects.GameObject>(o: T) => T;
 
 /** Dot's Workshop: spend Supplies on permanent weapon and bunker upgrades. */
 export class WorkshopScene extends Phaser.Scene {
@@ -31,13 +59,11 @@ export class WorkshopScene extends Phaser.Scene {
   create(): void {
     this.input.setDefaultCursor('default');
     this.dynamic = [];
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x121310).setOrigin(0);
-    this.add.rectangle(0, 0, VIEW.width, 70, 0x1c1d1a).setOrigin(0);
-    this.add.rectangle(0, 70, VIEW.width, 3, 0x7a6420).setOrigin(0);
-    this.add.text(24, 16, 'WORKSHOP', { fontFamily: STENCIL, fontSize: '36px', color: '#e0dcc0', stroke: '#000', strokeThickness: 4 });
-    this.add.text(210, 32, "DOT OKAFOR'S BENCH · permanent upgrades", { fontFamily: MONO, fontSize: '13px', color: '#9a9a86' });
-    this.msg = this.add.text(VIEW.centerX, VIEW.height - 40, '', { fontFamily: STENCIL, fontSize: '20px', color: '#a8e090', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
-    button(this, VIEW.width - 170, VIEW.height - 40, 280, 44, 'BACK TO MAP  [ESC]', () => this.scene.start('Map'), 10, 0x6a7a8a);
+    backdrop(this, C.night);
+    const back = pushButton(this, 0, 46, { h: 48, size: 22, icon: 'back', label: 'MAP', onClick: () => this.scene.start('Map') });
+    back.c.x = LIST_X + back.w / 2;
+    text(this, LIST_X + back.w + 20, 46, 'WORKSHOP', { size: 34, font: STENCIL, color: C.title }).setOrigin(0, 0.5);
+    this.msg = text(this, X0 + W / 2, VIEW.height - 28, '', { size: 22, font: STENCIL, color: C.green }).setOrigin(0.5).setDepth(5);
     this.input.keyboard!.on('keydown-ESC', () => this.scene.start('Map'));
     this.draw();
   }
@@ -46,41 +72,42 @@ export class WorkshopScene extends Phaser.Scene {
     for (const o of this.dynamic) o.destroy();
     this.dynamic = [];
     const p = profile.get();
-    const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
+    const add: Add = (o) => {
       this.dynamic.push(o);
       return o;
     };
-    add(this.add.text(VIEW.width - 24, 14, `SUPPLIES ${p.supplies}`, { fontFamily: STENCIL, fontSize: '30px', color: '#c8d890', stroke: '#000', strokeThickness: 4 }).setOrigin(1, 0));
-    add(this.add.text(VIEW.width - 24, 48, `POWER ${playerPower(p)}`, { fontFamily: MONO, fontSize: '13px', color: '#e8c060' }).setOrigin(1, 0));
+    const totals: Part[] = [
+      chip(this, { icon: 'bolt', text: `${playerPower(p)}`, tone: 'gold', size: 20 }),
+      chip(this, { icon: 'crate', iconColor: C.brass, text: `${p.supplies}`, size: 20 }),
+    ];
+    for (const t of totals) add(t.c);
+    row(totals, VIEW.width - 28 - totals.reduce((n, t) => n + t.w, 8), 46);
 
     // Left: owned weapons and the bunker.
     const items = [...ownedWeapons(p), BUNKER];
-    // Rows tighten up as the arsenal grows, so every entry fits above the back button.
-    const rowH = Math.min(78, Math.floor((VIEW.height - 160) / items.length));
-    const compact = rowH < 64;
-    const nameY = compact ? 5 : 12, lineY = compact ? 29 : 40;
+    // Rows tighten up as the arsenal grows, so every entry fits.
+    const step = Math.min(76, Math.floor((VIEW.height - TOP - 12) / items.length));
+    const h = step - 8;
     items.forEach((id, i) => {
-      const y = 100 + i * rowH;
+      const y = TOP + i * step;
       const sel = id === this.selected;
-      const bg = add(this.add.rectangle(24, y, 330, rowH - 8, sel ? 0x34362c : 0x1e1f1c).setOrigin(0).setStrokeStyle(2, sel ? 0xc8a040 : 0x0a0a0a));
+      const bg = add(box(this, LIST_X, y, LIST_W, h, C.tile, sel ? C.brass : 0x2a2c24));
       bg.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
         audio.play('ui_click', { volume: 0.6 });
         this.selected = id;
         this.draw();
       });
-      if (id === BUNKER) {
-        add(this.add.image(70, y + (rowH - 8) / 2, 'icon_reinforce').setScale(compact ? 0.8 : 1.1));
-        add(this.add.text(120, y + nameY, 'BUNKER', { fontFamily: STENCIL, fontSize: '20px', color: '#e0dcc0' }));
-        add(this.add.text(120, y + lineY, `LV ${p.bunkerLevel}/${MAX_LEVEL}  ·  ${bunkerHealth(p.bunkerLevel)} HP`, { fontFamily: MONO, fontSize: '13px', color: '#a8a890' }));
-      } else {
-        const def = weaponById(id);
-        const lv = weaponLevels(p, id);
-        const icon = skinTexture(this, def.iconTexture, activeSkin(p, id));
-        const tex = this.textures.get(icon).getSourceImage() as HTMLCanvasElement;
-        add(this.add.image(78, y + (rowH - 8) / 2, icon).setScale(Math.min(96 / tex.width, (rowH - 16) / tex.height)));
-        add(this.add.text(140, y + nameY, def.shortName, { fontFamily: STENCIL, fontSize: '20px', color: '#e0dcc0' }));
-        const total = lv.damage + lv.handling + lv.magazine + lv.reload;
-        add(this.add.text(140, y + lineY, `UPGRADES ${total}/${MAX_LEVEL * 4}`, { fontFamily: MONO, fontSize: '13px', color: '#a8a890' }));
+      const mid = y + h / 2;
+      const bunker = id === BUNKER;
+      const skin = bunker ? '' : activeSkin(p, id);
+      const tone = skin ? Phaser.Display.Color.HexStringToColor(SKINS[skin].color).color : C.iconTone;
+      add(icon(this, bunker ? 'shield' : WEAPON_ICON[id], LIST_X + 52, mid, Math.min(bunker ? 38 : 32, h - 12), tone));
+      add(text(this, LIST_X + 100, mid, bunker ? 'BUNKER' : weaponById(id).shortName, { size: Math.min(28, h - 16), font: STENCIL }).setOrigin(0, 0.5));
+      const lv = bunker ? null : weaponLevels(p, id);
+      const filled = lv ? Math.ceil((lv.damage + lv.handling + lv.magazine + lv.reload) / 4) : p.bunkerLevel;
+      const g = add(this.add.graphics());
+      for (let k = 0; k < MAX_LEVEL; k++) {
+        g.fillStyle(k < filled ? C.brass : 0x3a3c32, 1).fillRect(LIST_X + LIST_W - 90 + k * 16, mid - 6, 12, 12);
       }
     });
 
@@ -88,69 +115,99 @@ export class WorkshopScene extends Phaser.Scene {
     else this.drawWeapon(this.selected, add);
   }
 
-  private drawWeapon(id: string, add: <T extends Phaser.GameObjects.GameObject>(o: T) => T): void {
+  /** One stat: icon, bar with the next level's gain in green, the gain as a number and the buy button. */
+  private statRow(
+    add: Add, y: number, o: { icon: IconName; frac: number; gain: number; gainText: string; value: string; level: number },
+    cost: number | null, status: string, onBuy: () => void,
+  ): void {
+    const h = 74;
+    add(box(this, X0, y, W, h, C.card));
+    add(icon(this, o.icon, X0 + 40, y + h / 2, 40, C.iconTone));
+    const mx = X0 + 82, mw = W - 82 - 300, my = y + 18;
+    const g = add(this.add.graphics());
+    meter(g, mx, my, mw, 20, o.frac, C.brass);
+    const maxed = o.level >= MAX_LEVEL;
+    if (!maxed) g.fillStyle(C.ok, 0.7).fillRect(mx + mw * o.frac, my, mw * Math.min(o.gain, 1 - o.frac), 20);
+    add(text(this, mx, my + 25, o.value, { size: 15, color: C.soft, bold: true }));
+    for (let k = 0; k < MAX_LEVEL; k++) {
+      g.fillStyle(k < o.level ? C.brass : 0x3a3c32, 1).fillRect(mx + mw - (MAX_LEVEL - k) * 20 + 4, my + 28, 16, 8);
+    }
+    if (!maxed) add(text(this, X0 + W - 196, y + h / 2, o.gainText, { size: 21, color: C.ok, bold: true }).setOrigin(1, 0.5));
+    const bx = X0 + W - 94;
+    if (status === 'maxed' || cost === null) {
+      add(icon(this, 'check', bx - 34, y + h / 2, 30, C.ok, { stroke: 2.6 }));
+      add(text(this, bx + 14, y + h / 2, 'MAX', { size: 26, font: STENCIL, color: C.ok }).setOrigin(0.5));
+      return;
+    }
+    const ok = status === 'ok';
+    add(pushButton(this, bx, y + h / 2, {
+      w: 162, h: 50, size: 26, icon: 'crate', iconColor: ok ? C.brass : C.dim, label: `${cost}`, tone: ok ? 'buy' : 'off', onClick: onBuy,
+    }).c);
+  }
+
+  private drawWeapon(id: string, add: Add): void {
     const p = profile.get();
     const def = playerWeapon(p, id);
     const base = weaponById(id);
     const lv = weaponLevels(p, id);
-    const x0 = 390;
-    add(this.add.text(x0, 96, base.name.toUpperCase(), { fontFamily: STENCIL, fontSize: '30px', color: '#e8e0c0' }));
-    add(this.add.text(x0, 134, base.description, { fontFamily: MONO, fontSize: '13px', color: '#9a9a86', wordWrap: { width: 840 } }));
-    const pellets = def.pellets ? ` × ${def.pellets}` : '';
-    // The four numbers that matter, as chips.
-    const stats = [`DAMAGE ${def.damage.toFixed(0)}${pellets}`, `RATE ${def.fireRate.toFixed(1)}/s`, `MAG ${def.magazine}`, `RELOAD ${def.reloadTime.toFixed(2)}s`];
-    let sx = x0;
-    for (const label of stats) {
-      const t = add(this.add.text(0, 0, label, { fontFamily: MONO, fontSize: '13px', color: '#c8d890' }));
-      const cw = t.width + 18;
-      add(this.add.rectangle(sx, 170, cw, 24, 0x23241f, 1).setOrigin(0, 0.5).setStrokeStyle(1, 0x5a5c48).setDepth(1));
-      t.setPosition(sx + 9, 170).setOrigin(0, 0.5).setDepth(2);
-      sx += cw + 8;
-    }
-    this.drawAttachment(id, add);
-    this.drawMastery(id, add);
+    const name = add(text(this, X0, TOP - 4, base.name.toUpperCase(), { size: 34, font: STENCIL }));
+    add(icon(this, WEAPON_ICON[id], X0 + name.width + 60, TOP + 18, 34, C.iconTone));
 
     TRACKS.forEach((t, i) => {
-      const y = 192 + i * 76;
       const level = lv[t.id];
       const { cost, status } = upgradeStatus(p, id, t.id);
-      add(this.add.rectangle(x0, y, 860, 68, 0x1e1f1c).setOrigin(0).setStrokeStyle(1, 0x3a3c38));
-      add(this.add.text(x0 + 16, y + 8, t.name.toUpperCase(), { fontFamily: STENCIL, fontSize: '20px', color: '#e0dcc0' }));
-      add(this.add.rectangle(x0 + 16, y + 40, 56, 20, 0x253019, 1).setOrigin(0, 0.5).setStrokeStyle(1, 0x5fae3c));
-      add(this.add.text(x0 + 44, y + 40, gainChip(t.perLevel), { fontFamily: MONO, fontSize: '13px', color: '#a8e090' }).setOrigin(0.5));
-      for (let k = 0; k < MAX_LEVEL; k++) {
-        add(this.add.rectangle(x0 + 330 + k * 34, y + 22, 24, 24, k < level ? 0xc8a040 : 0x2c2d2a).setOrigin(0).setStrokeStyle(2, k === level && level < MAX_LEVEL ? 0xa8e090 : 0x000000));
-      }
-      this.buyButton(add, x0 + 720, y + 34, cost, status, () => this.buy(() => buyUpgrade(profile.get(), id, t.id as TrackId), `${base.shortName} ${t.name.toUpperCase()} LV ${level + 1}`));
+      const percent = gainChip(t.perLevel);
+      const step = Math.abs(parseFloat(percent)) / 100;
+      const frac = barFraction(def, t.id);
+      this.statRow(add, TOP + 50 + i * 84, {
+        icon: STAT_ICON[t.id], frac, gain: Math.max(0.025, frac * step), gainText: percent.replace('-', '−'), value: statValue(def, t.id), level,
+      }, cost, status, () => this.buy(() => buyUpgrade(profile.get(), id, t.id), `${base.shortName} ${t.name.toUpperCase()} LV ${level + 1}`));
     });
+    const y = TOP + 50 + TRACKS.length * 84 + 4;
+    const locked: Part[] = [];
+    const attachments = attachmentsOpen(p) || p.attachments.length > 0;
+    const skins = ownedSkins(p, id);
+    if (!attachments) locked.push(chip(this, { icon: 'lock', text: 'ATTACHMENT', tone: 'muted', size: 18, dashed: true }));
+    if (!skins.length) {
+      const { kills, next } = masteryStatus(p, id);
+      locked.push(chip(this, { icon: 'lock', text: next ? `SKINS ${kills}/${next.kills}` : 'SKINS', tone: 'muted', size: 18, dashed: true }));
+    }
+    if (attachments) this.drawAttachment(id, add, y);
+    if (skins.length) this.drawMastery(id, add, attachments ? y + 88 : y, skins);
+    for (const l of locked) add(l.c);
+    // Padlock chips sit under whatever rows are open.
+    const lockY = y + (attachments ? 88 : 0) + (skins.length ? 72 : 0) + 22;
+    row(locked, X0, Math.min(lockY, VIEW.height - 62), 12);
   }
 
   /** One attachment slot per weapon: buy an attachment once, fit it to any gun. */
-  private drawAttachment(id: string, add: <T extends Phaser.GameObjects.GameObject>(o: T) => T): void {
+  private drawAttachment(id: string, add: Add, y: number): void {
     const p = profile.get();
-    const x0 = 390;
-    const y = 498;
-    add(this.add.rectangle(x0, y, 860, 66, 0x1a1b18).setOrigin(0).setStrokeStyle(1, 0x5a5040));
-    add(this.add.text(x0 + 16, y + 8, 'ATTACHMENT', { fontFamily: STENCIL, fontSize: '20px', color: '#e8c060' }));
     const fitted = fittedAttachment(p, id);
-    if (!attachmentsOpen(p) && !p.attachments.length) {
-      add(this.add.graphics({ x: x0 + 22, y: y + 44 })).setDepth(1);
-      drawLock(this.dynamic[this.dynamic.length - 1] as Phaser.GameObjects.Graphics, 0x7a7a6c);
-      add(this.add.text(x0 + 40, y + 44, 'LOCKED', { fontFamily: MONO, fontSize: '13px', color: '#7a7a6c' }).setOrigin(0, 0.5));
-      return;
-    }
-    add(this.add.text(x0 + 16, y + 38, fitted ? attachmentById(fitted)!.text : 'None fitted', { fontFamily: MONO, fontSize: '12px', color: '#9a9a86', wordWrap: { width: 250 } }));
-    const chips = ['', ...ATTACHMENTS.map((a) => a.id)];
-    chips.forEach((a, i) => {
-      const cx = x0 + 860 - (chips.length - i) * 112 + 52;
+    const options = ['', ...ATTACHMENTS.map((a) => a.id)];
+    const gap = 10, w = Math.floor((W - gap * (options.length - 1)) / options.length), h = 78;
+    options.forEach((a, i) => {
+      const x = X0 + i * (w + gap);
       const st = a ? attachmentStatus(p, a) : { cost: 0, status: 'owned' as const };
       const on = (fitted ?? '') === a;
-      const chip = add(this.add.rectangle(cx, y + 33, 104, 52, on ? 0x3a3620 : 0x222423).setStrokeStyle(2, on ? 0xe8c060 : 0x0a0a0a));
-      const name = a ? attachmentById(a)!.name.toUpperCase() : 'NONE';
-      add(this.add.text(cx, y + 22, name, { fontFamily: STENCIL, fontSize: '13px', color: on ? '#e8c060' : '#d0ccb4', align: 'center', wordWrap: { width: 98 } }).setOrigin(0.5));
-      const sub = !a ? '' : on ? 'FITTED' : st.status === 'owned' ? 'FIT' : st.status === 'locked' ? 'LOCKED' : `BUY ${st.cost}`;
-      add(this.add.text(cx, y + 43, sub, { fontFamily: MONO, fontSize: '11px', color: st.status === 'supplies' ? '#c87060' : '#a8c890' }).setOrigin(0.5));
-      chip.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.pickAttachment(id, a));
+      const bg = add(box(this, x, y, w, h, on ? C.raised : C.card, on ? C.brass : C.line));
+      const def = a ? attachmentById(a)! : null;
+      const label = add(text(this, x + w / 2, y + 20, def ? def.name.toUpperCase() : 'NO ATTACHMENT', { size: 17, font: STENCIL, color: on ? C.gold : C.text }).setOrigin(0.5));
+      if (label.width > w - 12) label.setScale((w - 12) / label.width);
+      const cy = y + 54;
+      if (on) add(icon(this, 'check', x + w / 2, cy, 24, C.ok, { stroke: 2.6 }));
+      else if (st.status === 'owned') add(text(this, x + w / 2, cy, 'FIT', { size: 15, color: C.soft, bold: true }).setOrigin(0.5));
+      else if (st.status === 'locked') add(icon(this, 'lock', x + w / 2, cy, 22, C.dim));
+      else {
+        const price = add(text(this, 0, cy, `${st.cost}`, { size: 17, color: st.status === 'supplies' ? C.red : C.green, bold: true }).setOrigin(0, 0.5));
+        const left = x + w / 2 - (26 + price.width) / 2;
+        add(icon(this, 'crate', left + 10, cy, 20, C.brass));
+        price.x = left + 26;
+      }
+      bg.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.pickAttachment(id, a));
+      bg.on('pointerover', () => {
+        this.msg.setText(def ? def.text.toUpperCase() : '').setColor(css(C.soft));
+      });
     });
   }
 
@@ -167,40 +224,35 @@ export class WorkshopScene extends Phaser.Scene {
     });
     if (result === 'bought' || result === 'fitted') {
       audio.play(result === 'bought' ? 'buy' : 'ui_click', { volume: 0.7 });
-      this.msg.setText(a ? `${attachmentById(a)!.name.toUpperCase()} ${result === 'bought' ? 'BOUGHT AND ' : ''}FITTED` : 'ATTACHMENT REMOVED').setColor('#a8e090');
+      this.msg.setText(a ? `${attachmentById(a)!.name.toUpperCase()} ${result === 'bought' ? 'BOUGHT AND ' : ''}FITTED` : 'ATTACHMENT REMOVED').setColor(css(C.green));
     } else {
       audio.play('deny', { volume: 0.6 });
-      this.msg.setText(result === 'supplies' ? 'NOT ENOUGH SUPPLIES' : 'NOT AVAILABLE YET').setColor('#ff7050');
+      this.msg.setText(result === 'supplies' ? 'NOT ENOUGH SUPPLIES' : 'NOT AVAILABLE YET').setColor(css(C.red));
     }
     this.draw();
   }
 
   /** Kills with the weapon unlock skins; pick the one it wears. */
-  private drawMastery(id: string, add: <T extends Phaser.GameObjects.GameObject>(o: T) => T): void {
+  private drawMastery(id: string, add: Add, y: number, owned: SkinId[]): void {
     const p = profile.get();
-    const x0 = 390;
-    const y = 572;
     const { kills, next } = masteryStatus(p, id);
-    add(this.add.rectangle(x0, y, 860, 70, 0x1a1b18).setOrigin(0).setStrokeStyle(1, 0x5a5040));
-    add(this.add.text(x0 + 16, y + 10, `MASTERY  ·  ${kills} KILLS`, { fontFamily: STENCIL, fontSize: '20px', color: '#e8c060' }));
-    const frac = next ? Math.min(1, kills / next.kills) : 1;
-    add(this.add.rectangle(x0 + 16, y + 48, 300, 8, 0x0c0d0c, 1).setOrigin(0, 0.5).setStrokeStyle(1, 0x3a3c38));
-    add(this.add.rectangle(x0 + 17, y + 48, 298 * frac, 6, 0xc8a040, 1).setOrigin(0, 0.5));
-    add(this.add.text(x0 + 330, y + 48, next ? `NEXT ${SKINS[next.skin].name.toUpperCase()} · ${next.kills}` : 'ALL SKINS EARNED', { fontFamily: MONO, fontSize: '12px', color: '#9a9a86' }).setOrigin(0, 0.5));
-    const owned = ownedSkins(p, id);
+    add(box(this, X0, y, W, 62, C.card));
+    add(icon(this, 'skull', X0 + 28, y + 31, 28, C.iconTone));
+    const g = add(this.add.graphics());
+    meter(g, X0 + 54, y + 16, 190, 12, next ? kills / next.kills : 1, C.brass);
+    add(text(this, X0 + 54, y + 34, next ? `${kills}/${next.kills}` : `${kills}`, { size: 14, color: C.soft, bold: true }));
     const wearing = activeSkin(p, id);
-    const chips: (SkinId | '')[] = ['', ...owned];
-    if (chips.length === 1) {
-      add(this.add.text(x0 + 844, y + 35, 'SKINS: earn kills with this weapon', { fontFamily: MONO, fontSize: '13px', color: '#7a7a6c' }).setOrigin(1, 0.5));
-      return;
-    }
-    chips.forEach((s, i) => {
-      const cx = x0 + 844 - (chips.length - i) * 96 + 48;
+    const swatches: (SkinId | '')[] = ['', ...owned];
+    const w = Math.min(104, Math.floor((W - 280) / swatches.length) - 8);
+    swatches.forEach((s, i) => {
+      const x = X0 + W - 10 - (swatches.length - i) * (w + 8) + 8;
       const sel = s === wearing;
-      const chip = add(this.add.rectangle(cx, y + 35, 88, 40, sel ? 0x3a3620 : 0x222423).setStrokeStyle(2, sel ? 0xe8c060 : 0x0a0a0a));
-      if (s) add(this.add.rectangle(cx - 30, y + 35, 14, 24, Phaser.Display.Color.HexStringToColor(SKINS[s].color).color).setStrokeStyle(1, 0x000000));
-      add(this.add.text(cx + (s ? 8 : 0), y + 35, s ? SKINS[s].name.toUpperCase() : 'FACTORY', { fontFamily: STENCIL, fontSize: '14px', color: sel ? '#e8c060' : '#d0ccb4' }).setOrigin(0.5));
-      chip.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+      const bg = add(box(this, x, y + 8, w, 46, sel ? C.raised : C.tile, sel ? C.brass : C.line));
+      const tone = s ? Phaser.Display.Color.HexStringToColor(SKINS[s].color).color : C.iconTone;
+      add(icon(this, WEAPON_ICON[id], x + w / 2, y + 25, Math.min(24, (w - 8) / 2), tone));
+      const label = add(text(this, x + w / 2, y + 44, s ? SKINS[s].name.toUpperCase() : 'FACTORY', { size: 11, color: sel ? C.gold : C.soft, bold: true }).setOrigin(0.5));
+      if (label.width > w - 6) label.setScale((w - 6) / label.width);
+      bg.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
         audio.play('ui_click', { volume: 0.6 });
         profile.update((d) => { setSkin(d, id, s); });
         this.draw();
@@ -208,32 +260,17 @@ export class WorkshopScene extends Phaser.Scene {
     });
   }
 
-  private drawBunker(add: <T extends Phaser.GameObjects.GameObject>(o: T) => T): void {
+  private drawBunker(add: Add): void {
     const p = profile.get();
-    const x0 = 390;
-    add(this.add.text(x0, 96, 'REINFORCED BUNKER', { fontFamily: STENCIL, fontSize: '30px', color: '#e8e0c0' }));
-    add(this.add.text(x0, 134, 'Concrete, rebar and more sandbags. Every mission starts with the extra health.', { fontFamily: MONO, fontSize: '13px', color: '#9a9a86' }));
-    add(this.add.text(x0, 164, `BUNKER HEALTH ${bunkerHealth(p.bunkerLevel)}`, { fontFamily: MONO, fontSize: '15px', color: '#c8d890' }));
-    const y = 214;
-    add(this.add.rectangle(x0, y, 860, 92, 0x1e1f1c).setOrigin(0).setStrokeStyle(1, 0x3a3c38));
-    add(this.add.text(x0 + 16, y + 12, BUNKER_TRACK.name.toUpperCase(), { fontFamily: STENCIL, fontSize: '22px', color: '#e0dcc0' }));
-    add(this.add.text(x0 + 16, y + 46, `Each level: ${BUNKER_TRACK.perLevel}`, { fontFamily: MONO, fontSize: '13px', color: '#9a9a86' }));
-    for (let k = 0; k < MAX_LEVEL; k++) {
-      add(this.add.rectangle(x0 + 330 + k * 34, y + 30, 26, 26, k < p.bunkerLevel ? 0xc8a040 : 0x2c2d2a).setOrigin(0).setStrokeStyle(1, 0x000000));
-    }
+    const name = add(text(this, X0, TOP - 4, BUNKER_TRACK.name.toUpperCase(), { size: 34, font: STENCIL }));
+    add(icon(this, ITEM_ICON.reinforce, X0 + name.width + 36, TOP + 18, 34, C.iconTone));
+    const level = p.bunkerLevel;
     const { cost, status } = bunkerUpgradeStatus(p);
-    this.buyButton(add, x0 + 720, y + 46, cost, status, () => this.buy(() => buyBunkerUpgrade(profile.get()), `BUNKER LV ${p.bunkerLevel + 1}`));
-  }
-
-  private buyButton(
-    add: <T extends Phaser.GameObjects.GameObject>(o: T) => T, x: number, y: number, cost: number | null, status: string, onBuy: () => void,
-  ): void {
-    if (status === 'maxed' || cost === null) {
-      add(this.add.text(x, y, 'MAXED', { fontFamily: STENCIL, fontSize: '22px', color: '#8ae070' }).setOrigin(0.5));
-      return;
-    }
-    const c = add(button(this, x, y, 220, 44, `UPGRADE  ${cost}`, onBuy, 10, status === 'ok' ? 0x5fae3c : 0x6a4a40));
-    if (status !== 'ok') c.setAlpha(0.6);
+    const full = bunkerHealth(MAX_LEVEL);
+    this.statRow(add, TOP + 50, {
+      icon: 'shield', frac: (bunkerHealth(level) / full) * 0.94, gain: (BUNKER_TRACK.healthPerLevel / full) * 0.94,
+      gainText: gainChip(BUNKER_TRACK.perLevel), value: `${bunkerHealth(level)}`, level,
+    }, cost, status, () => this.buy(() => buyBunkerUpgrade(profile.get()), `BUNKER LV ${level + 1}`));
   }
 
   private buy(action: () => string, label: string): void {
@@ -244,10 +281,10 @@ export class WorkshopScene extends Phaser.Scene {
     });
     if (result === 'ok') {
       audio.play('buy', { volume: 0.8 });
-      this.msg.setText(`${label} INSTALLED`).setColor('#a8e090');
+      this.msg.setText(`${label} INSTALLED`).setColor(css(C.green));
     } else {
       audio.play('deny', { volume: 0.6 });
-      this.msg.setText(result === 'supplies' ? 'NOT ENOUGH SUPPLIES — WIN MISSIONS OR REPLAY FOR STARS' : 'CANNOT UPGRADE').setColor('#ff7050');
+      this.msg.setText(result === 'supplies' ? 'NOT ENOUGH SUPPLIES' : 'CANNOT UPGRADE').setColor(css(C.red));
     }
     this.draw();
   }

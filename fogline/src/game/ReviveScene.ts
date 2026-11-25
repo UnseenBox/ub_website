@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
 import { REVIVE_SHARE } from '../portal/adRules';
 import { portal } from '../portal/Portal';
-import { MONO, STENCIL, button } from '../ui/widgets';
+import { C, STENCIL, box, centreRow, chip, pushButton, text } from '../ui/kit';
+import { icon } from '../ui/icons';
+import { backdrop } from '../rendering/Margins';
 import { VIEW } from './config';
 import type { GameScene } from './GameScene';
 
@@ -25,23 +27,32 @@ export class ReviveScene extends Phaser.Scene {
       this.scene.stop();
       game.reviveResult(restored);
     };
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x1a0000, 0.75).setOrigin(0).setInteractive();
-    this.add.rectangle(VIEW.centerX, VIEW.height / 2, 640, 300, 0x1c1d1a, 0.98).setStrokeStyle(2, 0xc84030);
-    this.add.text(VIEW.centerX, VIEW.height / 2 - 104, 'THE WALL IS DOWN', { fontFamily: STENCIL, fontSize: '40px', color: '#d84030', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5);
-    this.add.text(VIEW.centerX, VIEW.height / 2 - 50,
-      `Kestrel can drop reinforcements: watch an ad to restore ${Math.round(REVIVE_SHARE * 100)}% of the bunker\nand keep fighting. Once per mission.`, {
-        fontFamily: MONO, fontSize: '15px', color: '#d0ccb4', align: 'center', lineSpacing: 4,
-      }).setOrigin(0.5, 0);
-    button(this, VIEW.centerX - 150, VIEW.height / 2 + 90, 270, 50, 'REINFORCE  ▶ AD', () => {
-      if (this.busy) return;
-      this.busy = true;
-      const ok = portal.rewarded(() => audio.play('buy', { volume: 0.8 }), (granted) => close(granted));
-      if (!ok) close(false);
-    }, 10, 0x4a8ac8);
-    button(this, VIEW.centerX + 150, VIEW.height / 2 + 90, 270, 50, 'GIVE UP', () => {
-      if (this.busy) return;
-      this.busy = true;
-      close(false);
-    }, 10, 0x8a4a40);
+    backdrop(this, 0x1a0000, 0.75).setInteractive();
+    const cy = VIEW.height / 2;
+    box(this, VIEW.centerX - 300, cy - 170, 600, 340, C.night, C.goLine);
+    text(this, VIEW.centerX, cy - 122, 'THE WALL IS DOWN', { size: 44, font: STENCIL, color: C.red }).setOrigin(0.5);
+    icon(this, 'shield', VIEW.centerX, cy - 36, 84, C.health);
+    // What the reinforcements bring: half the bunker back, once.
+    centreRow([
+      chip(this, { icon: 'shield', text: `+${Math.round(REVIVE_SHARE * 100)}%`, tone: 'green', size: 22 }),
+      chip(this, { icon: 'replay', text: '×1', size: 22 }),
+    ], VIEW.centerX, cy + 40);
+    pushButton(this, VIEW.centerX - 140, cy + 112, {
+      w: 250, h: 58, size: 24, icon: 'play', label: 'REINFORCE ▶ AD', tone: 'buy',
+      onClick: () => {
+        if (this.busy) return;
+        this.busy = true;
+        const ok = portal.rewarded(() => audio.play('buy', { volume: 0.8 }), (granted) => close(granted));
+        if (!ok) close(false);
+      },
+    });
+    pushButton(this, VIEW.centerX + 140, cy + 112, {
+      w: 250, h: 58, size: 24, icon: 'cross', label: 'GIVE UP',
+      onClick: () => {
+        if (this.busy) return;
+        this.busy = true;
+        close(false);
+      },
+    });
   }
 }

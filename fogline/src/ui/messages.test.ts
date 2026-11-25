@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SCREEN_WORDS, appendLog, clipWords, portraitInitial, wordCount } from './messages';
+import { SCREEN_WORDS, appendLog, clipWords, wordCount } from './messages';
 
 describe('battle text rules', () => {
   it('keeps a line that is already short', () => {
@@ -29,11 +29,6 @@ describe('battle text rules', () => {
     expect(wordCount(' a  b c ')).toBe(3);
   });
 
-  it('uses the first letter of the speaker as the portrait', () => {
-    expect(portraitInitial('kestrel')).toBe('K');
-    expect(portraitInitial('')).toBe('?');
-  });
-
   it('keeps only the newest lines in the log', () => {
     const log: number[] = [];
     for (let i = 0; i < 50; i++) appendLog(log, i, 40);
@@ -55,7 +50,7 @@ describe('results and threat text', () => {
   });
 
   it('tags the new things about an enemy, three at most', () => {
-    expect(threatTags(ENEMIES.spitter)).toEqual(['RANGED', 'HEAD']);
+    expect(threatTags(ENEMIES.spitter)).toEqual(['RANGED', 'HEAD', 'GLOWS = SPIT']);
     expect(threatTags(ENEMIES.howler)).toEqual(['HOWLS', 'HEAD']);
     expect(threatTags(ENEMIES.sapper)).toEqual(['EXPLODES', 'FAST']);
     expect(threatTags(ENEMIES.juggernaut)).toEqual(['ARMOURED']);
@@ -64,7 +59,7 @@ describe('results and threat text', () => {
   });
 });
 
-import { bonusLabel, gainChip, objectiveLabel } from './messages';
+import { gainChip, objectiveLabel } from './messages';
 import { MISSIONS } from '../data/missions';
 
 describe('map and workshop labels', () => {
@@ -77,16 +72,38 @@ describe('map and workshop labels', () => {
     expect(objectiveLabel(find('a1m9').objective)).toBe('BOSS');
   });
 
-  it('names each bonus goal', () => {
-    expect(bonusLabel({ kind: 'headshots', count: 12 })).toBe('12 HEADSHOTS');
-    expect(bonusLabel({ kind: 'assetHealth', fraction: 0.6 })).toBe('KEEP 60%');
-    expect(bonusLabel({ kind: 'saveAll' })).toBe('SAVE ALL');
-  });
-
   it('shows the gain of a workshop level as one number', () => {
     expect(gainChip('+8% damage')).toBe('+8%');
     expect(gainChip('+6% fire rate, -8% spread')).toBe('+6%');
     expect(gainChip('-8% reload time')).toBe('-8%');
     expect(gainChip('+150 bunker health')).toBe('+150');
+  });
+});
+
+import { stripChips, type StripState } from './messages';
+
+describe('the objective strip', () => {
+  const state: StripState = { asset: 1, nestsLeft: 3, saved: 0, lost: 0, headshots: 0, accuracy: null, supportsUsed: [] };
+
+  it('shows the objective and the progress to the bonus star', () => {
+    expect(stripChips({ kind: 'hold' }, { kind: 'headshots', count: 12 }, { ...state, headshots: 4 })).toEqual([
+      { icon: 'shield', text: 'HOLD', tone: 'plain' },
+      { icon: 'head', text: '4/12', tone: 'gold' },
+    ]);
+    expect(stripChips({ kind: 'hold' }, { kind: 'headshots', count: 12 }, { ...state, headshots: 30 })[1])
+      .toEqual({ icon: 'head', text: '12/12', tone: 'green' });
+  });
+
+  it('has no bonus chip in modes without stars', () => {
+    expect(stripChips({ kind: 'boss', enemy: 'juggernaut' }, null, state)).toEqual([{ icon: 'skull', text: 'BOSS', tone: 'red' }]);
+  });
+
+  it('warns when a protected asset or a bonus is slipping', () => {
+    const chips = stripChips(
+      MISSIONS.find((m) => m.objective.kind === 'protect')!.objective,
+      { kind: 'noSupport', id: 'nuke' },
+      { ...state, asset: 0.2, supportsUsed: ['nuke'] },
+    );
+    expect(chips.map((c) => c.tone)).toEqual(['red', 'red']);
   });
 });

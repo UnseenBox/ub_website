@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { audio } from './audio/AudioManager';
 import { registerFoglineOverrides } from './audio/overrides';
 import { BootScene } from './game/BootScene';
-import { VIEW } from './game/config';
+import { SCREEN, fitScreen, type ScreenFit } from './game/screen';
 import { ResultsScene } from './game/ResultsScene';
 import { MapScene } from './game/MapScene';
 import { WorkshopScene } from './game/WorkshopScene';
@@ -45,11 +45,31 @@ portal.watchMute((muted) => audio.setHold('platform', muted));
 void portal.init();
 if (import.meta.env.DEV) (window as unknown as { __foglinePortal: typeof portal }).__foglinePortal = portal;
 
+// The part of the window the player can see, and how much of its sides a notch covers.
+const probe = document.createElement('div');
+probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left)';
+document.body.appendChild(probe);
+
+function windowSize(): { w: number; h: number } {
+  const vv = window.visualViewport;
+  // A pinch zoom shrinks the visual viewport; the game keeps the unzoomed size.
+  const zoom = vv?.scale ?? 1;
+  return { w: Math.round(vv ? vv.width * zoom : window.innerWidth), h: Math.round(vv ? vv.height * zoom : window.innerHeight) };
+}
+
+function fitWindow(): ScreenFit {
+  const { w, h } = windowSize();
+  const style = getComputedStyle(probe);
+  return fitScreen(w, h, Math.max(parseFloat(style.paddingLeft) || 0, parseFloat(style.paddingRight) || 0));
+}
+
+Object.assign(SCREEN, fitWindow());
+
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  width: VIEW.width,
-  height: VIEW.height,
+  width: SCREEN.width,
+  height: SCREEN.height,
   backgroundColor: '#050505',
   disableContextMenu: true,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
@@ -59,21 +79,25 @@ const game = new Phaser.Game({
 });
 
 /**
- * Keep the 1280×720 game scaled to the real window. Phaser only re-measures on some
- * resize events, so the game would stay at its first size (cropped) after the window,
- * the browser toolbars, the orientation or full screen changed. Re-fit on every one of
- * those, and size the page to the visible area so mobile toolbars can't leave a gap.
+ * Keep the game filling the real window. The canvas takes the window's shape (see
+ * game/screen.ts) and every scene's camera keeps the 1280×720 design area centred in it.
+ * Phaser only re-measures on some resize events, so re-fit on every change of the window,
+ * the browser toolbars, the orientation or full screen, and size the page to the visible
+ * area so mobile toolbars can't leave a gap.
  */
 function keepFitted(g: Phaser.Game): void {
   const host = document.getElementById('game');
   const sizeHost = (): void => {
     if (!host) return;
-    const vv = window.visualViewport;
-    host.style.width = `${Math.round(vv?.width ?? window.innerWidth)}px`;
-    host.style.height = `${Math.round(vv?.height ?? window.innerHeight)}px`;
+    const { w, h } = windowSize();
+    host.style.width = `${w}px`;
+    host.style.height = `${h}px`;
   };
   const refit = (): void => {
     sizeHost();
+    const next = fitWindow();
+    Object.assign(SCREEN, next);
+    if (next.width !== g.scale.width || next.height !== g.scale.height) g.scale.setGameSize(next.width, next.height);
     // Re-measure the container first: refresh() alone reuses the size measured earlier.
     g.scale.getParentBounds();
     g.scale.refresh();
@@ -91,9 +115,7 @@ function keepFitted(g: Phaser.Game): void {
   let lastW = 0;
   let lastH = 0;
   setInterval(() => {
-    const vv = window.visualViewport;
-    const w = Math.round(vv?.width ?? window.innerWidth);
-    const h = Math.round(vv?.height ?? window.innerHeight);
+    const { w, h } = windowSize();
     if (w !== lastW || h !== lastH) {
       lastW = w;
       lastH = h;
@@ -103,6 +125,11 @@ function keepFitted(g: Phaser.Game): void {
 }
 
 keepFitted(game);
+
+// Every scene is drawn with the design area in the middle of the canvas.
+game.events.on(Phaser.Core.Events.PRE_STEP, () => {
+  for (const scene of game.scene.getScenes(false)) scene.cameras?.main?.setScroll(-SCREEN.mx, -SCREEN.my);
+});
 
 // Debug/test hooks (used by the automated playtest; harmless in production).
 Object.assign(window, { __game: game, __audio: audio });

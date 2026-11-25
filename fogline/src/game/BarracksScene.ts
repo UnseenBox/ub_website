@@ -1,11 +1,17 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
 import { MISSIONS } from '../data/missions';
-import { MAX_RECRUIT_LEVEL, RECRUITS, RecruitDef, SQUAD_SLOTS, recruitInterval, recruitPower } from '../data/squad';
+import { MAX_RECRUIT_LEVEL, RECRUITS, RecruitDef, RecruitRole, SQUAD_SLOTS, recruitInterval, recruitPower } from '../data/squad';
 import { playerPower, recruitTrainStatus, toggleSquad, trainRecruit } from '../systems/Campaign';
 import { profile } from '../systems/Profile';
-import { MONO, STENCIL, button } from '../ui/widgets';
+import { icon, type IconName } from '../ui/icons';
+import { C, STENCIL, box, chip, css, meter, portraitTexture, pushButton, row, text, type Part } from '../ui/kit';
+import { backdrop } from '../rendering/Margins';
 import { VIEW } from './config';
+
+const ROLE_ICON: Record<RecruitRole, IconName> = {
+  engineer: 'wrench', sniper: 'head', gunner: 'bullet', pilot: 'heli', grenadier: 'blast', mortar: 'orbital',
+};
 
 /** The Barracks: train the squad with Supplies and post two of them at the side windows. */
 export class BarracksScene extends Phaser.Scene {
@@ -19,13 +25,11 @@ export class BarracksScene extends Phaser.Scene {
   create(): void {
     this.input.setDefaultCursor('default');
     this.dynamic = [];
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x121310).setOrigin(0);
-    this.add.rectangle(0, 0, VIEW.width, 70, 0x1c1d1a).setOrigin(0);
-    this.add.rectangle(0, 70, VIEW.width, 3, 0x7a6420).setOrigin(0);
-    this.add.text(24, 16, 'BARRACKS', { fontFamily: STENCIL, fontSize: '36px', color: '#e0dcc0', stroke: '#000', strokeThickness: 4 });
-    this.add.text(220, 32, `THE SQUAD · ${SQUAD_SLOTS} side windows`, { fontFamily: MONO, fontSize: '13px', color: '#9a9a86' });
-    this.msg = this.add.text(VIEW.centerX, VIEW.height - 40, '', { fontFamily: STENCIL, fontSize: '20px', color: '#a8e090', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
-    button(this, VIEW.width - 170, VIEW.height - 40, 280, 44, 'BACK TO MAP  [ESC]', () => this.scene.start('Map'), 10, 0x6a7a8a);
+    backdrop(this, C.night);
+    const back = pushButton(this, 0, 46, { h: 48, size: 22, icon: 'back', label: 'MAP', onClick: () => this.scene.start('Map') });
+    back.c.x = 28 + back.w / 2;
+    text(this, 28 + back.w + 20, 46, 'BARRACKS', { size: 34, font: STENCIL, color: C.title }).setOrigin(0, 0.5);
+    this.msg = text(this, VIEW.centerX, VIEW.height - 28, '', { size: 22, font: STENCIL, color: C.green }).setOrigin(0.5);
     this.input.keyboard!.on('keydown-ESC', () => this.scene.start('Map'));
     this.draw();
   }
@@ -38,40 +42,64 @@ export class BarracksScene extends Phaser.Scene {
       this.dynamic.push(o);
       return o;
     };
-    add(this.add.text(VIEW.width - 24, 14, `SUPPLIES ${p.supplies}`, { fontFamily: STENCIL, fontSize: '30px', color: '#c8d890', stroke: '#000', strokeThickness: 4 }).setOrigin(1, 0));
-    add(this.add.text(VIEW.width - 24, 48, `POWER ${playerPower(p)}  ·  POSTED ${p.squad.length}/${SQUAD_SLOTS}`, { fontFamily: MONO, fontSize: '13px', color: '#e8c060' }).setOrigin(1, 0));
+    const totals: Part[] = [
+      chip(this, { icon: 'people', text: `${p.squad.length}/${SQUAD_SLOTS}`, size: 20 }),
+      chip(this, { icon: 'bolt', text: `${playerPower(p)}`, tone: 'gold', size: 20 }),
+      chip(this, { icon: 'crate', iconColor: C.brass, text: `${p.supplies}`, size: 20 }),
+    ];
+    for (const t of totals) add(t.c);
+    row(totals, VIEW.width - 28 - totals.reduce((n, t) => n + t.w + 8, -8), 46);
 
-    // Cards share the width: three across in Act 2, five once the whole squad exists.
-    const cw = Math.floor((VIEW.width - 48 - (RECRUITS.length - 1) * 12) / RECRUITS.length);
-    const inner = cw - 36;
+    // Cards share the width: three across in Act 2, more once the whole squad exists.
+    const gap = 12;
+    const cw = Math.floor((VIEW.width - 56 - (RECRUITS.length - 1) * gap) / RECRUITS.length);
     RECRUITS.forEach((r, i) => {
-      const x = 24 + i * (cw + 12), y = 100;
+      const x = 28 + i * (cw + gap), y = 96, mid = x + cw / 2, h = 568;
       const owned = p.recruits.includes(r.id);
       const posted = p.squad.includes(r.id);
-      add(this.add.rectangle(x, y, cw, 520, posted ? 0x26301e : 0x1e1f1c).setOrigin(0).setStrokeStyle(2, posted ? 0x8ae070 : 0x0a0a0a));
-      add(this.add.image(x + cw / 2, y + 190, 'squad_soldier').setOrigin(0.5, 1).setScale(Math.min(1.1, cw / 200)).setAlpha(owned ? 1 : 0.25).setTint(owned ? 0xffffff : 0x333333));
-      add(this.add.text(x + 18, y + 204, owned ? r.name.toUpperCase() : '???', { fontFamily: STENCIL, fontSize: cw < 300 ? '21px' : '26px', color: '#e8e0c0' }));
-      add(this.add.text(x + 18, y + 238, r.role.toUpperCase(), { fontFamily: MONO, fontSize: '13px', color: '#c8a050' }));
+      add(box(this, x, y, cw, h, C.card, posted ? C.health : C.line));
       if (!owned) {
+        add(icon(this, 'lock', mid, y + 170, 70, C.dim));
         const m = MISSIONS.find((ms) => ms.firstClear.recruits?.includes(r.id));
-        add(this.add.text(x + 18, y + 330, m ? `WIN ${m.name.toUpperCase()}` : 'NOT MET YET', { fontFamily: MONO, fontSize: '13px', color: '#e8c060' }));
+        const need = add(text(this, mid, y + 260, m ? `WIN ${m.name.toUpperCase()}` : 'NOT MET YET', { size: 15, color: C.gold, bold: true, align: 'center', wrap: cw - 20 }).setOrigin(0.5));
+        need.setAlign('center');
+        add(icon(this, ROLE_ICON[r.role], mid, y + 330, 38, C.dim));
         return;
       }
+      const first = r.name.split(' ')[0].toUpperCase();
+      add(this.add.image(mid, y + 66, portraitTexture(this, first, 100)).setScale(0.5));
+      const name = add(text(this, mid, y + 140, first, { size: 30, font: STENCIL }).setOrigin(0.5));
+      if (name.width > cw - 16) name.setScale((cw - 16) / name.width);
+      add(icon(this, ROLE_ICON[r.role], mid, y + 190, 44, C.brass));
+      add(text(this, mid, y + 228, r.role.toUpperCase(), { size: 13, color: C.soft, bold: true, spacing: 1 }).setOrigin(0.5));
+
       const level = p.recruitLevels[r.id] ?? 1;
+      const g = add(this.add.graphics());
+      statBars(r, level).forEach((bar, k) => {
+        const by = y + 264 + k * 38;
+        add(icon(this, bar.icon, x + 24, by, 24, C.iconTone));
+        meter(g, x + 44, by - 7, cw - 62, 14, bar.frac, C.brass);
+        add(text(this, x + cw - 18, by + 8, bar.value, { size: 12, color: C.soft, bold: true }).setOrigin(1, 0));
+      });
+      const step = Math.min(30, (cw - 36) / MAX_RECRUIT_LEVEL);
       for (let k = 0; k < MAX_RECRUIT_LEVEL; k++) {
-        const step = Math.min(34, (inner - 60) / MAX_RECRUIT_LEVEL);
-        add(this.add.rectangle(x + 18 + k * step, y + 334, Math.min(22, step - 3), 22, k < level ? 0xc8a040 : 0x2c2d2a).setOrigin(0).setStrokeStyle(1, 0x000000));
+        g.fillStyle(k < level ? C.brass : 0x3a3c32, 1).fillRect(mid - (MAX_RECRUIT_LEVEL * step) / 2 + k * step + 3, y + 390, step - 6, 12);
       }
-      add(this.add.text(x + cw - 18, y + 336, `LV ${level}`, { fontFamily: MONO, fontSize: '14px', color: '#e0dcc0' }).setOrigin(1, 0));
-      add(this.add.text(x + 18, y + 368, statsLine(r, level), { fontFamily: MONO, fontSize: '13px', color: '#c8d890', wordWrap: { width: inner } }));
+      const bw = Math.min(260, cw - 24);
       const { cost, status } = recruitTrainStatus(p, r.id);
       if (status === 'maxed' || cost === null) {
-        add(this.add.text(x + cw / 2, y + 446, 'FULLY TRAINED', { fontFamily: STENCIL, fontSize: '20px', color: '#8ae070' }).setOrigin(0.5));
+        add(icon(this, 'check', mid - 34, y + 452, 30, C.ok, { stroke: 2.6 }));
+        add(text(this, mid + 14, y + 452, 'MAX', { size: 26, font: STENCIL, color: C.ok }).setOrigin(0.5));
       } else {
-        const b = add(button(this, x + cw / 2, y + 446, Math.min(300, cw - 24), 42, `TRAIN  ${cost}`, () => this.train(r.id), 10, status === 'ok' ? 0x5fae3c : 0x6a4a40));
-        if (status !== 'ok') b.setAlpha(0.6);
+        const ok = status === 'ok';
+        add(pushButton(this, mid, y + 452, {
+          w: bw, h: 48, size: 24, icon: 'crate', iconColor: ok ? C.brass : C.dim, label: `${cost}`, tone: ok ? 'buy' : 'off', onClick: () => this.train(r.id),
+        }).c);
       }
-      add(button(this, x + cw / 2, y + 494, Math.min(300, cw - 24), 40, posted ? 'STAND DOWN' : cw < 300 ? 'POST' : 'POST AT A WINDOW', () => this.toggle(r.id), 10, posted ? 0x8a6a40 : 0x6a7a8a));
+      add(pushButton(this, mid, y + 520, {
+        w: bw, h: 48, size: 22, icon: posted ? 'check' : 'plus', iconColor: posted ? C.ok : C.text, label: posted ? 'POSTED' : 'POST',
+        tone: posted ? 'brass' : 'plain', onClick: () => this.toggle(r.id),
+      }).c);
     });
   }
 
@@ -80,10 +108,10 @@ export class BarracksScene extends Phaser.Scene {
     profile.update((d) => { result = trainRecruit(d, id); });
     if (result === 'ok') {
       audio.play('buy', { volume: 0.8 });
-      this.msg.setText('TRAINING COMPLETE').setColor('#a8e090');
+      this.msg.setText('TRAINING COMPLETE').setColor(css(C.green));
     } else {
       audio.play('deny', { volume: 0.6 });
-      this.msg.setText(result === 'supplies' ? 'NOT ENOUGH SUPPLIES' : 'CANNOT TRAIN').setColor('#ff7050');
+      this.msg.setText(result === 'supplies' ? 'NOT ENOUGH SUPPLIES' : 'CANNOT TRAIN').setColor(css(C.red));
     }
     this.draw();
   }
@@ -96,20 +124,26 @@ export class BarracksScene extends Phaser.Scene {
       this.msg.setText('');
     } else {
       audio.play('deny', { volume: 0.6 });
-      this.msg.setText(`ONLY ${SQUAD_SLOTS} WINDOWS: STAND SOMEONE DOWN FIRST`).setColor('#ff7050');
+      this.msg.setText(`ONLY ${SQUAD_SLOTS} WINDOWS`).setColor(css(C.red));
     }
     this.draw();
   }
 }
 
-function statsLine(r: RecruitDef, level: number): string {
+/** Up to three bars for a recruit: how hard, how often and how far. */
+function statBars(r: RecruitDef, level: number): { icon: IconName; frac: number; value: string }[] {
   const power = recruitPower(r, level);
-  const every = `${recruitInterval(r, level).toFixed(1)}s`;
-  switch (r.role) {
-    case 'engineer': return `+${power.toFixed(1)} HP / SEC`;
-    case 'pilot': return `${Math.round(power)} PER BODY · ${every}`;
-    case 'grenadier':
-    case 'mortar': return `${Math.round(power)} BLAST · ${every}`;
-    default: return `${Math.round(power)} DMG · ${every} · ${r.range} M`;
-  }
+  // The engineer mends instead of shooting.
+  if (r.role === 'engineer') return [{ icon: 'wrench', frac: power / recruitPower(r, MAX_RECRUIT_LEVEL), value: `+${power.toFixed(1)}/s` }];
+  const every = recruitInterval(r, level);
+  const shooters = RECRUITS.filter((o) => o.role !== 'engineer');
+  const most = Math.max(...shooters.map((o) => recruitPower(o, MAX_RECRUIT_LEVEL)));
+  const quickest = Math.min(...shooters.map((o) => recruitInterval(o, MAX_RECRUIT_LEVEL)));
+  const farthest = Math.max(...shooters.map((o) => o.range));
+  const bars: { icon: IconName; frac: number; value: string }[] = [
+    { icon: 'skull', frac: Math.sqrt(power / most), value: `${Math.round(power)}` },
+    { icon: 'clock', frac: Math.sqrt(quickest / every), value: `${every.toFixed(1)}s` },
+  ];
+  if (r.range > 0) bars.push({ icon: 'head', frac: r.range / farthest, value: `${r.range} m` });
+  return bars;
 }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { backdrop } from '../rendering/Margins';
 import { VIEW } from '../game/config';
 import { DEPTH } from '../game/depths';
 import { project } from '../game/perspective';
@@ -142,8 +143,8 @@ export class Fx {
     for (let i = 0; i < 14; i++) {
       this.decals.push(scene.add.image(0, 0, 'scorch').setDepth(DEPTH.decals).setVisible(false));
     }
-    this.damageOverlay = scene.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x9a0000, 1).setOrigin(0).setDepth(DEPTH.overlay).setAlpha(0);
-    this.flashOverlay = scene.add.rectangle(0, 0, VIEW.width, VIEW.height, 0xffffff, 1).setOrigin(0).setDepth(DEPTH.overlay + 1).setAlpha(0);
+    this.damageOverlay = backdrop(scene, 0x9a0000).setDepth(DEPTH.overlay).setAlpha(0);
+    this.flashOverlay = backdrop(scene, 0xffffff).setDepth(DEPTH.overlay + 1).setAlpha(0);
   }
 
   update(dt: number): void {

@@ -1,25 +1,23 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
-import { ENEMIES } from '../data/enemies';
 import { GearId, MISSIONS, MissionDef, missionById } from '../data/missions';
 import { SKINS } from '../data/retention';
 import { ModeOutcome, RunRewards } from '../systems/Retention';
 import { MODS, SUPPORT, DEFENSES } from '../data/upgrades';
 import { weaponById } from '../data/weapons';
 import {
-  BUNKER_STAR_FRACTION, MissionOutcome, MissionResult, actOpen, isActFinale, missionAfter, nextUnlockHint,
-  playerPower, veteranMedals, workshopOpen,
+  BUNKER_STAR_FRACTION, MissionOutcome, MissionResult, campaignComplete, isActFinale, nextMission, playerPower, veteranMedals, workshopOpen,
 } from '../systems/Campaign';
-import { ACT_STAR_GATE } from '../data/missions';
 import { recruitById } from '../data/squad';
 import { profile } from '../systems/Profile';
 import { portal } from '../portal/Portal';
 import { RETRY_CASH_BONUS } from '../portal/adRules';
-import { MONO, STENCIL, button } from '../ui/widgets';
+import { backdrop } from '../rendering/Margins';
 import { VIEW } from './config';
 import { bonusValue } from '../ui/messages';
-import { drawReticle, drawShield, drawTick } from '../ui/icons';
-import { keyHint } from './touchControls';
+import { ITEM_ICON, WEAPON_ICON, icon, iconWidth, type IconName } from '../ui/icons';
+import { C, STENCIL, centreRow, chip, meter, pushButton, text, type Button, type Part } from '../ui/kit';
+import { isTouchDevice } from './touchControls';
 
 export interface ResultsData {
   missionId: string;
@@ -37,8 +35,14 @@ export interface ResultsData {
   failReason?: string;
 }
 
-const GOLD = 0xe8c060;
-const DIM = 0x3a3b36;
+/** One thing a battle earned. */
+interface Reward {
+  icon: IconName;
+  value: string;
+  label: string;
+  /** The headline reward gets a brass border. */
+  first?: boolean;
+}
 
 export function gearName(g: GearId | string): string {
   const [kind, id] = g.split(':');
@@ -51,7 +55,7 @@ export function gearName(g: GearId | string): string {
 export class ResultsScene extends Phaser.Scene {
   private busy = false;
   private saved = false;
-  private suppliesText: Phaser.GameObjects.Text | null = null;
+  private suppliesValue: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('Results');
@@ -60,7 +64,7 @@ export class ResultsScene extends Phaser.Scene {
   create(data: ResultsData): void {
     this.busy = false;
     this.saved = data.saved;
-    this.suppliesText = null;
+    this.suppliesValue = null;
     const mission = data.mission ?? missionById(data.missionId)!;
     const training = mission.id === 'training';
     const mode = mission.mode;
@@ -71,262 +75,259 @@ export class ResultsScene extends Phaser.Scene {
     const title = mode === 'endless' ? 'THE LINE FELL'
       : win ? (training ? 'THE LINE HELD' : mode === 'surge' ? 'SURGE BROKEN' : 'MISSION COMPLETE')
       : data.failReason ?? 'BUNKER OVERRUN';
-    const subtitle = mission.veteran ? `VETERAN · MISSION ${mission.number} · ${mission.name.toUpperCase()} · ${mission.place}`
-      : training ? 'TRAINING · the classic eight waves'
-      : mode === 'surge' ? `FOG SURGE · ${mission.name.toUpperCase()} · ${mission.place}`
-      : mode === 'endless' ? `LAST STAND · ${mission.place}`
-      : `MISSION ${mission.number} · ${mission.name.toUpperCase()} · ${mission.place}`;
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, win ? 0x000000 : 0x1a0000, 0.94).setOrigin(0).setInteractive();
-    this.add.text(VIEW.centerX, 70, title, {
-      fontFamily: STENCIL, fontSize: '64px', color: win || mode === 'endless' ? '#d8e0b0' : '#d84030', stroke: '#000', strokeThickness: 8,
+    backdrop(this, win || mode === 'endless' ? C.night : 0x1a100e).setInteractive();
+    const heading = text(this, VIEW.centerX, 66, title, {
+      size: 64, font: STENCIL, color: win || mode === 'endless' ? C.title : C.red,
     }).setOrigin(0.5);
-    this.add.text(VIEW.centerX, 120, subtitle, {
-      fontFamily: MONO, fontSize: '15px', color: '#b8b4a0',
-    }).setOrigin(0.5);
+    if (heading.width > VIEW.width - 80) heading.setScale((VIEW.width - 80) / heading.width);
+    if (mission.veteran) centreRow([chip(this, { icon: 'medal', text: 'VETERAN', tone: 'gold', size: 18 })], VIEW.centerX, 116);
 
     if (mode) this.drawScore(mode, outcome as ModeOutcome, result.wavesCleared);
     else if (!training) this.drawStars(mission.bonus, data);
 
-    // Battle stats: one tile each.
-    const tiles: [string, string][] = [
-      ['WAVES', mode === 'endless' ? `${result.wavesCleared}` : `${result.wavesCleared} / ${result.totalWaves}`],
-      ['KILLS', `${result.kills}`],
-      ['HEADSHOTS', `${result.headshots}`],
-      ['ACCURACY', `${Math.round(result.accuracy * 100)}%`],
-    ];
-    if (result.vehicles !== undefined) tiles.push(['SAVED', `${result.saved} / ${result.vehicles}`]);
-    if (result.assetFraction !== undefined) tiles.push(['TARGET', `${Math.round(result.assetFraction * 100)}%`]);
-    const tw = 118, tg = 10;
-    const tx0 = VIEW.centerX - (tiles.length * tw + (tiles.length - 1) * tg) / 2;
-    tiles.forEach(([k, v], i) => {
-      const x = tx0 + i * (tw + tg);
-      this.add.rectangle(x, 300, tw, 66, 0x0c0d0c, 0.9).setOrigin(0).setStrokeStyle(1, 0x4a4c48);
-      this.add.text(x + tw / 2, 310, k, { fontFamily: MONO, fontSize: '11px', color: '#9a9a86' }).setOrigin(0.5, 0);
-      this.add.text(x + tw / 2, 328, v, { fontFamily: STENCIL, fontSize: '26px', color: '#e0dcc0' }).setOrigin(0.5, 0);
-    });
+    // Battle stats: an icon and a number each. Waves only matter when they were not all cleared.
+    const tiles: [IconName, string][] = [];
+    if (!win && mode !== 'endless') tiles.push(['wave', `${result.wavesCleared}/${result.totalWaves}`]);
+    tiles.push(['skull', `${result.kills}`], ['head', `${result.headshots}`], ['gauge', `${Math.round(result.accuracy * 100)}%`]);
+    if (result.vehicles !== undefined) tiles.push(['truck', `${result.saved}/${result.vehicles}`]);
+    if (result.assetFraction !== undefined) tiles.push(['mast', `${Math.round(result.assetFraction * 100)}%`]);
+    this.drawTiles(tiles, training ? 220 : 268);
 
-    // Rewards: a supplies headline, chips for what was earned, and one line about what comes next.
     const p = profile.get();
-    const rw = data.rewards;
-    const chips: string[] = [];
-    const notes: string[] = [];
-    let nextLine: string | null = null;
-    let gauge: { power: number; threat: number } | null = null;
-    if (mode) {
-      const earned = outcome.supplies + (rw?.supplies ?? 0);
-      const total = data.saved ? p.supplies : p.supplies + earned;
-      const why = mode === 'surge' && outcome.firstClear ? "  (TODAY'S FIRST WIN)" : '';
-      this.suppliesText = this.add.text(VIEW.centerX, 392, `+${earned} SUPPLIES${why}   ·   TOTAL ${total}`, {
-        fontFamily: STENCIL, fontSize: '26px', color: '#c8d890', stroke: '#000', strokeThickness: 5,
-      }).setOrigin(0.5, 0);
-      for (const ms of (outcome as ModeOutcome).milestones) chips.push(`WAVE ${ms.wave} +${ms.supplies}`);
-      chips.push(...rewardLines(rw));
-      if (!data.saved) notes.push('TEST MODE: this result is not saved');
-    } else if (!training) {
-      const earned = outcome.supplies + (rw?.supplies ?? 0) + (data.contested ?? 0);
-      const total = data.saved ? p.supplies : p.supplies + earned;
-      this.suppliesText = this.add.text(VIEW.centerX, 392, `+${earned} SUPPLIES${outcome.firstClear ? '  ·  FIRST CLEAR' : ''}   ·   TOTAL ${total}`, {
-        fontFamily: STENCIL, fontSize: '26px', color: '#c8d890', stroke: '#000', strokeThickness: 5,
-      }).setOrigin(0.5, 0);
-      if (data.contested) chips.push(`CONTESTED RETAKEN +${data.contested}`);
-      chips.push(...rewardLines(rw));
-      if (outcome.veteranMedal) chips.push(`VETERAN MEDAL ${veteranMedals(p)}/${MISSIONS.length}`);
-      for (const w of outcome.unlockedWeapons) chips.push(`UNLOCK ${weaponById(w).shortName}`);
-      for (const g of outcome.unlockedGear) chips.push(`UNLOCK ${gearName(g)}`);
-      for (const r of outcome.unlockedRecruits ?? []) chips.push(`JOINS ${recruitById(r)!.name.split(' ')[0]}`);
-      const next = missionAfter(mission.id);
-      if (!data.saved) notes.push('TEST MODE: this result is not saved');
-      else if (win && outcome.firstClear && isActFinale(mission)) {
-        nextLine = !next ? 'The Bloom is dead. The coast is clear.'
-          : actOpen(p, next.act) ? `Act ${next.act} is open on the map.`
-          : `Earn ${ACT_STAR_GATE[next.act]} stars to open Act ${next.act}.`;
-      } else if (!win) {
-        const power = playerPower(p);
-        gauge = { power, threat: mission.threat };
-        nextLine = power < mission.threat ? 'Spend Supplies in the Workshop.' : 'So close. Try another loadout.';
-      } else {
-        nextLine = nextUnlockHint(p);
-      }
-    }
-
-    // The crate icon sits left of the supplies headline.
-    if (this.suppliesText) {
-      const sw = this.suppliesText.width;
-      this.add.graphics({ x: VIEW.centerX - sw / 2 - 22, y: 409 })
-        .fillStyle(0x5a6a3a, 1).fillRect(-11, -9, 22, 18)
-        .lineStyle(2, 0x2e361e, 1).strokeRect(-11, -9, 22, 18).lineBetween(-11, -9, 11, 9).lineBetween(11, -9, -11, 9);
-    }
+    if (!training) this.drawRewards(this.rewards(data, mission), 398);
 
     // A defeat shows the power the player had against the threat of the mission.
-    let cy = win ? 430 : 470;
-    if (gauge) {
-      const { power, threat } = gauge;
-      const max = Math.max(power, threat) * 1.25;
-      const bw = 360, bx = VIEW.centerX - bw / 2, by = 458;
-      this.add.text(VIEW.centerX, 430, `POWER ${power}   ·   THREAT ${threat}`, {
-        fontFamily: MONO, fontSize: '13px', color: power >= threat ? '#a8e090' : '#ff9a70',
-      }).setOrigin(0.5, 0);
-      this.add.graphics()
-        .fillStyle(0x0c0d0c, 1).fillRect(bx, by, bw, 12)
-        .fillStyle(power >= threat ? 0x6aae4a : 0xc89a30, 1).fillRect(bx, by, bw * (power / max), 12)
-        .fillStyle(0xff7a5a, 1).fillRect(bx + bw * (threat / max) - 1, by - 5, 3, 22);
-      cy = 492;
-    }
+    if (!win && !mode && !training) this.drawGauge(playerPower(p), mission.threat, 548);
+    if (!data.saved && !training) centreRow([chip(this, { icon: 'cross', text: 'NOT SAVED', tone: 'muted', size: 16 })], VIEW.centerX, 600);
 
-    cy = this.chipRows(chips, cy);
-    if (nextLine) {
-      const ny = cy + 14;
-      this.add.rectangle(VIEW.centerX - 10, ny, 570, 40, 0x1c1d1a, 0.92).setStrokeStyle(2, 0xc8a040);
-      this.add.text(VIEW.centerX, ny, nextLine, { fontFamily: MONO, fontSize: '15px', color: '#e8c060' }).setOrigin(0.5);
-      cy = ny + 20;
-    }
-    if (notes.length) this.add.text(VIEW.centerX, cy + 14, notes.join('\n'), { fontFamily: MONO, fontSize: '12px', color: '#8a8a76' }).setOrigin(0.5, 0);
-
-    // Radio debrief after a win.
-    if (win && mission.debrief.length) {
-      this.add.text(24, VIEW.height - 24, mission.debrief.map((l) => `${l.who}: ${l.text}`).join('\n'), {
-        fontFamily: MONO, fontSize: '13px', color: '#b8b4a0', wordWrap: { width: 340 }, lineSpacing: 3,
-      }).setOrigin(0, 1);
-    }
-
-    // Actions.
-    const bx = VIEW.width - 190;
-    let y = 470;
-    // The Heart (Act 3) and the Bloom (Act 4) each end with an epilogue.
-    const finale = win && outcome.firstClear && data.saved && !mode && !training && isActFinale(mission) && mission.act >= 3;
-    const toMap = (): void => this.leave(() => (finale
-      ? this.scene.start('Ending', { act: mission.act })
-      : this.scene.start('Map', { reveal: win && outcome.firstClear && data.saved ? mission.id : undefined })));
-    const retry = (): void => this.leave(() => this.scene.start('Game', training ? { tutorial: false, missionId: 'training' } : { missionId: mission.id, veteran: mission.veteran }));
-    let primary: () => void;
-    if (mode) {
-      const again = (): void => this.leave(() => this.scene.start('Game', { missionId: mission.id }));
-      const hq = (): void => this.leave(() => this.scene.start('HQ', { tab: mode === 'surge' ? 'surge' : 'endless' }));
-      primary = hq;
-      button(this, bx, y, 300, 50, keyHint('BACK TO HQ', 'ENTER'), hq, 10, 0x5fae3c);
-      y += 54;
-      button(this, bx, y, 300, 38, mode === 'endless' ? 'TRY AGAIN' : 'PLAY AGAIN', again, 10, 0xc8a040);
-    } else if (training) {
-      primary = retry;
-      button(this, bx, y, 300, 50, keyHint('TRAIN AGAIN', 'ENTER'), retry, 10, 0xc84030);
-    } else if (win) {
-      primary = toMap;
-      button(this, bx, y, 300, 50, keyHint('CONTINUE', 'ENTER'), toMap, 10, 0x5fae3c);
-      y += 54;
-      button(this, bx, y, 300, 38, 'PLAY AGAIN', retry, 10, 0xc8a040);
-    } else {
-      primary = retry;
-      button(this, bx, y, 300, 50, keyHint('RETRY', 'ENTER'), retry, 10, 0xc84030);
-      y += 54;
-      button(this, bx, y, 300, 38, workshopOpen(p) ? 'MAP & WORKSHOP' : 'VALLEY MAP', toMap, 10, 0xc8a040);
-    }
-    y += 46;
-    button(this, bx, y, 300, 38, 'MAIN MENU', () => this.leave(() => this.scene.start('Menu')), 10, 0x5a5a50);
-    this.input.keyboard!.on('keydown-ENTER', () => primary());
+    this.drawActions(data, mission);
 
     // CrazyGames: the portal's celebration for a boss kill, a finished act, a first three-star result.
     if (data.saved && win && !training) {
       const proud = mission.objective.kind === 'boss' || (outcome.stars === 3 && outcome.previousStars < 3) || (mode === 'surge' && outcome.firstClear);
       if (proud) portal.happytime();
     }
+  }
+
+  /** The buttons: the way on at the bottom right, the others at the bottom left. */
+  private drawActions(data: ResultsData, mission: MissionDef): void {
+    const training = mission.id === 'training';
+    const mode = mission.mode;
+    const { result, outcome } = data;
+    const win = result.victory;
+    const p = profile.get();
+    // The Heart (Act 3) and the Bloom (Act 4) each end with an epilogue.
+    const finale = win && outcome.firstClear && data.saved && !mode && !training && isActFinale(mission) && mission.act >= 3;
+    const debrief = win && !mode && !training ? mission.debrief : [];
+    const toMap = (): void => this.leave(() => (finale
+      ? this.scene.start('Ending', { act: mission.act })
+      : this.scene.start('Map', { reveal: win && outcome.firstClear && data.saved ? mission.id : undefined, debrief })));
+    const retry = (): void => this.leave(() => this.scene.start('Game', training ? { tutorial: false, missionId: 'training' } : { missionId: mission.id, veteran: mission.veteran }));
+    const menu = (): void => this.leave(() => this.scene.start('Menu'));
+    const y = VIEW.height - 52;
+    const left: Button[] = [];
+    const small = (o: Omit<Parameters<typeof pushButton>[3], 'h'>): void => {
+      left.push(pushButton(this, 0, y, { h: 48, size: 20, ...o }));
+    };
+    let primary: () => void;
+    let way: Parameters<typeof pushButton>[3];
+    if (mode) {
+      primary = () => this.leave(() => this.scene.start('HQ', { tab: mode === 'surge' ? 'surge' : 'endless' }));
+      way = { icon: 'play', label: 'HQ', onClick: primary, tone: 'go' };
+      small({ icon: 'replay', label: 'AGAIN', onClick: () => this.leave(() => this.scene.start('Game', { missionId: mission.id })) });
+    } else if (training) {
+      primary = retry;
+      way = { icon: 'replay', label: 'TRAIN AGAIN', onClick: retry, tone: 'go' };
+    } else if (win) {
+      primary = toMap;
+      const next = data.saved && !campaignComplete(p) ? nextMission(p) : null;
+      const prize = next ? next.firstClear.weapons[0] ?? null : null;
+      const gear = next && !prize ? next.firstClear.gear[0] ?? null : null;
+      const trail = prize ? WEAPON_ICON[prize] : gear ? ITEM_ICON[gear.split(':')[1]] : undefined;
+      way = { icon: 'play', label: trail ? 'NEXT:' : 'CONTINUE', trail, onClick: toMap, tone: 'go' };
+      small({ icon: 'replay', label: 'AGAIN', onClick: retry });
+    } else {
+      primary = retry;
+      way = { icon: 'replay', label: 'RETRY', onClick: retry, tone: 'go' };
+      small(workshopOpen(p)
+        ? { icon: 'wrench', label: 'WORKSHOP', onClick: () => this.leave(() => this.scene.start('Workshop')), tone: 'brass' }
+        : { icon: 'map', label: 'MAP', onClick: toMap });
+    }
+    small({ icon: 'home', label: 'MENU', onClick: menu });
+    let x = 26;
+    for (const b of left) {
+      b.c.x = x + b.w / 2;
+      x += b.w + 12;
+    }
+    const keyed = { ...way, h: 62, size: 28, key: isTouchDevice() ? undefined : 'ENTER' };
+    const go = pushButton(this, 0, y - 6, keyed);
+    go.c.x = VIEW.width - 26 - go.w / 2;
+    this.input.keyboard!.on('keydown-ENTER', () => primary());
     // Optional rewarded ads (only in a CrazyGames build with ads on).
-    if (data.saved && !training) this.rewardOffers(data, mission.id, win, bx, y + 50);
+    if (data.saved && !training) this.rewardOffers(data, mission.id, win, VIEW.centerX + 60, y);
   }
 
   /** Double the Supplies after any finish, or retry a loss with extra cash: the player's choice, never forced. */
   private rewardOffers(data: ResultsData, missionId: string, win: boolean, x: number, y: number): void {
     if (!portal.rewardReady) return;
     const supplies = data.outcome.supplies;
+    let cx = x;
     if (supplies > 0) {
-      const b = button(this, x, y, 300, 38, `DOUBLE SUPPLIES  +${supplies}  ▶ AD`, () => {
-        b.disableInteractive().setAlpha(0.5);
-        const ok = portal.rewarded(() => {
-          profile.update((d) => {
-            d.supplies += supplies;
-            d.suppliesEarned += supplies;
-          });
-          audio.play('buy', { volume: 0.8 });
-          this.suppliesText?.setText(`SUPPLIES DOUBLED  +${supplies}   ·   TOTAL ${profile.get().supplies}`);
-        }, () => b.destroy());
-        if (!ok) b.destroy();
-      }, 10, 0x4a8ac8);
-      y += 44;
+      const b = pushButton(this, cx, y, {
+        h: 48, size: 18, icon: 'crate', label: `×2  +${supplies}  ▶ AD`, tone: 'brass',
+        onClick: () => {
+          b.c.disableInteractive().setAlpha(0.5);
+          const ok = portal.rewarded(() => {
+            profile.update((d) => {
+              d.supplies += supplies;
+              d.suppliesEarned += supplies;
+            });
+            audio.play('buy', { volume: 0.8 });
+            this.suppliesValue?.setText(`+${Number(this.suppliesValue.text.slice(1)) + supplies}`);
+          }, () => b.c.destroy());
+          if (!ok) b.c.destroy();
+        },
+      });
+      cx += b.w + 12;
     }
     if (!win) {
-      const r = button(this, x, y, 300, 38, `RETRY +${Math.round(RETRY_CASH_BONUS * 100)}% CASH  ▶ AD`, () => {
-        r.disableInteractive().setAlpha(0.5);
-        let granted = false;
-        const ok = portal.rewarded(() => { granted = true; }, () => {
-          if (granted) this.leave(() => this.scene.start('Game', { missionId, bonusCash: RETRY_CASH_BONUS }), false);
-          else r.destroy();
-        });
-        if (!ok) r.destroy();
-      }, 10, 0x4a8ac8);
+      const r = pushButton(this, cx + 20, y, {
+        h: 48, size: 18, icon: 'cash', label: `+${Math.round(RETRY_CASH_BONUS * 100)}%  ▶ AD`, tone: 'brass',
+        onClick: () => {
+          r.c.disableInteractive().setAlpha(0.5);
+          let granted = false;
+          const ok = portal.rewarded(() => { granted = true; }, () => {
+            if (granted) this.leave(() => this.scene.start('Game', { missionId, bonusCash: RETRY_CASH_BONUS }), false);
+            else r.c.destroy();
+          });
+          if (!ok) r.c.destroy();
+        },
+      });
     }
   }
 
+  /** Three big stars; under each, the reason as an icon and a short value. */
   private drawStars(goal: Parameters<typeof bonusValue>[0], data: ResultsData): void {
     const { outcome, result } = data;
-    const xs = [-74, 0, 74].map((d) => VIEW.centerX + d);
+    const xs = [-122, 0, 122].map((d) => VIEW.centerX + d);
     xs.forEach((x, i) => {
       const lit = i < outcome.stars;
-      const g = this.add.graphics({ x, y: 182 });
-      drawStar(g, lit ? GOLD : DIM, i === 1 ? 34 : 28);
+      const star = icon(this, 'star', x, 168, 82, lit ? 0x000000 : C.lineStrong, { fill: lit ? C.star : C.track, stroke: 1.3 });
       if (lit) {
-        g.setScale(0);
-        this.tweens.add({ targets: g, scale: 1, duration: 260, delay: 350 + i * 260, ease: 'Back.Out', onStart: () => audio.play('ui_click', { volume: 0.8, rate: 1 + i * 0.12 }) });
+        const full = star.scale;
+        star.setScale(0);
+        this.tweens.add({ targets: star, scale: full, duration: 260, delay: 350 + i * 260, ease: 'Back.Out', onStart: () => audio.play('ui_click', { volume: 0.8, rate: 1 + i * 0.12 }) });
       }
     });
-    // Under each star: the reason it was earned, as an icon and a short value.
-    const reasons: [boolean, (g: Phaser.GameObjects.Graphics, c: number) => void, string][] = [
-      [result.victory, drawTick, ''],
-      [outcome.bunkerStar, drawShield, `${Math.round(BUNKER_STAR_FRACTION * 100)}%`],
-      [outcome.bonusMet, drawReticle, bonusValue(goal)],
+    const reasons: [boolean, IconName, string][] = [
+      [result.victory, 'check', ''],
+      [outcome.bunkerStar, 'shield', `${Math.round(BUNKER_STAR_FRACTION * 100)}%`],
+      [outcome.bonusMet, 'head', bonusValue(goal)],
     ];
-    reasons.forEach(([ok, draw, value], i) => {
-      const x = xs[i];
-      draw(this.add.graphics({ x: value ? x - 22 : x, y: 248 }), ok ? GOLD : DIM);
-      if (value) this.add.text(x - 8, 248, value, { fontFamily: MONO, fontSize: '15px', color: ok ? '#e0dcc0' : '#6a6a5e' }).setOrigin(0, 0.5);
+    if (goal.kind !== 'headshots') {
+      reasons[2][1] = goal.kind === 'accuracy' ? 'gauge' : goal.kind === 'saveAll' ? 'truck' : goal.kind === 'assetHealth' ? 'mast' : ITEM_ICON[goal.id];
+    }
+    reasons.forEach(([ok, name, value], i) => {
+      const color = ok ? 0xd8d0b4 : C.lineStrong;
+      const t = value ? text(this, 0, 232, value, { size: 20, color, bold: true }).setOrigin(0, 0.5) : null;
+      const size = 28;
+      const w = iconWidth(name, size) + (t ? 8 + t.width : 0);
+      icon(this, name, xs[i] - w / 2 + iconWidth(name, size) / 2, 232, size, color);
+      t?.setX(xs[i] - w / 2 + iconWidth(name, size) + 8);
     });
   }
 
   /** Fog Surge and Last Stand: the score and today's or all-time best instead of stars. */
   private drawScore(mode: 'surge' | 'endless', o: ModeOutcome, wave: number): void {
-    const big = mode === 'surge' ? `SCORE ${o.score.toLocaleString('en-US')}` : `WAVE ${wave}`;
-    const best = mode === 'surge' ? `TODAY'S BEST ${o.best.toLocaleString('en-US')}` : `BEST WAVE ${o.best}`;
-    this.add.text(VIEW.centerX, 190, big, { fontFamily: STENCIL, fontSize: '48px', color: '#e8c060', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5);
-    this.add.text(VIEW.centerX, 240, o.newBest && o.score > 0 ? `NEW BEST  ·  ${best}` : best, {
-      fontFamily: MONO, fontSize: '17px', color: o.newBest ? '#a8e090' : '#b8b4a0',
-    }).setOrigin(0.5);
+    const big = mode === 'surge' ? o.score.toLocaleString('en-US') : `WAVE ${wave}`;
+    text(this, VIEW.centerX, 160, big, { size: 70, color: C.star, font: STENCIL }).setOrigin(0.5);
+    const best = mode === 'surge' ? o.best.toLocaleString('en-US') : `${o.best}`;
+    centreRow([chip(this, {
+      icon: 'star', text: o.newBest && o.score > 0 ? `NEW BEST ${best}` : `BEST ${best}`, tone: o.newBest ? 'green' : 'plain', size: 20,
+    })], VIEW.centerX, 226);
     if (o.newBest && o.score > 0) audio.play('wave_clear', { volume: 0.6, rate: 1.2 });
   }
 
-  /** Reward and unlock chips, centred in rows. Returns the y just below the last row. */
-  private chipRows(chips: string[], y: number): number {
-    if (!chips.length) return y;
-    const maxW = 600, gap = 8, rowH = 26;
-    const placed: { t: Phaser.GameObjects.Text; x: number; w: number; row: number }[] = [];
-    const rowW: number[] = [];
-    let row = 0, cur = 0;
-    for (const c of chips) {
-      const t = this.add.text(0, 0, c, { fontFamily: MONO, fontSize: '12px', color: '#e8c060' }).setDepth(2);
-      const w = t.width + 20;
-      if (cur > 0 && cur + w > maxW) {
-        rowW.push(cur - gap);
-        row++;
-        cur = 0;
+  private drawTiles(tiles: [IconName, string][], top: number): void {
+    const gap = 13, h = 106;
+    const parts: Part[] = tiles.map(([name, value]) => {
+      const t = text(this, 0, 75, value, { size: 36, font: STENCIL }).setOrigin(0.5);
+      const w = Math.max(128, Math.ceil(t.width + 40));
+      t.x = w / 2;
+      const bg = this.add.rectangle(0, 0, w, h, C.tile).setOrigin(0).setStrokeStyle(1, C.lineSoft);
+      return { c: this.add.container(0, 0, [bg, icon(this, name, w / 2, 31, 34, C.soft), t]), w, h };
+    });
+    centreRow(parts, VIEW.centerX, top + h / 2, gap);
+  }
+
+  /** What was earned, one card each: the item's icon, a number or name, a small word. */
+  private drawRewards(rewards: Reward[], top: number): void {
+    const gap = 13, h = 126;
+    const parts: Part[] = rewards.map((r, i) => {
+      const value = text(this, 0, 76, r.value, { size: 28, font: STENCIL }).setOrigin(0.5);
+      const label = text(this, 0, 106, r.label, { size: 14, color: C.soft, bold: true, spacing: 1 }).setOrigin(0.5);
+      const w = Math.max(138, Math.ceil(Math.max(value.width, label.width) + 32));
+      value.x = label.x = w / 2;
+      if (r.first) this.suppliesValue = value;
+      const bg = this.add.rectangle(0, 0, w, h, C.raised).setOrigin(0).setStrokeStyle(2, r.first ? C.brass : C.lineReward);
+      const c = this.add.container(0, 0, [bg, icon(this, r.icon, w / 2, 35, 44, C.brass), value, label]).setAlpha(0);
+      this.tweens.add({ targets: c, alpha: 1, duration: 220, delay: 900 + i * 120 });
+      return { c, w, h };
+    });
+    // A very good battle can earn many things: the row shrinks to stay on screen.
+    const width = parts.reduce((s, q) => s + q.w, 0) + gap * Math.max(0, parts.length - 1);
+    const scale = Math.min(1, (VIEW.width - 60) / Math.max(1, width));
+    let x = VIEW.centerX - (width * scale) / 2;
+    for (const q of parts) {
+      q.c.setPosition(x, top).setScale(scale);
+      x += (q.w + gap) * scale;
+    }
+  }
+
+  private rewards(data: ResultsData, mission: MissionDef): Reward[] {
+    const p = profile.get();
+    const rw = data.rewards;
+    const mode = mission.mode;
+    const outcome = data.outcome;
+    // Last Stand milestones get cards of their own, so the first card shows the rest.
+    const milestones = mode ? (outcome as ModeOutcome).milestones : [];
+    const base = outcome.supplies - milestones.reduce((n, ms) => n + ms.supplies, 0);
+    const out: Reward[] = [{
+      icon: 'crate',
+      value: `+${base}`,
+      label: outcome.firstClear ? (mode === 'surge' ? 'FIRST TODAY' : mode ? 'SUPPLIES' : 'FIRST CLEAR') : 'SUPPLIES',
+      first: true,
+    }];
+    if (data.contested) out.push({ icon: 'flame', value: `+${data.contested}`, label: 'RETAKEN' });
+    if (mode) {
+      for (const ms of milestones) out.push({ icon: 'wave', value: `+${ms.supplies}`, label: `WAVE ${ms.wave}` });
+    } else {
+      const o = outcome as MissionOutcome;
+      if (o.veteranMedal) out.push({ icon: 'medal', value: `${veteranMedals(p)}/${MISSIONS.length}`, label: 'VETERAN' });
+      for (const w of o.unlockedWeapons) out.push({ icon: WEAPON_ICON[w], value: weaponById(w).shortName, label: 'UNLOCKED' });
+      for (const g of o.unlockedGear) {
+        const id = g.split(':')[1];
+        const short = MODS.find((m) => m.id === id)?.short ?? gearName(g).split(' ').pop()!.toUpperCase();
+        out.push({ icon: ITEM_ICON[id], value: short, label: 'UNLOCKED' });
       }
-      placed.push({ t, x: cur, w, row });
-      cur += w + gap;
+      for (const r of o.unlockedRecruits ?? []) out.push({ icon: 'people', value: recruitById(r)!.name.split(' ')[0].toUpperCase(), label: 'JOINS' });
     }
-    rowW.push(cur - gap);
-    for (const c of placed) {
-      const ox = VIEW.centerX - rowW[c.row] / 2;
-      const yy = y + c.row * rowH;
-      this.add.rectangle(ox + c.x, yy, c.w, 20, 0x1a1b18, 0.95).setOrigin(0, 0.5).setStrokeStyle(1, 0x7a6420).setDepth(1);
-      c.t.setPosition(ox + c.x + 10, yy).setOrigin(0, 0.5);
-    }
-    return y + (row + 1) * rowH;
+    for (const c of rw?.contracts ?? []) out.push({ icon: 'check', value: `+${c.reward}`, label: 'CONTRACT' });
+    if (rw?.setBonus) out.push({ icon: 'check', value: `+${rw.setBonus}`, label: 'ALL THREE' });
+    if (rw?.codex.length) out.push({ icon: 'book', value: `+${rw.codex.reduce((n, c) => n + c.supplies, 0)}`, label: 'FIELD NOTES' });
+    for (const skin of rw?.skins ?? []) out.push({ icon: WEAPON_ICON[skin.weapon], value: SKINS[skin.skin].name.toUpperCase(), label: 'NEW SKIN' });
+    return out;
+  }
+
+  /** Power against threat: the bar is the player's power, the red mark the mission's threat. */
+  private drawGauge(power: number, threat: number, y: number): void {
+    const w = 440, x = VIEW.centerX - w / 2;
+    const max = Math.max(power, threat) * 1.25;
+    const g = this.add.graphics();
+    meter(g, x, y, w, 18, power / max, 0xe0b040);
+    g.fillStyle(0xff7a5a, 1).fillRect(x + w * (threat / max) - 2, y - 8, 5, 34);
+    text(this, x, y + 24, `POWER ${power}`, { size: 17, color: 0xc8c2a6, bold: true });
+    text(this, x + w, y + 24, `${threat}`, { size: 17, color: 0xff7a5a, bold: true }).setOrigin(1, 0);
   }
 
   /** Leaves the results; a CrazyGames midgame break may run first (never in the first missions, three minutes apart). */
@@ -338,32 +339,4 @@ export class ResultsScene extends Phaser.Scene {
     if (allowBreak && this.saved && portal.midgame(wins, then)) return;
     then();
   }
-}
-
-/** One line each for finished contracts, Field Notes pages and new skins. */
-function rewardLines(rw: RunRewards | undefined): string[] {
-  if (!rw) return [];
-  const out = rw.contracts.map((c) => `CONTRACT DONE: ${c.text.toUpperCase()}  +${c.reward}`);
-  if (rw.setBonus) out.push(`ALL TODAY'S CONTRACTS DONE  +${rw.setBonus}`);
-  if (rw.codex.length) {
-    const pages = rw.codex.map((c) => `${ENEMIES[c.enemy]?.name ?? c.enemy} p.${c.page}`).join(', ');
-    out.push(`FIELD NOTES: ${pages}  +${rw.codex.reduce((n, c) => n + c.supplies, 0)}`);
-  }
-  for (const s of rw.skins) out.push(`MASTERY: ${weaponById(s.weapon).shortName} ${SKINS[s.skin].name.toUpperCase()} SKIN UNLOCKED (WORKSHOP)`);
-  return out;
-}
-
-
-
-
-export function drawStar(g: Phaser.GameObjects.Graphics, color: number, r: number): void {
-  const pts: Phaser.Math.Vector2[] = [];
-  for (let i = 0; i < 10; i++) {
-    const a = -Math.PI / 2 + (i * Math.PI) / 5;
-    const rr = i % 2 === 0 ? r : r * 0.45;
-    pts.push(new Phaser.Math.Vector2(Math.cos(a) * rr, Math.sin(a) * rr));
-  }
-  g.fillStyle(0x000000, 0.6).fillPoints(pts.map((v) => new Phaser.Math.Vector2(v.x + 3, v.y + 4)), true);
-  g.fillStyle(color, 1).fillPoints(pts, true);
-  g.lineStyle(2, 0x000000, 0.8).strokePoints(pts, true);
 }

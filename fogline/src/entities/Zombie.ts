@@ -232,6 +232,24 @@ export class Zombie {
     this.updateScreen();
   }
 
+  /**
+   * A still, evenly lit figure for a menu card: feet at (0, 0), no taller than `height`
+   * pixels and no wider than `width`. Build a Zombie just for this; it is not simulated.
+   */
+  portrait(def: EnemyDef, height: number, width: number): Phaser.GameObjects.Container {
+    this.reset(def, 1, 1, 0, 8, () => 0.5);
+    this.state = 'walk';
+    this.update(0);
+    // A crawler spreads its arms wider than the dead that walk.
+    const half = this.figure ? this.figure.halfWidth : def.rig === 'crawl' ? 140 : 95;
+    const scale = Math.min(height / this.rigHeight, width / (2 * half));
+    this.root.setScale(scale).setPosition(0, 0).setRotation(0).setAlpha(1).setDepth(0);
+    this.shadow.setVisible(false);
+    const tint = def.tint ?? def.boss?.tint ?? 0xffffff;
+    for (const part of this.root.list as Phaser.GameObjects.Image[]) part.setTint(tint);
+    return this.root;
+  }
+
   /** Procedural looks: every part is painted into the shared zombie atlas. */
   private dressProcedural(def: EnemyDef, rng: () => number): void {
     this.look = `${def.look}_${Math.floor(rng() * def.looks)}`;

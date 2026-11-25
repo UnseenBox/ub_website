@@ -1,8 +1,12 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
 import { profile } from '../systems/Profile';
-import { MONO, STENCIL, button, slider, toggleFullscreen } from '../ui/widgets';
+import { slider, toggleFullscreen } from '../ui/widgets';
+import { C, STENCIL, box, pushButton, text } from '../ui/kit';
+import { icon } from '../ui/icons';
+import { backdrop } from '../rendering/Margins';
 import { VIEW } from './config';
+import { isTouchDevice } from './touchControls';
 
 /** Menu-only settings: volume and fullscreen. The game is not running yet. */
 export class SettingsScene extends Phaser.Scene {
@@ -13,32 +17,28 @@ export class SettingsScene extends Phaser.Scene {
   create(): void {
     this.scene.pause('Menu');
     this.input.setDefaultCursor('default');
-    this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x000000, 0.7).setOrigin(0).setInteractive();
+    backdrop(this, 0x000000, 0.7).setInteractive();
 
-    const w = 520, h = 380;
+    const w = 460, h = 400;
     const x0 = (VIEW.width - w) / 2;
     const y0 = (VIEW.height - h) / 2;
-    this.add.rectangle(x0, y0, w, h, 0x1c1d1c, 0.97).setOrigin(0).setStrokeStyle(2, 0x050505);
-    this.add.rectangle(x0, y0, w, 4, 0x5a5c58).setOrigin(0);
-    this.add.text(VIEW.centerX, y0 + 34, 'SETTINGS', {
-      fontFamily: STENCIL, fontSize: '38px', color: '#e0dcc0', stroke: '#000', strokeThickness: 4,
-    }).setOrigin(0.5);
+    box(this, x0, y0, w, h, C.night, C.lineStrong);
+    icon(this, 'gear', VIEW.centerX - 108, y0 + 42, 36, C.text);
+    text(this, VIEW.centerX + 22, y0 + 42, 'SETTINGS', { size: 40, font: STENCIL, color: C.title }).setOrigin(0.5);
 
     const save = profile.get();
     const set = (key: 'master' | 'sfx' | 'music', value: number): void => {
       audio.setVolumes({ [key]: value });
       profile.update((d) => { d.volumes[key] = value; });
     };
-    const sx = x0 + 70;
-    slider(this, sx, y0 + 108, 300, 'MASTER VOLUME', save.volumes.master, (v) => set('master', v), 5);
-    slider(this, sx, y0 + 158, 300, 'SFX VOLUME', save.volumes.sfx, (v) => set('sfx', v), 5);
-    slider(this, sx, y0 + 208, 300, 'MUSIC / AMBIENCE', save.volumes.music, (v) => set('music', v), 5);
+    const sx = x0 + 60;
+    slider(this, sx, y0 + 110, 280, 'MASTER', save.volumes.master, (v) => set('master', v), 5);
+    slider(this, sx, y0 + 162, 280, 'EFFECTS', save.volumes.sfx, (v) => set('sfx', v), 5);
+    slider(this, sx, y0 + 214, 280, 'MUSIC', save.volumes.music, (v) => set('music', v), 5);
 
-    button(this, VIEW.centerX, y0 + 268, 300, 40, 'FULLSCREEN  [F]', () => toggleFullscreen(this), 10);
-    button(this, VIEW.centerX, y0 + 322, 300, 38, 'BACK  [ESC]', () => this.close(), 10, 0x6a7a8a);
-    this.add.text(VIEW.centerX, y0 + h + 18, 'Volume changes apply immediately.', {
-      fontFamily: MONO, fontSize: '12px', color: '#8a8a76',
-    }).setOrigin(0.5);
+    const touch = isTouchDevice();
+    pushButton(this, VIEW.centerX, y0 + 278, { w: 340, h: 50, size: 24, icon: 'plus', label: 'FULLSCREEN', key: touch ? undefined : 'F', onClick: () => toggleFullscreen(this) });
+    pushButton(this, VIEW.centerX, y0 + 342, { w: 340, h: 50, size: 24, icon: 'back', label: 'BACK', key: touch ? undefined : 'ESC', onClick: () => this.close() });
 
     this.input.keyboard!.on('keydown-F', () => toggleFullscreen(this));
     this.input.keyboard!.on('keydown-ESC', () => this.close());

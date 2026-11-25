@@ -2,6 +2,7 @@
 // right. Aim is relative (trackpad style) so the thumb never covers the target.
 
 import { VIEW } from './config';
+import { SCREEN, edgeShift } from './screen';
 
 /** Crosshair pixels moved per pixel the aim thumb drags. */
 export const TOUCH_AIM_SENSITIVITY = 2.0;
@@ -62,9 +63,24 @@ export const TOUCH_LAYOUT = {
 
 export type TouchButton = 'fire' | 'reload' | 'pause' | 'shop' | 'deploy';
 
-/** Left half of the battlefield (above the HUD) is the aim zone. */
+/**
+ * The buttons on this screen: on a wide one the side buttons sit by the edges, under the
+ * thumbs (clear of a notch); on a tall one the top buttons rise to the top.
+ */
+export function touchLayout(): typeof TOUCH_LAYOUT {
+  const L = TOUCH_LAYOUT, x = edgeShift(), y = SCREEN.my;
+  return {
+    fire: { ...L.fire, x: L.fire.x + x },
+    reload: { ...L.reload, x: L.reload.x + x },
+    pause: { ...L.pause, x: L.pause.x - x, y: L.pause.y - y },
+    shop: { ...L.shop, x: L.shop.x - x, y: L.shop.y - y },
+    deploy: L.deploy,
+  };
+}
+
+/** Left half of the battlefield (above the HUD), out to the screen edge, is the aim zone. */
 export function isAimTouch(x: number, y: number): boolean {
-  return x >= 0 && x < VIEW.width / 2 && y >= 0 && y < VIEW.hudTop;
+  return x >= -SCREEN.mx && x < VIEW.width / 2 && y >= -SCREEN.my && y < VIEW.hudTop;
 }
 
 /** Move the crosshair by a finger drag, clamped to the battlefield. */
@@ -88,7 +104,7 @@ export function inPill(p: TouchPill, x: number, y: number): boolean {
 
 /** Which on-screen button (if any) is under a point. `deployVisible` gates the next-wave pill. */
 export function touchButtonAt(x: number, y: number, deployVisible: boolean): TouchButton | null {
-  const L = TOUCH_LAYOUT;
+  const L = touchLayout();
   if (inCircle(L.fire, x, y, 14)) return 'fire';
   if (inCircle(L.reload, x, y, 10)) return 'reload';
   if (inCircle(L.pause, x, y, 10)) return 'pause';
