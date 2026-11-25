@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { appendLog, clipWords, portraitInitial, wordCount } from './messages';
 import { DEFENSES, MODS, SUPPORT } from '../data/upgrades';
 import { WEAPONS, weaponById } from '../data/weapons';
 import { VIEW } from '../game/config';
@@ -27,6 +28,12 @@ interface Slot {
   hit: Phaser.GameObjects.Zone;
   state: string;
 }
+
+/** Portrait tint per speaker. */
+const PORTRAIT_TINT: Record<string, number> = {
+  HALE: 0x7a8a6a, VARGA: 0x6a7a9a, KESTREL: 0x8a9ab0, DOT: 0xb08a4a, MARA: 0x6a8a6a,
+  BRICK: 0x8a6a4a, ROOK: 0x9a7a5a, VESNA: 0x7a6a8a,
+};
 
 export interface HudActions {
   weapon(slot: number): void;
@@ -70,8 +77,15 @@ export class HUD {
   private objectiveText: Phaser.GameObjects.Text;
   private bossName: Phaser.GameObjects.Text;
   private bossBar: Phaser.GameObjects.Graphics;
-  private hintText: Phaser.GameObjects.Text;
+  private hintBox: Phaser.GameObjects.Container | null = null;
+  private pendingHint: { caps: string[]; label: string } | null = null;
   private hintLeft = 0;
+  private pips: Phaser.GameObjects.Graphics;
+  private card: Phaser.GameObjects.Container | null = null;
+  /** Every radio line of this battle in full, for the radio log in the pause menu. */
+  readonly radioLog: { who: string; text: string }[] = [];
+  private radioPortrait: Phaser.GameObjects.Graphics;
+  private radioInitial: Phaser.GameObjects.Text;
   private radioBack: Phaser.GameObjects.Rectangle;
   private radioWho: Phaser.GameObjects.Text;
   private radioText: Phaser.GameObjects.Text;
@@ -111,13 +125,12 @@ export class HUD {
     }).setDepth(DEPTH.hud + 1);
     const focusZone = scene.add.zone(20, VIEW.hudTop - 48, 230, 34).setOrigin(0).setDepth(DEPTH.hud + 5).setInteractive({ useHandCursor: true });
     focusZone.on('pointerdown', () => actions.focus?.());
-    this.hintText = scene.add.text(VIEW.centerX, VIEW.hudTop - 150, '', {
-      fontFamily: MONO, fontSize: '17px', color: '#fff4c8', stroke: '#000', strokeThickness: 5, align: 'center',
-      backgroundColor: 'rgba(0,0,0,0.45)', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(DEPTH.banner + 2).setVisible(false);
+    this.pips = scene.add.graphics().setDepth(DEPTH.banner + 1);
     this.radioBack = scene.add.rectangle(16, 16, 440, 34, 0x000000, 0.55).setOrigin(0).setDepth(DEPTH.banner).setVisible(false);
-    this.radioWho = scene.add.text(28, 33, '', { fontFamily: STENCIL, fontSize: '15px', color: '#e8c060', stroke: '#000', strokeThickness: 3 }).setOrigin(0, 0.5).setDepth(DEPTH.banner + 1);
-    this.radioText = scene.add.text(110, 33, '', { fontFamily: MONO, fontSize: '14px', color: '#e0dcc0', stroke: '#000', strokeThickness: 3, wordWrap: { width: 330 } }).setOrigin(0, 0.5).setDepth(DEPTH.banner + 1);
+    this.radioPortrait = scene.add.graphics().setDepth(DEPTH.banner + 1).setVisible(false);
+    this.radioInitial = scene.add.text(40, 33, '', { fontFamily: STENCIL, fontSize: '15px', color: '#fff4c8', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(DEPTH.banner + 2).setVisible(false);
+    this.radioWho = scene.add.text(62, 33, '', { fontFamily: STENCIL, fontSize: '15px', color: '#e8c060', stroke: '#000', strokeThickness: 3 }).setOrigin(0, 0.5).setDepth(DEPTH.banner + 1);
+    this.radioText = scene.add.text(130, 33, '', { fontFamily: MONO, fontSize: '14px', color: '#e0dcc0', stroke: '#000', strokeThickness: 3, wordWrap: { width: 290 } }).setOrigin(0, 0.5).setDepth(DEPTH.banner + 1);
     const L = HUD_LAYOUT;
     scene.add.image(0, L.top, 'hud_panel').setOrigin(0).setDepth(DEPTH.hud);
     // block clicks on the panel from reaching anything else
@@ -140,6 +153,7 @@ export class HUD {
     this.hpText = scene.add.text(st.x + st.w - 10, L.top + 46, '', { fontFamily: MONO, fontSize: '13px', color: '#d8e8c8', stroke: '#000', strokeThickness: 3 }).setOrigin(1, 0).setDepth(DEPTH.hud + 2);
     this.cashText = scene.add.text(sx, L.top + 66, '', { fontFamily: STENCIL, fontSize: '30px', color: '#c8d890', stroke: '#000', strokeThickness: 4 }).setDepth(DEPTH.hud + 1);
     this.waveText = scene.add.text(st.x + st.w - 10, L.top + 70, '', { fontFamily: MONO, fontSize: '13px', color: '#c8c8b0' }).setOrigin(1, 0).setDepth(DEPTH.hud + 1);
+    this.waveText.setVisible(false);
     this.hostilesText = scene.add.text(st.x + st.w - 10, L.top + 88, '', { fontFamily: MONO, fontSize: '13px', color: '#d89070' }).setOrigin(1, 0).setDepth(DEPTH.hud + 1);
 
     this.ammoBig = scene.add.text(VIEW.width - 132, VIEW.hudTop - 12, '', { fontFamily: STENCIL, fontSize: '44px', color: '#e8e0c0', stroke: '#000', strokeThickness: 5 }).setOrigin(1, 1).setDepth(DEPTH.hud);
@@ -255,34 +269,114 @@ export class HUD {
     g.fillStyle(0xffffff, 0.15).fillRect(x, y, w * Math.max(0, fraction), 3);
   }
 
-  /** A one-time control hint above the HUD, for a few seconds. */
-  hint(text: string): void {
-    setText(this.hintText, text);
-    this.hintText.setVisible(true).setAlpha(1);
+  /** A control hint: key caps and a short label, for a few seconds. It waits behind banners and wave cards. */
+  hint(caps: string[], label: string): void {
+    if (this.busy()) {
+      this.pendingHint = { caps, label };
+      return;
+    }
+    this.showHint(caps, label);
+  }
+
+  /** A banner or a wave card is on screen: messages take turns. */
+  private busy(): boolean {
+    return this.bannerLeft > 0 || this.bannerSticky || this.card !== null;
+  }
+
+  private showHint(caps: string[], label: string): void {
+    this.hintBox?.destroy();
+    const s = this.scene;
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    let x = 0;
+    for (const c of caps) {
+      const w = Math.max(30, c.length * 11 + 16);
+      parts.push(s.add.rectangle(x, 0, w, 30, 0x0c0d0b, 0.92).setOrigin(0, 0.5).setStrokeStyle(2, 0xe8e0c8));
+      parts.push(s.add.text(x + w / 2, 0, c, { fontFamily: MONO, fontSize: '14px', color: '#f4ecd0', fontStyle: 'bold' }).setOrigin(0.5));
+      x += w + 6;
+    }
+    const gap = caps.length ? 6 : 0;
+    const lbl = s.add.text(x + gap, 0, label, { fontFamily: STENCIL, fontSize: '19px', color: '#fff4c8', stroke: '#000', strokeThickness: 4 }).setOrigin(0, 0.5);
+    parts.push(lbl);
+    const width = x + gap + lbl.width;
+    this.hintBox = s.add.container(VIEW.centerX - width / 2, VIEW.hudTop - 150, parts).setDepth(DEPTH.banner + 2);
     this.hintLeft = 6;
   }
 
-  /** Radio chatter in the top-left corner, one line at a time. */
+  /** Radio chatter at the top left: a portrait, the line (at most six words) and the full line kept in the log. */
   radio(lines: { who: string; text: string }[]): void {
+    for (const l of lines) appendLog(this.radioLog, l);
     this.radioQueue.push(...lines);
     if (this.radioLeft <= 0) this.nextRadio();
+  }
+
+  private radioParts(): (Phaser.GameObjects.Rectangle | Phaser.GameObjects.Text | Phaser.GameObjects.Graphics)[] {
+    return [this.radioBack, this.radioWho, this.radioText, this.radioPortrait, this.radioInitial];
   }
 
   private nextRadio(): void {
     const line = this.radioQueue.shift();
     if (!line) {
       this.radioLeft = 0;
-      for (const o of [this.radioBack, this.radioWho, this.radioText]) o.setVisible(false);
+      for (const o of this.radioParts()) o.setVisible(false);
       return;
     }
+    const shown = clipWords(line.text);
     setText(this.radioWho, line.who);
-    setText(this.radioText, line.text);
-    this.radioBack.height = Math.max(34, this.radioText.height + 14);
-    this.radioWho.setY(16 + this.radioBack.height / 2);
-    this.radioText.setY(16 + this.radioBack.height / 2);
-    // Long enough to read: a base plus time per word.
-    this.radioLeft = 2.2 + line.text.split(' ').length * 0.28;
-    for (const o of [this.radioBack, this.radioWho, this.radioText]) o.setVisible(true).setAlpha(1);
+    setText(this.radioText, shown);
+    const h = Math.max(34, this.radioText.height + 14);
+    this.radioBack.height = h;
+    const cy = 16 + h / 2;
+    this.radioWho.setY(cy);
+    this.radioText.setY(cy);
+    this.radioInitial.setY(cy);
+    setText(this.radioInitial, portraitInitial(line.who));
+    this.radioPortrait.clear().fillStyle(PORTRAIT_TINT[line.who] ?? 0x5a5c58, 1).fillCircle(40, cy, 14)
+      .lineStyle(2, 0xe8c060, 1).strokeCircle(40, cy, 14);
+    // Long enough to read: a base plus time per word shown.
+    this.radioLeft = 2.2 + wordCount(shown) * 0.36;
+    for (const o of this.radioParts()) o.setVisible(true).setAlpha(1);
+  }
+
+  /** Between waves: the wave, its bonus, and the two things to do next, each with its key. Stays until the next wave starts. */
+  waveCard(wave: number, reward: number, armory: { label: string; key: string | null }, next: { label: string; key: string | null }): void {
+    this.hideCard();
+    const s = this.scene;
+    const W = 560, H = 176;
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    parts.push(s.add.rectangle(0, 0, W, H, 0x000000, 0.74).setStrokeStyle(2, 0xe8c060));
+    parts.push(s.add.graphics().lineStyle(7, 0x93c36c, 1).beginPath()
+      .moveTo(-W / 2 + 30, -H / 2 + 46).lineTo(-W / 2 + 46, -H / 2 + 62).lineTo(-W / 2 + 74, -H / 2 + 30).strokePath());
+    parts.push(s.add.text(-W / 2 + 84, -H / 2 + 46, `WAVE ${wave}`, { fontFamily: STENCIL, fontSize: '38px', color: '#e0dcc0', stroke: '#000', strokeThickness: 5 }).setOrigin(0, 0.5));
+    parts.push(s.add.text(W / 2 - 24, -H / 2 + 46, `+$${reward}`, { fontFamily: STENCIL, fontSize: '30px', color: '#c8d890', stroke: '#000', strokeThickness: 4 }).setOrigin(1, 0.5));
+    const cardButton = (x: number, b: { label: string; key: string | null }, primary: boolean): void => {
+      const bw = 240, bh = 62, y = H / 2 - 50;
+      parts.push(s.add.rectangle(x, y, bw, bh, primary ? 0x2a3a20 : 0x1e1f1c, 1).setStrokeStyle(2, primary ? 0x6aae4a : 0x6a7a8a));
+      parts.push(s.add.text(x, b.key ? y - 9 : y, b.label, { fontFamily: STENCIL, fontSize: '22px', color: '#e8e0c0' }).setOrigin(0.5));
+      if (b.key) parts.push(s.add.text(x, y + 14, `[${b.key}]`, { fontFamily: MONO, fontSize: '12px', color: '#a8a890' }).setOrigin(0.5));
+    };
+    cardButton(-W / 4 - 4, armory, false);
+    cardButton(W / 4 + 4, next, true);
+    this.card = s.add.container(VIEW.centerX, 150, parts).setDepth(DEPTH.banner + 1);
+  }
+
+  private hideCard(): void {
+    this.card?.destroy();
+    this.card = null;
+  }
+
+  /** Wave pips under the objective: one per wave, filled once it has started, the live one outlined. */
+  private drawPips(): void {
+    const g = this.pips;
+    g.clear();
+    const w = this.d.waves;
+    if (w.endless || w.totalWaves <= 0) return;
+    const n = w.totalWaves, pw = 14, gap = 6, y = 34;
+    const x0 = VIEW.centerX - (n * pw + (n - 1) * gap) / 2;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * (pw + gap);
+      g.fillStyle(i < w.wave ? 0xd8a840 : 0x6a6a5a, 1).fillRect(x, y, pw, 8);
+      if (i === w.wave - 1 && w.phase === 'active') g.lineStyle(2, 0xffffff, 0.9).strokeRect(x - 1, y - 1, pw + 2, 10);
+    }
   }
 
   hideBanner(): void {
@@ -294,23 +388,33 @@ export class HUD {
   }
 
   clearBanner(): void {
+    this.hideCard();
     if (this.bannerSticky || this.bannerLeft > 0.5) this.bannerLeft = 0.5;
     this.bannerSticky = false;
   }
 
   update(dt: number): void {
     this.time += dt;
+    this.drawPips();
     const { weapons, abilities, economy, bunker, waves, support, offers } = this.d;
 
     if (this.hintLeft > 0) {
       this.hintLeft -= dt;
-      this.hintText.setAlpha(Math.min(1, this.hintLeft / 0.6));
-      if (this.hintLeft <= 0) this.hintText.setVisible(false);
+      this.hintBox?.setAlpha(Math.min(1, this.hintLeft / 0.6));
+      if (this.hintLeft <= 0) {
+        this.hintBox?.destroy();
+        this.hintBox = null;
+      }
+    }
+    if (this.pendingHint && !this.busy()) {
+      const h = this.pendingHint;
+      this.pendingHint = null;
+      this.showHint(h.caps, h.label);
     }
     if (this.radioLeft > 0) {
       this.radioLeft -= dt;
       const a = Math.min(1, this.radioLeft / 0.4);
-      for (const o of [this.radioBack, this.radioWho, this.radioText]) o.setAlpha(a);
+      for (const o of this.radioParts()) o.setAlpha(a);
       if (this.radioLeft <= 0) this.nextRadio();
     }
 
@@ -424,7 +528,6 @@ export class HUD {
       this.cashText.setColor(this.cashFlash < 0 ? '#ff9a70' : '#c8d890').setScale(1);
     }
 
-    setText(this.waveText, waves.endless ? `WAVE ${waves.wave}` : `WAVE ${waves.wave}/${waves.totalWaves}`);
     setText(this.hostilesText, `HOSTILES ${waves.phase === 'cleared' || waves.phase === 'idle' ? 0 : waves.remaining}`);
 
     // ammo counter

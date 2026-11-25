@@ -20,7 +20,7 @@ import { EconomyManager } from '../systems/EconomyManager';
 import { EnemyManager } from '../systems/EnemyManager';
 import { Fx } from '../systems/Fx';
 import {
-  applyResult, bonusText, focusUnlocked, veteranMission, missionArsenal, MissionResult, nextMission, playerBunkerHealth, playerWeapon,
+  applyResult, focusUnlocked, veteranMission, missionArsenal, MissionResult, nextMission, playerBunkerHealth, playerWeapon,
 } from '../systems/Campaign';
 import type { RecruitId } from '../data/squad';
 import { DropReward, FieldObjects } from '../systems/FieldObjects';
@@ -311,10 +311,10 @@ export class GameScene extends Phaser.Scene {
       const title = m.mode === 'surge' ? `FOG SURGE — ${m.name.toUpperCase()}` : m.mode === 'endless' ? 'LAST STAND' : `MISSION ${m.number} — ${m.name.toUpperCase()}${m.veteran ? '  ·  VETERAN' : ''}`;
       const goal = m.mode === 'surge' ? `Hold the line  ·  ${(m.modifiers?.tags ?? []).join(' + ')}`
         : m.mode === 'endless' ? 'Hold as long as you can'
-        : `${this.objectiveLine()}  ·  ★ ${bonusText(m.bonus)}`;
+        : this.objectiveLine();
       this.hud.banner(
         title,
-        `${test ? 'TEST LOADOUT  ·  ' : ''}${m.place}  ·  ${goal}\n${begin}`,
+        `${test ? 'TEST LOADOUT  ·  ' : ''}${goal}`,
         999,
         true,
       );
@@ -394,8 +394,8 @@ export class GameScene extends Phaser.Scene {
         this.fx.floatText(VIEW.centerX, VIEW.hudTop - 120, `${def.shortName} UNLOCKED — BUY IN THE ARMORY${this.touchUi.isEnabled ? '' : ' [SPACE]'}`, '#e8c060', 18);
       }
       if (wave < this.waves.totalWaves) {
-        this.hud.banner(`SECTOR CLEAR — WAVE ${wave}`, `Completion bonus +$${reward}\n${this.touchUi.isEnabled ? `SHOP for the armory  ·  tap DEPLOY for wave ${wave + 1}` : `[SPACE] armory  ·  [ENTER] deploy wave ${wave + 1}`}`, 999, true);
-        this.hint('armory', this.touchUi.isEnabled ? 'Between waves: SHOP buys ammo, mods and support. DEPLOY starts the next wave.' : 'Between waves: SPACE opens the armory (ammo, mods, support). ENTER deploys the next wave.');
+        const touch = this.touchUi.isEnabled;
+        this.hud.waveCard(wave, reward, { label: 'ARMORY', key: touch ? null : 'SPACE' }, { label: `WAVE ${wave + 1}`, key: touch ? null : 'ENTER' });
       } else if (this.objective.pending) {
         this.hud.banner('FIELD CLEAR', 'The last vehicles are rolling out. Cover them.', 999, true);
       } else {
@@ -679,16 +679,16 @@ export class GameScene extends Phaser.Scene {
 
   private startHints(): void {
     const touch = this.touchUi.isEnabled;
-    this.hint('aim', touch ? 'Drag the left side to aim · hold FIRE to shoot · headshots kill fastest' : 'Mouse to aim · click to fire · headshots kill fastest');
-    if (this.night) this.hint('flare', touch ? 'Night: your light follows the sights' : 'Night: your light follows the sights · Q fires a flare over the field');
-    if (this.weaponSlots.length > 1) this.hint('switch', touch ? 'Tap a weapon at the bottom left to switch' : `Keys 1–${this.weaponSlots.length} switch weapons`);
+    this.hint('aim', touch ? [] : ['LMB'], touch ? 'Drag to aim' : 'Fire · headshots pay most');
+    if (this.night && !touch) this.hint('flare', ['Q'], 'Flare over the field');
+    if (this.weaponSlots.length > 1) this.hint('switch', touch ? [] : ['1', String(this.weaponSlots.length)], touch ? 'Tap a gun to switch' : 'Switch guns');
   }
 
   /** Shows a control hint once ever (remembered in the profile). */
-  private hint(id: HintId, text: string): void {
+  private hint(id: HintId, caps: string[], label: string): void {
     if (this.training || this.hintsShown.has(id)) return;
     this.hintsShown.add(id);
-    this.hud.hint(text);
+    this.hud.hint(caps, label);
     if (!isTestMode()) profile.update((d) => { if (!d.hints.includes(id)) d.hints.push(id); });
   }
 
@@ -697,15 +697,15 @@ export class GameScene extends Phaser.Scene {
     if (this.training) return;
     const cur = this.weapons.current;
     if (cur.mag <= Math.ceil(cur.def.magazine * 0.3)) {
-      this.hint('reload', this.touchUi.isEnabled ? 'Tap RELOAD before you run dry' : 'R or right-click reloads before you run dry');
+      this.hint('reload', this.touchUi.isEnabled ? [] : ['R'], 'Reload soon');
     }
     for (const [id, m] of this.abilities.mods) {
-      if (m.charges > 0) this.hint('mod', `${MODS.find((x) => x.id === id)!.name}: press ${MODS.find((x) => x.id === id)!.key} to load it`);
+      if (m.charges > 0) this.hint('mod', [MODS.find((x) => x.id === id)!.key], `${MODS.find((x) => x.id === id)!.name} ready`);
     }
     for (const [id, s] of this.abilities.support) {
       if (s.charges > 0) {
         const def = SUPPORT.find((x) => x.id === id)!;
-        this.hint('support', `${def.name} ready: press ${def.key} to call it in`);
+        this.hint('support', this.touchUi.isEnabled ? [] : [def.key], `${def.name} ready`);
       }
     }
   }
@@ -791,6 +791,11 @@ export class GameScene extends Phaser.Scene {
     return streak >= 50 ? 2 : streak >= 25 ? 1.5 : streak >= 10 ? 1.25 : 1;
   }
 
+  /** Every radio line of this battle in full (the pause menu's radio log). */
+  get radioLog(): { who: string; text: string }[] {
+    return this.hud.radioLog;
+  }
+
   /** Kill cash multiplier from the mission (Fog Surge "Bounty"). */
   private get cashMul(): number {
     return this.mission.modifiers?.cashMul ?? 1;
@@ -822,7 +827,7 @@ export class GameScene extends Phaser.Scene {
       const was = this.focusMeter;
       this.focusMeter = Math.min(1, this.focusMeter + (headshot ? 0.12 : 0.04));
       if (was < 1 && this.focusMeter >= 1) {
-        this.hint('focus', this.touchUi.isEnabled ? 'Focus ready: tap the FOCUS bar to slow time' : 'Focus ready: press SHIFT to slow time');
+        this.hint('focus', this.touchUi.isEnabled ? [] : ['SHIFT'], this.touchUi.isEnabled ? 'Tap FOCUS to slow time' : 'Slow time');
         audio.play('ui_click', { volume: 0.6, rate: 0.7 });
       }
     }
