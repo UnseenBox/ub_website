@@ -63,3 +63,30 @@ describe('results and threat text', () => {
     for (const def of Object.values(ENEMIES)) expect(threatTags(def).length).toBeLessThanOrEqual(3);
   });
 });
+
+import { bonusLabel, gainChip, objectiveLabel } from './messages';
+import { MISSIONS } from '../data/missions';
+
+describe('map and workshop labels', () => {
+  it('names each objective in a word or two', () => {
+    const find = (id: string) => MISSIONS.find((m) => m.id === id)!;
+    expect(objectiveLabel(find('a1m1').objective)).toBe('HOLD');
+    expect(objectiveLabel(MISSIONS.find((m) => m.objective.kind === 'protect' && m.objective.asset === 'mast')!.objective)).toBe('RELAY MAST');
+    expect(objectiveLabel(MISSIONS.find((m) => m.objective.kind === 'evacuate')!.objective)).toBe('SAVE 2/3 BUS');
+    expect(objectiveLabel(find('a2m2').objective)).toBe('DESTROY 3 NESTS');
+    expect(objectiveLabel(find('a1m9').objective)).toBe('BOSS');
+  });
+
+  it('names each bonus goal', () => {
+    expect(bonusLabel({ kind: 'headshots', count: 12 })).toBe('12 HEADSHOTS');
+    expect(bonusLabel({ kind: 'assetHealth', fraction: 0.6 })).toBe('KEEP 60%');
+    expect(bonusLabel({ kind: 'saveAll' })).toBe('SAVE ALL');
+  });
+
+  it('shows the gain of a workshop level as one number', () => {
+    expect(gainChip('+8% damage')).toBe('+8%');
+    expect(gainChip('+6% fire rate, -8% spread')).toBe('+6%');
+    expect(gainChip('-8% reload time')).toBe('-8%');
+    expect(gainChip('+150 bunker health')).toBe('+150');
+  });
+});

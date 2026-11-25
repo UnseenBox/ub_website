@@ -1,13 +1,15 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
-import { ACT_NAMES, ACT_STAR_GATE, MISSIONS, MissionDef, objectiveText } from '../data/missions';
+import { ACT_NAMES, ACT_STAR_GATE, MISSIONS, MissionDef } from '../data/missions';
 import { weaponById } from '../data/weapons';
 import { makeCanvas, mulberry32, rand } from '../rendering/CanvasUtil';
 import {
-  actOpen, acts, barracksOpen, bonusText, currentAct, isMissionUnlocked, isWon, needsLoadout, nextMission, playerPower,
-  rewardNames, starTotals, starsBeforeAct, threatRating, VETERAN, veteranMedals, veteranOpen, workshopOpen,
+  actOpen, acts, barracksOpen, currentAct, isMissionUnlocked, isWon, needsLoadout, nextMission, playerPower,
+  rewardNames, starsBeforeAct, threatRating, VETERAN, veteranMedals, veteranOpen, workshopOpen,
 } from '../systems/Campaign';
 import { profile } from '../systems/Profile';
+import { bonusLabel, objectiveLabel } from '../ui/messages';
+import { drawObjective, drawReticle, type ObjectiveKind } from '../ui/icons';
 import { CONTESTED_BONUS, hqOpen, hqWaiting, isContested, playReport, refreshDay } from '../systems/Retention';
 import { showDailyDrop } from './HQScene';
 import { MONO, STENCIL, button } from '../ui/widgets';
@@ -22,9 +24,10 @@ export interface MapData {
 }
 
 /** Each act's map: its title and the intro card shown the first time it opens. */
-const ACT_MAPS: Record<number, { title: string; card: string[] }> = {
+const ACT_MAPS: Record<number, { title: string; headline: string; card: string[] }> = {
   1: {
     title: 'HARLOW VALLEY',
+    headline: 'The fog is moving. Hold the Fogline.',
     card: [
       'Three weeks ago something went wrong at Meridian Station, at the head of Harlow Valley.',
       'A grey fog rolled out of it. Wherever it touches, the dead get up and walk.',
@@ -35,6 +38,7 @@ const ACT_MAPS: Record<number, { title: string; card: string[] }> = {
   },
   2: {
     title: 'MILLBROOK',
+    headline: 'The line moves forward, into the town.',
     card: [
       'The farm line held, and Dr. Varga found something: when enough of the dead fall, the fog thins.',
       'Command has stopped retreating. Today the Fogline moves forward, into Millbrook.',
@@ -45,6 +49,7 @@ const ACT_MAPS: Record<number, { title: string; card: string[] }> = {
   },
   3: {
     title: 'MERIDIAN',
+    headline: 'The Heart is the source. Push to the gate.',
     card: [
       'Dr. Varga has told the truth: Meridian grew the fog, to clean up battlefields. It learned to raise them.',
       'At its centre is the first culture: the Heart. All of the fog comes from it.',
@@ -55,6 +60,7 @@ const ACT_MAPS: Record<number, { title: string; card: string[] }> = {
   },
   4: {
     title: 'THE NORTH COAST',
+    headline: 'The spores came north. Burn the Bloom.',
     card: [
       'The Heart is dead, but its spores rode the river down to the sea. Saltmarsh harbour woke up last night.',
       'Lurkers wait in the mud. Sporelings burst into clouds you cannot see through. Storms roll in off the water.',
@@ -120,8 +126,7 @@ export class MapScene extends Phaser.Scene {
     this.add.rectangle(0, 0, PANEL_X, 44, 0x0c0d0b, 0.82).setOrigin(0);
     this.add.text(16, 10, ACT_MAPS[this.act]?.title ?? 'THE VALLEY', { fontFamily: STENCIL, fontSize: '24px', color: '#e0dcc0', stroke: '#000', strokeThickness: 3 });
     this.drawActTabs(p);
-    const stars = starTotals(p);
-    this.add.text(PANEL_X - 14, 15, `★ ${stars.earned}/${stars.total}   SUPPLIES ${p.supplies}   POWER ${playerPower(p)}`, {
+    this.add.text(PANEL_X - 14, 15, `${p.supplies} SUPPLIES`, {
       fontFamily: MONO, fontSize: '14px', color: '#e8c060',
     }).setOrigin(1, 0);
 
@@ -168,7 +173,7 @@ export class MapScene extends Phaser.Scene {
       const need = ACT_STAR_GATE[act] ?? 0;
       const fought = MISSIONS.some((m) => m.act === act && isContested(p, m.id, Date.now()));
       // Only the act on screen spells out its name, so three tabs fit beside the totals.
-      const label = open ? `ACT ${act}${current ? ` · ${ACT_NAMES[act] ?? ''}` : ''}${fought ? ' ⚑' : ''}` : `ACT ${act} · LOCKED (${starsBeforeAct(p, act)}/${need} ★)`;
+      const label = open ? `ACT ${act}${current ? ` · ${ACT_NAMES[act] ?? ''}` : ''}${fought ? ' ⚑' : ''}` : `ACT ${act}  ${starsBeforeAct(p, act)}/${need}★`;
       const t = this.add.text(x, 15, label, {
         fontFamily: MONO, fontSize: '13px', color: current ? '#f0e0a0' : open ? '#a8a088' : '#6a6658',
         backgroundColor: current ? '#3a3320' : undefined, padding: { x: 6, y: 2 },
@@ -305,37 +310,72 @@ export class MapScene extends Phaser.Scene {
     const text = (y: number, s: string, size: number, color: string, font = MONO): Phaser.GameObjects.Text =>
       add(this.add.text(x, y, s, { fontFamily: font, fontSize: `${size}px`, color, wordWrap: { width: w }, lineSpacing: 3 }));
 
+    // Chips flow left to right and wrap; `flow.cy` is the row they sit on.
+    const flow = { cx: x, cy: 112 };
+    const chip = (label: string, color: number, draw?: (g: Phaser.GameObjects.Graphics, c: number) => void): void => {
+      const t = this.add.text(0, 0, label, { fontFamily: MONO, fontSize: '12px', color: '#e8e0c0' });
+      const iw = draw ? 22 : 0;
+      const cw = iw + t.width + 18;
+      if (flow.cx > x && flow.cx - x + cw > w) {
+        flow.cx = x;
+        flow.cy += 30;
+      }
+      add(this.add.rectangle(flow.cx, flow.cy, cw, 24, 0x23241f, 1).setOrigin(0, 0.5).setStrokeStyle(1, color).setDepth(1));
+      if (draw) draw(add(this.add.graphics({ x: flow.cx + 13, y: flow.cy }).setDepth(2)), color);
+      add(t).setPosition(flow.cx + 9 + iw, flow.cy).setOrigin(0, 0.5).setDepth(2);
+      flow.cx += cw + 6;
+    };
+    const nextRow = (): void => {
+      flow.cx = x;
+      flow.cy += 34;
+    };
+
     text(22, m.objective.kind === 'boss' ? 'BOSS' : `MISSION ${m.number}`, 13, '#a8a088');
     text(40, m.name.toUpperCase(), 30, '#e8e0c0', STENCIL);
     text(80, m.place, 14, '#b8b4a0');
-    let y = 112;
-    const row = (label: string, value: string, color = '#e0dcc0'): void => {
-      text(y, label, 12, '#8a8a76');
-      const t = text(y + 16, value, 15, color);
-      y += 22 + t.height;
-    };
-    row('OBJECTIVE', objectiveText(m.objective));
-    row('BONUS ★', bonusText(m.bonus));
+    chip(objectiveLabel(m.objective), 0xc8a040, (g, c) => drawObjective(g, m.objective.kind as ObjectiveKind, c));
+    chip(bonusLabel(m.bonus), 0xe8c060, drawReticle);
+    nextRow();
+
+    // Threat against power: a bar with the mission's threat marked on it.
     const power = playerPower(p);
     const rating = threatRating(power, m.threat);
-    row('THREAT', `${m.threat}   ·   YOUR POWER ${power}`, rating === 'ready' ? '#8ae070' : rating === 'risky' ? '#e8c060' : '#ff7a5a');
-    const lend = [...m.issue.weapons.map((id) => weaponById(id).name)];
-    if (lend.length) row('ISSUED FOR THIS MISSION', lend.join(', '));
-    if (isContested(p, m.id, Date.now())) row('CONTESTED', `The fog took it back. Win it today: +${Math.round(m.supplies * CONTESTED_BONUS)} Supplies`, '#ff9a70');
-    const rewards = rewardNames(m);
-    if (!isWon(p, m.id)) row('FIRST CLEAR', `${m.supplies * 1.5 | 0}+ Supplies${rewards.length ? `\n${rewards.join(', ')}` : ''}`, '#c8d890');
-    else {
-      const rec = p.missions[m.id];
-      row('BEST', `${'★'.repeat(rec.stars)}${'☆'.repeat(3 - rec.stars)}   ·   ${rec.bestKills} kills`, '#e8c060');
+    const ratingColour = rating === 'ready' ? 0x6aae4a : rating === 'risky' ? 0xc89a30 : 0xc84030;
+    const y0 = flow.cy + 4;
+    text(y0, `THREAT ${m.threat}   ·   POWER ${power}`, 13, rating === 'ready' ? '#8ae070' : rating === 'risky' ? '#e8c060' : '#ff7a5a');
+    const max = Math.max(power, m.threat) * 1.25;
+    add(this.add.graphics()
+      .fillStyle(0x0c0d0c, 1).fillRect(x, y0 + 22, w, 10)
+      .fillStyle(ratingColour, 1).fillRect(x, y0 + 22, w * (power / max), 10)
+      .fillStyle(0xff7a5a, 1).fillRect(x + w * (m.threat / max) - 1, y0 + 18, 3, 18));
+    flow.cy = y0 + 50;
+    flow.cx = x;
+
+    // What the mission lends, and what a first win brings.
+    for (const id of m.issue.weapons) chip(`ISSUED ${weaponById(id).shortName}`, 0x8ac06a);
+    if (m.issue.weapons.length) nextRow();
+    if (isContested(p, m.id, Date.now())) {
+      chip(`RETAKE TODAY +${Math.round(m.supplies * CONTESTED_BONUS)}`, 0xff9a70);
+      nextRow();
     }
+    if (!isWon(p, m.id)) {
+      chip(`FIRST CLEAR +${Math.round(m.supplies * 1.5)}`, 0xc8d890);
+      for (const r of rewardNames(m)) chip(r, 0xe8c060);
+      nextRow();
+    } else {
+      const rec = p.missions[m.id];
+      chip(`${'★'.repeat(rec.stars)}${'☆'.repeat(3 - rec.stars)}`, 0xe8c060);
+      chip(`${rec.bestKills} KILLS`, 0x6a7a8a);
+      nextRow();
+    }
+    const y = flow.cy;
     const cx = PANEL_X + (VIEW.width - PANEL_X) / 2;
     const by = Math.min(y + 34, VIEW.height - 200);
     if (veteranOpen(p, m.id)) {
       // A won mission: replay it, or take it on Veteran for a medal.
       add(button(this, cx - 76, by, 146, 50, 'REPLAY [↵]', () => this.deploy(), 10, 0xc84030));
       add(button(this, cx + 76, by, 146, 50, p.missions[m.id]?.veteran ? 'VETERAN ✪' : 'VETERAN', () => this.deploy(true), 10, 0x8a6ac8));
-      add(this.add.text(cx, by + 32, `Veteran: harder waves, ×${VETERAN.supplies} Supplies
-${veteranMedals(p)} medals ✪`, {
+      add(this.add.text(cx, by + 32, `Veteran: harder waves, ×${VETERAN.supplies} Supplies\n${veteranMedals(p)} medals ✪`, {
         fontFamily: MONO, fontSize: '11px', color: '#b8a8e0', align: 'center', wordWrap: { width: 300 },
       }).setOrigin(0.5, 0));
     } else {
@@ -394,20 +434,35 @@ ${veteranMedals(p)} medals ✪`, {
 
   private showActCard(): void {
     const W = 760, H = 380;
+    const map = ACT_MAPS[this.act];
     const bg = this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x000000, 0.72).setOrigin(0).setInteractive();
     const box = this.add.rectangle(VIEW.centerX, VIEW.height / 2, W, H, 0x1c1d1a, 0.98).setStrokeStyle(2, 0x7a6420);
-    const title = this.add.text(VIEW.centerX, VIEW.height / 2 - H / 2 + 40, `ACT ${this.act} — ${ACT_NAMES[this.act] ?? ''}`, {
+    const title = this.add.text(VIEW.centerX, VIEW.height / 2 - H / 2 + 36, `ACT ${this.act} — ${ACT_NAMES[this.act] ?? ''}`, {
       fontFamily: STENCIL, fontSize: '36px', color: '#e8e0c0', stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5);
-    const body = this.add.text(VIEW.centerX, VIEW.height / 2 - 70, (ACT_MAPS[this.act]?.card ?? []).join('\n'), { fontFamily: MONO, fontSize: '15px', color: '#d0ccb4', align: 'center', wordWrap: { width: W - 60 }, lineSpacing: 5 }).setOrigin(0.5, 0);
-    const parts: Phaser.GameObjects.GameObject[] = [bg, box, title, body];
+    const headline = this.add.text(VIEW.centerX, VIEW.height / 2 - 14, map?.headline ?? '', {
+      fontFamily: STENCIL, fontSize: '28px', color: '#e8c060', align: 'center', wordWrap: { width: W - 80 },
+    }).setOrigin(0.5);
+    const story = this.add.text(VIEW.centerX, VIEW.height / 2 - 80, (map?.card ?? []).join('\n'), {
+      fontFamily: MONO, fontSize: '14px', color: '#d0ccb4', align: 'center', wordWrap: { width: W - 60 }, lineSpacing: 5,
+    }).setOrigin(0.5, 0).setVisible(false);
+    const parts: Phaser.GameObjects.GameObject[] = [bg, box, title, headline, story];
+    let intel = false;
     const close = (): void => {
       for (const o of parts) o.destroy();
       this.card = null;
       const id = `act${this.act}card`;
       profile.update((d) => { if (!d.hints.includes(id)) d.hints.push(id); });
     };
-    parts.push(button(this, VIEW.centerX, VIEW.height / 2 + H / 2 - 44, 260, 46, 'TO THE LINE', close, 20, 0xc84030));
+    const yBtn = VIEW.height / 2 + H / 2 - 44;
+    parts.push(button(this, VIEW.centerX + 150, yBtn, 260, 46, 'TO THE LINE', close, 20, 0xc84030));
+    const intelBtn: Phaser.GameObjects.Container = button(this, VIEW.centerX - 150, yBtn, 260, 46, 'INTEL', () => {
+      intel = !intel;
+      headline.setVisible(!intel);
+      story.setVisible(intel);
+      (intelBtn.list[3] as Phaser.GameObjects.Text).setText(intel ? 'BACK' : 'INTEL');
+    }, 20, 0x6a7a8a);
+    parts.push(intelBtn);
     this.card = this.add.container(0, 0, parts).setDepth(50);
     this.input.keyboard!.once('keydown-ENTER', () => { if (this.card) close(); });
   }

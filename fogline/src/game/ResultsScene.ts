@@ -18,6 +18,7 @@ import { RETRY_CASH_BONUS } from '../portal/adRules';
 import { MONO, STENCIL, button } from '../ui/widgets';
 import { VIEW } from './config';
 import { bonusValue } from '../ui/messages';
+import { drawReticle, drawShield, drawTick } from '../ui/icons';
 import { keyHint } from './touchControls';
 
 export interface ResultsData {
@@ -352,21 +353,8 @@ function rewardLines(rw: RunRewards | undefined): string[] {
   return out;
 }
 
-function drawTick(g: Phaser.GameObjects.Graphics, c: number): void {
-  g.lineStyle(4, c, 1).beginPath().moveTo(-9, 0).lineTo(-3, 6).lineTo(9, -7).strokePath();
-}
 
-function drawShield(g: Phaser.GameObjects.Graphics, c: number): void {
-  g.fillStyle(c, 1).fillPoints([
-    new Phaser.Math.Vector2(-8, -9), new Phaser.Math.Vector2(8, -9), new Phaser.Math.Vector2(8, 0),
-    new Phaser.Math.Vector2(0, 9), new Phaser.Math.Vector2(-8, 0),
-  ], true);
-}
 
-function drawReticle(g: Phaser.GameObjects.Graphics, c: number): void {
-  g.lineStyle(2, c, 1).strokeCircle(0, 0, 8).lineBetween(-13, 0, -5, 0).lineBetween(13, 0, 5, 0)
-    .lineBetween(0, -13, 0, -5).lineBetween(0, 13, 0, 5);
-}
 
 export function drawStar(g: Phaser.GameObjects.Graphics, color: number, r: number): void {
   const pts: Phaser.Math.Vector2[] = [];

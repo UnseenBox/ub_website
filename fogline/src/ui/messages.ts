@@ -60,3 +60,31 @@ export function threatTags(def: import('../data/enemies').EnemyDef): string[] {
   if (def.zoneMultiplier.head >= 1.2 && tags.length < 3) tags.push('HEAD');
   return tags.slice(0, 3);
 }
+
+/** The short name of a mission objective, for its chip on the map. */
+export function objectiveLabel(o: import('../data/missions').Objective): string {
+  switch (o.kind) {
+    case 'hold': return 'HOLD';
+    case 'protect': return o.name;
+    case 'evacuate': return `SAVE ${o.mustSave}/${o.vehicles} ${o.name}`;
+    case 'nests': return `DESTROY ${o.count} NESTS`;
+    case 'boss': return 'BOSS';
+  }
+}
+
+/** The short name of a bonus goal, for its chip on the map. */
+export function bonusLabel(goal: import('../data/missions').BonusGoal): string {
+  switch (goal.kind) {
+    case 'headshots': return `${goal.count} HEADSHOTS`;
+    case 'accuracy': return `${Math.round(goal.fraction * 100)}% ACCURACY`;
+    case 'assetHealth': return `KEEP ${Math.round(goal.fraction * 100)}%`;
+    case 'saveAll': return 'SAVE ALL';
+    case 'noSupport': return goal.id === 'nuke' ? 'NO NUKE' : goal.id === 'gunship' ? 'NO GUNSHIP' : 'NO LANCE';
+  }
+}
+
+/** The number a workshop track adds per level: "+6% fire rate, -8% spread" gives "+6%". */
+export function gainChip(perLevel: string): string {
+  const m = perLevel.match(/[+-]?\d+(\.\d+)?%?/);
+  return m ? m[0] : perLevel;
+}

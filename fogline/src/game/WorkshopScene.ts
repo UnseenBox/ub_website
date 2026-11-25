@@ -7,6 +7,8 @@ import {
   fittedAttachment, ownedWeapons, playerPower, playerWeapon, upgradeStatus, weaponLevels,
 } from '../systems/Campaign';
 import { attachmentById } from '../data/attachments';
+import { drawLock } from '../ui/icons';
+import { gainChip } from '../ui/messages';
 import { profile } from '../systems/Profile';
 import { SKINS, SkinId } from '../data/retention';
 import { skinTexture } from '../rendering/SkinArt';
@@ -95,12 +97,16 @@ export class WorkshopScene extends Phaser.Scene {
     add(this.add.text(x0, 96, base.name.toUpperCase(), { fontFamily: STENCIL, fontSize: '30px', color: '#e8e0c0' }));
     add(this.add.text(x0, 134, base.description, { fontFamily: MONO, fontSize: '13px', color: '#9a9a86', wordWrap: { width: 840 } }));
     const pellets = def.pellets ? ` × ${def.pellets}` : '';
-    add(this.add.text(x0, 164, [
-      `DAMAGE ${def.damage.toFixed(0)}${pellets}`,
-      `RATE ${def.fireRate.toFixed(1)}/s`,
-      `MAGAZINE ${def.magazine}`,
-      `RELOAD ${def.reloadTime.toFixed(2)}s`,
-    ].join('     '), { fontFamily: MONO, fontSize: '15px', color: '#c8d890' }));
+    // The four numbers that matter, as chips.
+    const stats = [`DAMAGE ${def.damage.toFixed(0)}${pellets}`, `RATE ${def.fireRate.toFixed(1)}/s`, `MAG ${def.magazine}`, `RELOAD ${def.reloadTime.toFixed(2)}s`];
+    let sx = x0;
+    for (const label of stats) {
+      const t = add(this.add.text(0, 0, label, { fontFamily: MONO, fontSize: '13px', color: '#c8d890' }));
+      const cw = t.width + 18;
+      add(this.add.rectangle(sx, 170, cw, 24, 0x23241f, 1).setOrigin(0, 0.5).setStrokeStyle(1, 0x5a5c48).setDepth(1));
+      t.setPosition(sx + 9, 170).setOrigin(0, 0.5).setDepth(2);
+      sx += cw + 8;
+    }
     this.drawAttachment(id, add);
     this.drawMastery(id, add);
 
@@ -110,9 +116,10 @@ export class WorkshopScene extends Phaser.Scene {
       const { cost, status } = upgradeStatus(p, id, t.id);
       add(this.add.rectangle(x0, y, 860, 68, 0x1e1f1c).setOrigin(0).setStrokeStyle(1, 0x3a3c38));
       add(this.add.text(x0 + 16, y + 8, t.name.toUpperCase(), { fontFamily: STENCIL, fontSize: '20px', color: '#e0dcc0' }));
-      add(this.add.text(x0 + 16, y + 40, `Each level: ${t.perLevel}`, { fontFamily: MONO, fontSize: '13px', color: '#9a9a86' }));
+      add(this.add.rectangle(x0 + 16, y + 40, 56, 20, 0x253019, 1).setOrigin(0, 0.5).setStrokeStyle(1, 0x5fae3c));
+      add(this.add.text(x0 + 44, y + 40, gainChip(t.perLevel), { fontFamily: MONO, fontSize: '13px', color: '#a8e090' }).setOrigin(0.5));
       for (let k = 0; k < MAX_LEVEL; k++) {
-        add(this.add.rectangle(x0 + 330 + k * 34, y + 22, 24, 24, k < level ? 0xc8a040 : 0x2c2d2a).setOrigin(0).setStrokeStyle(1, 0x000000));
+        add(this.add.rectangle(x0 + 330 + k * 34, y + 22, 24, 24, k < level ? 0xc8a040 : 0x2c2d2a).setOrigin(0).setStrokeStyle(2, k === level && level < MAX_LEVEL ? 0xa8e090 : 0x000000));
       }
       this.buyButton(add, x0 + 720, y + 34, cost, status, () => this.buy(() => buyUpgrade(profile.get(), id, t.id as TrackId), `${base.shortName} ${t.name.toUpperCase()} LV ${level + 1}`));
     });
@@ -127,7 +134,9 @@ export class WorkshopScene extends Phaser.Scene {
     add(this.add.text(x0 + 16, y + 8, 'ATTACHMENT', { fontFamily: STENCIL, fontSize: '20px', color: '#e8c060' }));
     const fitted = fittedAttachment(p, id);
     if (!attachmentsOpen(p) && !p.attachments.length) {
-      add(this.add.text(x0 + 16, y + 38, 'Dot builds attachments once the quarry explosives are safe (Act 3, Mission 2).', { fontFamily: MONO, fontSize: '13px', color: '#7a7a6c' }));
+      add(this.add.graphics({ x: x0 + 22, y: y + 44 })).setDepth(1);
+      drawLock(this.dynamic[this.dynamic.length - 1] as Phaser.GameObjects.Graphics, 0x7a7a6c);
+      add(this.add.text(x0 + 40, y + 44, 'LOCKED', { fontFamily: MONO, fontSize: '13px', color: '#7a7a6c' }).setOrigin(0, 0.5));
       return;
     }
     add(this.add.text(x0 + 16, y + 38, fitted ? attachmentById(fitted)!.text : 'None fitted', { fontFamily: MONO, fontSize: '12px', color: '#9a9a86', wordWrap: { width: 250 } }));
@@ -174,7 +183,10 @@ export class WorkshopScene extends Phaser.Scene {
     const { kills, next } = masteryStatus(p, id);
     add(this.add.rectangle(x0, y, 860, 70, 0x1a1b18).setOrigin(0).setStrokeStyle(1, 0x5a5040));
     add(this.add.text(x0 + 16, y + 10, `MASTERY  ·  ${kills} KILLS`, { fontFamily: STENCIL, fontSize: '20px', color: '#e8c060' }));
-    add(this.add.text(x0 + 16, y + 40, next ? `${SKINS[next.skin].name} skin at ${next.kills} kills` : 'Every mastery skin earned', { fontFamily: MONO, fontSize: '13px', color: '#9a9a86' }));
+    const frac = next ? Math.min(1, kills / next.kills) : 1;
+    add(this.add.rectangle(x0 + 16, y + 48, 300, 8, 0x0c0d0c, 1).setOrigin(0, 0.5).setStrokeStyle(1, 0x3a3c38));
+    add(this.add.rectangle(x0 + 17, y + 48, 298 * frac, 6, 0xc8a040, 1).setOrigin(0, 0.5));
+    add(this.add.text(x0 + 330, y + 48, next ? `NEXT ${SKINS[next.skin].name.toUpperCase()} · ${next.kills}` : 'ALL SKINS EARNED', { fontFamily: MONO, fontSize: '12px', color: '#9a9a86' }).setOrigin(0, 0.5));
     const owned = ownedSkins(p, id);
     const wearing = activeSkin(p, id);
     const chips: (SkinId | '')[] = ['', ...owned];
