@@ -3,7 +3,7 @@
 
 import { ENEMIES } from '../data/enemies';
 import { DEFENSES, MODS, SUPPORT } from '../data/upgrades';
-import { WEAPONS } from '../data/weapons';
+import { CLASSIC_WEAPONS as WEAPONS } from '../data/weapons';
 
 export type StepId =
   | 'welcome' | 'aim' | 'fire' | 'weapons' | 'switch' | 'reload' | 'enemies' | 'zones'

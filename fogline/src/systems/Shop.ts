@@ -28,6 +28,8 @@ export interface ShopDeps {
   abilities: Abilities;
   bunker: BunkerManager;
   upgrades: { reinforceLevel: number };
+  /** Gear ids this battle offers (`mod:ap`, `support:nuke`, …). Omitted = everything. */
+  gear?: ReadonlySet<string>;
 }
 
 export const STATUS_TEXT: Record<ItemStatus, string> = {
@@ -47,13 +49,16 @@ export const STATUS_TEXT: Record<ItemStatus, string> = {
 export function buildCatalog(d: ShopDeps): ShopItem[] {
   const items: ShopItem[] = [];
   const withCash = (price: number, s: ItemStatus): ItemStatus => (s === 'ok' && !d.economy.canAfford(price) ? 'cash' : s);
+  const offers = (id: string): boolean => !d.gear || d.gear.has(id);
 
   for (const w of WEAPONS) {
-    if (w.price > 0) {
+    if (!d.weapons.isOffered(w.id)) continue;
+    // Weapons already carried need no purchase card, only ammo.
+    if (w.price > 0 && !d.weapons.owns(w.id)) {
       items.push({
         id: `weapon:${w.id}`, category: 'weapons', name: w.name, icon: w.iconTexture, key: String(w.slot), description: w.description,
         price: () => w.price,
-        stock: () => (d.weapons.owns(w.id) ? 'OWNED' : d.weapons.isUnlocked(w.id) ? '' : `CLEAR WAVE ${w.unlockAfterWave}`),
+        stock: () => (d.weapons.owns(w.id) ? 'OWNED' : d.weapons.isUnlocked(w.id) ? '' : `CLEAR WAVE ${d.weapons.unlockWave(w.id)}`),
         status: () => withCash(w.price, d.weapons.owns(w.id) ? 'owned' : d.weapons.isUnlocked(w.id) ? 'ok' : 'locked'),
         buy() {
           if (this.status() !== 'ok') return false;
@@ -81,6 +86,7 @@ export function buildCatalog(d: ShopDeps): ShopItem[] {
   }
 
   for (const m of MODS) {
+    if (!offers(`mod:${m.id}`)) continue;
     items.push({
       id: `mod:${m.id}`, category: 'mods', name: m.name, icon: m.icon, key: m.key, description: m.description,
       price: () => m.price,
@@ -95,6 +101,7 @@ export function buildCatalog(d: ShopDeps): ShopItem[] {
   }
 
   for (const s of SUPPORT) {
+    if (!offers(`support:${s.id}`)) continue;
     items.push({
       id: `support:${s.id}`, category: 'support', name: s.name, icon: s.icon, key: s.key, description: s.description,
       price: () => s.price,
@@ -109,6 +116,7 @@ export function buildCatalog(d: ShopDeps): ShopItem[] {
   }
 
   for (const def of DEFENSES) {
+    if (!offers(`defense:${def.id}`)) continue;
     items.push({
       id: `defense:${def.id}`, category: 'bunker', name: def.name, icon: def.icon, key: def.key, description: def.description,
       price: () => def.price,
@@ -123,6 +131,7 @@ export function buildCatalog(d: ShopDeps): ShopItem[] {
   }
 
   const up = BUNKER_UPGRADE;
+  if (!offers(`upgrade:${up.id}`)) return items;
   items.push({
     id: `upgrade:${up.id}`, category: 'bunker', name: up.name, icon: up.icon, key: '—', description: up.description,
     price: () => up.levels[Math.min(d.upgrades.reinforceLevel, up.levels.length - 1)].price,

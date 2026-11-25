@@ -3,13 +3,22 @@ import { audio } from './audio/AudioManager';
 import { registerFoglineOverrides } from './audio/overrides';
 import { BootScene } from './game/BootScene';
 import { VIEW } from './game/config';
-import { GameOverScene } from './game/GameOverScene';
+import { ResultsScene } from './game/ResultsScene';
+import { MapScene } from './game/MapScene';
+import { WorkshopScene } from './game/WorkshopScene';
+import { LoadoutScene } from './game/LoadoutScene';
+import { BarracksScene } from './game/BarracksScene';
+import { HQScene } from './game/HQScene';
+import { EndingScene } from './game/EndingScene';
 import { GameScene } from './game/GameScene';
 import { MenuScene } from './game/MenuScene';
 import { installAutoFullscreen } from './game/phoneFullscreen';
 import { PauseScene } from './game/PauseScene';
 import { SettingsScene } from './game/SettingsScene';
 import { ShopScene } from './game/ShopScene';
+import { ReviveScene } from './game/ReviveScene';
+import { portal } from './portal/Portal';
+import { profile } from './systems/Profile';
 
 // Block the context menu and accidental selection/drag anywhere on the page.
 window.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -23,6 +32,19 @@ installAutoFullscreen();
 // Swap the synthesized gun, reload, kill and headshot cues for the supplied recordings.
 registerFoglineOverrides();
 
+// CrazyGames (only in that build): the SDK boots in the background. Its data module becomes the
+// profile's cloud copy (the save with more progress wins), and its mute switch overrides ours.
+portal.onCloud = (store) => {
+  profile.attachCloud(store);
+  audio.setVolumes(profile.get().volumes);
+  // A save from another device may be further along: redraw the title screen with it.
+  const menu = game.scene.getScene('Menu');
+  if (menu?.scene.isActive()) menu.scene.restart();
+};
+portal.watchMute((muted) => audio.setHold('platform', muted));
+void portal.init();
+if (import.meta.env.DEV) (window as unknown as { __foglinePortal: typeof portal }).__foglinePortal = portal;
+
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
@@ -33,7 +55,7 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   render: { antialias: true, powerPreference: 'high-performance' },
   fps: { target: 60 },
-  scene: [BootScene, MenuScene, GameScene, ShopScene, PauseScene, SettingsScene, GameOverScene],
+  scene: [BootScene, MenuScene, GameScene, ShopScene, PauseScene, SettingsScene, ResultsScene, MapScene, WorkshopScene, LoadoutScene, BarracksScene, HQScene, EndingScene, ReviveScene],
 });
 
 /**

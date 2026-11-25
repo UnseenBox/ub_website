@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { ENEMIES } from '../data/enemies';
-import { WEAPONS } from '../data/weapons';
+import { CLASSIC_WEAPONS as WEAPONS } from '../data/weapons';
 import { LEG_SLOW, Zombie } from '../entities/Zombie';
 import { VIEW, WINDOW } from '../game/config';
 import { DEPTH } from '../game/depths';

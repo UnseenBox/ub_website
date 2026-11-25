@@ -77,6 +77,19 @@ export class BunkerManager {
     return healed;
   }
 
+  /** Brings a fallen bunker back to part of its health (rewarded reinforcements). */
+  revive(fraction: number): void {
+    this._health = Math.max(1, Math.round(this._max * Math.min(1, fraction)));
+    this.destroyedFired = false;
+    this.events.emit('change', { health: this._health, max: this._max });
+  }
+
+  /** Starts the battle with only part of the health (Fog Surge "Thin walls"). */
+  startAt(fraction: number): void {
+    this._health = Math.max(1, Math.round(this._max * Math.min(1, fraction)));
+    this.events.emit('change', { health: this._health, max: this._max });
+  }
+
   /** Raising max health also adds the difference to current health. */
   setMax(newMax: number): void {
     const diff = newMax - this._max;

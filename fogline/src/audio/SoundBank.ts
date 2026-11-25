@@ -176,6 +176,96 @@ export function buildSoundBank(sampleRate = 44100): Bank {
     d.mixIn(base, click(d, 1900, 0.006, 0.3), 0.33, 1);
     put('shot_m32', d.normalize(base, 0.95));
   }
+  {
+    // 12 gauge: a wide, deep boom, then the pump racked back and forward.
+    const base = shot(d, {
+      crack: 0.9, bodyF: 620, bodyQ: 0.6, bodyTau: 0.05, bodyLP: 2200, bodyGain: 1.1,
+      thump0: 110, thump1: 36, thumpTau: 0.09, thumpGain: 1.5, tailTau: 0.5, tailLP: 650, tailGain: 0.5,
+      echoDelay: 0.36, echoGain: 0.3, mechAt: 0, mechF: 2000, mechGain: 0, drive: 3.2, length: 1.2,
+    });
+    d.mixIn(base, scrape(d, 0.07, 1500, 900, 0.7), 0.42, 0.5);
+    d.mixIn(base, clack(d, 1700, 1.1), 0.5, 0.7);
+    d.mixIn(base, scrape(d, 0.06, 900, 1600, 0.7), 0.58, 0.45);
+    d.mixIn(base, clack(d, 2100, 1.2), 0.65, 0.8);
+    put('shot_shotgun', d.normalize(base, 0.95));
+  }
+  // .50 anti-materiel rifle: a huge supersonic crack and a long rolling tail.
+  put('shot_m82', shot(d, {
+    crack: 1.6, bodyF: 760, bodyQ: 0.6, bodyTau: 0.05, bodyLP: 2600, bodyGain: 1.2,
+    thump0: 90, thump1: 30, thumpTau: 0.12, thumpGain: 1.7, tailTau: 0.8, tailLP: 520, tailGain: 0.6,
+    echoDelay: 0.45, echoGain: 0.4, mechAt: 0.32, mechF: 1800, mechGain: 0.4, drive: 3.4, length: 1.8,
+  }));
+  {
+    // Rocket launcher: a hollow back-blast whoosh with a low punch.
+    const whoosh = d.bandpass(d.noise(0.9), (t) => 900 - t * 600, 0.7);
+    d.envelope(whoosh, [[0, 0], [0.02, 1], [0.25, 0.6], [0.9, 0]]);
+    const punch = shot(d, {
+      crack: 0.4, bodyF: 260, bodyQ: 0.8, bodyTau: 0.06, bodyLP: 800, bodyGain: 1.0,
+      thump0: 80, thump1: 28, thumpTau: 0.14, thumpGain: 1.6, tailTau: 0.4, tailLP: 420, tailGain: 0.5,
+      echoDelay: 0.4, echoGain: 0.3, mechAt: 0, mechF: 1000, mechGain: 0, drive: 2.2, length: 1.2,
+    });
+    d.mixIn(punch, d.gain(whoosh, 1.4), 0, 0.8);
+    put('shot_rpg', d.normalize(punch, 0.95));
+    // Railgun: a rising capacitor whine, then an electric snap and a hard crack.
+    const out = d.buf(1.4);
+    const whine = d.tone(0.18, (t) => 1800 + t * 9000);
+    d.envelope(whine, [[0, 0], [0.15, 0.6], [0.18, 0]]);
+    d.mixIn(out, whine, 0, 0.4);
+    const crack = shot(d, {
+      crack: 1.8, bodyF: 2400, bodyQ: 0.9, bodyTau: 0.02, bodyLP: 7000, bodyGain: 0.9,
+      thump0: 120, thump1: 40, thumpTau: 0.08, thumpGain: 1.2, tailTau: 0.6, tailLP: 900, tailGain: 0.45,
+      echoDelay: 0.4, echoGain: 0.35, mechAt: 0, mechF: 1000, mechGain: 0, drive: 2.8, length: 1.2,
+    });
+    d.mixIn(out, crack, 0.17, 1);
+    for (let k = 0; k < 12; k++) d.mixIn(out, click(d, 4000 + d.rand() * 3000, 0.002, 0.5), 0.17 + d.rand() * 0.1, 0.4);
+    put('shot_rail', d.normalize(out, 0.95));
+    // Tesla: a crackling electric snap, buzzing at mains hum with a bright click on top.
+    const zap = d.buf(0.45);
+    const buzz = d.tone(0.35, (t) => 120 + Math.sin(t * 90) * 40, 'square');
+    d.envelope(buzz, [[0, 0], [0.01, 1], [0.12, 0.5], [0.35, 0]]);
+    d.mixIn(zap, d.lowpass(buzz, 2600), 0, 0.5);
+    const hiss = d.highpass(d.noise(0.3), 3000);
+    d.decay(hiss, 0.08);
+    d.mixIn(zap, hiss, 0, 0.8);
+    for (let k = 0; k < 10; k++) d.mixIn(zap, click(d, 3000 + d.rand() * 5000, 0.002, 0.6), d.rand() * 0.25, 0.5);
+    put('shot_tesla', d.normalize(zap, 0.85));
+  }
+  {
+    // Flamethrower: a short roaring gout of burning gas, played on every tick of the stream.
+    const roar = d.lowpass(d.noise(0.22), 1400);
+    d.mixIn(roar, d.gain(d.bandpass(d.noise(0.22), 300, 0.8), 1.5));
+    d.envelope(roar, [[0, 0], [0.03, 1], [0.15, 0.7], [0.22, 0]]);
+    put('shot_flame', d.normalize(roar, 0.7));
+  }
+  {
+    // Acid spit: wet launch (falling noise sweep); splash: sizzle plus a soft thud.
+    const spit = d.bandpass(d.noise(0.35), (t) => 1800 - t * 3600, 2);
+    d.envelope(spit, [[0, 0], [0.02, 1], [0.35, 0]]);
+    put('acid_spit', d.normalize(spit, 0.8));
+    const sizzle = d.highpass(d.noise(0.9), 2500);
+    d.decay(sizzle, 0.35);
+    d.mixIn(sizzle, d.decay(d.tone(0.25, (t) => 120 - t * 200), 0.08), 0, 1.2);
+    put('acid_splash', d.normalize(sizzle, 0.8));
+  }
+  {
+    // Howl: a long rising scream with reverb.
+    const howl = d.tone(1.4, (t) => 380 + t * 520 + Math.sin(t * 30) * 18, 'saw');
+    d.lowpass(howl, 2400);
+    d.envelope(howl, [[0, 0], [0.15, 0.8], [1.1, 1], [1.4, 0]]);
+    put('howl', d.normalize(d.reverb(howl, 0.5, 0.35), 0.85));
+    // Sapper charge: a short high electronic chirp.
+    const beep = d.tone(0.07, 2600, 'square');
+    d.envelope(beep, [[0, 0], [0.005, 1], [0.06, 1], [0.07, 0]]);
+    put('sapper_beep', d.normalize(beep, 0.5));
+    // Focus: time slowing down (falling sweep) and back up.
+    put('focus_in', d.normalize(d.fade(d.envelope(d.sweep(0.6, 900, 140, 0.4), [[0, 0], [0.05, 1], [0.6, 0]])), 0.7));
+    put('focus_out', d.normalize(d.fade(d.envelope(d.sweep(0.4, 160, 800, 0.3), [[0, 0], [0.05, 1], [0.4, 0]])), 0.6));
+  }
+  put('reload_shotgun', sequence(d, 2.8, [
+    ...Array.from({ length: 6 }, (_, i): Ev => [0.15 + i * 0.36, clack(d, 1500 + (i % 2) * 200, 0.8), 0.75]),
+    [2.35, scrape(d, 0.08, 1500, 900, 0.7), 0.6], [2.45, clack(d, 1700, 1.1), 0.9],
+    [2.55, scrape(d, 0.07, 900, 1600, 0.7), 0.5], [2.62, clack(d, 2100, 1.2), 1],
+  ]));
   put('shot_chain', shot(d, {
     crack: 0.7, bodyF: 700, bodyQ: 0.7, bodyTau: 0.02, bodyLP: 2400, bodyGain: 1,
     thump0: 130, thump1: 50, thumpTau: 0.035, thumpGain: 1.0, tailTau: 0.12, tailLP: 500, tailGain: 0.3,

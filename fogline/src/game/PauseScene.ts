@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
-import { SaveManager } from '../systems/SaveManager';
+import { profile } from '../systems/Profile';
 import { MONO, STENCIL, button, slider, toggleFullscreen } from '../ui/widgets';
 import { VIEW } from './config';
 import type { GameScene } from './GameScene';
@@ -21,10 +21,10 @@ export class PauseScene extends Phaser.Scene {
     this.add.rectangle(x0, y0, W, 4, 0x5a5c58).setOrigin(0);
     this.add.text(VIEW.centerX, y0 + 36, 'PAUSED', { fontFamily: STENCIL, fontSize: '38px', color: '#e0dcc0', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
 
-    const save = SaveManager.load();
+    const save = profile.get();
     const set = (k: 'master' | 'sfx' | 'music', v: number) => {
       audio.setVolumes({ [k]: v });
-      SaveManager.update((d) => { d.volumes[k] = v; });
+      profile.update((d) => { d.volumes[k] = v; });
     };
     slider(this, x0 + 60, y0 + 104, 280, 'MASTER VOLUME', save.volumes.master, (v) => set('master', v), 5);
     slider(this, x0 + 60, y0 + 154, 280, 'SFX VOLUME', save.volumes.sfx, (v) => { set('sfx', v); }, 5);
@@ -32,10 +32,11 @@ export class PauseScene extends Phaser.Scene {
 
     button(this, VIEW.centerX, y0 + 262, 300, 40, keyHint('RESUME', 'ESC'), () => this.resume(), 10);
     button(this, VIEW.centerX, y0 + 310, 300, 36, keyHint('FULLSCREEN', 'F'), () => toggleFullscreen(this), 10, 0x6a7a8a);
-    button(this, VIEW.centerX, y0 + 354, 300, 36, 'RESTART RUN', () => {
+    button(this, VIEW.centerX, y0 + 354, 300, 36, 'RESTART MISSION', () => {
+      const missionId = game.mission.id;
       this.scene.stop();
       game.scene.stop();
-      this.scene.start('Game');
+      this.scene.start('Game', { missionId });
     }, 10, 0xc84030);
     button(this, VIEW.centerX, y0 + 398, 300, 36, 'QUIT TO MENU', () => {
       this.scene.stop('Game');

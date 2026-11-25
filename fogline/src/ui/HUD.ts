@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { DEFENSES, MODS, SUPPORT } from '../data/upgrades';
-import { WEAPONS } from '../data/weapons';
+import { WEAPONS, weaponById } from '../data/weapons';
 import { VIEW } from '../game/config';
 import { DEPTH } from '../game/depths';
 import { HUD_LAYOUT } from '../rendering/HudArt';
@@ -24,6 +24,7 @@ interface Slot {
   bottom: Phaser.GameObjects.Text;
   shade: Phaser.GameObjects.Rectangle;
   bar: Phaser.GameObjects.Rectangle;
+  hit: Phaser.GameObjects.Zone;
   state: string;
 }
 
@@ -32,6 +33,8 @@ export interface HudActions {
   mod(index: number): void;
   support(index: number): void;
   defense(index: number): void;
+  /** Tap/click on the Focus bar (touch players have no SHIFT key). */
+  focus?(): void;
 }
 
 function setText(t: Phaser.GameObjects.Text, s: string): void {
@@ -61,6 +64,19 @@ export class HUD {
   private critical: Phaser.GameObjects.Text;
   private critVignette: Phaser.GameObjects.Rectangle;
   private activeList: Phaser.GameObjects.Text;
+  private focusBar: Phaser.GameObjects.Graphics;
+  private focusLabel: Phaser.GameObjects.Text;
+  private streakText: Phaser.GameObjects.Text;
+  private objectiveText: Phaser.GameObjects.Text;
+  private bossName: Phaser.GameObjects.Text;
+  private bossBar: Phaser.GameObjects.Graphics;
+  private hintText: Phaser.GameObjects.Text;
+  private hintLeft = 0;
+  private radioBack: Phaser.GameObjects.Rectangle;
+  private radioWho: Phaser.GameObjects.Text;
+  private radioText: Phaser.GameObjects.Text;
+  private radioQueue: { who: string; text: string }[] = [];
+  private radioLeft = 0;
   private cashFlash = 0;
   private lastCash = -1;
   private lastHp = -1;
@@ -71,14 +87,47 @@ export class HUD {
     private readonly scene: Phaser.Scene,
     private readonly d: {
       weapons: WeaponManager; abilities: Abilities; economy: EconomyManager; bunker: BunkerManager; waves: WaveManager; support: SupportSystem;
+      /** Whether this mission offers an item (`weapon:m4`, `mod:ap`…). Items it doesn't stay off the HUD. */
+      offers: (id: string) => boolean;
+      /** Weapon ids on keys 1–4, in order. */
+      weaponSlots: string[];
     },
     actions: HudActions,
   ) {
+    this.objectiveText = scene.add.text(VIEW.centerX, 10, '', {
+      fontFamily: MONO, fontSize: '15px', color: '#e8d8a0', stroke: '#000', strokeThickness: 4,
+    }).setOrigin(0.5, 0).setDepth(DEPTH.banner + 1);
+    this.bossName = scene.add.text(VIEW.centerX, 40, '', {
+      fontFamily: STENCIL, fontSize: '20px', color: '#ff9070', stroke: '#000', strokeThickness: 4,
+    }).setOrigin(0.5, 0).setDepth(DEPTH.banner + 1).setVisible(false);
+    this.bossBar = scene.add.graphics().setDepth(DEPTH.banner + 1);
+    // Focus meter and kill streak, bottom left above the panel.
+    this.focusBar = scene.add.graphics().setDepth(DEPTH.hud + 1);
+    this.focusLabel = scene.add.text(24, VIEW.hudTop - 44, '', {
+      fontFamily: MONO, fontSize: '12px', color: '#c8d8ff', stroke: '#000', strokeThickness: 3,
+    }).setDepth(DEPTH.hud + 1);
+    this.streakText = scene.add.text(24, VIEW.hudTop - 66, '', {
+      fontFamily: STENCIL, fontSize: '17px', color: '#ffd060', stroke: '#000', strokeThickness: 4,
+    }).setDepth(DEPTH.hud + 1);
+    const focusZone = scene.add.zone(20, VIEW.hudTop - 48, 230, 34).setOrigin(0).setDepth(DEPTH.hud + 5).setInteractive({ useHandCursor: true });
+    focusZone.on('pointerdown', () => actions.focus?.());
+    this.hintText = scene.add.text(VIEW.centerX, VIEW.hudTop - 150, '', {
+      fontFamily: MONO, fontSize: '17px', color: '#fff4c8', stroke: '#000', strokeThickness: 5, align: 'center',
+      backgroundColor: 'rgba(0,0,0,0.45)', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(DEPTH.banner + 2).setVisible(false);
+    this.radioBack = scene.add.rectangle(16, 16, 440, 34, 0x000000, 0.55).setOrigin(0).setDepth(DEPTH.banner).setVisible(false);
+    this.radioWho = scene.add.text(28, 33, '', { fontFamily: STENCIL, fontSize: '15px', color: '#e8c060', stroke: '#000', strokeThickness: 3 }).setOrigin(0, 0.5).setDepth(DEPTH.banner + 1);
+    this.radioText = scene.add.text(110, 33, '', { fontFamily: MONO, fontSize: '14px', color: '#e0dcc0', stroke: '#000', strokeThickness: 3, wordWrap: { width: 330 } }).setOrigin(0, 0.5).setDepth(DEPTH.banner + 1);
     const L = HUD_LAYOUT;
     scene.add.image(0, L.top, 'hud_panel').setOrigin(0).setDepth(DEPTH.hud);
     // block clicks on the panel from reaching anything else
     const S = L.sections;
-    WEAPONS.forEach((w, i) => this.weaponSlots.push(this.makeSlot(S.weapons.x + i * (S.weapons.slotW + L.gap), S.weapons.slotW, w.iconTexture, String(w.slot), 0.62, () => actions.weapon(w.slot))));
+    // Four weapon slots; the loadout fills them in order and the rest stay empty.
+    for (let i = 0; i < 4; i++) {
+      const id = d.weaponSlots[i];
+      const icon = id ? weaponById(id).iconTexture : WEAPONS[0].iconTexture;
+      this.weaponSlots.push(this.makeSlot(S.weapons.x + i * (S.weapons.slotW + L.gap), S.weapons.slotW, icon, String(i + 1), 0.62, () => actions.weapon(i + 1)));
+    }
     MODS.forEach((m, i) => this.modSlots.push(this.makeSlot(S.mods.x + i * (S.mods.slotW + L.gap), S.mods.slotW, m.icon, m.key, 0.95, () => actions.mod(i))));
     SUPPORT.forEach((s, i) => this.supportSlots.push(this.makeSlot(S.support.x + i * (S.support.slotW + L.gap), S.support.slotW, s.icon, s.key, 0.95, () => actions.support(i))));
     DEFENSES.forEach((s, i) => this.defenseSlots.push(this.makeSlot(S.defense.x + i * (S.defense.slotW + L.gap), S.defense.slotW, s.icon, s.key, 0.95, () => actions.defense(i))));
@@ -120,7 +169,27 @@ export class HUD {
     hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (p.leftButtonDown()) onClick();
     });
-    return { x, w, frame, icon: img, key: keyT, top, bottom, shade, bar, state: '' };
+    return { x, w, frame, icon: img, key: keyT, top, bottom, shade, bar, hit, state: '' };
+  }
+
+  /**
+   * An item the mission doesn't offer leaves an empty, darkened slot: no icon, key or
+   * labels, so the bar only shows what the player can actually use. Returns `available`.
+   */
+  private showSlot(slot: Slot, available: boolean): boolean {
+    slot.icon.setVisible(available);
+    slot.key.setVisible(available);
+    slot.top.setVisible(available);
+    slot.bottom.setVisible(available);
+    slot.hit.input!.enabled = available;
+    if (!available) {
+      slot.shade.setVisible(true).setAlpha(0.85);
+      slot.bar.setVisible(false);
+      this.drawFrame(slot, 0, 0, 0);
+    } else {
+      slot.shade.setAlpha(1);
+    }
+    return available;
   }
 
   private drawFrame(slot: Slot, color: number, alpha: number, width: number): void {
@@ -144,6 +213,78 @@ export class HUD {
     this.bannerBack.setVisible(true).setAlpha(1);
   }
 
+  /** Focus meter: `meter` fills 0–1; `active` is the time left in a running Focus (0–1). */
+  setFocus(enabled: boolean, meter: number, active: number): void {
+    const g = this.focusBar;
+    g.clear();
+    this.focusLabel.setVisible(enabled);
+    if (!enabled) return;
+    const x = 24, y = VIEW.hudTop - 26, w = 200, h = 10;
+    const full = meter >= 1;
+    g.fillStyle(0x000000, 0.65).fillRect(x - 2, y - 2, w + 4, h + 4);
+    const f = active > 0 ? active : meter;
+    const pulse = full && active <= 0 ? 0.6 + 0.4 * Math.sin(this.time * 8) : 1;
+    g.fillStyle(active > 0 ? 0x80a8ff : full ? 0xc8e0ff : 0x5a78b8, pulse).fillRect(x, y, w * f, h);
+    setText(this.focusLabel, active > 0 ? 'FOCUS' : full ? 'FOCUS READY  [SHIFT]' : 'FOCUS');
+  }
+
+  /** Kill streak (0 hides it), its cash multiplier, and flares left at night (-1 hides). */
+  setStreak(streak: number, mul: number, flares: number): void {
+    const parts: string[] = [];
+    if (streak >= 5) parts.push(`STREAK ${streak}${mul > 1 ? `  ·  CASH ×${mul}` : ''}`);
+    if (flares >= 0) parts.push(`FLARES ${flares}  [Q]`);
+    setText(this.streakText, parts.join('     '));
+  }
+
+  /** The mission objective's status line at the top of the screen (empty hides it). */
+  setObjective(text: string): void {
+    setText(this.objectiveText, text);
+  }
+
+  /** The boss health bar; `name` null hides it. */
+  setBoss(name: string | null, fraction: number): void {
+    const g = this.bossBar;
+    g.clear();
+    this.bossName.setVisible(!!name);
+    if (!name) return;
+    setText(this.bossName, name);
+    const w = 520, x = VIEW.centerX - w / 2, y = 66;
+    g.fillStyle(0x000000, 0.75).fillRect(x - 2, y - 2, w + 4, 14);
+    g.fillStyle(0x6a1a12, 1).fillRect(x, y, w, 10);
+    g.fillStyle(0xd84a30, 1).fillRect(x, y, w * Math.max(0, fraction), 10);
+    g.fillStyle(0xffffff, 0.15).fillRect(x, y, w * Math.max(0, fraction), 3);
+  }
+
+  /** A one-time control hint above the HUD, for a few seconds. */
+  hint(text: string): void {
+    setText(this.hintText, text);
+    this.hintText.setVisible(true).setAlpha(1);
+    this.hintLeft = 6;
+  }
+
+  /** Radio chatter in the top-left corner, one line at a time. */
+  radio(lines: { who: string; text: string }[]): void {
+    this.radioQueue.push(...lines);
+    if (this.radioLeft <= 0) this.nextRadio();
+  }
+
+  private nextRadio(): void {
+    const line = this.radioQueue.shift();
+    if (!line) {
+      this.radioLeft = 0;
+      for (const o of [this.radioBack, this.radioWho, this.radioText]) o.setVisible(false);
+      return;
+    }
+    setText(this.radioWho, line.who);
+    setText(this.radioText, line.text);
+    this.radioBack.height = Math.max(34, this.radioText.height + 14);
+    this.radioWho.setY(16 + this.radioBack.height / 2);
+    this.radioText.setY(16 + this.radioBack.height / 2);
+    // Long enough to read: a base plus time per word.
+    this.radioLeft = 2.2 + line.text.split(' ').length * 0.28;
+    for (const o of [this.radioBack, this.radioWho, this.radioText]) o.setVisible(true).setAlpha(1);
+  }
+
   hideBanner(): void {
     this.bannerLeft = 0;
     this.bannerSticky = false;
@@ -159,11 +300,25 @@ export class HUD {
 
   update(dt: number): void {
     this.time += dt;
-    const { weapons, abilities, economy, bunker, waves, support } = this.d;
+    const { weapons, abilities, economy, bunker, waves, support, offers } = this.d;
+
+    if (this.hintLeft > 0) {
+      this.hintLeft -= dt;
+      this.hintText.setAlpha(Math.min(1, this.hintLeft / 0.6));
+      if (this.hintLeft <= 0) this.hintText.setVisible(false);
+    }
+    if (this.radioLeft > 0) {
+      this.radioLeft -= dt;
+      const a = Math.min(1, this.radioLeft / 0.4);
+      for (const o of [this.radioBack, this.radioWho, this.radioText]) o.setAlpha(a);
+      if (this.radioLeft <= 0) this.nextRadio();
+    }
 
     // weapons
-    WEAPONS.forEach((w, i) => {
-      const s = this.weaponSlots[i];
+    this.weaponSlots.forEach((s, i) => {
+      const id = this.d.weaponSlots[i];
+      if (!this.showSlot(s, !!id && offers(`weapon:${id}`))) return;
+      const w = weaponById(id);
       const st = weapons.states.get(w.id)!;
       const selected = weapons.current.def.id === w.id;
       s.shade.setVisible(!st.owned);
@@ -178,6 +333,7 @@ export class HUD {
     // mods
     MODS.forEach((m, i) => {
       const s = this.modSlots[i];
+      if (!this.showSlot(s, offers(`mod:${m.id}`))) return;
       const st = abilities.mods.get(m.id)!;
       const active = st.activeLeft > 0;
       s.shade.setVisible(st.charges <= 0 && !active);
@@ -196,6 +352,7 @@ export class HUD {
     // support
     SUPPORT.forEach((sp, i) => {
       const s = this.supportSlots[i];
+      if (!this.showSlot(s, offers(`support:${sp.id}`))) return;
       const st = abilities.support.get(sp.id)!;
       const cd = st.cooldownLeft;
       const running = sp.id === 'gunship' && support.gunshipActive;
@@ -214,6 +371,7 @@ export class HUD {
 
     DEFENSES.forEach((df, i) => {
       const s = this.defenseSlots[i];
+      if (!this.showSlot(s, offers(`defense:${df.id}`))) return;
       const st = abilities.defense.get(df.id)!;
       const cd = st.cooldownLeft;
       const running = df.id === 'wall' && bunker.shielded;
@@ -266,7 +424,7 @@ export class HUD {
       this.cashText.setColor(this.cashFlash < 0 ? '#ff9a70' : '#c8d890').setScale(1);
     }
 
-    setText(this.waveText, waves.wave > 0 ? `WAVE ${waves.wave}/${waves.totalWaves}` : `WAVE 0/${waves.totalWaves}`);
+    setText(this.waveText, waves.endless ? `WAVE ${waves.wave}` : `WAVE ${waves.wave}/${waves.totalWaves}`);
     setText(this.hostilesText, `HOSTILES ${waves.phase === 'cleared' || waves.phase === 'idle' ? 0 : waves.remaining}`);
 
     // ammo counter

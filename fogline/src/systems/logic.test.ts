@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../data/enemies';
 import { WAVES, newEnemiesInWave, scheduledCount } from '../data/waves';
-import { WEAPONS } from '../data/weapons';
+import { CLASSIC_WEAPONS, WEAPONS } from '../data/weapons';
 import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../audio/overrides';
 import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
@@ -25,9 +25,9 @@ describe('main menu background', () => {
     expect(MENU_BG_TEXTURE).toBe('menu_bg');
   });
 
-  it('ships the supplied main-menu image', () => {
-    const images = import.meta.glob('../../src/assets/*.png');
-    expect(Object.keys(images).some((key) => key.endsWith('main-menu.png'))).toBe(true);
+  it('ships the supplied main-menu image (compressed to WebP for the first download)', () => {
+    const images = import.meta.glob('../../src/assets/*.webp');
+    expect(Object.keys(images).some((key) => key.endsWith('main-menu.webp'))).toBe(true);
   });
 
   it('does not render the menu control list', () => {
@@ -39,8 +39,8 @@ describe('main menu background', () => {
 
   it('registers the supplied menu-button texture', () => {
     expect(MENU_BUTTONS_TEXTURE).toBe('menu_buttons');
-    const assets = import.meta.glob('../../src/assets/*.png');
-    expect(Object.keys(assets).some((k) => k.endsWith('menu-buttons.png'))).toBe(true);
+    const assets = import.meta.glob('../../src/assets/*.webp');
+    expect(Object.keys(assets).some((k) => k.endsWith('menu-buttons.webp'))).toBe(true);
   });
 
   it('uses all five baked-label menu buttons with no text overlay', () => {
@@ -63,7 +63,8 @@ describe('main menu background', () => {
     const menu = Object.entries(sources).find(([k]) => k.endsWith('MenuScene.ts'))?.[1] ?? '';
     const game = Object.entries(sources).find(([k]) => k.endsWith('GameScene.ts'))?.[1] ?? '';
     const main = Object.values(mainSources).join('\n');
-    expect(menu).toContain('openShop: true');
+    expect(menu).toContain("'Workshop'");
+    expect(menu).toContain("scene.start('Map')");
     expect(menu).toContain("scene.launch('Settings')");
     expect(game).toContain('openShop?: boolean');
     expect(main).toContain('SettingsScene');
@@ -78,9 +79,9 @@ describe('main menu background', () => {
 
 describe('weapon shot recordings', () => {
   it('gives every gun its own supplied shot file', () => {
-    expect(new Set(WEAPONS.map((w) => w.sound.shot)).size).toBe(4);
+    expect(new Set(CLASSIC_WEAPONS.map((w) => w.sound.shot)).size).toBe(4);
     const mapping = Object.fromEntries(
-      WEAPONS.map((w) => [w.id, WEAPON_SHOT_FILES[w.sound.shot as keyof typeof WEAPON_SHOT_FILES]]),
+      CLASSIC_WEAPONS.map((w) => [w.id, WEAPON_SHOT_FILES[w.sound.shot as keyof typeof WEAPON_SHOT_FILES]]),
     );
     expect(mapping).toEqual({
       service: 'audio/fogline/gun-1.mp3',
@@ -97,10 +98,11 @@ describe('weapon shot recordings', () => {
     }
   });
 
-  it('gives only the M32 a rocket impact cue', () => {
+  it('gives only the launchers an impact cue', () => {
     const m32 = WEAPONS.find((w) => w.id === 'm32')!;
     expect(m32.sound.impact).toBe('rocket_impact');
-    for (const w of WEAPONS.filter((x) => x.id !== 'm32')) expect(w.sound.impact).toBeUndefined();
+    expect(WEAPONS.find((w) => w.id === 'rpg')!.sound.impact).toBe('explosion');
+    for (const w of WEAPONS.filter((x) => x.kind !== 'grenade')) expect(w.sound.impact).toBeUndefined();
   });
 
   it('registers the rocket impact recording and a synthesized fallback', () => {

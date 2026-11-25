@@ -6,7 +6,7 @@ import { LEN, PART, ZOMBIE_ATLAS } from '../rendering/ZombieArt';
 import { SHAMBLER_HEIGHT } from '../rendering/zombieSheetFrames';
 import { FIGURES, Figure } from '../rendering/figures';
 
-export type ZombieState = 'emerge' | 'walk' | 'attack' | 'dying' | 'dead';
+export type ZombieState = 'emerge' | 'walk' | 'hold' | 'attack' | 'dying' | 'dead';
 type DeathStyle = 'side' | 'back' | 'crumple';
 
 /** Shamblers are drawn from the cut figure art, SHAMBLER_HEIGHT units from feet to top of head. */
@@ -47,6 +47,14 @@ export const LEG_SLOW = { factor: 0.55, seconds: 2.5 } as const;
 /** Half the width of a zombie's body (m), kept clear of the window frame. */
 const BODY_HALF_M = 0.25;
 
+/** A field target zombies can go for instead of the bunker (see systems/FieldTargets). */
+export interface FieldGoal {
+  x: number;
+  z: number;
+  /** Half its width in metres: a zombie this close sideways can reach it. */
+  halfWidth: number;
+}
+
 /**
  * One enemy: logic state plus an articulated, camera-facing rig built from
  * atlas parts. Pooled by EnemyManager — reset() reinitialises everything.
@@ -74,6 +82,24 @@ export class Zombie {
   targetX = 0;
   stopZ = 0;
   speed = 0;
+  /** A field target (mast, depot, bus) this one goes for instead of the bunker. Moves with it. */
+  goal: FieldGoal | null = null;
+  /** Boss rage: multiplies walking speed. */
+  rage = 1;
+  /** A Howler's scream: speed multiplier and seconds left. */
+  hasteLeft = 0;
+  hasteMul = 1;
+  /** Where a Spitter/Howler stops to act (null = it walks straight in), and actions left there. */
+  holdZ: number | null = null;
+  holdsLeft = 0;
+  holdCooldown = 0;
+  /** Winding up a spit or a howl. */
+  channelLeft = 0;
+  channelKind: 'spit' | 'howl' | null = null;
+  /** Set for one frame when something happens: read and cleared by EnemyManager. */
+  action: 'charge' | 'spit' | 'howl' | null = null;
+  /** A Howler's first howl calls extra bodies; only once. */
+  summoned = false;
   /** Screen-space info refreshed every frame. */
   sx = 0;
   sy = 0;
@@ -152,8 +178,28 @@ export class Zombie {
     this.speed = def.speed * speedMul * (1 + (rng() * 2 - 1) * (def.speedJitter / def.speed));
     this.x = this.spawnX = x;
     this.z = z;
-    this.targetX = (rng() * 2 - 1) * FIELD.attackHalfWidth;
-    this.stopZ = FIELD.attackZ + rng() * 1.3;
+    this.goal = null;
+    this.rage = 1;
+    this.hasteLeft = 0;
+    this.hasteMul = 1;
+    this.action = null;
+    this.channelLeft = 0;
+    this.channelKind = null;
+    this.summoned = false;
+    // Spitters and Howlers stop at a distance to do their thing; a boss howls on the move.
+    const ranged = def.special?.ranged;
+    const howl = def.special?.howl;
+    const hold = ranged?.stopRange ?? (!def.boss ? howl?.stopRange : undefined);
+    this.holdZ = hold ? hold[0] + rng() * (hold[1] - hold[0]) : null;
+    this.holdsLeft = ranged ? ranged.shots : howl ? howl.maxHowls : 0;
+    this.holdCooldown = ranged ? ranged.windup + rng() : howl ? howl.firstDelay + rng() : 0;
+    if (def.boss) {
+      this.targetX = 0;
+      this.stopZ = def.boss.stopZ;
+    } else {
+      this.targetX = (rng() * 2 - 1) * FIELD.attackHalfWidth;
+      this.stopZ = FIELD.attackZ + rng() * 1.3;
+    }
     this.state = 'emerge';
     this.emergeLeft = 0.5 + rng() * 1.2;
     this.phase = rng() * TAU;
@@ -252,7 +298,7 @@ export class Zombie {
   }
 
   get alive(): boolean {
-    return this.active && (this.state === 'emerge' || this.state === 'walk' || this.state === 'attack');
+    return this.active && (this.state === 'emerge' || this.state === 'walk' || this.state === 'hold' || this.state === 'attack');
   }
 
   get slowFactor(): number {
@@ -276,6 +322,16 @@ export class Zombie {
     if (this.slowLeft > 0) this.slowLeft = Math.max(0, this.slowLeft - dt);
     if (this.legsHurtLeft > 0) this.legsHurtLeft = Math.max(0, this.legsHurtLeft - dt);
     const slow = this.slowFactor;
+    if (this.hasteLeft > 0) {
+      this.hasteLeft -= dt;
+      if (this.hasteLeft <= 0) this.hasteMul = 1;
+    }
+    // A spit or howl winding up: it stands still, then the action fires.
+    if (this.channelLeft > 0 && this.alive) {
+      this.channelLeft -= dt;
+      this.phase += dt * 4;
+      if (this.channelLeft <= 0) this.finishChannel();
+    }
 
     switch (this.state) {
       case 'emerge':
@@ -283,27 +339,57 @@ export class Zombie {
         this.phase += dt * 1.5;
         if (this.emergeLeft <= 0) this.state = 'walk';
         break;
+      case 'hold':
+        if (this.channelLeft > 0) break;
+        this.holdCooldown -= dt * slow;
+        if (this.holdCooldown <= 0) this.startChannel();
+        break;
       case 'walk': {
+        const v = this.speed * slow * this.rage * this.hasteMul;
+        if (this.channelLeft > 0) break;
+        // A boss howls on the move; Spitters and Howlers stop at their distance first.
+        if (this.def.boss && this.def.special?.howl && this.holdsLeft > 0) {
+          this.holdCooldown -= dt;
+          if (this.holdCooldown <= 0) {
+            this.startChannel();
+            break;
+          }
+        }
+        if (this.holdZ !== null && this.holdsLeft > 0 && this.z <= this.holdZ && this.staggerLeft <= 0) {
+          this.state = 'hold';
+          break;
+        }
         if (this.staggerLeft > 0) {
           this.staggerLeft -= dt;
           this.z = Math.min(FIELD.spawnZ, this.z + dt * 0.9);
           this.phase += dt * 3;
-        } else {
-          const v = this.speed * slow;
+        } else if (this.z > this.stopZ) {
           this.z -= v * dt;
           this.phase += (v / STRIDE[this.def.rig]) * Math.PI * dt;
+        } else if (this.goal) {
+          // At the target's distance but beside it (a bus drove on): chase it sideways.
+          const dx = this.goal.x - this.x;
+          this.x += Math.sign(dx) * Math.min(Math.abs(dx), v * dt);
+          this.phase += (v / STRIDE[this.def.rig]) * Math.PI * dt;
         }
-        if (this.z <= this.stopZ) {
+        if (this.z <= this.stopZ && (!this.goal || Math.abs(this.goal.x - this.x) < this.goal.halfWidth)) {
           this.z = this.stopZ;
           this.state = 'attack';
           this.attackT = 0;
           this.struck = false;
+        } else if (this.z < this.stopZ) {
+          this.z = this.stopZ;
         }
         break;
       }
       case 'attack': {
         if (this.staggerLeft > 0) {
           this.staggerLeft -= dt;
+          break;
+        }
+        // The target moved away (a bus): go after it again.
+        if (this.goal && Math.abs(this.goal.x - this.x) > this.goal.halfWidth + 0.8) {
+          this.state = 'walk';
           break;
         }
         this.attackT += (dt * slow) / this.def.attackInterval;
@@ -334,18 +420,72 @@ export class Zombie {
 
     // Lateral path: converge from spawn lane to a slot on the bunker line, with a drifting wander.
     if (this.state !== 'dying' && this.state !== 'dead') {
-      const t = Phaser.Math.Clamp((this.z - FIELD.attackZ) / (FIELD.spawnZ - FIELD.attackZ), 0, 1);
-      const wander = Math.sin(this.time * 0.35 + this.wanderSeed) * 1.6 * t;
       // Stay inside the bunker window: it narrows toward the wall, and the body keeps clear of the frame.
       const lim = windowHalfWidth(this.z) - BODY_HALF_M;
-      const desired = Phaser.Math.Clamp(this.targetX + (this.spawnX - this.targetX) * t + wander, -lim, lim);
-      this.x = Phaser.Math.Clamp(this.x + (desired - this.x) * Math.min(1, dt * 2), -lim, lim);
+      if (this.goal) {
+        // Converge on the field target. Once level with it, the chase above moves x directly
+        // (a bus may be out at the edge of the window, so the clamp is looser).
+        if (this.z > this.stopZ + 0.01) {
+          const t = Phaser.Math.Clamp((this.z - this.stopZ) / (FIELD.spawnZ - this.stopZ), 0, 1);
+          const desired = this.goal.x + (this.spawnX - this.goal.x) * t;
+          this.x += (desired - this.x) * Math.min(1, dt * 2);
+        }
+        this.x = Phaser.Math.Clamp(this.x, -lim - 3, lim + 3);
+      } else {
+        const t = Phaser.Math.Clamp((this.z - FIELD.attackZ) / (FIELD.spawnZ - FIELD.attackZ), 0, 1);
+        const wander = Math.sin(this.time * 0.35 + this.wanderSeed) * 1.6 * t;
+        const desired = Phaser.Math.Clamp(this.targetX + (this.spawnX - this.targetX) * t + wander, -lim, lim);
+        this.x = Phaser.Math.Clamp(this.x + (desired - this.x) * Math.min(1, dt * 2), -lim, lim);
+      }
     }
 
     this.updateScreen();
     this.pose();
     if (!this.active) this.root.setVisible(false);
     return strike;
+  }
+
+  private startChannel(): void {
+    const ranged = this.def.special?.ranged;
+    this.channelKind = ranged ? 'spit' : 'howl';
+    this.channelLeft = ranged ? ranged.windup : 1.35;
+    this.action = 'charge';
+  }
+
+  private finishChannel(): void {
+    this.action = this.channelKind;
+    this.channelKind = null;
+    this.channelLeft = 0;
+    this.holdsLeft -= 1;
+    const ranged = this.def.special?.ranged;
+    const howl = this.def.special?.howl;
+    this.holdCooldown = ranged ? ranged.interval : howl ? howl.interval : 0;
+    // Out of spits or howls: walk in and claw like the rest.
+    if (this.holdsLeft <= 0 && this.state === 'hold') {
+      this.holdZ = null;
+      this.state = 'walk';
+    }
+  }
+
+  /** A Howler's scream reached this one: it moves faster for a while. */
+  haste(mul: number, seconds: number): void {
+    this.hasteMul = Math.max(this.hasteMul, mul);
+    this.hasteLeft = Math.max(this.hasteLeft, seconds);
+  }
+
+  /**
+   * Send this one after a field target, or back to the bunker with `null`. A zombie
+   * already past the target's distance keeps going for the bunker.
+   */
+  setGoal(goal: FieldGoal | null): void {
+    if (goal && this.z < goal.z) return;
+    this.goal = goal;
+    if (goal) {
+      this.stopZ = goal.z + 0.9;
+    } else {
+      this.stopZ = this.def.boss ? this.def.boss.stopZ : FIELD.attackZ + Math.random() * 1.3;
+      if (this.state === 'attack') this.state = 'walk';
+    }
   }
 
   /** Nudge sideways (used by crowd separation). */
@@ -749,6 +889,18 @@ export class Zombie {
     const dist = Phaser.Math.Clamp((this.z - 8) / 70, 0, 1);
     const g = Math.round(212 - dist * 100);
     let tint = (g << 16) | (Math.round(g * 1.0) << 8) | Math.min(255, Math.round(g * 1.04));
+    const bodyTint = this.def.tint ?? this.def.boss?.tint;
+    if (bodyTint !== undefined) {
+      const k = (shift: number): number => Math.round((((tint >> shift) & 0xff) * ((bodyTint >> shift) & 0xff)) / 255);
+      tint = (k(16) << 16) | (k(8) << 8) | k(0);
+    }
+    // The tell before a spit (pulsing acid green) or a howl (pulsing pale blue).
+    if (this.channelKind) {
+      const pulse = 0.5 + 0.5 * Math.sin(this.time * 24);
+      tint = this.channelKind === 'spit'
+        ? Phaser.Display.Color.GetColor(Math.round(120 + 60 * pulse), 255, Math.round(60 + 40 * pulse))
+        : Phaser.Display.Color.GetColor(Math.round(190 + 60 * pulse), Math.round(210 + 40 * pulse), 255);
+    }
     if (this.slowLeft > 0) tint = 0x9fd4ff;
     else if (this.burnLeft > 0) tint = Phaser.Display.Color.GetColor(255, Math.round(g * 0.75), Math.round(g * 0.55));
     if (this.hitFlash > 0) tint = this.flashColor;

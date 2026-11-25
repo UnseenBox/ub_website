@@ -20,6 +20,8 @@ export class EnemyManager {
   onStrike: (z: Zombie) => void = () => {};
   /** Called when a zombie reaches the line for the first time. */
   onArrive: (z: Zombie) => void = () => {};
+  /** Spitter/Howler actions: 'charge' (wind-up starts), 'spit', 'howl'. */
+  onAction: (z: Zombie, action: 'charge' | 'spit' | 'howl') => void = () => {};
   /** Called when a corpse finishes fading and is returned to the pool. */
   onRecycle: (z: Zombie) => void = () => {};
 
@@ -31,8 +33,10 @@ export class EnemyManager {
     const def: EnemyDef = ENEMIES[id];
     if (!def) throw new Error(`Unknown enemy ${id}`);
     const zb = this.pool.pop() ?? new Zombie(this.scene);
-    const sx = x ?? (this.rng() * 2 - 1) * FIELD.spawnHalfWidth;
-    const sz = z ?? FIELD.spawnZ - this.rng() * 4;
+    // A Lurker comes up out of the mud close to the wire instead of walking in from the fog.
+    const burrow = def.special?.burrow;
+    const sx = x ?? (this.rng() * 2 - 1) * (burrow ? Math.min(10, FIELD.spawnHalfWidth) : FIELD.spawnHalfWidth);
+    const sz = z ?? (burrow ? burrow.near + this.rng() * (burrow.far - burrow.near) : FIELD.spawnZ - this.rng() * 4);
     zb.reset(def, healthMul, speedMul, sx, sz, this.rng);
     this.live.push(zb);
     return zb;
@@ -72,6 +76,10 @@ export class EnemyManager {
       const strike = z.update(dt);
       if (!wasAttacking && z.state === 'attack') this.onArrive(z);
       if (strike) this.onStrike(z);
+      if (z.action) {
+        this.onAction(z, z.action);
+        z.action = null;
+      }
       if (!z.active) {
         live.splice(i, 1);
         z.release();
@@ -105,6 +113,30 @@ export class EnemyManager {
       if (d <= radius) out.push({ zombie: zb, dist: d });
     }
     return out;
+  }
+
+  /** Every alive zombie under a screen point, nearest first (for shots that go through). */
+  raycastAll(px: number, py: number): RayHit[] {
+    const out: RayHit[] = [];
+    for (const z of this.live) {
+      if (!z.alive) continue;
+      const zone = z.hitTest(px, py);
+      if (zone) out.push({ zombie: z, zone });
+    }
+    return out.sort((a, b) => a.zombie.z - b.zombie.z);
+  }
+
+  /** A Howler's scream: everyone alive within `radius` metres moves faster for a while. */
+  hasteAround(x: number, z: number, radius: number, mul: number, seconds: number, except?: Zombie): number {
+    let n = 0;
+    for (const zb of this.live) {
+      if (!zb.alive || zb === except || zb.def.special?.howl) continue;
+      if (Math.hypot(zb.x - x, zb.z - z) <= radius) {
+        zb.haste(mul, seconds);
+        n++;
+      }
+    }
+    return n;
   }
 
   /** The alive zombie closest to the bunker (for support targeting). */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WEAPONS } from '../data/weapons';
+import { CLASSIC_WEAPONS as WEAPONS } from '../data/weapons';
 import { buildSteps, canAdvance, fireAllowed, GATE_PAUSE_SECONDS, Facts, wavesAllowed } from './tutorialSteps';
 
 const opts = (touch: boolean) => ({ touch, legSlow: { factor: 0.55, seconds: 2.5 } });

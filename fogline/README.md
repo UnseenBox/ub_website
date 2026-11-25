@@ -23,6 +23,8 @@ npm run dev        # http://localhost:5191
 | --- | --- |
 | `npm run dev` | Vite dev server with hot reload |
 | `npm run build` | Type-check and build a static bundle into `dist/` |
+| `npm run build:crazygames` | CrazyGames build into `dist-crazygames/`: SDK tag, loading/gameplay events, happytime, cloud save. Ads stay off until `VITE_ADS=on` in `.env.crazygames` (Full Launch) |
+| `npm run dev:crazygames` | Dev server in CrazyGames mode (loads the real SDK, which shows test overlays on localhost) |
 | `npm run test` | Vitest unit tests for the game logic |
 | `npm run typecheck` | TypeScript only |
 
@@ -112,7 +114,23 @@ the head is checked before the body.
   - Crawler: low and fast
 - Bunker health of 1,000 with damage flashes, a lagging damage bar, a critical warning with red vignette, repair, the shutter shield and reinforcement upgrades
 - Economy: $500 start, kill rewards, headshot bonus paid once, wave bonuses paid once, no negative balances
-- 8-wave campaign. Difficulty rises through enemy count, spawn rate, bursts, speed, health and composition: runners from wave 3, Riot Husks from 5, Bloaters from 7. Victory and defeat both lead to a stats screen with restart
+- Act 1 campaign (`src/data/missions.ts`): nine missions on a valley map with fog that pulls back as you win. Objectives: hold the line, protect a structure in the field, escort buses across the field, and kill the Colossus boss. Each mission scores 1–3 stars and pays Supplies; first wins unlock weapons and gear for good
+- Workshop: Supplies buy permanent upgrades (damage, handling, magazine, reload per weapon, plus bunker health). Loadout: carry 3 weapons and 2 support strikes; missions lend extra gear to try
+- Act 2 (opens after the Colossus with 15 Act 1 stars): Spitters, Howlers, Sappers, Juggernauts, The Choir boss; fog nests to shoot apart, supply crates to shoot down, night missions with flares (Q); M82 .50 and flamethrower
+- Act 3 (opens after the Choir with 33 stars): the quarry, the rail yard and Meridian Station; Fogborn and Ravagers; a door-gunner mission from Kestrel's helicopter; The Heart of the Fog boss and an ending; M3 rocket launcher and XR-9 railgun
+- Act 4 "The Fog Returns" (opens after the Heart with 55 stars): Saltmarsh harbour, Gull Point and Fort Ashby; Lurkers (come up near the wire) and Sporelings (burst into vision-blocking clouds); storm missions with rain and lightning; The Bloom, a boss shielded by spore pods; a second ending
+- Veteran: replay any won mission on Veteran (tougher, bigger waves, ×1.5 Supplies) for a ✪ medal; nine medals unlock the Obsidian skin
+- TC-3 Tesla gun (chain lightning) and a sixth recruit, Vesna, a mortar crew that shells the far field
+- Attachments (Workshop, after Act 3 mission 2): extended mag, hollow points, compensator or speed loader, bought once, one fitted per weapon
+- Contested nodes: two won missions a day re-fog on the map and pay +60% Supplies when retaken
+- Playtest numbers: F9 on the map shows starts, wins, fail rate and minutes per mission for this save
+- Squad (Barracks): Dot repairs, Mara snipes far threats, Brick guards the wire, Kestrel strafes a lane, Rook lobs grenades; two at the side windows, trained with Supplies
+- Focus (SHIFT, or tap the bar): five seconds of slowed time, filled by kills; kill streaks raise cash ×1.25/1.5/2 until the bunker is hit
+- HQ (map button or H, opens with Act 1 mission 5): daily supply drop (7-day calendar, one missed day forgiven), three daily contracts (one swap a day), Supply Depot that fills while away (upgradeable), Field Notes (enemy codex paid at 10/100/500 kills)
+- Fog Surge (after mission 7): one generated mission a day with two modifiers (night, drops, horde, quickened, hardened, bounty, thin walls); big reward for the first win, best score kept
+- Last Stand (after Act 1): endless waves at the farm, Supplies per wave and one-time milestones at waves 5–30
+- Weapon mastery: kills with a gun unlock Desert, Winter, Fogline and Gold skins (Workshop); day 7 of the drop gives Crimson
+- Training (menu → TRAINING & BRIEFING): the original 8-wave run with the replayable briefing; never saved
 - Ammo mods with charges and timed activation, each with clear HUD indicators and hit effects
 - Support strikes:
   - Gunship: flies in, strafes and chain-guns enemies, with rotor loop audio

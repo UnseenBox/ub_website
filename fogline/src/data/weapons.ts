@@ -2,7 +2,7 @@
 // read from here, so new guns are added by appending a definition.
 
 export type FireMode = 'semi' | 'auto';
-export type WeaponKind = 'hitscan' | 'grenade';
+export type WeaponKind = 'hitscan' | 'grenade' | 'flame';
 
 /**
  * Placement and motion for a first-person view-model texture. Points are in
@@ -83,7 +83,8 @@ export interface WeaponDef {
   id: string;
   name: string;
   shortName: string;
-  slot: 1 | 2 | 3 | 4;
+  /** Key in the old fixed four-gun layout (training). Campaign battles number the loadout instead. */
+  slot: number;
   price: number;
   /** Cleared-wave number that puts the weapon on sale in the armory (0 = from the start). */
   unlockAfterWave: number;
@@ -111,6 +112,18 @@ export interface WeaponDef {
   /** Grenade-only: projectile flight speed (m/s), blast radius (m). */
   projectileSpeed?: number;
   blastRadius?: number;
+  /** Shotgun: pellets per shot, each a hitscan inside `spread`; damage is per pellet. */
+  pellets?: number;
+  /** Damage falls from full at `start` metres to `min` × at `end` metres. */
+  falloff?: { start: number; end: number; min: number };
+  /** Hitscan: the round goes on through this many bodies in a line. */
+  pierce?: number;
+  /** Ignores body armour like armour-piercing rounds. */
+  armorPiercing?: boolean;
+  /** Tesla: after the first hit the bolt jumps to the nearest body within `radiusM`, losing `falloff` per jump. */
+  chain?: { jumps: number; radiusM: number; falloff: number };
+  /** Flame: reach in metres; `spread` is the stream's radius in pixels at the aim point. */
+  flameRange?: number;
   muzzleFlash: { scale: number; tint: number };
   sound: WeaponSoundConfig;
   /** Texture key of the first-person view model and HUD icon. */
@@ -379,7 +392,237 @@ export const WEAPONS: WeaponDef[] = [
     iconTexture: 'icon_m32',
     description: '40mm six-shot revolver launcher. Lobbed high-explosive rounds shred packed groups.',
   },
+  {
+    id: 'shotgun',
+    name: 'M590 Pump Shotgun',
+    shortName: 'M590',
+    slot: 5,
+    price: 1400,
+    unlockAfterWave: 99,
+    kind: 'hitscan',
+    mode: 'semi',
+    // Per pellet: a close blast of all nine pellets is 9 × 26 = 234 damage.
+    damage: 26,
+    pellets: 9,
+    falloff: { start: 9, end: 40, min: 0.25 },
+    fireRate: 1.25,
+    magazine: 6,
+    startReserve: 36,
+    maxReserve: 72,
+    ammoPack: { rounds: 12, price: 90 },
+    reloadTime: 2.8,
+    recoil: 30,
+    bloomPerShot: 6,
+    spread: 30,
+    maxSpread: 44,
+    headshotMultiplier: 1.6,
+    shake: 0.003,
+    muzzleFlash: { scale: 1.25, tint: 0xffc890 },
+    sound: { shot: 'shot_shotgun', reload: 'reload_shotgun', empty: 'empty_heavy', pitchJitter: 0.04 },
+    // Procedural view model (no photo yet): a steadier, larger take on the default placement.
+    viewTexture: 'view_shotgun',
+    viewModel: { pivotX: 800, pivotY: 800, scale: 1.45, maxRot: 0.45, sway: 0.7, reloadTilt: 0.6 },
+    iconTexture: 'icon_shotgun',
+    description: 'Pump-action 12 gauge. A wall of pellets that stops anything at the wire. Weak at range.',
+  },
+  {
+    id: 'm82',
+    name: 'M82 .50 Rifle',
+    shortName: 'M82',
+    slot: 6,
+    price: 3600,
+    unlockAfterWave: 99,
+    kind: 'hitscan',
+    mode: 'semi',
+    damage: 300,
+    pierce: 3,
+    armorPiercing: true,
+    fireRate: 0.9,
+    magazine: 5,
+    startReserve: 30,
+    maxReserve: 60,
+    ammoPack: { rounds: 10, price: 160 },
+    reloadTime: 3.2,
+    recoil: 40,
+    bloomPerShot: 18,
+    spread: 1,
+    maxSpread: 30,
+    headshotMultiplier: 1.8,
+    shake: 0.006,
+    muzzleFlash: { scale: 1.3, tint: 0xffd090 },
+    sound: { shot: 'shot_m82', reload: 'reload_m32', empty: 'empty_heavy', pitchJitter: 0.02 },
+    viewTexture: 'view_m82',
+    viewModel: { pivotX: 800, pivotY: 800, scale: 1.4, maxRot: 0.4, sway: 0.6, reloadTilt: 0.6 },
+    iconTexture: 'icon_m82',
+    description: 'Anti-materiel rifle. One round goes through armour and up to three bodies in a line. Slow.',
+  },
+  {
+    id: 'flamer',
+    name: 'M2 Flamethrower',
+    shortName: 'FLAMER',
+    slot: 7,
+    price: 3000,
+    unlockAfterWave: 99,
+    kind: 'flame',
+    mode: 'auto',
+    // Per tick, to everything in the stream, and it sets them alight.
+    damage: 15,
+    flameRange: 24,
+    fireRate: 14,
+    magazine: 100,
+    startReserve: 300,
+    maxReserve: 600,
+    ammoPack: { rounds: 100, price: 120 },
+    reloadTime: 3.4,
+    recoil: 3,
+    bloomPerShot: 0,
+    spread: 46,
+    maxSpread: 46,
+    headshotMultiplier: 1,
+    shake: 0.0008,
+    muzzleFlash: { scale: 0.9, tint: 0xff9040 },
+    sound: { shot: 'shot_flame', reload: 'reload_m249', empty: 'empty_heavy', pitchJitter: 0.08 },
+    viewTexture: 'view_flamer',
+    viewModel: { pivotX: 800, pivotY: 800, scale: 1.4, maxRot: 0.45, sway: 0.7, reloadTilt: 0.6 },
+    iconTexture: 'icon_flamer',
+    description: 'A stream of burning fuel. Torches everything in front of the wire. Short reach.',
+  },
+  {
+    id: 'rpg',
+    name: 'M3 Rocket Launcher',
+    shortName: 'ROCKET',
+    slot: 8,
+    price: 4800,
+    unlockAfterWave: 99,
+    kind: 'grenade',
+    mode: 'semi',
+    // One rocket at a time: a huge blast that flattens a crowd or rocks a giant.
+    damage: 520,
+    fireRate: 1,
+    magazine: 1,
+    startReserve: 8,
+    maxReserve: 16,
+    ammoPack: { rounds: 4, price: 320 },
+    reloadTime: 2.4,
+    recoil: 34,
+    bloomPerShot: 0,
+    spread: 0,
+    maxSpread: 0,
+    headshotMultiplier: 1,
+    shake: 0.007,
+    projectileSpeed: 170,
+    blastRadius: 8.5,
+    muzzleFlash: { scale: 1.6, tint: 0xffa060 },
+    sound: { shot: 'shot_rpg', reload: 'reload_m32', empty: 'empty_heavy', impact: 'explosion', pitchJitter: 0.03 },
+    viewTexture: 'view_rpg',
+    viewModel: { pivotX: 800, pivotY: 800, scale: 1.4, maxRot: 0.4, sway: 0.6, reloadTilt: 0.5 },
+    iconTexture: 'icon_rpg',
+    description: 'Recoilless rocket launcher. One shot, one huge blast. Built for Ravagers and packed lines.',
+  },
+  {
+    id: 'railgun',
+    name: 'XR-9 Railgun',
+    shortName: 'RAIL',
+    slot: 9,
+    price: 6000,
+    unlockAfterWave: 99,
+    kind: 'hitscan',
+    mode: 'semi',
+    // A slug that goes through everything in a line, armour included.
+    damage: 700,
+    pierce: 8,
+    armorPiercing: true,
+    fireRate: 0.55,
+    magazine: 4,
+    startReserve: 24,
+    maxReserve: 48,
+    ammoPack: { rounds: 8, price: 260 },
+    reloadTime: 3.4,
+    recoil: 44,
+    bloomPerShot: 20,
+    spread: 0.5,
+    maxSpread: 30,
+    headshotMultiplier: 1.6,
+    shake: 0.008,
+    muzzleFlash: { scale: 1.4, tint: 0x80c8ff },
+    sound: { shot: 'shot_rail', reload: 'reload_m32', empty: 'empty_heavy', pitchJitter: 0.02 },
+    viewTexture: 'view_railgun',
+    viewModel: { pivotX: 800, pivotY: 800, scale: 1.4, maxRot: 0.4, sway: 0.5, reloadTilt: 0.5 },
+    iconTexture: 'icon_railgun',
+    description: "Meridian's own prototype. A magnetic slug through armour and up to eight bodies in a line.",
+  },
+  {
+    // Mounted in Kestrel's helicopter door: only on the door-gunner mission, never owned.
+    id: 'doorgun',
+    name: 'M134 Door Gun',
+    shortName: 'DOOR GUN',
+    slot: 10,
+    price: 99999,
+    unlockAfterWave: 99,
+    kind: 'hitscan',
+    mode: 'auto',
+    damage: 34,
+    fireRate: 16,
+    magazine: 300,
+    startReserve: Infinity,
+    maxReserve: Infinity,
+    ammoPack: { rounds: 0, price: 0 },
+    reloadTime: 3,
+    recoil: 4,
+    bloomPerShot: 1.2,
+    spread: 6,
+    maxSpread: 30,
+    headshotMultiplier: 2,
+    shake: 0.0012,
+    muzzleFlash: { scale: 1.1, tint: 0xffc070 },
+    sound: { shot: 'shot_m249', reload: 'reload_m249', empty: 'empty_heavy', pitchJitter: 0.1 },
+    viewTexture: 'view_doorgun',
+    viewModel: { pivotX: 800, pivotY: 800, scale: 1.5, maxRot: 0.35, sway: 0.4, reloadTilt: 0.3 },
+    iconTexture: 'icon_doorgun',
+    description: 'A six-barrel minigun on a door mount. Endless belt, needs a moment to cool between belts.',
+  },
 ];
+
+WEAPONS.push({
+  id: 'tesla',
+  name: 'TC-3 Tesla Gun',
+  shortName: 'TESLA',
+  slot: 11,
+  price: 5200,
+  unlockAfterWave: 99,
+  kind: 'hitscan',
+  mode: 'semi',
+  // The bolt hits its target, then arcs to four more nearby, losing a quarter each jump.
+  damage: 95,
+  chain: { jumps: 4, radiusM: 6, falloff: 0.75 },
+  fireRate: 2.4,
+  magazine: 12,
+  startReserve: 72,
+  maxReserve: 144,
+  ammoPack: { rounds: 24, price: 200 },
+  reloadTime: 2.4,
+  recoil: 12,
+  bloomPerShot: 6,
+  spread: 2,
+  maxSpread: 26,
+  headshotMultiplier: 1.5,
+  shake: 0.002,
+  muzzleFlash: { scale: 1.1, tint: 0x90d0ff },
+  sound: { shot: 'shot_tesla', reload: 'reload_m249', empty: 'empty_heavy', pitchJitter: 0.06 },
+  viewTexture: 'view_tesla',
+  viewModel: { pivotX: 800, pivotY: 800, scale: 1.4, maxRot: 0.45, sway: 0.6, reloadTilt: 0.5 },
+  iconTexture: 'icon_tesla',
+  description: 'Chain lightning. Each bolt jumps from its target to four more of the dead nearby.',
+});
+
+/** Mounted guns: lent by one mission, never owned, never in a loadout. */
+export const MOUNTED_WEAPONS = ['doorgun'];
+
+/** The classic four guns of the training run, on keys 1–4. */
+export const CLASSIC_WEAPONS: WeaponDef[] = WEAPONS.filter((w) => w.slot <= 4);
+
+/** Display order for loadouts and the HUD: lightest to heaviest. */
+export const WEAPON_ORDER = ['service', 'm4', 'shotgun', 'tesla', 'flamer', 'm249', 'm82', 'railgun', 'm32', 'rpg'];
 
 export function weaponById(id: string): WeaponDef {
   const w = WEAPONS.find((x) => x.id === id);

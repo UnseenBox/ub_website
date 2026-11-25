@@ -1,3 +1,4 @@
+import type { WeaponDef } from '../data/weapons';
 import { EnemyDef, HitZone } from '../data/enemies';
 import { MOD_EFFECTS, ModId } from '../data/upgrades';
 
@@ -42,4 +43,12 @@ export function blastDamage(base: number, distance: number, radius: number, acti
 /** Kill payout. Called exactly once per kill; headshot bonus is part of the same payment. */
 export function killReward(enemy: EnemyDef, headshotKill: boolean): number {
   return enemy.reward + (headshotKill ? enemy.headshotBonus : 0);
+}
+
+/** Damage multiplier for a weapon at `z` metres (1 when it has no falloff). */
+export function rangeFalloff(def: WeaponDef, z: number): number {
+  const f = def.falloff;
+  if (!f || z <= f.start) return 1;
+  if (z >= f.end) return f.min;
+  return 1 - (1 - f.min) * ((z - f.start) / (f.end - f.start));
 }

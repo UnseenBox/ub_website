@@ -43,6 +43,9 @@ export class WaveManager {
   pending = 0;
   private rewardPaid = new Set<number>();
 
+  /** Last Stand: the wave count is shown without a total. */
+  endless = false;
+
   constructor(private readonly waves: WaveDef[] = WAVES) {}
 
   get totalWaves(): number {

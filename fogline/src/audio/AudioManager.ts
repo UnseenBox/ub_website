@@ -55,6 +55,8 @@ export class AudioManager {
   private loopsPaused = false;
   volumes = { master: 0.8, sfx: 0.9, music: 0.5 };
   ready = false;
+  /** Reasons the platform wants silence (an ad is playing, the portal's own mute). Any one mutes everything. */
+  private holds = new Set<string>();
   private bank: Bank | null = null;
 
   /** Synthesize every sound (no AudioContext needed). Call during boot. */
@@ -182,10 +184,21 @@ export class AudioManager {
     this.applyVolumes();
   }
 
+  /** Silences the whole mix for a reason (an ad, the portal's mute) until that reason is lifted. */
+  setHold(reason: string, on: boolean): void {
+    if (on) this.holds.add(reason);
+    else this.holds.delete(reason);
+    this.applyVolumes();
+  }
+
+  get held(): boolean {
+    return this.holds.size > 0;
+  }
+
   private applyVolumes(): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.master.gain.setTargetAtTime(this.volumes.master, t, 0.02);
+    this.master.gain.setTargetAtTime(this.holds.size ? 0 : this.volumes.master, t, 0.02);
     this.sfx.gain.setTargetAtTime(this.volumes.sfx, t, 0.02);
     this.music.gain.setTargetAtTime(this.volumes.music, t, 0.02);
   }

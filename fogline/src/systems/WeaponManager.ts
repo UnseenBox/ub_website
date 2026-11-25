@@ -41,11 +41,42 @@ export class WeaponManager {
   /** Semi-auto clicks slightly early are buffered so they still fire. */
   private semiBuffer = 0;
 
-  constructor() {
-    for (const def of WEAPONS) {
-      this.states.set(def.id, { def, owned: def.price === 0, unlocked: def.unlockAfterWave <= 0, mag: def.magazine, reserve: def.startReserve });
+  /** Wave after which each weapon goes on sale; missing = not offered at all. */
+  private readonly unlockAt = new Map<string, number>();
+
+  /**
+   * `owned`: weapons carried into the battle (defaults to the free ones).
+   * `unlockAfterWave`: the weapons this battle's armory sells and the wave that opens each
+   * (defaults to every weapon's own `unlockAfterWave`).
+   */
+  constructor(opts: { owned?: string[]; unlockAfterWave?: Record<string, number>; defs?: Record<string, WeaponDef> } = {}) {
+    const owned = opts.owned ? new Set(opts.owned) : null;
+    for (const base of WEAPONS) {
+      // Workshop upgrades arrive as replacement definitions with the same id.
+      const def = opts.defs?.[base.id] ?? base;
+      const isOwned = owned ? owned.has(def.id) || def.price === 0 : def.price === 0;
+      const at = opts.unlockAfterWave ? opts.unlockAfterWave[def.id] : def.unlockAfterWave;
+      if (at !== undefined) this.unlockAt.set(def.id, at);
+      this.states.set(def.id, {
+        def, owned: isOwned, unlocked: isOwned || (at !== undefined && at <= 0), mag: def.magazine, reserve: def.startReserve,
+      });
     }
     this.currentId = WEAPONS[0].id;
+  }
+
+  /** Start the battle holding this weapon (no switch animation). */
+  forceSelect(id: string): void {
+    if (this.states.get(id)?.owned) this.currentId = id;
+  }
+
+  /** Owned, or on sale in this battle (now or after a wave). */
+  isOffered(id: string): boolean {
+    return this.owns(id) || this.unlockAt.has(id);
+  }
+
+  /** The wave that puts a weapon on sale, or null when this battle never sells it. */
+  unlockWave(id: string): number | null {
+    return this.unlockAt.get(id) ?? null;
   }
 
   get current(): WeaponState {
@@ -78,7 +109,8 @@ export class WeaponManager {
   unlockForCleared(cleared: number): WeaponDef[] {
     const fresh: WeaponDef[] = [];
     for (const s of this.states.values()) {
-      if (!s.unlocked && s.def.unlockAfterWave <= cleared) {
+      const at = this.unlockAt.get(s.def.id);
+      if (!s.unlocked && at !== undefined && at <= cleared) {
         s.unlocked = true;
         fresh.push(s.def);
       }

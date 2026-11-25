@@ -74,7 +74,7 @@ export class ShopScene extends Phaser.Scene {
     if (waves.canStartNext && waves.remaining === 0) {
       this.deployBtn = button(this, x0 + W - 170, by, 300, 36, keyHint(`DEPLOY WAVE ${waves.wave + 1}`, 'ENTER'), () => this.close(true), 10, 0xc84030);
     }
-    this.add.text(VIEW.centerX, by, `WAVE ${waves.wave}/${waves.totalWaves}  ·  BUNKER ${Math.ceil(this.game_.bunker.health)}/${this.game_.bunker.max}`, {
+    this.add.text(VIEW.centerX, by, `WAVE ${waves.endless ? waves.wave : `${waves.wave}/${waves.totalWaves}`}  ·  BUNKER ${Math.ceil(this.game_.bunker.health)}/${this.game_.bunker.max}`, {
       fontFamily: MONO, fontSize: '12px', color: '#8a8a76',
     }).setOrigin(0.5);
 

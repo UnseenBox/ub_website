@@ -1,34 +1,9 @@
 import Phaser from 'phaser';
+import { LOCATIONS, LocationDef, LocationId } from '../data/locations';
 import { VIEW } from '../game/config';
 import { DEPTH } from '../game/depths';
 import { project, screenYOfGround } from '../game/perspective';
 import { depthForZ } from '../entities/Zombie';
-
-interface PropPlacement { key: string; x: number; z: number; heightM: number; flip?: boolean; tint?: number }
-
-/** Static props placed in world space; scaled and depth-sorted by distance. */
-const PROPS: PropPlacement[] = [
-  { key: 'tree_0', x: -40, z: 72, heightM: 9 },
-  { key: 'tree_1', x: 34, z: 58, heightM: 8.5, flip: true },
-  { key: 'tree_2', x: -24, z: 36, heightM: 7.5 },
-  { key: 'tree_0', x: 26, z: 26, heightM: 7, flip: true },
-  { key: 'tree_1', x: -58, z: 90, heightM: 10 },
-  { key: 'tree_2', x: 52, z: 85, heightM: 9 },
-  { key: 'tree_1', x: -17, z: 20, heightM: 6.5 },
-  { key: 'pole', x: -9, z: 64, heightM: 9 },
-  { key: 'pole', x: -9, z: 38, heightM: 9 },
-  { key: 'pole', x: -9, z: 22, heightM: 9 },
-  { key: 'car', x: 8.5, z: 24, heightM: 1.6 },
-  { key: 'car', x: -14, z: 52, heightM: 1.6, flip: true },
-  { key: 'barrier', x: -3.4, z: 30, heightM: 0.85 },
-  { key: 'barrier', x: 3.6, z: 46, heightM: 0.85 },
-  { key: 'hedgehog', x: -6.2, z: 12, heightM: 1.5 },
-  { key: 'hedgehog', x: 5.4, z: 14.5, heightM: 1.5, flip: true },
-  { key: 'hedgehog', x: -10.5, z: 17, heightM: 1.5 },
-  { key: 'hedgehog', x: 11.5, z: 10, heightM: 1.5 },
-  { key: 'barrel', x: -7.4, z: 8.5, heightM: 0.9 },
-  { key: 'wire_coil', x: 0, z: 7.2, heightM: 0.9 },
-];
 
 const FOG_BANDS = [
   { z: 75, alpha: 0.42, speed: 4 },
@@ -38,7 +13,17 @@ const FOG_BANDS = [
   { z: 13, alpha: 0.12, speed: 15 },
 ];
 
-/** Builds the fixed battlefield: sky, clouds, ground, props, fog bands, parapet, frame and grain. */
+/** Multiplies two 0xRRGGBB colours channel by channel. */
+function multiply(a: number, b: number): number {
+  const ch = (s: number): number => Math.round((((a >> s) & 255) * ((b >> s) & 255)) / 255);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+/**
+ * Builds the battlefield for a location: sky, clouds, ground, props, fog bands,
+ * parapet, frame and grain. Props are placed in world space, scaled and
+ * depth-sorted by distance.
+ */
 export class Battlefield {
   private clouds: Phaser.GameObjects.TileSprite;
   private fog: { sprite: Phaser.GameObjects.TileSprite; speed: number }[] = [];
@@ -48,13 +33,18 @@ export class Battlefield {
   private shutterTarget = 0;
   readonly barrelFire: { x: number; y: number; s: number };
   readonly smokeSource: { x: number; y: number };
+  readonly location: LocationDef;
 
-  constructor(scene: Phaser.Scene) {
-    scene.add.image(0, 0, 'backdrop').setOrigin(0).setDepth(DEPTH.backdrop);
-    this.clouds = scene.add.tileSprite(0, 0, VIEW.width, 190, 'clouds').setOrigin(0).setDepth(DEPTH.clouds + 2).setAlpha(0.95);
-    scene.add.image(0, VIEW.horizonY, 'ground').setOrigin(0).setDepth(DEPTH.ground);
+  constructor(scene: Phaser.Scene, locationId: LocationId = 'farm') {
+    const loc = (this.location = LOCATIONS[locationId]);
+    scene.add.image(0, 0, 'backdrop').setOrigin(0).setDepth(DEPTH.backdrop).setTint(loc.skyTint);
+    this.clouds = scene.add.tileSprite(0, 0, VIEW.width, 190, 'clouds').setOrigin(0).setDepth(DEPTH.clouds + 2).setAlpha(0.95).setTint(loc.skyTint);
+    scene.add.image(0, VIEW.horizonY, 'ground').setOrigin(0).setDepth(DEPTH.ground).setTint(loc.groundTint);
 
-    for (const p of PROPS) {
+    if (loc.river) this.paintRiver(scene, loc.river.near, loc.river.far);
+    if (loc.crossRoadZ !== undefined) this.paintCrossRoad(scene, loc.crossRoadZ);
+
+    for (const p of loc.props) {
       const pr = project(p.x, p.z);
       const tex = scene.textures.get(p.key).getSourceImage() as HTMLCanvasElement;
       const scale = (p.heightM * pr.ppm) / tex.height;
@@ -62,17 +52,17 @@ export class Battlefield {
       if (p.flip) img.setFlipX(true);
       const fogK = Phaser.Math.Clamp((p.z - 10) / 80, 0, 1);
       const g = Math.round(255 - fogK * 110);
-      img.setTint(Phaser.Display.Color.GetColor(g, g, Math.min(255, g + 4)));
+      img.setTint(multiply(Phaser.Display.Color.GetColor(g, g, Math.min(255, g + 4)), loc.groundTint));
       img.setAlpha(1 - fogK * 0.45);
     }
-    const barrel = project(-7.4, 8.5);
+    const barrel = project(loc.barrel.x, loc.barrel.z);
     this.barrelFire = { x: barrel.sx, y: barrel.sy - 0.95 * barrel.ppm, s: barrel.ppm / 120 };
     this.smokeSource = { x: 240, y: VIEW.horizonY - 18 };
 
     for (const b of FOG_BANDS) {
       const bottom = screenYOfGround(b.z) + 8;
       const top = VIEW.horizonY - 34;
-      const s = scene.add.tileSprite(0, top, VIEW.width, bottom - top, 'fog_tile').setOrigin(0).setDepth(depthForZ(b.z)).setAlpha(b.alpha);
+      const s = scene.add.tileSprite(0, top, VIEW.width, bottom - top, 'fog_tile').setOrigin(0).setDepth(depthForZ(b.z)).setAlpha(b.alpha).setTint(loc.fogTint);
       s.tileScaleY = (bottom - top) / 96;
       s.tilePositionX = Math.random() * 512;
       this.fog.push({ sprite: s, speed: b.speed });
@@ -83,6 +73,39 @@ export class Battlefield {
     this.shutterY = this.shutterTarget = VIEW.hudTop + 10;
     scene.add.image(0, 0, 'frame').setOrigin(0).setDepth(DEPTH.frame);
     this.grain = scene.add.tileSprite(0, 0, VIEW.width, VIEW.height, 'grain').setOrigin(0).setDepth(DEPTH.overlay - 1).setAlpha(0.045);
+  }
+
+  /** A river across the field, with the bridge deck running over it down the middle. */
+  private paintRiver(scene: Phaser.Scene, near: number, far: number): void {
+    const yNear = screenYOfGround(near);
+    const yFar = screenYOfGround(far);
+    const g = scene.add.graphics().setDepth(DEPTH.ground + 0.4);
+    g.fillStyle(0x2c3a42, 0.92).fillRect(0, yFar, VIEW.width, yNear - yFar);
+    g.fillStyle(0x8aa0aa, 0.18);
+    for (let i = 0; i < 26; i++) {
+      const y = yFar + Math.random() * (yNear - yFar);
+      g.fillRect(Math.random() * VIEW.width, y, 30 + Math.random() * 80, 1);
+    }
+    // The deck over the water: the road, between the bridge rails.
+    const deck = (z: number): number => (7 * VIEW.focal) / z;
+    g.fillStyle(0x3a3c3e, 1);
+    g.fillPoints([
+      new Phaser.Math.Vector2(VIEW.centerX - deck(far), yFar), new Phaser.Math.Vector2(VIEW.centerX + deck(far), yFar),
+      new Phaser.Math.Vector2(VIEW.centerX + deck(near), yNear), new Phaser.Math.Vector2(VIEW.centerX - deck(near), yNear),
+    ], true);
+  }
+
+  /** An asphalt road crossing the field from side to side (the evacuation route). */
+  private paintCrossRoad(scene: Phaser.Scene, z: number): void {
+    const near = screenYOfGround(z - 2.6);
+    const far = screenYOfGround(z + 2.6);
+    const g = scene.add.graphics().setDepth(DEPTH.ground + 0.5);
+    g.fillStyle(0x26282a, 0.88).fillRect(0, far, VIEW.width, near - far);
+    g.fillStyle(0x000000, 0.25).fillRect(0, far, VIEW.width, 2);
+    // dashed centre line
+    const mid = screenYOfGround(z);
+    g.fillStyle(0xc8b870, 0.55);
+    for (let x = -20; x < VIEW.width; x += 70) g.fillRect(x, mid - 1, 36, 2);
   }
 
   /** Top edge of whatever is currently blocking shots at the bottom of the view. */

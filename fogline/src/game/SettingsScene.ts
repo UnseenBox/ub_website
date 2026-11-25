@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
-import { SaveManager } from '../systems/SaveManager';
+import { profile } from '../systems/Profile';
 import { MONO, STENCIL, button, slider, toggleFullscreen } from '../ui/widgets';
 import { VIEW } from './config';
 
@@ -24,10 +24,10 @@ export class SettingsScene extends Phaser.Scene {
       fontFamily: STENCIL, fontSize: '38px', color: '#e0dcc0', stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5);
 
-    const save = SaveManager.load();
+    const save = profile.get();
     const set = (key: 'master' | 'sfx' | 'music', value: number): void => {
       audio.setVolumes({ [key]: value });
-      SaveManager.update((d) => { d.volumes[key] = value; });
+      profile.update((d) => { d.volumes[key] = value; });
     };
     const sx = x0 + 70;
     slider(this, sx, y0 + 108, 300, 'MASTER VOLUME', save.volumes.master, (v) => set('master', v), 5);
