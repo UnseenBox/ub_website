@@ -1,6 +1,13 @@
 import type { Boost } from '../abilities/Cards';
 import { BOOST_COSTS } from '../abilities/Cards';
-import { abilityPrice, aimScale, curlScale, nextPrice, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
+import { abilityPrice, aimScale, curlScale, nextPrice, noUpgrades, powerScale, UPGRADES, type UpgradeId } from '../progression/Upgrades';
+import { CLUB_START, ballIsOpen, gainXp, nextLockedBall, xpForScore, xpToNext, type LevelReward } from '../progression/Club';
+import { addLeagueLp, claimLeague as claimPrize, freshLeague, lpForGoal, pendingResult, prizeFor, seasonClock, settleLeague, standings } from '../progression/League';
+import { bonusFor } from '../levels/bonus';
+import { hintText } from '../levels/hints';
+import { FRENZY_COIN_PER_GOAL, frenzyPool, frenzyUnlocked, livesAfterGoal, newFrenzyRun, type FrenzyRun } from '../progression/Frenzy';
+import { BOSS_COIN_MULTIPLIER, WORLD_COUNT, WORLD_REWARD, nextWorld, worldOf, worldRange, worldStars, worldTitle, worldThemeName } from '../progression/Worlds';
+import { BONUS_COINS, bonusMet, type BonusId } from '../scoring/Bonus';
 import { AudioManager } from '../audio/AudioManager';
 import { SKINS, skinOf, type Skin } from '../ball/Skins';
 import { saveLang, tr } from './i18n';
@@ -38,7 +45,7 @@ import { classifyMiss, type MissKind } from '../goal/GoalDetector';
 import { GoalNet } from '../goal/GoalNet';
 import { InputManager } from '../input/InputManager';
 import { Level } from '../levels/Level';
-import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, unseenSkins, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, matchInfo, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
+import { PAUSE_REWARD_ENABLED, STUCK_MISSES, starsToNextSkin, BOOST_INTRO_FREE_MAGNETS, BOOST_INTRO_LEVEL, LEVEL_COIN_VALUE, chapterOf, coinsForGoal, gateStatus, isGateBlocked, isLevelUnlocked, matchInfo, nextStarTarget, totalStars, type TipKey } from '../progression/Progression';
 import type { LevelDefinition } from '../levels/LevelDefinition';
 import type { MechEventKind, MechSink } from '../mechanics/Mechanic';
 import { ParticleSystem } from '../particles/ParticleSystem';
@@ -64,7 +71,7 @@ import { airSpeed, KICK, launchVz, type ShotType } from '../physics/Flight';
 import { traceShot, type Trace } from '../levels/sweep';
 import { portal, isCrazyGames } from '../portal/Portal';
 import { forgetStands } from '../rendering/StadiumArt';
-import { Overlay, setUiClick, type MenuInfo, type StoreInfo } from '../ui/Overlay';
+import { Overlay, setUiClick, type LeagueInfo, type MenuInfo, type StoreInfo, type WorldInfo } from '../ui/Overlay';
 import { EventBus, type GameEvents } from './EventBus';
 import { GameLoop } from './GameLoop';
 import type { GameState } from './GameState';
@@ -79,8 +86,13 @@ const STILL_SECONDS = 0.1;
 /** No shot is allowed to run longer than this, whatever the street does to it. */
 const MAX_FLIGHT = 9;
 /** How long the miss label holds before the ball is put back, by how close it was. */
-const MISS_HOLD = 0.5;
-const NEAR_MISS_HOLD = 0.8;
+// A miss hands the ball back after this long on its own (a press retries at once, at any time).
+const MISS_HOLD = 0.3;
+const NEAR_MISS_HOLD = 0.35;
+/** A first clear moves on to the next match by itself after this long, unless AGAIN or pause stops it. */
+const AUTO_ADVANCE_SECONDS = 4;
+/** Misses in a row on one match before a gentle hint pill (what the sweep says scores there). */
+const HINT_MISSES = 6;
 /** Drag on a ball that is over the line: the net takes the pace off it. */
 const NET_DRAG = 5.5;
 /** Points kept of a shot's path, one every few physics steps. */
@@ -266,6 +278,20 @@ export class Game {
   coinTaken = false;
   /** Kora Coins the last solo goal paid (first clear and new stars), shown on the result card. */
   goalCoins = 0;
+  /** CLUB LEVEL on the goal card: the XP this goal was worth, the levels it reached, and the coins those paid. */
+  goalXp = 0;
+  clubLevels: LevelReward[] = [];
+  clubCoins = 0;
+  /** STREET LEAGUE: the LP this goal earned, for the goal card. */
+  goalLp = 0;
+  /** BONUS OBJECTIVE: the match's objective, whether this goal met it, and the coins it paid (once). */
+  goalBonus: { id: BonusId; met: boolean; coins: number } | null = null;
+  /** Seconds the NEXT MATCH ring has filled on a first clear, or -1 when it is not running. */
+  advanceT = -1;
+  /** WORLDS: the world a boss match has just completed, whose panel is due after the celebration. */
+  pendingWorld: WorldInfo | null = null;
+  /** FRENZY: the run in progress, or null on the campaign. */
+  frenzy: FrenzyRun | null = null;
   /** The last solo goal was the level's first clear, and its coins have been doubled by an ad. */
   private goalFirstClear = false;
   private goalDoubled = false;
@@ -286,6 +312,7 @@ export class Game {
   abilityDemo: { boost: Boost; plain: Trace; boosted: Trace } | null = null;
   private guideKey = '';
   /** How the next solo shot is struck: along the ground or lofted, and how much it bends (-1 to 1). */
+  /** The free-kick choices: GROUND or AIR, and the bend. */
   readonly kick: { type: ShotType; bend: number } = { type: 'ground', bend: 0 };
   private replay: Replay | null = null;
 
@@ -326,6 +353,8 @@ export class Game {
     this.input.onGesture = () => this.audio.unlock();
     this.audio.muted = this.save.data.muted;
     this.audio.setVolumes(this.save.data.sound, this.save.data.music);
+    // CrazyGames' own mute switch takes priority over the player's in-game toggle.
+    portal.watchMute((muted) => this.audio.setPlatformMuted(muted));
     this.audio.loadSheet(sfxUrl, sfxIndex);
     // Crowd cheering as background music (loops on the music bus).
     this.audio.loadMusic(bgMusicUrl);
@@ -376,12 +405,14 @@ export class Game {
       },
       skins: () => {
         const total = this.totalStars();
-        return SKINS.map((s) => ({ ...s, open: total >= s.need, selected: s.id === this.skin.id }));
+        return SKINS.map((s) => ({ ...s, open: ballIsOpen(s, total, this.save.data.grantedSkins), selected: s.id === this.skin.id }));
       },
       pickSkin: (id) => this.useSkin(id),
       skinsSeen: () => this.markBallsSeen(),
       stars: () => ({ n: this.totalStars(), max: this.maxStars() }),
       menuInfo: () => this.menuInfo(),
+      claimSeasonPrize: () => this.claimSeasonPrize(),
+      frenzy: () => this.startFrenzy(),
       store: () => this.storeInfo(),
       buyUpgrade: (id) => this.buyUpgrade(id),
       buyAbilities: (id, count) => this.buyAbilities(id, count),
@@ -434,7 +465,8 @@ export class Game {
     // A hidden tab is a break: freeze play wherever it is, in every build.
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && !this.paused && this.state !== 'menu' && (this.state === 'ready' || this.state === 'aiming' || this.state === 'flight' || this.state === 'replay')) {
-        this.setPaused(true);
+        // The CrazyGames SDK already tracks focus loss on its own; this pause is ours alone to report.
+        this.setPaused(true, false);
       }
     });
     window.addEventListener('pagehide', () => {
@@ -494,9 +526,15 @@ export class Game {
     this.sounds.ui();
   }
 
+  /** Balls that are open (by stars or a club grant) and have not been shown to the player yet. */
+  private unseenBalls() {
+    const total = this.totalStars();
+    return SKINS.filter((s) => s.need > 0 && ballIsOpen(s, total, this.save.data.grantedSkins) && !this.save.data.seenSkins.includes(s.id));
+  }
+
   /** The balls screen was opened: every ball earned so far counts as seen, so the NEW dot goes. */
   private markBallsSeen(): void {
-    const open = unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins);
+    const open = this.unseenBalls();
     if (open.length === 0) return;
     for (const s of open) this.save.data.seenSkins.push(s.id);
     this.save.save();
@@ -509,7 +547,7 @@ export class Game {
    */
   private offerBallToast(): void {
     const tips = this.save.data.tips;
-    const fresh = unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).filter((s) => !tips.includes(`ball:${s.id}`));
+    const fresh = this.unseenBalls().filter((s) => !tips.includes(`ball:${s.id}`));
     if (fresh.length === 0) return;
     for (const s of fresh) tips.push(`ball:${s.id}`);
     this.save.save();
@@ -519,7 +557,7 @@ export class Game {
 
   /** Stars still missing for the next ball (for the result card), or null. */
   starsToNextBall(): number | null {
-    return starsToNextSkin(this.totalStars(), SKINS);
+    return starsToNextSkin(this.totalStars(), SKINS.filter((s) => !this.save.data.grantedSkins.includes(s.id)));
   }
 
   /** Stars won in the houmas alone: what opens chapters. */
@@ -545,6 +583,7 @@ export class Game {
 
   /** What the main menu draws: where Continue goes, the wallet, the stars. */
   private menuInfo(): MenuInfo {
+    this.openLeagueWeek();
     const at = this.furthestUnlocked();
     return {
       stars: { n: this.totalStars(), max: this.maxStars() },
@@ -552,22 +591,43 @@ export class Game {
       continueNumber: matchInfo(this.levels, at)[matchInfo(this.levels, at).lesson ? 'lesson' : 'match'] ?? at + 1,
       lesson: matchInfo(this.levels, at).lesson !== null,
       continueName: this.levels[at]?.name ?? '',
-      newBall: unseenSkins(this.totalStars(), SKINS, this.save.data.seenSkins).length > 0,
+      newBall: this.unseenBalls().length > 0,
+      club: { level: this.save.data.club.level, xp: this.save.data.club.xp, need: xpToNext(this.save.data.club.level) },
+      league: this.leagueInfo(),
+      frenzy: { unlocked: frenzyUnlocked((id) => this.save.data.levels[id]?.goals ?? 0), best: this.save.data.frenzyBest },
     };
   }
 
-  /** Erases every record and puts the player back on the first alley. */
+  /**
+   * Erases every record and every reward the player has earned, then puts them back on the title card.
+   * Sound, music, mute and language are kept: those are preferences, not progress.
+   */
   resetProgress(): void {
-    // Drop an armed boost first: loadLevel would otherwise refund it into the fresh wallet.
+    // Drop an armed boost first, so nothing is refunded into the wiped wallet.
     this.armedBoost = null;
     this.armedFree = false;
     this.tip = null;
-    this.save.data.levels = {};
-    this.save.data.coins = 0;
-    this.save.data.skin = 'classic';
-    this.skin = skinOf('classic');
+    const data = this.save.data;
+    data.levels = {};
+    data.coins = 0;
+    data.skin = 'tex-hex';
+    data.upgrades = noUpgrades();
+    data.freeBoosts = {};
+    data.boostIntro = false;
+    data.tips = [];
+    data.seenSkins = [];
+    data.club = { ...CLUB_START };
+    data.grantedSkins = [];
+    data.league = freshLeague(new Date());
+    data.worlds = [];
+    this.pendingWorld = null;
+    data.frenzyBest = 0;
+    this.frenzy = null;
+    this.skin = skinOf('tex-hex');
     this.save.save();
-    this.loadLevel(0);
+    // Back to the title card, not into a match: a live match under the menu leaves the in-match controls
+    // drawn over it, and nothing can start a shot from there. returnToMenu() also shows the menu.
+    this.returnToMenu();
   }
 
   private setVolumes(sound: number, music: number): void {
@@ -747,7 +807,7 @@ export class Game {
   /** What the coach card shows, or null while something else is over the screen. */
   private guideInfo(): GuideInfo | null {
     const def = this.guideDef();
-    if (!def || this.paused || this.duel.active) return null;
+    if (!def || !this.controlsAllowed() || this.duel.active) return null;
     if (this.state === 'menu' || this.state === 'goal' || this.state === 'replay') return null;
     const series = def.series ?? 'tutorial';
     const lessons = this.levels.filter((l) => l.guide && (l.guide.series ?? 'tutorial') === series);
@@ -762,7 +822,7 @@ export class Game {
   }
 
   /**
-   * Skips the tutorial: every lesson counts as played (a goal, no stars, so the stars are still there to
+   * Skips the tutorial: every lesson counts as played (a goal and one star, so the stars are still there to
    * win) and the first real match starts. The lessons stay in the stadium list for anyone who wants them.
    */
   private skipTutorial(): void {
@@ -774,6 +834,9 @@ export class Game {
       }
       const rec = this.save.level(def.id);
       if (rec.goals === 0) rec.goals = 1;
+      // A skipped lesson counts as won with one star. It is marked as paid, so that star never pays coins later.
+      rec.stars = Math.max(rec.stars, 1);
+      rec.paidStars = Math.max(rec.paidStars, 1);
     });
     if (first < 0) return;
     this.save.save();
@@ -823,8 +886,17 @@ export class Game {
   }
 
   /** The free-kick controls: solo play, ball waiting or being aimed, nothing over the screen. */
+  /**
+   * The in-match controls (the kick, the abilities and their coin pill, the pause button, the coach card) show
+   * only in a match with nothing over it: a match state, not paused, and no screen of the overlay up (menu,
+   * stadiums, balls, store, settings, pause, league, world, run over).
+   */
+  controlsAllowed(): boolean {
+    return this.state !== 'menu' && !this.paused && !this.overlay.open;
+  }
+
   private kickVisible(): boolean {
-    return this.shotRule === 'free' && !this.duelScore && !this.duel.active && !this.paused && (this.state === 'ready' || this.state === 'aiming');
+    return this.controlsAllowed() && this.shotRule === 'free' && !this.duelScore && !this.duel.active && (this.state === 'ready' || this.state === 'aiming');
   }
 
   /** F flips between ground and air; Q and E step the bend left and right through straight and half and full. */
@@ -916,6 +988,7 @@ export class Game {
   /** The solo ability shop is for free play only, while the ball waits to be struck. */
   private shopVisible(): boolean {
     return (
+      this.controlsAllowed() &&
       this.shotRule === 'free' &&
       // The boost column is introduced at houma 6; before that it would only be clutter.
       this.save.data.boostIntro &&
@@ -1011,6 +1084,7 @@ export class Game {
   /** Back to the title card, on the furthest solo houma reached. */
   returnToMenu(): void {
     portal.gameplayStop();
+    this.frenzy = null;
     // Silence first, so loading the menu's backdrop stadium does not start its crowd for a moment.
     this.soundInMatch = false;
     this.audio.setMusicOn(false);
@@ -1023,7 +1097,12 @@ export class Game {
 
   /** Leaves the title card. */
   play(): void {
-    if (this.state !== 'menu') return;
+    if (this.state !== 'menu') {
+      // Only ever a stuck menu over a live match. Put the game back on the title card first, so LET'S PLAY
+      // always starts a lesson instead of doing nothing. Anything else (a match with no menu) stays as it is.
+      if (!this.overlay.menuVisible()) return;
+      this.returnToMenu();
+    }
     this.audio.unlock();
     this.sounds.ui();
     this.overlay.hide();
@@ -1035,12 +1114,19 @@ export class Game {
     this.onLevelEntered();
   }
 
-  setPaused(paused: boolean): void {
+  /**
+   * `reportToPortal` is false only for a pause the tab's own visibility forced: the CrazyGames SDK
+   * handles a hidden tab itself and asks games not to call gameplayStop for it, only for a pause
+   * the player actually asked for.
+   */
+  setPaused(paused: boolean, reportToPortal = true): void {
     if (this.state === 'menu' || paused === this.paused) return;
     this.paused = paused;
     if (paused) {
+      // Pause stops the countdown to the next match.
+      this.advanceT = -1;
       if (this.state === 'aiming') this.cancelAim();
-      portal.gameplayStop();
+      if (reportToPortal) portal.gameplayStop();
       if (this.duel.active) this.duel.showPause();
       else {
         this.overlay.showPause();
@@ -1148,11 +1234,12 @@ export class Game {
         const rec = this.save.level(def.id);
         const gate = isGateBlocked(this.save.data, this.levels, i) ? gateStatus(this.save.data, this.levels, chapterOf(i)) : undefined;
         const m = matchInfo(this.levels, i);
-        return { name: def.name, group: m.lesson ? 'TUTORIAL' : (def.world ?? 'OPENING SEASON'), label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin };
+        return { name: def.name, group: m.lesson ? 'TUTORIAL' : (def.world ?? 'OPENING SEASON'), label: m.lesson ? `1.${m.lesson}` : String(m.match).padStart(2, '0'), hint: def.hint, stars: rec.stars, best: rec.best, unlocked: this.isUnlocked(i), next: nextStarTarget(def, rec.stars) ?? undefined, gate, coin: !rec.coin, bonus: rec.bonus, boss: def.boss === true };
       }),
       this.level.index,
       focus,
       gates,
+      { won: this.save.data.worlds.length, total: WORLD_COUNT },
     );
     this.abilities.refresh(BOOST_COSTS);
     this.remember('levels');
@@ -1193,6 +1280,10 @@ export class Game {
   /** Between houmas: the portal may take a midgame break first, then the next street loads. */
   nextLevel(): void {
     this.audio.stop('goal');
+    if (this.frenzy) {
+      this.frenzyNextShot();
+      return;
+    }
     if (this.level.index + 1 >= this.levels.length) {
       this.openLevels();
       return;
@@ -1255,12 +1346,22 @@ export class Game {
         if (input.consume('confirm') && this.state === 'goal' && this.celebration.canRetry) this.nextLevel();
         this.handlePointer(realDt);
       }
+      // The ring on NEXT MATCH fills on a first clear; when it is full, the next match starts by itself.
+      if (this.advanceT >= 0) {
+        this.advanceT += realDt;
+        if (this.advanceT >= AUTO_ADVANCE_SECONDS) {
+          this.advanceT = -1;
+          this.nextLevel();
+        }
+      }
+      this.overlay.setAdvance(this.advanceT < 0 ? -1 : this.advanceT / AUTO_ADVANCE_SECONDS);
       this.stateT += realDt;
       const dt = this.time.step(realDt);
       this.simulate(dt);
       this.updateVisuals(dt, realDt);
     }
     this.updateGuide();
+    this.overlay.setControlsAllowed(this.controlsAllowed());
     this.kickControls.refresh();
     this.guideCard.refresh();
     input.endFrame();
@@ -1269,8 +1370,9 @@ export class Game {
   private handlePointer(realDt: number): void {
     const p = this.input.pointer;
     if (p.pressed) {
-      // Any press is "go again": after a miss or a goal it resets and starts the next pull at once.
-      if (this.state === 'missed' || (this.state === 'goal' && this.celebration.canRetry)) this.retryShot();
+      // A tap on the pitch after a miss is "go again": it resets and starts the next pull at once. After a goal
+      // only the AGAIN and NEXT MATCH buttons act, so a tap anywhere else must not replay the match.
+      if (this.state === 'missed') this.retryShot();
       if (this.state === 'ready') this.beginAim();
     }
     if (this.state !== 'aiming') return;
@@ -1349,7 +1451,7 @@ export class Game {
     this.stillFor = 0;
     this.flightFor = 0;
     this.goalCine = false;
-    this.record.attempts++;
+    if (!this.frenzy) this.record.attempts++;
     this.save.save();
     this.setState('flight');
     this.events.emit('BALL_LAUNCHED', { x: b.x, y: b.y, dirX: shot.dirX, dirY: shot.dirY, power: shot.power, speed });
@@ -1457,32 +1559,215 @@ export class Game {
     this.events.emit('MECHANIC', e);
   };
 
+  /** STREET LEAGUE: a solo goal earns LP for the week's table, up to the daily cap for its match. */
+  private awardLeague(newStars: number): void {
+    this.openLeagueWeek();
+    const r = addLeagueLp(this.save.data.league, new Date(), this.level.def.id, lpForGoal(newStars));
+    this.save.data.league = r.league;
+    this.goalLp = r.gained;
+  }
+
+  /** STREET LEAGUE: when the week has changed, ends the last season and pays any prize nobody claimed. */
+  private openLeagueWeek(): void {
+    const s = settleLeague(this.save.data.league, new Date());
+    if (s.league === this.save.data.league) return;
+    this.save.data.league = s.league;
+    this.save.data.coins += s.coins;
+    this.save.save();
+  }
+
+  /** STREET LEAGUE: the table for today, the prizes, the trophies, and the last season's result while its prize is unclaimed. */
+  private leagueInfo(): LeagueInfo {
+    const league = this.save.data.league;
+    const clock = seasonClock(new Date());
+    return {
+      division: league.division,
+      daysLeft: clock.daysLeft,
+      rows: standings(league, clock.dayIndex),
+      prizes: [1, 2, 3].map((position) => ({ position, ...prizeFor(position) })),
+      trophies: league.trophies,
+      pending: pendingResult(league),
+    };
+  }
+
+  /** CLAIM on the season result card: pays that season's prize, once. */
+  private claimSeasonPrize(): void {
+    const c = claimPrize(this.save.data.league);
+    this.save.data.league = c.league;
+    this.save.data.coins += c.coins;
+    this.save.save();
+  }
+
+  /** FRENZY: an endless run of random cleared matches, one shot each, with three lives. */
+  startFrenzy(): void {
+    if (!frenzyUnlocked((id) => this.save.data.levels[id]?.goals ?? 0)) return;
+    this.audio.unlock();
+    this.sounds.ui();
+    this.overlay.hide();
+    this.paused = false;
+    this.frenzy = newFrenzyRun();
+    portal.gameplayStart();
+    this.remember('game');
+    this.frenzyNextShot();
+  }
+
+  /** The next match of the run, picked at random from the matches already cleared, ready for its one shot. */
+  private frenzyNextShot(): void {
+    const run = this.frenzy;
+    if (!run || run.over) return;
+    const cleared = this.levels
+      .map((_, i) => i)
+      .filter((i) => matchInfo(this.levels, i).lesson === null && (this.save.data.levels[this.levels[i].id]?.goals ?? 0) > 0);
+    const pool = frenzyPool(cleared, (i) => chapterOf(i), run.goals);
+    if (pool.length === 0) return;
+    const index = pool[Math.floor(Math.random() * pool.length)];
+    this.overlay.hide();
+    this.loadLevel(index);
+  }
+
+  /** A goal in a run: the streak, the score, two coins, a bonus life every five goals, and the best streak kept. */
+  private frenzyScored(total: number): void {
+    const run = this.frenzy;
+    if (!run) return;
+    run.goals++;
+    run.streak++;
+    run.bestStreak = Math.max(run.bestStreak, run.streak);
+    run.score += total;
+    run.lives = livesAfterGoal(run.lives, run.goals);
+    run.coins += FRENZY_COIN_PER_GOAL;
+    this.goalCoins = FRENZY_COIN_PER_GOAL;
+    this.save.data.coins += FRENZY_COIN_PER_GOAL;
+    if (run.streak > this.save.data.frenzyBest) this.save.data.frenzyBest = run.streak;
+  }
+
+  /** A miss in a run: a life goes, and the streak breaks. */
+  private frenzyMissed(): void {
+    const run = this.frenzy;
+    if (!run) return;
+    run.lives--;
+    run.streak = 0;
+  }
+
+  /** The missed shot is over: the next match starts while a life is left, otherwise the run ends. */
+  private frenzyAdvance(): void {
+    const run = this.frenzy;
+    if (!run || run.over) return;
+    if (run.lives <= 0) this.frenzyOver();
+    else this.frenzyNextShot();
+  }
+
+  /** RUN OVER: the streak, the score, the best streak kept, and the coins the run paid. */
+  private frenzyOver(): void {
+    const run = this.frenzy;
+    if (!run || run.over) return;
+    run.over = true;
+    portal.gameplayStop();
+    this.save.save();
+    this.overlay.showRunOver(
+      { streak: run.bestStreak, score: run.score, best: this.save.data.frenzyBest, coins: run.coins, goals: run.goals },
+      () => this.startFrenzy(),
+      () => this.returnToMenu(),
+    );
+  }
+
+  /** WORLDS: the first time a world's boss match is cleared, the world is complete: a trophy, its reward, and a panel. */
+  private completeWorldIfBoss(): void {
+    if (!this.level.def.boss) return;
+    const world = worldOf(this.level.index);
+    const data = this.save.data;
+    if (data.worlds.includes(world)) return;
+    data.worlds.push(world);
+    data.coins += WORLD_REWARD;
+    const count = this.levels.length;
+    const { stars, max } = worldStars(world, count, (i) => data.levels[this.levels[i].id]?.stars ?? 0);
+    const next = nextWorld(world);
+    this.pendingWorld = {
+      world,
+      title: worldTitle(world),
+      stars,
+      max,
+      reward: WORLD_REWARD,
+      trophies: data.worlds.length,
+      nextTitle: next ? worldTitle(next) : null,
+      nextTheme: next ? worldThemeName(this.levels[worldRange(next, count)[0]].theme) : null,
+    };
+  }
+
+  /** Adds a goal's XP to the club, and pays each level it reaches. */
+  private awardClub(score: number): void {
+    const data = this.save.data;
+    const xp = xpForScore(score);
+    const gain = gainXp(data.club, xp);
+    data.club = gain.club;
+    this.goalXp = xp;
+    this.clubLevels = gain.levels;
+    for (const reward of gain.levels) {
+      this.clubCoins += reward.coins;
+      if (reward.ability) data.freeBoosts[reward.ability] = (data.freeBoosts[reward.ability] ?? 0) + 1;
+      if (reward.ball) {
+        const next = nextLockedBall(SKINS, this.totalStars(), data.grantedSkins);
+        if (next) data.grantedSkins.push(next.id);
+      }
+    }
+    data.coins += this.clubCoins;
+  }
+
   private scoreGoal(): void {
     const b = this.ball.body;
     const goal = this.level.goal;
-    const card = scoreShot(this.analyzer.finish(true, b, goal, this.level.hasKeeper), this.record.best, this.level.def.stars);
+    const facts = this.analyzer.finish(true, b, goal, this.level.hasKeeper);
+    const card = scoreShot(facts, this.record.best, this.level.def.stars);
     const firstClear = this.record.goals === 0;
-    this.goalFirstClear = firstClear && this.shotRule === 'free';
+    const starsBefore = this.record.stars;
+    // A FRENZY shot keeps the campaign's records, stars, coins and rewards out of it.
+    const frenzy = this.frenzy !== null;
+    const campaign = this.shotRule === 'free' && !frenzy;
+    this.goalFirstClear = campaign && firstClear;
     this.goalDoubled = false;
     this.missStreak = 0;
     this.stuckAnnounced = false;
-    this.record.goals++;
+    if (!frenzy) this.record.goals++;
     this.lastScore = card.total;
     this.goalCoins = 0;
+    this.goalXp = 0;
+    this.clubLevels = [];
+    this.clubCoins = 0;
+    this.goalLp = 0;
+    this.goalBonus = null;
     // Solo coins are paid for progress only: the first clear, and each star won for the first time.
-    if (this.shotRule === 'free') {
+    if (campaign) {
       const stars = Math.max(this.record.stars, card.stars);
       this.goalCoins = coinsForGoal({ firstClear, oldStars: this.record.paidStars, newStars: stars, total: card.total });
+      // A boss match pays double.
+      if (this.level.def.boss) this.goalCoins *= BOSS_COIN_MULTIPLIER;
       this.record.paidStars = Math.max(this.record.paidStars, stars);
       this.save.data.coins += this.goalCoins;
       portal.gameplayStop();
+      // The one moment in the whole campaign rare enough for the platform's own celebration: finishing it.
+      if (firstClear && this.level.index === this.levels.length - 1) portal.happytime();
     }
-    if (this.shotRule === 'free') this.offerGoalTips(card.lines.map((l) => l.label));
-    if (card.newBest) this.record.best = card.total;
-    if (card.stars > this.record.stars) this.record.stars = card.stars;
+    if (campaign) this.offerGoalTips(card.lines.map((l) => l.label));
+    if (campaign && card.newBest) this.record.best = card.total;
+    if (campaign && card.stars > this.record.stars) this.record.stars = card.stars;
+    // CLUB LEVEL: every solo goal earns XP, replays too. Levels pay coins, and some give a ball or an ability.
+    if (campaign) this.awardClub(card.total);
+    if (campaign) this.completeWorldIfBoss();
+    if (campaign) this.awardLeague(Math.max(0, card.stars - starsBefore));
+    // BONUS OBJECTIVE: a solo goal that meets this match's objective pays BONUS_COINS, the first time only.
+    const bonusId = campaign ? bonusFor(this.level.def.id) : null;
+    if (bonusId) {
+      const met = bonusMet(bonusId, facts);
+      const paid = met && !this.record.bonus;
+      if (paid) {
+        this.record.bonus = true;
+        this.save.data.coins += BONUS_COINS;
+      }
+      this.goalBonus = { id: bonusId, met, coins: paid ? BONUS_COINS : 0 };
+    }
+    if (frenzy) this.frenzyScored(card.total);
     this.save.save();
-    this.ballGap = this.shotRule === 'free' ? this.starsToNextBall() : null;
-    if (this.shotRule === 'free') this.events.emit('LEVEL_GOAL', { level: this.level.index + 1, stars: card.stars, score: card.total, attempts: this.record.attempts, firstClear, bounces: card.bounces });
+    this.ballGap = campaign ? this.starsToNextBall() : null;
+    if (campaign) this.events.emit('LEVEL_GOAL', { level: this.level.index + 1, stars: card.stars, score: card.total, attempts: this.record.attempts, firstClear, bounces: card.bounces });
 
     b.drag = NET_DRAG;
     this.goalFlash = 1;
@@ -1521,8 +1806,14 @@ export class Game {
     b.bend = 0;
     this.path.push(b.x, b.y);
     this.missKind = forced ?? classifyMiss(this.analyzer.finish(false, b, this.level.goal, this.level.hasKeeper));
-    if (this.shotRule === 'free') this.missStreak++;
+    if (this.shotRule === 'free' && !this.frenzy) {
+      this.missStreak++;
+      // Six misses in a row on one match: a gentle hint, from what the sweep says scores on it.
+      const hint = this.missStreak === HINT_MISSES ? hintText(this.level.def.id) : null;
+      if (hint) this.tip = { key: 'hint', text: hint };
+    }
     this.setState('missed');
+    if (this.frenzy) this.frenzyMissed();
     this.events.emit('SHOT_FAILED', { kind: this.missKind, x: b.x, y: b.y });
     if (this.shotRule === 'single') this.onShotEnd?.({ goal: false, score: 0, path: this.path, events: this.shotEvents, movers: this.shotMovers });
   }
@@ -1530,6 +1821,11 @@ export class Game {
   /** A retry is gameplay again: the goal that stopped the portal must hand it back. */
   private retryShot(): void {
     if (this.state === 'menu') return;
+    if (this.frenzy) {
+      // In a run a press after a miss moves on to the next match, never back to the same one.
+      if (this.state === 'missed') this.frenzyAdvance();
+      return;
+    }
     this.resetShot();
     if (!this.paused) portal.gameplayStart();
   }
@@ -1669,8 +1965,18 @@ export class Game {
     const want = this.shotRule === 'free' && this.state === 'goal' && this.celebration.active && this.celebration.t >= CELEBRATION_TIMING.buttonsAfter && !this.paused;
     if (want === this.buttonsUp && !force) return;
     this.buttonsUp = want;
+    // A world just completed: its panel comes up first, and the result card follows it.
+    if (want && this.pendingWorld && !force) {
+      const info = this.pendingWorld;
+      this.pendingWorld = null;
+      this.overlay.showWorld(info, () => this.syncButtons(true));
+      return;
+    }
+    // A first clear moves on by itself: the ring on NEXT MATCH starts filling once the result card is up.
+    if (!want) this.advanceT = -1;
+    else if (this.goalFirstClear && this.advanceT < 0) this.advanceT = 0;
     const double = want && this.doubleOffer();
-    this.overlay.setResult(want, this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1), double);
+    this.overlay.setResult(want, this.frenzy !== null || (this.level.index + 1 < this.levels.length && this.isUnlocked(this.level.index + 1)), double, this.frenzy !== null);
     if (double) this.events.emit('AD_OFFERED', { kind: 'double' });
     if (want && !force) {
       if (!this.paused) this.offerBallToast();
@@ -1697,7 +2003,10 @@ export class Game {
     boostFeedback(this, dt);
     this.duel.update(realDt);
 
-    if (this.shotRule === 'free' && this.state === 'missed' && this.stateT >= (this.missKind === 'miss' ? MISS_HOLD : NEAR_MISS_HOLD)) this.resetShot();
+    if (this.frenzy) {
+      // In a run the missed shot is over: a short beat later the next match starts, or the run ends.
+      if (this.state === 'missed' && this.stateT >= (this.missKind === 'miss' ? MISS_HOLD : NEAR_MISS_HOLD)) this.frenzyAdvance();
+    } else if (this.shotRule === 'free' && this.state === 'missed' && this.stateT >= (this.missKind === 'miss' ? MISS_HOLD : NEAR_MISS_HOLD)) this.resetShot();
     this.abilities.refresh(BOOST_COSTS);
   }
 }

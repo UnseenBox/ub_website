@@ -1,14 +1,33 @@
 import { ICONS, type IconName } from './GameIcons';
 import starUrl from '../assets/ui/arcade-star.png';
 import coinUrl from '../assets/ui/arcade-coin.png';
+import stadiumsIcon from '../assets/icons/menu-stadiums.webp';
+import ballsIcon from '../assets/icons/menu-balls.webp';
+import leagueIcon from '../assets/icons/menu-league.webp';
+import storeIcon from '../assets/icons/menu-store.webp';
 import { lang, tr, type Lang } from '../core/i18n';
 import { chapterOf } from '../progression/Progression';
+import type { Division, SeasonResult, StandingRow } from '../progression/League';
 import type { Boost } from '../abilities/Cards';
 import { cardOf } from '../abilities/Cards';
 import { UPGRADE_MAX, type UpgradeId } from '../progression/Upgrades';
 import { ABILITY_ICON } from './abilityIcons';
-import { football, footballSvg } from './Football';
 import { logoSvg } from './Logo';
+import { sphereSnapshot } from '../rendering/SphereBall';
+import type { TextureId } from '../ball/Skins';
+
+/** A menu shortcut's picture: the illustration itself, in the square the old icon took. */
+function pictureArt(src: string): HTMLElement {
+  const art = document.createElement('span');
+  art.className = 'menu-shortcut-art menu-shortcut-icon';
+  const img = document.createElement('img');
+  img.className = 'menu-shortcut-picture';
+  img.src = src;
+  img.alt = '';
+  img.draggable = false;
+  art.append(img);
+  return art;
+}
 
 export interface SkinTile {
   id: string;
@@ -18,6 +37,7 @@ export interface SkinTile {
   need: number;
   open: boolean;
   selected: boolean;
+  texture: TextureId;
 }
 
 export interface OverlayHandlers {
@@ -28,6 +48,8 @@ export interface OverlayHandlers {
   home(): void;
   /** Portals without duels (their server lives elsewhere) hide the tile. */
   canDuel(): boolean;
+  /** FRENZY: start an endless run. */
+  frenzy(): void;
   /** A rewarded ad for coins, from the pause menu. */
   reward(): void;
   levels(): void;
@@ -56,6 +78,8 @@ export interface OverlayHandlers {
   /** Buys `count` charges of an ability; false when the coins are short. */
   buyAbilities(id: Boost, count: number): boolean;
   resetProgress(): void;
+  /** CLAIM on the season result card: pays that season's prize, once. */
+  claimSeasonPrize(): void;
 }
 
 /** The store screen: shot upgrades with their level and next price, and abilities to stock up on. */
@@ -63,6 +87,16 @@ export interface StoreInfo {
   coins: number;
   upgrades: { id: UpgradeId; name: string; hint: string; level: number; price: number | null }[];
   abilities: { id: Boost; owned: number; single: number; pack: number }[];
+}
+
+/** STREET LEAGUE as the screen shows it: the division, the days left, the table, the prizes, and the last season's result while unclaimed. */
+export interface LeagueInfo {
+  division: Division;
+  daysLeft: number;
+  rows: StandingRow[];
+  prizes: { position: number; coins: number; trophy: boolean }[];
+  trophies: number;
+  pending: SeasonResult | null;
 }
 
 /** What the main menu draws. The Game fills it in; the Overlay never reads the save. */
@@ -76,6 +110,26 @@ export interface MenuInfo {
   continueName: string;
   /** A ball has unlocked that the player has not been told about. */
   newBall: boolean;
+  /** CLUB LEVEL: the level, the XP into it, and the XP the level needs. */
+  club: { level: number; xp: number; need: number };
+  /** STREET LEAGUE: the table, the prizes, and any season result whose prize is unclaimed. */
+  league: LeagueInfo;
+  /** FRENZY: whether it is open, and the best streak. */
+  frenzy: { unlocked: boolean; best: number };
+}
+
+/** WORLD COMPLETE, as the panel shows it: the world, its stars, its reward, and a preview of the next world. */
+export interface WorldInfo {
+  world: number;
+  /** English; `tr()` translates it. */
+  title: string;
+  stars: number;
+  max: number;
+  reward: number;
+  trophies: number;
+  nextTitle: string | null;
+  /** The next world's theme, as a label (English; `tr()` translates it). */
+  nextTheme: string | null;
 }
 
 export interface LevelTile {
@@ -93,6 +147,10 @@ export interface LevelTile {
   gate?: { need: number; have: number };
   /** The level's coin has not been collected yet. */
   coin?: boolean;
+  /** The match is its world's boss: a red BOSS badge on the tile. */
+  boss?: boolean;
+  /** The match's bonus objective has been met: a medal on the tile. */
+  bonus?: boolean;
 }
 
 /** One chapter's gate, for the header on the map: stars asked, stars had, and whether it blocks. */
@@ -193,6 +251,16 @@ export class Overlay {
   private readonly settings: HTMLElement;
   private readonly skins: HTMLElement;
   private readonly storeScreen: HTMLElement;
+  private readonly worldScreen: HTMLElement;
+  private readonly worldBody: HTMLElement;
+  private readonly frenzyButton: HTMLButtonElement;
+  private readonly frenzyBest: HTMLElement;
+  private readonly runOverScreen: HTMLElement;
+  private readonly runOverBody: HTMLElement;
+  private readonly leagueScreen: HTMLElement;
+  private readonly leagueBody: HTMLElement;
+  private readonly resultScreen: HTMLElement;
+  private readonly resultBody: HTMLElement;
   private readonly storeBody: HTMLElement;
   private readonly storeCoins: HTMLElement;
   private readonly levelBody: HTMLElement;
@@ -202,6 +270,8 @@ export class Overlay {
   private readonly starCount: HTMLElement;
   private readonly starText: HTMLElement;
   private readonly coinText: HTMLElement;
+  private readonly clubLabel: HTMLElement;
+  private readonly clubFill: HTMLElement;
   private readonly continueLine: HTMLElement;
   private readonly ballsDot: HTMLElement;
   private readonly sound: HTMLInputElement;
@@ -210,6 +280,8 @@ export class Overlay {
   private readonly playButton: HTMLButtonElement;
   private readonly result: HTMLElement;
   private readonly nextButton: HTMLButtonElement;
+  /** The NEXT MATCH ring's fill, 0 to 1, or -1 when there is no ring. */
+  private advanceShown = -1;
   private readonly doubleButton: HTMLButtonElement;
   private readonly rewardButton: HTMLButtonElement;
   private readonly screens: HTMLElement[];
@@ -247,7 +319,16 @@ export class Overlay {
     this.starCount.append(starIcon, this.starText);
     const topRight = el('div', 'menu-top-right');
     topRight.append(coinPill, this.starCount);
-    top.append(gear, topRight);
+    // CLUB LEVEL: a thin bar under the coin and star pills.
+    const clubBar = el('div', 'club-bar');
+    this.clubLabel = el('span', 'club-label');
+    const clubTrack = el('div', 'club-track');
+    this.clubFill = el('span', 'club-fill');
+    clubTrack.append(this.clubFill);
+    clubBar.append(this.clubLabel, clubTrack);
+    const meters = el('div', 'menu-meters');
+    meters.append(topRight, clubBar);
+    top.append(gear, meters);
 
     const mark = el('h1', 'menu-logo');
     mark.setAttribute('aria-label', 'Crazy Kora');
@@ -271,32 +352,34 @@ export class Overlay {
     const shortcuts = el('div', 'menu-shortcuts');
     const stadiums = button('menu-shortcut menu-shortcut-stadiums', '', handlers.levels);
     stadiums.setAttribute('aria-label', tr('STADIUMS'));
-    const stadiumsArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
-    stadiumsArt.innerHTML = ICONS.goal;
+    const stadiumsArt = pictureArt(stadiumsIcon);
     stadiums.append(stadiumsArt, el('span', 'menu-shortcut-label', 'STADIUMS'));
     const ballsButton = button('menu-shortcut menu-shortcut-balls', '', () => this.showSkins());
     ballsButton.setAttribute('aria-label', tr('BALLS'));
-    // Three of the balls to collect, piled up.
-    const ballsArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
-    ballsArt.innerHTML =
-      `<svg class="game-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">` +
-      football(14, 30, 11, { base: '#fff4e0', patch: '#f08a24' }) +
-      football(35, 30, 11, { base: '#fbf7ee', patch: '#1f5fa8' }) +
-      football(24, 20, 13) +
-      `</svg>`;
+    const ballsArt = pictureArt(ballsIcon);
     this.ballsDot = el('span', 'menu-new-dot');
     this.ballsDot.hidden = true;
     ballsButton.append(ballsArt, el('span', 'menu-shortcut-label', 'BALLS'), this.ballsDot);
     const storeButton = button('menu-shortcut menu-shortcut-store', '', () => this.showStore());
     storeButton.setAttribute('aria-label', tr('STORE'));
-    const storeArt = el('span', 'menu-shortcut-art menu-shortcut-icon');
-    storeArt.innerHTML = ICONS.store;
+    const storeArt = pictureArt(storeIcon);
     storeButton.append(storeArt, el('span', 'menu-shortcut-label', 'STORE'));
-    shortcuts.append(stadiums, ballsButton, storeButton);
+    // STREET LEAGUE: the fourth card, with the trophy sticker. On a phone the four go in a 2 x 2 grid.
+    const leagueButton = button('menu-shortcut menu-shortcut-league', '', () => this.showLeague());
+    leagueButton.setAttribute('aria-label', tr('LEAGUE'));
+    const leagueArt = pictureArt(leagueIcon);
+    leagueButton.append(leagueArt, el('span', 'menu-shortcut-label', 'LEAGUE'));
+    shortcuts.append(stadiums, ballsButton, storeButton, leagueButton);
 
     // A duel against a friend, where the server is reachable.
     const secondary = el('div', 'menu-secondary');
     if (handlers.canDuel()) secondary.append(button('menu-duel', 'DUEL A FRIEND', handlers.duel));
+    // FRENZY: the big secondary button, once match 4 has been cleared; its best streak shows under the name.
+    this.frenzyButton = button('menu-frenzy', '', () => handlers.frenzy());
+    this.frenzyBest = el('span', 'menu-frenzy-best', '');
+    this.frenzyButton.append(el('span', 'menu-frenzy-label', 'FRENZY'), this.frenzyBest);
+    this.frenzyButton.hidden = true;
+    secondary.append(this.frenzyButton);
 
     const menuPanel = el('div', 'menu-panel');
     menuPanel.append(mark, hero, shortcuts, secondary);
@@ -363,9 +446,33 @@ export class Overlay {
     this.storeBody = el('div', 'store-body');
     storeSheet.append(el('h2', 'panel-title', 'STORE'), this.storeCoins, this.storeBody, backButton('btn btn-ghost', () => this.showMenu()));
     this.storeScreen.append(storeSheet);
+    // STREET LEAGUE: the table, with BACK always under it.
+    this.leagueScreen = el('div', 'screen levels league');
+    const leagueSheet = el('div', 'sheet sheet-wide league-sheet');
+    this.leagueBody = el('div', 'league-body');
+    leagueSheet.append(el('h2', 'panel-title', 'STREET LEAGUE'), this.leagueBody, backButton('btn btn-ghost league-back', () => this.showMenu()));
+    this.leagueScreen.append(leagueSheet);
+    // The season result: shown on the first open of a new week, until its prize is claimed.
+    this.resultScreen = el('div', 'screen levels league');
+    const resultSheet = el('div', 'sheet sheet-wide league-sheet');
+    this.resultBody = el('div', 'league-result');
+    resultSheet.append(el('h2', 'panel-title', 'SEASON RESULT'), this.resultBody);
+    this.resultScreen.append(resultSheet);
+    // WORLD COMPLETE: the first time a world's boss match is cleared.
+    this.worldScreen = el('div', 'screen levels world');
+    const worldSheet = el('div', 'sheet sheet-wide world-sheet');
+    this.worldBody = el('div', 'world-body');
+    worldSheet.append(el('h2', 'panel-title', 'WORLD COMPLETE'), this.worldBody);
+    this.worldScreen.append(worldSheet);
+    // RUN OVER: a FRENZY run has ended: its streak, score, the best streak, and the coins it paid.
+    this.runOverScreen = el('div', 'screen levels world');
+    const runOverSheet = el('div', 'sheet sheet-wide world-sheet');
+    this.runOverBody = el('div', 'world-body');
+    runOverSheet.append(el('h2', 'panel-title', 'RUN OVER'), this.runOverBody);
+    this.runOverScreen.append(runOverSheet);
 
-    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen);
-    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen];
+    root.append(this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen, this.worldScreen, this.runOverScreen);
+    this.screens = [this.menu, this.pause, this.levels, this.settings, this.skins, this.storeScreen, this.leagueScreen, this.resultScreen, this.worldScreen, this.runOverScreen];
 
     this.pauseButton = button('pause-button', '', handlers.pause);
     this.pauseButton.setAttribute('aria-label', 'Pause');
@@ -404,20 +511,30 @@ export class Overlay {
   private show(screen: HTMLElement | null): void {
     for (const s of this.screens) s.hidden = s !== screen;
     this.root.classList.toggle('is-open', screen !== null);
-    this.pauseButton.hidden = screen !== null;
     if (screen) this.result.hidden = true;
     if (screen === this.menu) this.playButton.focus({ preventScroll: true });
     else screen?.querySelector('button')?.focus({ preventScroll: true });
   }
 
+  /** Whether any screen of the overlay is up (menu, stadiums, balls, store, settings, pause, league, world, run over). */
+  get open(): boolean {
+    return this.root.classList.contains('is-open');
+  }
+
+  /** The in-match controls as the Game allows them: the pause button shows only when nothing is over the match. */
+  setControlsAllowed(allowed: boolean): void {
+    this.pauseButton.hidden = !allowed;
+  }
+
   /** True while the stadium list or the balls screen is up: menus, where the match's sound stops. */
   get inMenus(): boolean {
-    return this.root.classList.contains('is-open') && (!this.levels.hidden || !this.skins.hidden || !this.storeScreen.hidden);
+    return this.root.classList.contains('is-open') && (!this.levels.hidden || !this.skins.hidden || !this.storeScreen.hidden || !this.leagueScreen.hidden || !this.resultScreen.hidden);
   }
 
   showMenu(): void {
-    this.refreshMenu();
-    this.show(this.menu);
+    const info = this.refreshMenu();
+    // A season that has just ended comes first, until its prize is claimed.
+    this.show(info.league.pending ? this.resultScreen : this.menu);
   }
 
   showPause(): void {
@@ -454,7 +571,7 @@ export class Overlay {
   }
 
   menuVisible(): boolean {
-    return !this.menu.hidden;
+    return !this.menu.hidden || !this.resultScreen.hidden;
   }
 
   /** A short message with one action (the new-ball toast); it fades on its own or when tapped away. */
@@ -481,7 +598,7 @@ export class Overlay {
   }
 
   /** Redraws everything the menu shows from the current save. Cheap; called whenever any of it may have changed. */
-  refreshMenu(): void {
+  refreshMenu(): MenuInfo {
     const info = this.handlers.menuInfo();
     this.starText.textContent = tr('{n} / {max}', { n: info.stars.n, max: info.stars.max });
     this.starCount.setAttribute('aria-label', tr('STARS {n} / {max}', { n: info.stars.n, max: info.stars.max }));
@@ -490,6 +607,15 @@ export class Overlay {
     this.continueLine.textContent = `${tr(info.lesson ? 'LESSON {n}' : 'MATCH {n}', { n: info.continueNumber })} · ${tr(info.continueName)}`;
     this.playButton.setAttribute('aria-label', `${tr('PLAY')}, ${this.continueLine.textContent}`);
     this.ballsDot.hidden = !info.newBall;
+    const club = info.club;
+    this.clubLabel.textContent = tr('CLUB LV {n}', { n: club.level });
+    this.clubFill.style.width = `${Math.min(100, Math.round((club.xp / club.need) * 100))}%`;
+    this.clubLabel.parentElement?.setAttribute('aria-label', `${tr('CLUB LV {n}', { n: club.level })}, ${club.xp} / ${club.need}`);
+    this.renderLeague(info.league);
+    this.renderResult(info.league.pending);
+    this.frenzyButton.hidden = !info.frenzy.unlocked;
+    this.frenzyBest.textContent = tr('BEST {n}', { n: info.frenzy.best });
+    return info;
   }
 
   private showSettings(): void {
@@ -510,10 +636,11 @@ export class Overlay {
       this.resetButton.textContent = tr('ARE YOU SURE? TAP AGAIN TO ERASE EVERYTHING.');
       return;
     }
-    this.handlers.resetProgress();
     this.resetArmed = false;
-    this.resetButton.textContent = tr('PROGRESS ERASED');
-    window.setTimeout(() => this.showMenu(), 600);
+    // The game puts itself back on the title card, which shows the menu at once. A delayed showMenu() used to
+    // run here, and could put the menu back over a match the player had just started.
+    this.handlers.resetProgress();
+    this.showToast(tr('PROGRESS ERASED'), '', () => {}, 2400);
   }
 
   /** The store: shot upgrades (three levels each) and abilities to stock up on, paid in coins. */
@@ -599,6 +726,112 @@ export class Overlay {
     this.show(this.storeScreen);
   }
 
+  /** STREET LEAGUE: the table, from the menu's info as it stands now. */
+  private showLeague(): void {
+    this.refreshMenu();
+    this.show(this.leagueScreen);
+  }
+
+  /** STREET LEAGUE: the division, the days left, the table with promotion and relegation, and the prizes. */
+  private renderLeague(league: LeagueInfo): void {
+    const head = el('div', 'league-head');
+    head.append(el('span', `league-badge is-${league.division.toLowerCase()}`, league.division), el('p', 'league-days', tr('{n} DAYS LEFT', { n: league.daysLeft })));
+    const table = el('div', 'league-table');
+    for (const row of league.rows) {
+      const zone = row.zone === 'promote' ? ' is-promote' : row.zone === 'relegate' ? ' is-relegate' : '';
+      const you = row.isPlayer ? ' is-you' : '';
+      const line = el('div', `league-row${zone}${you}`);
+      line.append(el('span', 'league-pos', String(row.position)), el('span', 'league-club', row.club), el('span', 'league-lp', tr('{n} LP', { n: row.lp })));
+      table.append(line);
+    }
+    const legend = el('div', 'league-legend');
+    if (league.division !== 'GOLD') legend.append(el('span', 'is-promote-key', 'PROMOTION'));
+    if (league.division !== 'BRONZE') legend.append(el('span', 'is-relegate-key', 'RELEGATION'));
+    const prizes = el('div', 'league-prizes');
+    const medal = ['1ST', '2ND', '3RD'];
+    for (const p of league.prizes) {
+      const cell = el('div', 'league-prize');
+      cell.append(el('span', 'league-prize-place', medal[p.position - 1]), el('span', 'league-prize-coins', tr('+{n} COINS', { n: p.coins })));
+      if (p.trophy) cell.append(el('span', 'league-prize-trophy', '+1 TROPHY'));
+      prizes.append(cell);
+    }
+    // The legend and the prizes sit in a side column, which a short (landscape) phone puts beside the table.
+    const side = el('div', 'league-side');
+    side.append(legend, el('h3', 'league-subtitle', 'PRIZES'), prizes, el('p', 'league-trophies', tr('{n} TROPHIES', { n: league.trophies })));
+    this.leagueBody.replaceChildren(head, table, side);
+  }
+
+  /** The season result: where the player finished, promotion or relegation, and the prize to CLAIM. */
+  private renderResult(result: SeasonResult | null): void {
+    if (!result) {
+      this.resultBody.replaceChildren();
+      return;
+    }
+    const place = tr(result.position <= 3 ? ['1ST PLACE', '2ND PLACE', '3RD PLACE'][result.position - 1] : '{n}TH PLACE', { n: result.position });
+    const zone =
+      result.zone === 'promote'
+        ? tr('PROMOTED TO {division}', { division: tr(result.nextDivision) })
+        : result.zone === 'relegate'
+          ? tr('RELEGATED TO {division}', { division: tr(result.nextDivision) })
+          : tr('STAYS IN {division}', { division: tr(result.division) });
+    const prize = `${tr('+{n} COINS', { n: result.coins })}${result.trophy ? ` · ${tr('+1 TROPHY')}` : ''}`;
+    this.resultBody.replaceChildren(
+      el('p', 'league-result-place', place),
+      el('p', 'league-result-line', zone),
+      el('p', 'league-result-line', prize),
+      button('btn btn-primary league-claim', 'CLAIM', () => {
+        this.handlers.claimSeasonPrize();
+        this.showMenu();
+      }),
+    );
+  }
+
+  /** RUN OVER: the stats of a FRENZY run, with AGAIN (a new run) and MENU. */
+  showRunOver(stats: { streak: number; score: number; best: number; coins: number; goals: number }, onAgain: () => void, onMenu: () => void): void {
+    this.runOverBody.replaceChildren(
+      el('p', 'world-stars', tr('STREAK {n}', { n: stats.streak })),
+      el('p', 'world-name', tr('SCORE {n}', { n: stats.score })),
+      el('p', 'world-stars', tr('BEST STREAK {n}', { n: stats.best })),
+      el('p', 'world-stars', tr('GOALS {n}', { n: stats.goals })),
+      el('p', 'world-reward', tr('COINS EARNED +{n}', { n: stats.coins })),
+      button('btn btn-primary run-again', 'AGAIN', () => {
+        this.show(null);
+        onAgain();
+      }),
+      button('btn btn-ghost run-menu', 'MENU', () => {
+        this.show(null);
+        onMenu();
+      }),
+    );
+    this.show(this.runOverScreen);
+  }
+
+  /** WORLD COMPLETE: the panel for a world just completed, with its stars, its trophy and reward, and the next world. */
+  showWorld(info: WorldInfo, onContinue: () => void): void {
+    const trophy = el('div', 'world-trophy');
+    trophy.innerHTML = ICONS.trophy;
+    const next = el('div', 'world-next');
+    if (info.nextTitle !== null) {
+      next.append(el('span', 'world-next-label', 'NEXT WORLD'), el('span', 'world-next-name', info.nextTitle));
+      if (info.nextTheme !== null) next.append(el('span', 'world-next-theme', info.nextTheme));
+    } else {
+      next.append(el('span', 'world-next-label', 'ALL WORLDS WON'));
+    }
+    this.worldBody.replaceChildren(
+      trophy,
+      el('p', 'world-name', info.title),
+      el('p', 'world-stars', tr('STARS {n} / {max}', { n: info.stars, max: info.max })),
+      el('p', 'world-reward', tr('+{n} COINS', { n: info.reward })),
+      next,
+      el('p', 'world-trophies', tr('WORLD TROPHIES {n} / {max}', { n: info.trophies, max: 8 })),
+      button('btn btn-primary world-continue', 'CONTINUE', () => {
+        this.show(null);
+        onContinue();
+      }),
+    );
+    this.show(this.worldScreen);
+  }
+
   private showSkins(): void {
     this.handlers.skinsSeen();
     const skins = this.handlers.skins();
@@ -615,7 +848,15 @@ export class Overlay {
         b.setAttribute('aria-label', `${tr(skin.name)}, ${skin.open ? tr(skin.selected ? 'SELECTED' : 'UNLOCKED') : tr('{n} STARS', { n: skin.need })}`);
         // The real ball in this skin's colours.
         const ball = el('span', 'skin-ball');
-        ball.innerHTML = footballSvg('skin-ball-art', { base: skin.base, patch: skin.patch });
+        // A still of the painted sphere, made once the picture has loaded.
+        const art = document.createElement('img');
+        art.className = 'skin-ball-art';
+        art.alt = '';
+        art.draggable = false;
+        void sphereSnapshot(skin.texture, 128).then((url) => {
+          if (url) art.src = url;
+        });
+        ball.append(art);
         b.append(ball, el('span', 'tile-name', skin.name), el('span', 'skin-need', skin.open ? (skin.selected ? '●' : '') : tr('{n} STARS', { n: skin.need })));
         return b;
       }),
@@ -623,7 +864,13 @@ export class Overlay {
     this.show(this.skins);
   }
 
-  showLevels(tiles: readonly LevelTile[], current: number, focus?: number, gates: Readonly<Record<number, ChapterGate>> = {}): void {
+  showLevels(
+    tiles: readonly LevelTile[],
+    current: number,
+    focus?: number,
+    gates: Readonly<Record<number, ChapterGate>> = {},
+    worlds: { won: number; total: number } = { won: 0, total: 0 },
+  ): void {
     const { n, max } = this.handlers.stars();
     const open = tiles.filter((t) => t.unlocked).length;
     const pct = max > 0 ? Math.round((n / max) * 100) : 0;
@@ -644,6 +891,12 @@ export class Overlay {
     fill.style.width = `${pct}%`;
     bar.append(fill);
     this.levelProgress.append(top, bar);
+    // WORLD TROPHIES: one for each world whose boss match has been cleared.
+    const trophyRow = el('p', 'world-trophies');
+    const trophyIcon = el('span', 'world-trophies-icon');
+    trophyIcon.innerHTML = ICONS.trophy;
+    trophyRow.append(trophyIcon, el('span', 'world-trophies-text', tr('WORLD TROPHIES {n} / {max}', { n: worlds.won, max: worlds.total })));
+    this.levelProgress.append(trophyRow);
 
     this.levelBody.innerHTML = '';
     let chapter = '';
@@ -715,6 +968,18 @@ export class Overlay {
         b.setAttribute('aria-label', `${tr(tile.name)}, ${b.title}`);
       }
       b.append(el('span', 'tile-number', tile.label), nameLine, stars, bestLine);
+      if (tile.boss) {
+        // The world's last match: a red badge on the tile, whether or not it is open yet.
+        b.append(el('span', 'tile-boss', tr('BOSS')));
+        b.setAttribute('aria-label', `${b.getAttribute('aria-label')}, ${tr('BOSS MATCH')}`);
+      }
+      if (tile.unlocked && tile.bonus) {
+        // The bonus objective was met on this match: a medal on the tile.
+        const medal = el('span', 'tile-medal');
+        medal.innerHTML = ICONS.medal;
+        b.append(medal);
+        b.setAttribute('aria-label', `${b.getAttribute('aria-label')}, ${tr('BONUS')}`);
+      }
       if (tile.unlocked && tile.coin) {
         // The alley's coin is still out there.
         const coin = el('span', 'tile-coin');
@@ -748,8 +1013,18 @@ export class Overlay {
     this.doubleButton.hidden = !visible;
   }
 
-  setResult(visible: boolean, hasNext: boolean, double = false): void {
+  /** The NEXT MATCH ring on a first clear: how far it has filled, 0 to 1; -1 takes it away. */
+  setAdvance(p: number): void {
+    if (p === this.advanceShown) return;
+    this.advanceShown = p;
+    this.nextButton.classList.toggle('is-timed', p >= 0);
+    if (p >= 0) this.nextButton.style.setProperty('--ring', p.toFixed(3));
+  }
+
+  setResult(visible: boolean, hasNext: boolean, double = false, frenzy = false): void {
     this.result.hidden = !visible;
+    // In a run a shot is one-off: the card offers the next match only, no AGAIN.
+    this.result.classList.toggle('is-frenzy', frenzy);
     this.doubleButton.hidden = !(visible && double);
     this.nextButton.textContent = tr(hasNext ? 'NEXT MATCH' : 'STADIUMS');
   }

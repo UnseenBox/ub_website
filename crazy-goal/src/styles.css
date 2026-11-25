@@ -15,7 +15,7 @@
   --red: #cd3a24;
   --red-deep: #8f2314;
   --cream: #f4ffe2;
-  --display: 'Lilita One', 'Baloo Bhaijaan 2', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
+  --display: 'Bungee', 'Lalezar', 'Arial Black', 'Trebuchet MS', system-ui, sans-serif;
   /* The outline round lettering on colour: arcade signage, readable on any background. */
   --ink-stroke: #0b3a17;
 }
@@ -431,7 +431,8 @@ body {
   left: 50%;
   bottom: calc(5vh + env(safe-area-inset-bottom));
   display: flex;
-  gap: 14px;
+  align-items: center; /* each key keeps its own height: NEXT MATCH is taller than AGAIN */
+  gap: 18px;
   transform: translateX(-50%);
   animation: result-in 0.25s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
@@ -440,9 +441,19 @@ body {
   display: none;
 }
 
+/* AGAIN and NEXT MATCH are big, finger-sized keys: at least 56px tall, with clear space between them. */
 .result .btn {
   white-space: nowrap;
-  font-size: clamp(13px, 2.4vmin, 18px);
+  min-height: 56px;
+  padding: 0.7em 1.3em 0.65em;
+  font-size: clamp(14px, 2.4vmin, 18px);
+}
+
+/* NEXT MATCH is the one to press: taller and bigger than AGAIN, so it is the obvious target. */
+.result .btn-primary {
+  min-height: 66px;
+  padding: 0.7em 1.8em 0.65em;
+  font-size: clamp(18px, 3.2vmin, 24px);
 }
 
 .pause-button {
@@ -1421,7 +1432,16 @@ body {
 
 .menu-secondary .menu-duel {
   position: relative;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.menu-secondary .menu-frenzy {
   flex: 1 1 0;
+  width: auto;
   min-width: 0;
 }
 
@@ -1710,7 +1730,7 @@ body {
 /* Arabic letters join, so they cannot be spaced apart, and the display face has none of them. */
 [dir='rtl'] * {
   letter-spacing: 0 !important;
-  font-family: 'Baloo Bhaijaan 2', 'Segoe UI', Tahoma, 'Noto Kufi Arabic', 'Geeza Pro', system-ui, sans-serif;
+  font-family: 'Lalezar', 'Segoe UI', Tahoma, 'Noto Kufi Arabic', 'Geeza Pro', system-ui, sans-serif;
 }
 
 @keyframes screen-in {
@@ -2011,7 +2031,7 @@ body {
   }
 
   .result {
-    gap: 10px;
+    gap: 16px;
     bottom: calc(9vh + env(safe-area-inset-bottom));
   }
 }
@@ -2421,23 +2441,25 @@ body {
   display: none;
 }
 
-/* ---- The free-kick dock: pictures, no words. Bottom centre on a phone, left side on a wide screen. ---- */
+/* ---- The free-kick dock: GROUND or AIR, a BEND dial and a HEIGHT slider for the lob. A row of big controls at the
+   bottom centre of a phone; a column down the left of a wide screen. Every control is labelled. ---- */
 .kick-dock {
   position: fixed;
   left: 50%;
   bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 20;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: stretch;
+  gap: 8px;
   width: max-content;
-  max-width: calc(100vw - 136px);
-  padding: 8px 12px 8px 8px;
+  max-width: calc(100vw - 20px);
+  padding: 8px 10px;
+  color: #fff;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 48%),
     linear-gradient(180deg, rgba(42, 58, 106, 0.95), rgba(17, 26, 51, 0.97));
   border: 2px solid rgba(255, 255, 255, 0.28);
-  border-radius: 32px;
+  border-radius: 26px;
   box-shadow:
     0 6px 0 rgba(0, 0, 0, 0.35),
     0 10px 24px rgba(0, 0, 0, 0.3),
@@ -2452,63 +2474,70 @@ body {
   display: none;
 }
 
-/* One pill with two positions: a green ball-shaped thumb springs between GROUND and AIR. */
+/* GROUND and AIR: two big buttons with the name under the picture. The lit one is the shot that will be struck. */
 .kick-modes {
-  position: relative;
   display: flex;
   flex: none;
-  padding: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 30px;
-  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
-}
-
-.kick-modes::before {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 46px;
-  height: 46px;
-  content: '';
-  background: radial-gradient(circle at 50% 28%, #4ff07c, var(--green-deep));
-  border: 3px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(76, 225, 108, 0.3), 0 0 20px rgba(76, 225, 108, 0.7), 0 3px 0 rgba(0, 0, 0, 0.3);
-  transition: transform 0.34s cubic-bezier(0.3, 1.7, 0.5, 1);
-}
-
-.kick-modes.is-air::before {
-  transform: translateX(46px);
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
 }
 
 .kick-mode {
   position: relative;
-  width: 46px;
-  height: 46px;
-  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 60px;
+  height: 56px;
+  padding: 4px;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  background: transparent;
-  border: 0;
-  border-radius: 50%;
-  transition: transform 0.14s cubic-bezier(0.2, 1.6, 0.4, 1);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.24);
+  border-radius: 16px;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25);
+  transition:
+    transform 0.14s cubic-bezier(0.2, 1.6, 0.4, 1),
+    background 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .kick-mode svg {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 26px;
+  height: 26px;
   filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.3));
-  opacity: 0.62;
-  transition: opacity 0.2s, transform 0.3s cubic-bezier(0.3, 1.7, 0.5, 1);
+  opacity: 0.7;
+  transition:
+    opacity 0.2s,
+    transform 0.3s cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+
+.kick-mode.is-on {
+  background: radial-gradient(circle at 50% 28%, #4ff07c, var(--green-deep));
+  border-color: #fff;
+  box-shadow:
+    0 0 0 3px rgba(76, 225, 108, 0.3),
+    0 0 18px rgba(76, 225, 108, 0.6),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.2);
 }
 
 .kick-mode.is-on svg {
   opacity: 1;
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
-.kick-mode:active svg {
-  transform: scale(0.88);
+.kick-mode:active {
+  transform: scale(0.94);
 }
 
 .kick-mode.is-burst::after {
@@ -2517,45 +2546,62 @@ body {
   content: '';
   pointer-events: none;
   border: 3px solid #fff;
-  border-radius: 50%;
+  border-radius: 18px;
   animation: kick-burst 0.55s ease-out both;
 }
 
+.kick-mode:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: -2px;
+}
+
+/* Each control's title, and the value it is set to in the sun colour. */
+.kick-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 16px;
+}
+
+.kick-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.kick-value {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--sun);
+  white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* BEND: the curve it makes, over the dial. */
 .kick-bend {
   position: relative;
-  display: block;
-  flex: 1 1 120px;
-  min-width: 110px;
-  padding: 0 4px;
-  border-radius: 18px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 224px;
+  min-width: 104px;
   cursor: pointer;
-}
-
-.kick-modes[hidden] + .kick-bend {
-  width: 200px;
-}
-
-.kick-bend::after {
-  position: absolute;
-  top: 54px;
-  left: 50%;
-  width: 3px;
-  height: 14px;
-  margin-left: -1.5px;
-  content: '';
-  pointer-events: none;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 2px;
+  border-radius: 18px;
 }
 
 .kick-curve {
   display: block;
-  cursor: pointer;
   width: 100%;
-  height: 42px;
+  height: 36px;
   overflow: visible;
+  cursor: pointer;
   filter: drop-shadow(0 0 7px rgba(255, 200, 58, 0.6));
-  opacity: 0.5;
+  opacity: 0.55;
   transition: opacity 0.2s;
 }
 
@@ -2563,10 +2609,11 @@ body {
   opacity: 1;
 }
 
+/* The dial, shared by BEND and HEIGHT: a wide track with the ball as its knob. */
 .kick-range {
   display: block;
   width: 100%;
-  height: 32px;
+  height: 36px;
   margin: 0;
   background: transparent;
   cursor: pointer;
@@ -2575,23 +2622,23 @@ body {
 }
 
 .kick-range::-webkit-slider-runnable-track {
-  height: 12px;
+  height: 14px;
   background: var(--fill, none), rgba(255, 255, 255, 0.16);
-  border-radius: 6px;
+  border-radius: 7px;
   box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .kick-range::-moz-range-track {
-  height: 12px;
+  height: 14px;
   background: var(--fill, none), rgba(255, 255, 255, 0.16);
-  border-radius: 6px;
+  border-radius: 7px;
   box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .kick-range::-webkit-slider-thumb {
-  width: 34px;
-  height: 34px;
-  margin-top: -11px;
+  width: 38px;
+  height: 38px;
+  margin-top: -12px;
   background: var(--ball, #fff) center / 100% 100% no-repeat;
   border: 3px solid var(--sun);
   border-radius: 50%;
@@ -2601,8 +2648,8 @@ body {
 }
 
 .kick-range::-moz-range-thumb {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   background: var(--ball, #fff) center / 100% 100% no-repeat;
   border: 3px solid var(--sun);
   border-radius: 50%;
@@ -2613,11 +2660,6 @@ body {
   outline: 3px solid #fff;
   outline-offset: 3px;
   border-radius: 8px;
-}
-
-.kick-mode:focus-visible {
-  outline: 3px solid var(--sun);
-  outline-offset: -2px;
 }
 
 /* A lesson points at the control it wants: a pulsing ring and a finger. */
@@ -2652,10 +2694,47 @@ body {
   animation: kick-slide 1.6s ease-in-out infinite;
 }
 
+/* A wide screen has stands on both sides of the pitch: the dock is a column down the left, its controls flat. */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) {
+  .kick-dock {
+    left: calc(14px + env(safe-area-inset-left));
+    bottom: 14px;
+    flex-direction: column;
+    gap: 8px;
+    width: 240px;
+    max-width: none;
+    padding: 10px 12px;
+    transform: none;
+    animation-name: kick-rise-side;
+  }
+
+  .kick-modes {
+    flex-direction: row;
+  }
+
+  .kick-mode {
+    flex: 1 1 0;
+    width: auto;
+    height: 58px;
+  }
+
+  .kick-bend {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 @keyframes kick-rise {
   from {
     opacity: 0;
     transform: translate(-50%, 24px) scale(0.9);
+  }
+}
+
+@keyframes kick-rise-side {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.9);
   }
 }
 
@@ -2697,6 +2776,13 @@ body {
   }
   50% {
     transform: translateX(14px);
+  }
+}
+
+/* On a phone the dock runs the width of the screen along the bottom, so the pause button lifts above it while it shows. */
+@media (max-aspect-ratio: 5/4) {
+  body:has(.kick-dock:not([hidden])) .pause-button {
+    bottom: calc(156px + env(safe-area-inset-bottom));
   }
 }
 
@@ -2883,22 +2969,6 @@ body {
 
 /* A wide screen has stands on both sides of the pitch: the dock and the card sit over them. */
 @media (orientation: landscape) and (min-aspect-ratio: 5/4) {
-  .kick-dock {
-    left: calc(14px + env(safe-area-inset-left));
-    bottom: 14px;
-    flex-direction: column;
-    gap: 6px;
-    width: 188px;
-    max-width: none;
-    padding: 10px 12px;
-    transform: none;
-    animation-name: kick-rise-side;
-  }
-
-  .kick-bend {
-    width: 100%;
-  }
-
   .guide-card {
     top: 14px;
     right: calc(14px + env(safe-area-inset-right));
@@ -2911,13 +2981,6 @@ body {
   .coin-pill {
     right: auto;
     left: calc(14px + env(safe-area-inset-left));
-  }
-
-  @keyframes kick-rise-side {
-    from {
-      opacity: 0;
-      transform: translateY(24px) scale(0.9);
-    }
   }
 }
 
@@ -2940,7 +3003,7 @@ body {
     top: auto;
     right: auto;
     left: 50%;
-    bottom: calc(110px + env(safe-area-inset-bottom));
+    bottom: calc(160px + env(safe-area-inset-bottom));
     flex-direction: row;
     align-items: flex-end;
     justify-content: center;
@@ -3050,7 +3113,7 @@ body {
   }
 }
 
-/* ---- Lettering: Lilita One, outlined and dropped like the logo ---- */
+/* ---- Lettering: Bungee, outlined and dropped like the logo ---- */
 body {
   font-weight: 400;
 }
@@ -3394,12 +3457,9 @@ body {
   .result .btn {
     font-size: 14px;
   }
-}
 
-/* Very small phones: the match controls shrink a little more. */
-@media (max-width: 370px), (max-height: 380px) {
-  .kick-dock {
-    zoom: 0.72;
+  .result .btn-primary {
+    font-size: 17px;
   }
 }
 
@@ -3513,6 +3573,35 @@ body {
 .menu-shortcut-icon .game-icon {
   width: 82%;
   height: 82%;
+}
+
+/* The shortcuts are the pictures themselves: no white card behind them. The name sits on a navy plate. */
+.menu-shortcut {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.menu-shortcut:hover,
+.menu-shortcut:active {
+  box-shadow: none;
+}
+
+.menu-shortcut-picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.menu-shortcut .menu-shortcut-label {
+  padding: 4px 10px 3px;
+  color: #fff;
+  background: linear-gradient(180deg, #2c3a63 0%, var(--navy) 60%, #141c33 100%);
+  border-radius: 10px;
+  box-shadow: 0 3px 0 #0d1226, inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
 }
 
 .store-sheet {
@@ -3963,4 +4052,489 @@ body {
 
 .toast-action {
   white-space: nowrap;
+}
+
+/* ---- CLUB LEVEL: a thin bar under the coin and star pills on the main menu ---- */
+.menu-meters {
+  display: grid;
+  justify-items: end;
+  gap: clamp(6px, 1.1vmin, 9px);
+}
+
+.club-bar {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  width: clamp(128px, 26vw, 184px);
+}
+
+.club-label {
+  font-size: clamp(10px, 1.6vmin, 12px);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #f7ffe9;
+  text-shadow: 0 2px 0 rgba(3, 26, 10, 0.5);
+  white-space: nowrap;
+}
+
+.club-track {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(3, 26, 10, 0.45);
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.club-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffe680, #ffc83a 55%, #f5a01c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: width 0.5s ease-out;
+}
+
+/* STREET LEAGUE (Step 10b): the menu's fourth card, the table sheet, and the season result card. */
+@media (max-width: 520px) {
+  .menu-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-items: center;
+    gap: 10px;
+    width: min(300px, 100%);
+  }
+
+  .menu-shortcut {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+.league-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100dvh - 24px);
+  min-height: 0;
+}
+
+.league-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Everything but the table keeps its size; the table takes what is left and scrolls. */
+.league-head,
+.league-legend,
+.league-subtitle,
+.league-prizes,
+.league-trophies {
+  flex: none;
+}
+
+.league-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.league-badge {
+  padding: 4px 14px;
+  border: 2px solid #13203d;
+  border-radius: 999px;
+  background: #e9d3b0;
+  color: #13203d;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.league-badge.is-silver {
+  background: #d9e1ea;
+}
+
+.league-badge.is-gold {
+  background: #ffd94d;
+}
+
+.league-days {
+  margin: 0;
+  color: #13203d;
+  font-weight: 900;
+}
+
+.league-table {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 5px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.league-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #13203d;
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 rgba(19, 32, 61, 0.15);
+}
+
+.league-row.is-promote {
+  background: #d9f5df;
+  box-shadow: inset 6px 0 0 #2fb35a;
+}
+
+.league-row.is-relegate {
+  background: #fde0da;
+  box-shadow: inset 6px 0 0 #e2402c;
+}
+
+.league-row.is-you {
+  outline: 3px solid #ffd94d;
+  outline-offset: -3px;
+}
+
+.league-pos {
+  font-weight: 900;
+  text-align: center;
+}
+
+.league-club {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.league-lp {
+  font-variant-numeric: tabular-nums;
+}
+
+.league-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #13203d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.league-legend > span::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-inline-end: 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.league-legend .is-promote-key::before {
+  background: #2fb35a;
+}
+
+.league-legend .is-relegate-key::before {
+  background: #e2402c;
+}
+
+.league-subtitle {
+  margin: 4px 0 0;
+  color: #13203d;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.league-prizes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.league-prize {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: 2px solid #13203d;
+  border-radius: 12px;
+  background: #fff8d6;
+  color: #13203d;
+  text-align: center;
+}
+
+.league-prize-place {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.league-prize-coins {
+  color: #b4560e;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.league-prize-trophy,
+.league-trophies {
+  margin: 0;
+  color: #13203d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.league-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: #13203d;
+  text-align: center;
+}
+
+.league-result-place {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.league-result-line {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.league-claim {
+  min-width: 180px;
+}
+
+.league-back {
+  align-self: center;
+}
+
+/* The side column (legend and prizes) stacks under the table in portrait. */
+.league-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* A short phone on its side: the table on the left, the legend and prizes on the right, so the table can scroll. */
+@media (max-height: 460px) and (min-aspect-ratio: 1/1) {
+  .league-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 14px;
+  }
+
+  .league-head {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .league-table {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .league-side {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-height: 0;
+    gap: 5px;
+  }
+
+  .league-prizes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .league-prize {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    text-align: start;
+  }
+}
+
+/* BONUS OBJECTIVES (Step 11): the medal on a match's tile once its objective is met. */
+.tile-medal {
+  position: absolute;
+  bottom: 8px;
+  inset-inline-end: 8px;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+
+.tile-medal .game-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* WORLDS (Step 12): the boss badge on a tile, the trophies row on the stadium list, and the WORLD COMPLETE panel. */
+.tile-boss {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  translate: -50% 0;
+  padding: 1px 8px;
+  border: 2px solid #13203d;
+  border-radius: 999px;
+  background: #e2402c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.world-trophies {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  color: #13203d;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.world-trophies-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.world-trophies-icon .game-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world-sheet {
+  text-align: center;
+}
+
+.world-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.world-trophy {
+  width: 96px;
+  height: 96px;
+}
+
+.world-trophy .game-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world-name {
+  margin: 0;
+  color: #13203d;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.world-stars {
+  margin: 0;
+  color: #13203d;
+  font-weight: 900;
+}
+
+.world-reward {
+  margin: 0;
+  color: #b4560e;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.world-next {
+  display: grid;
+  gap: 2px;
+  padding: 8px 18px;
+  border: 2px solid #13203d;
+  border-radius: 12px;
+  background: #fff8d6;
+  color: #13203d;
+}
+
+.world-next-label {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.world-next-name {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.world-next-theme {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Less dead time (Step 14): the ring on NEXT MATCH fills on a first clear, then the next match starts. */
+.result .btn-primary.is-timed::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 26px;
+  padding: 4px;
+  background: conic-gradient(#ffd94d calc(var(--ring, 0) * 1turn), rgba(255, 255, 255, 0.35) 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+/* FRENZY (Step 13): the menu button, the run's HUD, and the RUN OVER card. */
+.menu-frenzy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 58px;
+  gap: 2px;
+  border: 3px solid #13203d;
+  border-radius: 18px;
+  background: linear-gradient(#ff8a4c, #d0321e);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.menu-frenzy-label {
+  font-size: 20px;
+  letter-spacing: 0.08em;
+}
+
+.menu-frenzy-best {
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+.result.is-frenzy .btn-navy {
+  display: none;
 }

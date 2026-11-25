@@ -16,14 +16,13 @@ export interface KickControlsHandlers {
   bend(): number;
   setType(type: ShotType): void;
   setBend(bend: number): void;
-  /** A click for the ear when the dial lands on straight or on full bend. */
+  /** A click for the ear when a dial lands on a notch. */
   tick?(): void;
 }
 
 /**
- * The free-kick controls, as pictures: two big round buttons (the ball on the ground, the ball over a
- * defender) and a bend dial with a live curve. No words on screen; the names live in aria-labels.
- * Real buttons and a real range input underneath, so touch, mouse and keyboard all work.
+ * The free-kick controls: a GROUND and an AIR button, and a BEND dial with a live curve.
+ * Every control has its name on screen, and each is a real button or range input, so touch, mouse and keyboard all work.
  */
 export class KickControls {
   readonly el: HTMLElement;
@@ -31,6 +30,7 @@ export class KickControls {
   private readonly ground: HTMLButtonElement;
   private readonly air: HTMLButtonElement;
   private readonly bendBox: HTMLElement;
+  private readonly bendValue: HTMLElement;
   private readonly range: HTMLInputElement;
   private readonly curve: SVGElement;
   private last = '';
@@ -46,11 +46,21 @@ export class KickControls {
     this.modes.className = 'kick-modes';
     this.ground = this.makeButton('GROUND', ICON.ground, 'ground');
     this.air = this.makeButton('AIR', ICON.air, 'air');
+    const airFinger = document.createElement('span');
+    airFinger.className = 'kick-finger';
+    airFinger.innerHTML = ICON.tap;
+    this.air.append(airFinger);
     this.modes.append(this.ground, this.air);
 
+    // BEND: its title and value, the curve it makes, and the dial under the curve.
     this.bendBox = document.createElement('label');
     this.bendBox.className = 'kick-bend';
     this.bendBox.setAttribute('aria-label', tr('BEND'));
+    const bendHead = document.createElement('div');
+    bendHead.className = 'kick-head';
+    this.bendValue = document.createElement('span');
+    this.bendValue.className = 'kick-value';
+    bendHead.append(this.title('BEND'), this.bendValue);
     this.curve = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     this.curve.setAttribute('viewBox', '0 0 80 56');
     this.curve.setAttribute('class', 'kick-curve');
@@ -85,15 +95,11 @@ export class KickControls {
       this.feedback();
       this.refresh();
     });
-    const tap = document.createElement('span');
-    tap.className = 'kick-finger';
-    tap.innerHTML = ICON.tap;
-    this.bendBox.append(this.curve, this.range, tap);
+    const bendFinger = document.createElement('span');
+    bendFinger.className = 'kick-finger';
+    bendFinger.innerHTML = ICON.tap;
+    this.bendBox.append(bendHead, this.curve, this.range, bendFinger);
 
-    const airFinger = document.createElement('span');
-    airFinger.className = 'kick-finger';
-    airFinger.innerHTML = ICON.tap;
-    this.air.append(airFinger);
 
     this.el.append(this.modes, this.bendBox);
   }
@@ -103,7 +109,13 @@ export class KickControls {
     b.type = 'button';
     b.className = `kick-mode kick-mode-${type}`;
     b.setAttribute('aria-label', tr(label));
-    b.innerHTML = icon;
+    const art = document.createElement('span');
+    art.className = 'kick-mode-art';
+    art.innerHTML = icon;
+    const name = document.createElement('span');
+    name.className = 'kick-mode-name';
+    name.textContent = tr(label);
+    b.append(art, name);
     b.addEventListener('click', () => {
       if (this.handlers.type() !== type) {
         this.burst(b);
@@ -113,6 +125,13 @@ export class KickControls {
       this.refresh();
     });
     return b;
+  }
+
+  private title(label: string): HTMLElement {
+    const t = document.createElement('span');
+    t.className = 'kick-title';
+    t.textContent = tr(label);
+    return t;
   }
 
   private feedback(): void {
@@ -145,21 +164,24 @@ export class KickControls {
     if (!show) return;
     this.modes.hidden = !parts.air;
     this.bendBox.hidden = !parts.bend;
+
     this.ground.classList.toggle('is-on', type === 'ground');
     this.air.classList.toggle('is-on', type === 'air');
     this.ground.setAttribute('aria-pressed', String(type === 'ground'));
     this.air.setAttribute('aria-pressed', String(type === 'air'));
     this.air.classList.toggle('is-hint', hint === 'air');
     this.bendBox.classList.toggle('is-hint', hint === 'bend');
+
+    // BEND: the dial, the curve it makes (its fill and glow show how much, and which side), and the words for it.
     this.range.value = String(Math.round(bend * 100));
-    // The curve shows where the ball will go; the fill and the glow show how much, and which side.
     this.curve.innerHTML = bendGlyph(bend, type === 'air');
-    this.modes.classList.toggle('is-air', type === 'air');
+    this.bendBox.classList.toggle('is-bent', bend !== 0);
+    const pct = Math.round(Math.abs(bend) * 100);
+    const bendText = bend === 0 ? tr('STRAIGHT') : `${tr(bend < 0 ? 'LEFT' : 'RIGHT')} ${pct}%`;
+    this.bendValue.textContent = bendText;
+    this.range.setAttribute('aria-valuetext', bendText);
     const left = Math.max(0, -bend) * 50;
     const right = Math.max(0, bend) * 50;
     this.range.style.setProperty('--fill', `linear-gradient(90deg, transparent ${50 - left}%, var(--sun) ${50 - left}%, var(--sun) ${50 + right}%, transparent ${50 + right}%)`);
-    this.bendBox.classList.toggle('is-bent', bend !== 0);
-    const pct = Math.round(Math.abs(bend) * 100);
-    this.range.setAttribute('aria-valuetext', bend === 0 ? tr('STRAIGHT') : `${pct}% ${tr(bend < 0 ? 'LEFT' : 'RIGHT')}`);
   }
 }

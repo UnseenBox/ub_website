@@ -1,6 +1,7 @@
-import displayUrl from '@fontsource/lilita-one/files/lilita-one-latin-400-normal.woff2?url';
-import displayExtUrl from '@fontsource/lilita-one/files/lilita-one-latin-ext-400-normal.woff2?url';
-import arabicUrl from '@fontsource-variable/baloo-bhaijaan-2/files/baloo-bhaijaan-2-arabic-wght-normal.woff2?url';
+import displayUrl from './assets/fonts/bungee-latin.woff2?url';
+import displayExtUrl from './assets/fonts/bungee-latin-ext.woff2?url';
+import shadeUrl from './assets/fonts/bungee-shade-latin.woff2?url';
+import arabicUrl from './assets/fonts/lalezar-arabic.woff2?url';
 import { LEVELS } from '../data/levels/matches';
 import { Game } from './core/Game';
 import { lang, rtl } from './core/i18n';
@@ -45,15 +46,16 @@ function boot(): void {
   const friend = isCrazyGames ? null : new URLSearchParams(location.search).get('duel');
   if (friend) void game.duel.open(friend);
 
-  // The faces ship with the game: Lilita One for every Latin letter, Baloo Bhaijaan 2 for Arabic.
+  // The faces ship with the game: Bungee and Bungee Shade for Latin letters, Lalezar for Arabic.
   // Each is declared across the whole weight range, so asking for 900 uses the face as drawn instead
   // of a smeared fake bold. Until they arrive the fallback stack is used; canvas text is redrawn after.
   if ('FontFace' in window) {
     const all = { weight: '100 900', style: 'normal' } as const;
     const faces = [
-      new FontFace('Lilita One', `url(${displayUrl}) format('woff2')`, { ...all, unicodeRange: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD' }),
-      new FontFace('Lilita One', `url(${displayExtUrl}) format('woff2')`, { ...all, unicodeRange: 'U+0100-024F, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF' }),
-      new FontFace('Baloo Bhaijaan 2', `url(${arabicUrl}) format('woff2')`, { ...all, unicodeRange: 'U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF' }),
+      new FontFace('Bungee', `url(${displayUrl}) format('woff2')`, { ...all, unicodeRange: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD' }),
+      new FontFace('Bungee Shade', `url(${shadeUrl}) format('woff2')`, { ...all, unicodeRange: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD' }),
+      new FontFace('Bungee', `url(${displayExtUrl}) format('woff2')`, { ...all, unicodeRange: 'U+0100-024F, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF' }),
+      new FontFace('Lalezar', `url(${arabicUrl}) format('woff2')`, { ...all, unicodeRange: 'U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF' }),
     ];
     Promise.allSettled(faces.map((f) => f.load())).then((results) => {
       for (const r of results) if (r.status === 'fulfilled') document.fonts.add(r.value);

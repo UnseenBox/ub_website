@@ -4,14 +4,71 @@
     {
       "name": "unseenbox-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "bonk-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "everything-is-a-weapon", "run", "dev", "--", "--port", "5183", "--strictPort"],
+      "runtimeArgs": [
+        "--prefix",
+        "everything-is-a-weapon",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5183",
+        "--strictPort"
+      ],
       "port": 5183
+    },
+    {
+      "name": "crazy-kora-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "crazy-goal",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5184",
+        "--strictPort"
+      ],
+      "port": 5184
+    },
+    {
+      "name": "crazy-kora-crazygames-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "crazy-goal",
+        "run",
+        "dev:crazygames",
+        "--",
+        "--port",
+        "5188",
+        "--strictPort"
+      ],
+      "port": 5188
+    },
+    {
+      "name": "slipshot-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "slipshot",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5190",
+        "--strictPort"
+      ],
+      "port": 5190
     }
   ]
 }

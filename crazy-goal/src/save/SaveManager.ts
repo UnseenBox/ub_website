@@ -1,6 +1,9 @@
 import type { Boost } from '../abilities/Cards';
 import { SKINS } from '../ball/Skins';
 import { noUpgrades, UPGRADE_MAX, type UpgradeLevels } from '../progression/Upgrades';
+import { CLUB_START, xpToNext, type Club } from '../progression/Club';
+import { WORLD_COUNT } from '../progression/Worlds';
+import { freshLeague, parseLeague, type League } from '../progression/League';
 
 const KEY = 'crazy-goal-save';
 /**
@@ -19,6 +22,8 @@ export interface LevelRecord {
   coin: boolean;
   /** Stars already paid out in coins (never pay for the same star twice). */
   paidStars: number;
+  /** The match's bonus objective was met once, and its coins were paid then. */
+  bonus: boolean;
 }
 
 export interface SaveData {
@@ -42,9 +47,19 @@ export interface SaveData {
   seenSkins: string[];
   /** Shot upgrades bought in the store, 0 to 3 each. */
   upgrades: UpgradeLevels;
+  /** CLUB LEVEL: the level and the XP into it. */
+  club: Club;
+  /** Balls a club level has unlocked for free, on top of the ones the stars open. */
+  grantedSkins: string[];
+  /** STREET LEAGUE: the season in progress, the table standing, and the last season's prize. */
+  league: League;
+  /** WORLDS: the worlds whose boss match has been cleared (each one pays its reward once). */
+  worlds: number[];
+  /** FRENZY: the longest streak of goals in a row, across every run. */
+  frenzyBest: number;
 }
 
-const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0 });
+const freshLevel = (): LevelRecord => ({ best: 0, attempts: 0, goals: 0, stars: 0, coin: false, paidStars: 0, bonus: false });
 
 const fresh = (): SaveData => ({
   version: SAVE_VERSION,
@@ -52,13 +67,18 @@ const fresh = (): SaveData => ({
   muted: false,
   sound: 0.3,
   music: 0.2,
-  skin: 'classic',
+  skin: 'tex-hex',
   coins: 0,
   tips: [],
   boostIntro: false,
   freeBoosts: {},
   seenSkins: [],
   upgrades: noUpgrades(),
+  club: { ...CLUB_START },
+  grantedSkins: [],
+  league: freshLeague(new Date()),
+  worlds: [],
+  frenzyBest: 0,
 });
 
 const volume = (v: unknown, fallback: number): number => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
@@ -96,6 +116,7 @@ export function parseSave(raw: string | null): SaveData {
         goals: num(rec.goals),
         stars,
         coin: rec.coin === true,
+        bonus: rec.bonus === true,
         // A v1 star was always paid for in goal coins: migrate as `stars` so nobody is paid twice.
         paidStars: legacy || rec.paidStars === undefined ? stars : Math.min(3, num(rec.paidStars)),
       };
@@ -108,6 +129,18 @@ export function parseSave(raw: string | null): SaveData {
       const n = Math.floor(num(data.freeBoosts[id]));
       if (n > 0) out.freeBoosts[id] = n;
     }
+  }
+  if (isRecord(data.club)) {
+    const level = Math.max(1, Math.floor(num(data.club.level)));
+    // Never more XP than the level holds: a bad value must not level up silently on load.
+    out.club = { level, xp: Math.min(num(data.club.xp), xpToNext(level) - 1) };
+  }
+  out.grantedSkins = strings(data.grantedSkins);
+  out.league = parseLeague(data.league, new Date());
+  const frenzyBest = num(data.frenzyBest);
+  out.frenzyBest = frenzyBest > 0 ? Math.floor(frenzyBest) : 0;
+  if (Array.isArray(data.worlds)) {
+    out.worlds = [...new Set(data.worlds.map((w) => num(w)))].filter((w) => Number.isInteger(w) && w >= 1 && w <= WORLD_COUNT);
   }
   if (isRecord(data.upgrades)) {
     for (const id of ['power', 'curl', 'aim'] as const) out.upgrades[id] = Math.min(UPGRADE_MAX, Math.floor(num(data.upgrades[id])));

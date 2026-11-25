@@ -16,10 +16,14 @@ const KEYS: Readonly<Record<string, Command>> = {
 export class KeyboardInput {
   constructor(private readonly sink: InputSink) {
     window.addEventListener('keydown', this.onKey);
+    // Browsers let a page block Ctrl/Cmd+W only while it holds fullscreen; CrazyGames asks games
+    // to use that, since it is too easy to end the match by closing the tab instead of pausing.
+    window.addEventListener('keydown', this.guardTabClose, { capture: true });
   }
 
   dispose(): void {
     window.removeEventListener('keydown', this.onKey);
+    window.removeEventListener('keydown', this.guardTabClose, { capture: true });
   }
 
   private readonly onKey = (e: KeyboardEvent): void => {
@@ -29,5 +33,9 @@ export class KeyboardInput {
     e.preventDefault();
     this.sink.gesture();
     this.sink.command(command);
+  };
+
+  private readonly guardTabClose = (e: KeyboardEvent): void => {
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyW' && document.fullscreenElement) e.preventDefault();
   };
 }

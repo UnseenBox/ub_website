@@ -50,7 +50,10 @@ export const C = {
 /** Opacity of a cast shadow. */
 export const SHADOW_ALPHA = 0.27;
 
-export const FONT = "'Lilita One', 'Baloo Bhaijaan 2', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif";
+/** The game's lettering: Bungee, a street-sign capital, for Latin; Lalezar, a heavy Arabic display face, for Arabic. */
+export const FONT = "'Bungee', 'Lalezar', 'Arial Black', 'Trebuchet MS', system-ui, sans-serif";
+/** The biggest titles: Bungee Shade, with its own built-in depth. Arabic falls back to Lalezar as before. */
+export const FONT_SHADE = "'Bungee Shade', 'Bungee', 'Lalezar', 'Arial Black', system-ui, sans-serif";
 
 export const rgba = (hex: string, alpha: number): string => {
   const n = parseInt(hex.slice(1), 16);

@@ -6,6 +6,7 @@ import { drawAimGround, drawAimOver, drawGuidePath, drawKickBadge, drawTutorialG
 import { drawAbilityDemo } from './DemoArt';
 import { drawBlock, drawBoundaryJoint, paintStaticShadows } from './ArenaArt';
 import { drawBall, drawBallAura, drawBallShadow, drawTrail } from './BallArt';
+import { ballTexture } from './SphereBall';
 import { drawCoin } from './CoinArt';
 import { drawTag } from './DuelArt';
 import type { Camera, ViewRect } from './Camera';
@@ -14,6 +15,7 @@ import { drawMechanicGround, drawMechanicSolid, paintMechanicShadows } from './M
 import { C, rgba, SHADOW_ALPHA } from './Palette';
 import { paintPitch, pitchPath } from './PitchArt';
 import { drawCrowdFlashes, paintStands } from './StadiumArt';
+import { BOSS_CROWD_EXCITEMENT } from '../progression/Worlds';
 
 /** World units of static scenery kept beyond the screen edge, for shake and zoom to move into. */
 const CACHE_MARGIN = 90;
@@ -145,7 +147,7 @@ export class Renderer {
       ctx.drawImage(this.cache, r.x, r.y, r.w, r.h);
     }
     // The crowd's cameras: calm while you aim, a storm after a goal.
-    drawCrowdFlashes(ctx, level, time, g.state === 'goal' ? 1 : Math.min(1, g.goalFlash));
+    drawCrowdFlashes(ctx, level, time, Math.max(g.state === 'goal' ? 1 : Math.min(1, g.goalFlash), level.def.boss ? BOSS_CROWD_EXCITEMENT : 0));
 
     const aiming = g.state === 'aiming';
     const bx = ball.renderX + g.aimDraw.x;
@@ -203,7 +205,7 @@ export class Renderer {
       }
       drawBallAura(ctx, ball, bx, cy, auraColour, aura);
       if (lit) drawBoostUnder(ctx, ball, bx, cy, lit, time);
-      drawBall(ctx, ball, bx, cy, patch, g.skin.base);
+      drawBall(ctx, ball, bx, cy, patch, g.skin.base, g.skin.texture ? ballTexture(g.skin.texture) : null);
       if (lit) drawBoostOver(ctx, ball, bx, cy, lit, time);
       ctx.restore();
     };
