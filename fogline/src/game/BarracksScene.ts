@@ -52,10 +52,9 @@ export class BarracksScene extends Phaser.Scene {
       add(this.add.image(x + cw / 2, y + 190, 'squad_soldier').setOrigin(0.5, 1).setScale(Math.min(1.1, cw / 200)).setAlpha(owned ? 1 : 0.25).setTint(owned ? 0xffffff : 0x333333));
       add(this.add.text(x + 18, y + 204, owned ? r.name.toUpperCase() : '???', { fontFamily: STENCIL, fontSize: cw < 300 ? '21px' : '26px', color: '#e8e0c0' }));
       add(this.add.text(x + 18, y + 238, r.role.toUpperCase(), { fontFamily: MONO, fontSize: '13px', color: '#c8a050' }));
-      add(this.add.text(x + 18, y + 262, r.description, { fontFamily: MONO, fontSize: '13px', color: '#a8a890', wordWrap: { width: inner } }));
       if (!owned) {
         const m = MISSIONS.find((ms) => ms.firstClear.recruits?.includes(r.id));
-        add(this.add.text(x + 18, y + 330, m ? `Joins when you win\nAct ${m.act} · ${m.name}` : 'Not met yet', { fontFamily: MONO, fontSize: '14px', color: '#e8c060', lineSpacing: 4 }));
+        add(this.add.text(x + 18, y + 330, m ? `WIN ${m.name.toUpperCase()}` : 'NOT MET YET', { fontFamily: MONO, fontSize: '13px', color: '#e8c060' }));
         return;
       }
       const level = p.recruitLevels[r.id] ?? 1;
@@ -105,9 +104,12 @@ export class BarracksScene extends Phaser.Scene {
 
 function statsLine(r: RecruitDef, level: number): string {
   const power = recruitPower(r, level);
-  if (r.role === 'engineer') return `Repairs ${power.toFixed(1)} bunker health per second during waves`;
-  if (r.role === 'pilot') return `Strafing run every ${recruitInterval(r, level).toFixed(0)}s · ${Math.round(power)} per body`;
-  if (r.role === 'mortar') return `Shell every ${recruitInterval(r, level).toFixed(0)}s · ${Math.round(power)} blast, far field only`;
-  if (r.role === 'grenadier') return `Grenade every ${recruitInterval(r, level).toFixed(1)}s · ${Math.round(power)} blast`;
-  return `${Math.round(power)} damage every ${recruitInterval(r, level).toFixed(2)}s · reach ${r.range} m`;
+  const every = `${recruitInterval(r, level).toFixed(1)}s`;
+  switch (r.role) {
+    case 'engineer': return `+${power.toFixed(1)} HP / SEC`;
+    case 'pilot': return `${Math.round(power)} PER BODY · ${every}`;
+    case 'grenadier':
+    case 'mortar': return `${Math.round(power)} BLAST · ${every}`;
+    default: return `${Math.round(power)} DMG · ${every} · ${r.range} M`;
+  }
 }

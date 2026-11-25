@@ -43,7 +43,9 @@ export class ShopScene extends Phaser.Scene {
     this.game_ = this.scene.get('Game') as GameScene;
     this.cards = [];
     this.input.setDefaultCursor('default');
-    const W = 1100, H = 560, x0 = (VIEW.width - W) / 2, y0 = 60;
+    // With three things or fewer to buy, the panel is only as tall as its contents.
+    const itemCount = this.game_.catalog.filter((i) => i.status() !== 'locked').length;
+    const W = 1100, H = itemCount <= 3 ? 300 : 560, x0 = (VIEW.width - W) / 2, y0 = 60;
     this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x000000, 0.62).setOrigin(0).setInteractive();
     this.add.rectangle(x0, y0, W, H, 0x1c1d1c, 0.97).setOrigin(0).setStrokeStyle(2, 0x050505);
     this.add.rectangle(x0, y0, W, 4, 0x5a5c58).setOrigin(0);
@@ -64,7 +66,7 @@ export class ShopScene extends Phaser.Scene {
     // description bar
     const iy = y0 + H - 96;
     this.add.rectangle(x0 + 16, iy, W - 32, 46, 0x0e0f0e).setOrigin(0).setStrokeStyle(1, 0x3a3c38);
-    this.infoTitle = this.add.text(x0 + 26, iy + 6, 'Hover an item for details. Click to buy.', { fontFamily: STENCIL, fontSize: '16px', color: '#d8d4bc' });
+    this.infoTitle = this.add.text(x0 + 26, iy + 6, 'HOVER FOR DETAILS', { fontFamily: STENCIL, fontSize: '16px', color: '#d8d4bc' });
     this.info = this.add.text(x0 + 26, iy + 26, '', { fontFamily: MONO, fontSize: '12px', color: '#a8a890' });
     this.msg = this.add.text(x0 + W - 26, iy + 23, '', { fontFamily: STENCIL, fontSize: '18px', color: '#ff7050', stroke: '#000', strokeThickness: 3 }).setOrigin(1, 0.5);
 

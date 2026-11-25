@@ -14,6 +14,7 @@ import {
   surgeMission, surgeModifiers, surgeOpen,
 } from '../systems/Retention';
 import { MONO, STENCIL, button } from '../ui/widgets';
+import { drawLock } from '../ui/icons';
 import { portal } from '../portal/Portal';
 import { VIEW } from './config';
 
@@ -125,7 +126,8 @@ export class HQScene extends Phaser.Scene {
         this.draw();
       });
       add(this.add.text(44, y + 12, t.name, { fontFamily: STENCIL, fontSize: '22px', color: t.open ? '#e0dcc0' : DIM }));
-      add(this.add.text(44, y + 44, t.open ? t.note : `LOCKED · ${t.note}`, { fontFamily: MONO, fontSize: '13px', color: t.alert ? GREEN : '#a8a890' }));
+      add(this.add.text(44, y + 44, t.note, { fontFamily: MONO, fontSize: '13px', color: t.alert ? GREEN : '#a8a890' }));
+      if (!t.open) drawLock(add(this.add.graphics({ x: 318, y: y + 22 })), 0x9a9a88);
       if (t.alert) {
         const dot = add(this.add.circle(334, y + 20, 7, 0xd84030).setStrokeStyle(2, 0x000000));
         this.tweens.add({ targets: dot, scale: 1.3, yoyo: true, repeat: -1, duration: 500 });
@@ -147,9 +149,9 @@ export class HQScene extends Phaser.Scene {
     this.live.push({ text, fn });
   }
 
-  private heading(add: Add, title: string, body: string): void {
+  /** A title only: the explanations that used to follow it are cut (the tab and its cards say what they do). */
+  private heading(add: Add, title: string, _body?: string): void {
     add(this.add.text(X0, 96, title, { fontFamily: STENCIL, fontSize: '30px', color: '#e8e0c0' }));
-    add(this.add.text(X0, 136, body, { fontFamily: MONO, fontSize: '14px', color: '#9a9a86', wordWrap: { width: 860 }, lineSpacing: 3 }));
   }
 
   private say(text: string, ok = true): void {
@@ -202,11 +204,16 @@ export class HQScene extends Phaser.Scene {
     d.contracts.forEach((c, i) => {
       const y = 200 + i * 112;
       add(this.add.rectangle(X0, y, 860, 100, c.done ? 0x1e2a1c : 0x1e1f1c).setOrigin(0).setStrokeStyle(1, c.done ? 0x4a7a3a : 0x3a3c38));
-      add(this.add.text(X0 + 18, y + 14, contractText(c).toUpperCase(), { fontFamily: STENCIL, fontSize: '22px', color: c.done ? GREEN : '#e0dcc0' }));
-      add(this.add.rectangle(X0 + 18, y + 58, 420, 18, 0x0c0d0c).setOrigin(0).setStrokeStyle(1, 0x4a4c48));
-      add(this.add.rectangle(X0 + 20, y + 60, 416 * (c.progress / c.target), 14, c.done ? 0x6aae4a : 0xc8a040).setOrigin(0));
-      add(this.add.text(X0 + 452, y + 58, `${c.progress} / ${c.target}`, { fontFamily: MONO, fontSize: '15px', color: '#c8c4b0' }));
-      add(this.add.text(X0 + 600, y + 22, c.done ? `PAID +${c.reward}` : `+${c.reward} SUPPLIES`, { fontFamily: STENCIL, fontSize: '20px', color: c.done ? GREEN : '#c8d890' }));
+      const rcx = X0 + 58, rcy = y + 50, rr = 34;
+      const ring = add(this.add.graphics());
+      ring.lineStyle(7, 0x2e3026, 1).strokeCircle(rcx, rcy, rr);
+      const frac = Math.min(1, c.progress / c.target);
+      if (frac > 0) ring.lineStyle(7, c.done ? 0x6aae4a : 0xc8a040, 1).beginPath().arc(rcx, rcy, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false).strokePath();
+      add(this.add.text(rcx, rcy, `${c.progress}/${c.target}`, { fontFamily: MONO, fontSize: '12px', color: c.done ? GREEN : '#e0dcc0' }).setOrigin(0.5));
+      add(this.add.text(X0 + 116, y + 26, contractText(c).toUpperCase(), { fontFamily: STENCIL, fontSize: '22px', color: c.done ? GREEN : '#e0dcc0' }));
+      const chipW = 100;
+      add(this.add.rectangle(X0 + 560, y + 56, chipW, 26, c.done ? 0x253019 : 0x2a2a1e, 1).setOrigin(0, 0.5).setStrokeStyle(1, c.done ? 0x5fae3c : 0x7a6420));
+      add(this.add.text(X0 + 560 + chipW / 2, y + 56, c.done ? `PAID +${c.reward}` : `+${c.reward}`, { fontFamily: STENCIL, fontSize: '16px', color: c.done ? GREEN : '#f0d890' }).setOrigin(0.5));
       if (!c.done && d.rerolled && portal.rewardReady) {
         add(button(this, X0 + 790, y + 66, 110, 34, 'SWAP ▶ AD', () => {
           portal.rewarded(() => {
