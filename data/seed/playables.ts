@@ -99,7 +99,7 @@ export const playables: Playable[] = [
       "Touchez le sol pour creuser · maintenez pour creuser sans arrêt · faites glisser pour regarder autour · touchez une roche du sac pour la couper · l'atelier s'ouvre dès la première roche · les icônes rondes ouvrent le magasin et le carnet de dettes",
       "المس الأرض للحفر · استمر بالضغط للحفر المتواصل · اسحب للنظر حولك · المس صخرة في الحقيبة لقطعها · تُفتح الورشة من أول صخرة · الأيقونات الدائرية تفتح المتجر ودفتر الديون",
     ),
-    enabled: true,
+    enabled: false,
     order: 0,
     updatedAt: SEED_DATE,
   },
