@@ -7,8 +7,8 @@ import { audio } from '../audio/AudioManager';
 import { icon, iconWidth, type IconName } from './icons';
 import { portraitColours } from './messages';
 
-export const MONO = 'Consolas, "Courier New", monospace';
-export const STENCIL = 'Impact, "Arial Narrow Bold", "Arial Black", sans-serif';
+export const MONO = '"Saira", sans-serif';
+export const STENCIL = '"Saira Stencil One", sans-serif';
 export const BODY = '"Segoe UI", system-ui, sans-serif';
 
 export const C = {

@@ -74,6 +74,19 @@ export function registerFoglineOverrides(): void {
   }
   audio.registerOverride('explosion_small', `${ROOT}/projectile-explosion.mp3`);
 
+  // The fat zombies' spawn, the ground-hit dirt and the claw strike on the wall.
+  audio.registerOverride('big_zombie_spawn', `${ROOT}/big-zombie-spawn.mp3`);
+  audio.registerOverride('hit_dirt', `${ROOT}/dirt.mp3`);
+  audio.registerOverride('claw', `${ROOT}/claw-hit.mp3`);
+
+  // The interface and event cues: purchase, refusal, radio, repair, a mod switching on, and a cleared wave.
+  audio.registerOverride('buy', `${ROOT}/buy.mp3`);
+  audio.registerOverride('deny', `${ROOT}/deny.mp3`);
+  audio.registerOverride('radio', `${ROOT}/radio.mp3`);
+  audio.registerOverride('repair', `${ROOT}/repair.mp3`);
+  audio.registerOverride('mod_on', `${ROOT}/mod-on.mp3`);
+  audio.registerOverride('wave_clear', `${ROOT}/wave-cleared.mp3`);
+
   // No "Kill sfx 3" was supplied; "killing sfx" serves as the third cue.
   audio.registerOverride('headshot_confirm', [
     `${ROOT}/kill-1.mp3`,

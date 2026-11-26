@@ -262,9 +262,15 @@ export class CombatSystem {
     z.resolved = true;
     z.killedByHeadshot = headshot;
     z.kill(headshot ? 'headshot' : source === 'bullet' || source === 'squad' || source === 'burn' ? 'bullet' : 'blast', dir);
-    // The body disappears at once; black ink wells up from the ground and swallows where it stood.
-    this.fx.blackSplash(z.sx, z.sy, z.scale, z.screenWidth, z.screenHeight);
-    z.vanish();
+    // Black ink wells up from the ground and swallows where it stood. Most bodies disappear at
+    // once; a puppet creature shot dead plays its fall first, and the ink takes it after.
+    const swallow = (): void => this.fx.blackSplash(z.sx, z.sy, z.scale, z.screenWidth, z.screenHeight);
+    if (z.performsDeath && (source === 'bullet' || source === 'squad' || source === 'burn')) {
+      z.onFallen = swallow;
+    } else {
+      swallow();
+      z.vanish();
+    }
     this.stats.kills++;
     if (headshot) {
       this.stats.headshotKills++;

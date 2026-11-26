@@ -657,7 +657,7 @@ function paintParapet(): HTMLCanvasElement {
   ctx.lineWidth = 2;
   ctx.strokeRect(150, 66, 130, 62);
   ctx.fillStyle = 'rgba(220,210,170,0.55)';
-  ctx.font = 'bold 11px Consolas, monospace';
+  ctx.font = 'bold 11px "Saira", sans-serif';
   ctx.fillText('CTG 7.62MM', 168, 100);
   ctx.fillText('LOT 44-91', 172, 114);
   ctx.fillStyle = cylinderGradient(ctx, 1010, 1100, 0x333a2c, 0.2, 0.5);

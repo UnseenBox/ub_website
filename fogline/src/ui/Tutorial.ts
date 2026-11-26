@@ -10,8 +10,8 @@ import { EnemyManager } from '../systems/EnemyManager';
 import { WaveManager } from '../systems/WaveManager';
 import { WeaponManager } from '../systems/WeaponManager';
 
-const MONO = 'Consolas, "Courier New", monospace';
-const STENCIL = 'Impact, "Arial Narrow Bold", "Arial Black", sans-serif';
+const MONO = '"Saira", sans-serif';
+const STENCIL = '"Saira Stencil One", sans-serif';
 const GOLD = 0xe8c060;
 const INK = 0x080907;
 const PANEL = { x: 24, y: 24, w: 600, h: 214 };

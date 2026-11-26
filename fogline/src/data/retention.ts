@@ -184,6 +184,34 @@ export const FIELD_NOTES: Record<string, { tactic: string; lore: string }> = {
     tactic: 'Burst the four pods first; while one lives the Bloom shrugs off four fifths of every hit. It regrows them once.',
     lore: "The Heart's last seed. If it had flowered, the spores would have reached the sea lanes.",
   },
+  crimson_brute: {
+    tactic: 'Shoot the head while it winds up. Its stomp throws dust, and the lower body takes little.',
+    lore: 'It was a soldier on the coast road. The veins are the red of what it fed on.',
+  },
+  pumpkin_brood: {
+    tactic: 'It stops at range to spit. Shoot it while the belly is still, before the glob flies.',
+    lore: 'The spores grew a head on it, and the head grew a mouth. It has not stopped growing.',
+  },
+  hollow_hound: {
+    tactic: 'Fast and low. Lead it with the shotgun near the wire; a head shot drops it from a gallop.',
+    lore: 'Something that used to be a dog. It runs for the sound of the wire.',
+  },
+  carrion_screamer: {
+    tactic: 'Its shriek calls the dead to speed up. Take it out first, before it starts the call.',
+    lore: 'It sings the way the fog does, a note that carries under the wind.',
+  },
+  wraith: {
+    tactic: 'Its smoke hides it until it is close. Shoot early, while it still glides in the open.',
+    lore: 'The fog took a shape and kept it. Wind goes through it, but it does not.',
+  },
+  stalker: {
+    tactic: 'Fast and long-armed. Take it in the head before it reaches the wire; the lunge is the danger.',
+    lore: 'It ran for the coast the night the spores came in, and never stopped running.',
+  },
+  gorger: {
+    tactic: 'It stays out in the yard and slams the ground. Shoot the head while it winds up; the belly takes little.',
+    lore: 'It was a man once. Then it ate the valley, and it still has not stopped.',
+  },
   fogborn: {
     tactic: 'Leg shots barely slow them. Heads, early, or a shotgun blast at the wire.',
     lore: 'The fog has started improving its dead. Each generation is quicker than the last.',

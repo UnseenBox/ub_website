@@ -11,13 +11,12 @@ import { Fx } from './Fx';
 
 /** Screen x of each side firing position (left window, right window, an extra post). */
 const POSTS = [205, 1075, 360];
-const POST_Y = VIEW.wallTop + 18;
+/** Shots leave just above the sandbags: the soldiers stay behind them, out of sight. */
+const MUZZLE_Y = VIEW.wallTop - 14;
 
 interface Member {
   def: RecruitDef;
   level: number;
-  img: Phaser.GameObjects.Image;
-  label: Phaser.GameObjects.Text;
   flash: Phaser.GameObjects.Image;
   muzzle: { x: number; y: number };
   timer: number;
@@ -25,10 +24,6 @@ interface Member {
 }
 
 const tmp = { x: 0, y: 0 };
-
-const TINTS: Record<RecruitDef['role'], number> = {
-  engineer: 0xd8c8a0, sniper: 0xb8c8b0, gunner: 0xc8b8a8, pilot: 0xb0bcd0, grenadier: 0xc8c098, mortar: 0xa8b098,
-};
 
 /**
  * The squad at the side windows. Snipers pick off the far threats (Spitters, Howlers,
@@ -40,6 +35,7 @@ export class SquadSystem {
   /** Radio chatter hook (set by the battle). */
   onLine: (who: string, text: string) => void = () => {};
   private lineCooldown = 12;
+  private wasActive = false;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -54,21 +50,19 @@ export class SquadSystem {
       if (!def || i >= POSTS.length) return;
       const x = POSTS[i];
       const side = x < VIEW.centerX ? 1 : -1;
-      const img = scene.add.image(x, POST_Y, 'squad_soldier').setOrigin(0.5, 1).setDepth(DEPTH.parapet + 2)
-        .setFlipX(side < 0).setScale(0.95).setTint(TINTS[def.role]);
-      const label = scene.add.text(x, POST_Y + 4, `${def.name.split(' ')[0].toUpperCase()} · LV ${s.level}`, {
-        fontFamily: 'Consolas, "Courier New", monospace', fontSize: '11px', color: '#e8e0c0', stroke: '#000', strokeThickness: 3,
-      }).setOrigin(0.5, 0).setDepth(DEPTH.parapet + 3);
-      const muzzle = { x: x + side * 48, y: POST_Y - 128 };
+      // No figure is drawn: the soldier is behind the sandbags. Only the shot shows.
+      const muzzle = { x: x + side * 48, y: MUZZLE_Y };
       const flash = scene.add.image(muzzle.x, muzzle.y, 'glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.parapet + 3)
         .setScale(0.18).setTint(0xffc080).setVisible(false);
-      this.members.push({ def, level: s.level, img, label, flash, muzzle, timer: 1 + i * 0.7, flashLeft: 0 });
+      this.members.push({ def, level: s.level, flash, muzzle, timer: 1 + i * 0.7, flashLeft: 0 });
     });
   }
 
   /** `active`: a wave is running (the squad holds fire between waves). */
   update(dt: number, active: boolean): void {
     this.lineCooldown -= dt;
+    if (active && !this.wasActive) this.announceReady();
+    this.wasActive = active;
     for (const m of this.members) {
       m.flashLeft = Math.max(0, m.flashLeft - dt);
       m.flash.setVisible(m.flashLeft > 0);
@@ -102,6 +96,13 @@ export class SquadSystem {
     }
   }
 
+  /** As a wave starts, each posted soldier radios that they are in position and ready to fire. */
+  private announceReady(): void {
+    this.members.forEach((m, i) => {
+      this.scene.time.delayedCall(700 + i * 1300, () => this.onLine(m.def.name.split(' ')[0].toUpperCase(), m.def.ready));
+    });
+  }
+
   private fire(m: Member, z: Zombie): void {
     const sniper = m.def.role === 'sniper';
     const zone = sniper ? 'head' : 'torso';
@@ -110,6 +111,7 @@ export class SquadSystem {
     else z.chestScreen(tmp);
     this.fx.tracer(m.muzzle.x, m.muzzle.y, tmp.x + (Math.random() - 0.5) * 6, tmp.y, sniper ? 1.2 : 0.7);
     m.flashLeft = 0.05;
+    m.flash.setVisible(true);
     const pan = (m.muzzle.x - VIEW.centerX) / VIEW.centerX;
     audio.play(sniper ? 'shot_m82' : 'shot_m249', { volume: sniper ? 0.35 : 0.18, pan, rate: sniper ? 1.05 : 1.15 });
     const wasAlive = z.alive;
@@ -155,6 +157,7 @@ export class SquadSystem {
   /** Rook lobs a grenade into a crowd: it lands a moment later. */
   private lob(m: Member, x: number, z: number, delayMs = 650, radius = 4.5): void {
     m.flashLeft = 0.08;
+    m.flash.setVisible(true);
     this.say(m, 0.25);
     this.scene.time.delayedCall(delayMs, () => {
       this.fx.explosion(x, z, radius * 0.7);
@@ -197,11 +200,7 @@ export class SquadSystem {
   }
 
   clear(): void {
-    for (const m of this.members) {
-      m.img.destroy();
-      m.label.destroy();
-      m.flash.destroy();
-    }
+    for (const m of this.members) m.flash.destroy();
     this.members.length = 0;
   }
 }

@@ -4,6 +4,7 @@ import m4ViewUrl from '../assets/m4-view.webp';
 import m249ViewUrl from '../assets/m249-view.webp';
 import m32ViewUrl from '../assets/m32-view.webp';
 import menuBgUrl from '../assets/main-menu.webp';
+import mapValleyUrl from '../assets/map-valley.webp';
 import menuButtonsUrl from '../assets/menu-buttons.webp';
 import zombieSheetUrl from '../assets/zombie-parts.webp';
 import bruteSheetUrl from '../assets/brute-parts.webp';
@@ -13,13 +14,19 @@ import { buildFxTextures } from '../rendering/FxArt';
 import { buildAct3Textures } from '../rendering/Act3Art';
 import { buildAct4Textures } from '../rendering/Act4Art';
 import { portal } from '../portal/Portal';
+import { loadGameFonts } from '../ui/fonts';
 import { buildLocationTextures } from '../rendering/LocationArt';
 import { buildWeaponTextures } from '../rendering/WeaponArt';
 import { ZOMBIE_ATLAS, buildZombieAtlas } from '../rendering/ZombieArt';
 import { FIGURES } from '../rendering/figures';
+import { CREATURES, atlasKey } from '../puppet/index';
 import { profile } from '../systems/Profile';
 import { VIEW } from './config';
-import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from './textureKeys';
+import { MAP_VALLEY_ART, MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from './textureKeys';
+import { buildValleyMap } from '../rendering/ValleyMap';
+
+/** The creature part atlases, by file path. */
+const puppetAtlases = import.meta.glob('../assets/puppets/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
 /** Paints every procedural texture and synthesizes the sound bank. */
 export class BootScene extends Phaser.Scene {
@@ -34,20 +41,24 @@ export class BootScene extends Phaser.Scene {
     this.load.image('view_m249_photo', m249ViewUrl);
     this.load.image('view_m32_photo', m32ViewUrl);
     this.load.image(MENU_BG_TEXTURE, menuBgUrl);
+    this.load.image(MAP_VALLEY_ART, mapValleyUrl);
     this.load.image(MENU_BUTTONS_TEXTURE, menuButtonsUrl);
     this.load.image(FIGURES.shambler.texture, zombieSheetUrl);
     this.load.image(FIGURES.brute.texture, bruteSheetUrl);
+    for (const look of Object.keys(CREATURES)) this.load.image(atlasKey(look), puppetAtlases[`../assets/puppets/${look}.webp`]);
   }
 
   create(): void {
     portal.loadingStart();
     const t = this.add.text(VIEW.centerX, VIEW.height / 2, 'ESTABLISHING PERIMETER…', {
-      fontFamily: 'Consolas, "Courier New", monospace', fontSize: '18px', color: '#9a9a86',
+      fontFamily: '"Saira", sans-serif', fontSize: '18px', color: '#9a9a86',
     }).setOrigin(0.5);
     // let the loading text render before the heavy synchronous work
-    this.time.delayedCall(40, () => {
+    // The fonts are loaded before any text or canvas label is drawn, so none falls back.
+    void loadGameFonts().then(() => this.time.delayedCall(40, () => {
       const t0 = performance.now();
       buildEnvironmentTextures(this);
+      buildValleyMap(this);
       buildLocationTextures(this);
       buildAct3Textures(this);
       buildAct4Textures(this);
@@ -78,6 +89,6 @@ export class BootScene extends Phaser.Scene {
       t.destroy();
       portal.loadingStop();
       this.scene.start('Menu');
-    });
+    }));
   }
 }

@@ -35,7 +35,7 @@ export class WeaponView {
     this.flashLight = scene.add.image(0, 0, 'glow').setDepth(DEPTH.muzzle - 1).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.cross = scene.add.graphics().setDepth(DEPTH.crosshair);
     this.reloadText = scene.add.text(0, 0, 'RELOADING', {
-      fontFamily: 'Consolas, "Courier New", monospace', fontSize: '12px', color: '#e8d890', stroke: '#000', strokeThickness: 3,
+      fontFamily: '"Saira", sans-serif', fontSize: '12px', color: '#e8d890', stroke: '#000', strokeThickness: 3,
     }).setOrigin(0.5, 0).setDepth(DEPTH.crosshair).setVisible(false);
   }
 

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { ENEMIES, EnemyDef, HitZone } from '../data/enemies';
 import { FIELD } from '../game/config';
 import { Zombie } from '../entities/Zombie';
+import { audio } from '../audio/AudioManager';
 
 export interface RayHit {
   zombie: Zombie;
@@ -39,7 +40,19 @@ export class EnemyManager {
     const sz = z ?? (burrow ? burrow.near + this.rng() * (burrow.far - burrow.near) : FIELD.spawnZ - this.rng() * 4);
     zb.reset(def, healthMul, speedMul, sx, sz, this.rng);
     this.live.push(zb);
+    // A fat zombie (bloat body) is announced by its own groan as it comes out of the fog.
+    // A group of them shares one cue, so the sound never stacks.
+    if (def.rig === 'bloat') this.bigSpawnCue(sx);
     return zb;
+  }
+
+  private lastBigCue = -Infinity;
+
+  private bigSpawnCue(x: number): void {
+    const now = this.scene.time.now;
+    if (now - this.lastBigCue < 1500) return;
+    this.lastBigCue = now;
+    audio.play('big_zombie_spawn', { volume: 0.6, pan: Math.max(-1, Math.min(1, x / FIELD.spawnHalfWidth)) * 0.6 });
   }
 
   get aliveCount(): number {

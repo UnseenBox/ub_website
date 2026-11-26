@@ -3,8 +3,8 @@ import { DEPTH } from '../game/depths';
 import { edgeShift } from '../game/screen';
 import { TOUCH_LAYOUT, TouchButton, TouchCircle, touchLayout } from '../game/touchControls';
 
-const MONO = 'Consolas, "Courier New", monospace';
-const STENCIL = 'Impact, "Arial Narrow Bold", "Arial Black", sans-serif';
+const MONO = '"Saira", sans-serif';
+const STENCIL = '"Saira Stencil One", sans-serif';
 
 interface Round {
   g: Phaser.GameObjects.Graphics;

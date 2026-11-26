@@ -1002,6 +1002,7 @@ export const MISSIONS: MissionDef[] = [
     objective: hold, threat: 104, startCash: 3200, modifiers: { storm: true },
     waves: [
       { name: 'First Squall', speedMul: 1.23, healthMul: 1.43, groups: [
+        { enemy: 'hollow_hound', count: 8, delay: 14, interval: 2 },
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75 },
         { enemy: 'lurker', count: 10, delay: 6, interval: 2.6 },
         { enemy: 'spitter', count: 4, delay: 10, interval: 7 },
@@ -1029,6 +1030,7 @@ export const MISSIONS: MissionDef[] = [
     threat: 107, startCash: 3300,
     waves: [
       { name: 'Rocks', speedMul: 1.24, healthMul: 1.44, groups: [
+        { enemy: 'pumpkin_brood', count: 3, delay: 8, interval: 9 },
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75 },
         { enemy: 'lurker', count: 10, delay: 6, interval: 2.6 },
         { enemy: 'sapper', count: 5, delay: 10, interval: 4.5 },
@@ -1052,6 +1054,7 @@ export const MISSIONS: MissionDef[] = [
     objective: hold, threat: 110, startCash: 3400, modifiers: { night: true },
     waves: [
       { name: 'Spore Fall', speedMul: 1.24, healthMul: 1.45, groups: [
+        { enemy: 'stalker', count: 5, delay: 12, interval: 5 },
         { enemy: 'shambler', count: 36, delay: 0, interval: 0.8 },
         { enemy: 'sporeling', count: 6, delay: 6, interval: 6 },
         { enemy: 'fogborn', count: 10, delay: 10, interval: 2.4 },
@@ -1082,6 +1085,7 @@ export const MISSIONS: MissionDef[] = [
     threat: 113, startCash: 3500, modifiers: { storm: true },
     waves: [
       { name: 'Coast Road', speedMul: 1.25, healthMul: 1.47, groups: [
+        { enemy: 'carrion_screamer', count: 3, delay: 10, interval: 6 },
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75 },
         { enemy: 'lurker', count: 12, delay: 6, interval: 2.4 },
         { enemy: 'sapper', count: 5, delay: 10, interval: 4.5 },
@@ -1109,6 +1113,7 @@ export const MISSIONS: MissionDef[] = [
     threat: 116, startCash: 3600,
     waves: [
       { name: 'The Walls', speedMul: 1.26, healthMul: 1.48, groups: [
+        { enemy: 'crimson_brute', count: 2, delay: 16, interval: 14 },
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7 },
         { enemy: 'fogborn', count: 12, delay: 6, interval: 2.2 },
         { enemy: 'spitter', count: 4, delay: 10, interval: 7 },
@@ -1132,6 +1137,7 @@ export const MISSIONS: MissionDef[] = [
     objective: hold, threat: 119, startCash: 3700, modifiers: { storm: true, drops: 36 },
     waves: [
       { name: 'Downpour', speedMul: 1.26, healthMul: 1.5, groups: [
+        { enemy: 'wraith', count: 6, delay: 9, interval: 4 },
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7 },
         { enemy: 'sporeling', count: 6, delay: 6, interval: 6 },
         { enemy: 'lurker', count: 12, delay: 8, interval: 2.4 },
@@ -1187,6 +1193,35 @@ export const MISSIONS: MissionDef[] = [
       { who: 'VARGA', text: 'No more spores. No more seeds. It is really over this time.' },
     ],
     map: { x: 850, y: 110 },
+  },
+  {
+    id: 'a4m10', act: 4, number: 10, name: 'The Gorger', location: 'fort', place: 'Fort Ashby, the gate',
+    objective: { kind: 'boss', enemy: 'gorger' },
+    threat: 130, startCash: 4500,
+    waves: [
+      { name: 'Gorged', speedMul: 1.3, healthMul: 1.55, groups: [
+        { enemy: 'shambler', count: 40, delay: 0, interval: 0.7 },
+        { enemy: 'lurker', count: 10, delay: 6, interval: 2.4 },
+        { enemy: 'juggernaut', count: 2, delay: 10, interval: 12 },
+      ] },
+      { name: 'The Gorger', speedMul: 1.3, healthMul: 1.58, groups: [
+        { enemy: 'gorger', count: 1, delay: 3, interval: 1 },
+        { enemy: 'shambler', count: 38, delay: 0, interval: 1.1 },
+        { enemy: 'fogborn', count: 10, delay: 16, interval: 2.2 },
+      ] },
+    ],
+    issue: { weapons: [], gear: [] },
+    bonus: { kind: 'headshots', count: 80 },
+    supplies: 1500,
+    firstClear: { weapons: [], gear: [] },
+    brief: [
+      { who: 'VARGA', text: 'The Gorger. It ate the valley and it has not stopped eating. Its arms are the danger: keep the wire between you.' },
+      { who: 'HALE', text: 'Then we make it stop, Warden.' },
+    ],
+    debrief: [
+      { who: 'VARGA', text: 'It is down. The fog is thinning over the whole coast.' },
+    ],
+    map: { x: 760, y: 250 },
   },
 ];
 

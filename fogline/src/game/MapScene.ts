@@ -583,7 +583,7 @@ function paintValley(act: number): HTMLCanvasElement {
   for (let x = 0; x < W; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
   for (let y = 0; y < H; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
   ctx.fillStyle = 'rgba(20,20,12,0.4)';
-  ctx.font = '10px Consolas, monospace';
+  ctx.font = '10px "Saira", sans-serif';
   for (let x = 0; x < W; x += 80) ctx.fillText(String.fromCharCode(65 + x / 80), x + 4, H - 6);
   // the river down the valley
   ctx.strokeStyle = 'rgba(70,96,110,0.75)';
@@ -609,7 +609,7 @@ function paintValley(act: number): HTMLCanvasElement {
   }
   // region labels
   ctx.fillStyle = 'rgba(230,220,180,0.5)';
-  ctx.font = 'bold 15px Consolas, monospace';
+  ctx.font = 'bold 15px "Saira", sans-serif';
   ctx.fillText('HARLOW FARMS', 30, 690);
   ctx.fillText('ORCHARDS', 420, 470);
   ctx.fillText('MILLBROOK', 330, 255);
@@ -651,7 +651,7 @@ function paintMillbrook(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D
     ctx.beginPath(); ctx.arc(rand(rng, 0, W), rand(rng, 40, 260), rand(rng, 2, 5), 0, Math.PI * 2); ctx.fill();
   }
   ctx.fillStyle = 'rgba(230,220,180,0.5)';
-  ctx.font = 'bold 15px Consolas, monospace';
+  ctx.font = 'bold 15px "Saira", sans-serif';
   ctx.fillText('MILLBROOK', 300, 690);
   ctx.fillText('HIGHWAY 9', 420, 420);
   ctx.fillText('RIVER', 120, 280);
@@ -699,10 +699,10 @@ function paintSource(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, r
     ctx.fillRect(rand(rng, 600, 870), rand(rng, 60, 290), rand(rng, 14, 34), rand(rng, 10, 24));
   }
   ctx.fillStyle = 'rgba(150,40,30,0.55)';
-  ctx.font = 'bold 26px Consolas, monospace';
+  ctx.font = 'bold 26px "Saira", sans-serif';
   ctx.fillText('☣', 830, 175);
   ctx.fillStyle = 'rgba(230,220,180,0.5)';
-  ctx.font = 'bold 15px Consolas, monospace';
+  ctx.font = 'bold 15px "Saira", sans-serif';
   ctx.fillText('HARLOW QUARRY', 60, 690);
   ctx.fillText('RAIL YARD', 420, 560);
   ctx.fillText('MERIDIAN STATION', 600, 30);
@@ -761,7 +761,7 @@ function paintCoast(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, rn
   }
   ctx.stroke();
   ctx.fillStyle = 'rgba(230,220,180,0.5)';
-  ctx.font = 'bold 15px Consolas, monospace';
+  ctx.font = 'bold 15px "Saira", sans-serif';
   ctx.fillText('SALTMARSH', 60, 690);
   ctx.fillText('GULL POINT', 480, 470);
   ctx.fillText('FORT ASHBY', 760, 230);

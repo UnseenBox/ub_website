@@ -128,7 +128,7 @@ export class Fx {
     }
     for (let i = 0; i < 24; i++) {
       const t = scene.add.text(0, 0, '', {
-        fontFamily: 'Impact, "Arial Narrow", sans-serif', fontSize: '22px', color: '#d8e0a0', stroke: '#000', strokeThickness: 4,
+        fontFamily: '"Saira Stencil One", sans-serif', fontSize: '22px', color: '#d8e0a0', stroke: '#000', strokeThickness: 4,
       }).setOrigin(0.5).setDepth(DEPTH.floatText).setVisible(false);
       this.texts.push({ obj: t, life: 0, max: 1 });
     }

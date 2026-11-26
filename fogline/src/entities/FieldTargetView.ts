@@ -73,7 +73,7 @@ export class FieldTargetView {
     const img = this.scene.add.image(0, 0, look.key).setOrigin(0.5, 1);
     const bar = this.scene.add.graphics();
     const label = this.scene.add.text(0, 0, t.name, {
-      fontFamily: 'Consolas, "Courier New", monospace', fontSize: '12px', color: '#e8e0c0', stroke: '#000', strokeThickness: 3,
+      fontFamily: '"Saira", sans-serif', fontSize: '12px', color: '#e8e0c0', stroke: '#000', strokeThickness: 3,
     }).setOrigin(0.5, 1);
     return { target: t, img, bar, label, flash: 0, wreck: 2.5 };
   }

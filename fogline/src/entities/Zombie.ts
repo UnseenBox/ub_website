@@ -5,6 +5,10 @@ import { project, Projected, windowHalfWidth } from '../game/perspective';
 import { LEN, PART, ZOMBIE_ATLAS } from '../rendering/ZombieArt';
 import { SHAMBLER_HEIGHT } from '../rendering/zombieSheetFrames';
 import { FIGURES, Figure } from '../rendering/figures';
+import { PuppetBody } from '../puppet/body';
+import { CREATURES } from '../puppet/index';
+import { clamp01 } from '../puppet/solve';
+import { clawSlash, screechRing, smokeBurst, smokeWisp, spitPuff, stompDust } from '../rendering/monsterFx';
 
 export type ZombieState = 'emerge' | 'walk' | 'hold' | 'attack' | 'dying' | 'dead';
 type DeathStyle = 'side' | 'back' | 'crumple';
@@ -33,6 +37,9 @@ function strikeFlare(a: number): number {
 }
 
 const STRIDE: Record<RigStyle, number> = { shamble: 0.95, run: 1.7, heavy: 0.9, bloat: 0.8, crawl: 0.55 };
+
+/** Seconds a puppet's follow-through plays after a spit, shriek or slam fires. */
+const RELEASE_SECONDS = 0.75;
 
 interface Seg { ax: number; ay: number; bx: number; by: number; r: number; zone: HitZone }
 
@@ -109,6 +116,8 @@ export class Zombie {
   private phase = 0;
   private time = 0;
   private emergeLeft = 0;
+  /** How long the emerge takes in all, so the rise can be eased over it. */
+  private emergeTotal = 1;
   private wanderSeed = 0;
   private lean = 0;
   private headTilt = 0;
@@ -141,8 +150,21 @@ export class Zombie {
   private figure: Figure | null = null;
   /** Feet to top of head in figure units: the scale the rig is drawn at. */
   private rigHeight = 0;
+  /** The jointed puppet drawing this zombie, or null for the other rigs. */
+  private puppet: PuppetBody | null = null;
+  /** Puppets this zombie has built, so a pooled zombie reuses them rather than rebuilding. */
+  private readonly puppets = new Map<string, PuppetBody>();
+  /** How long the current wind-up takes, and what is left of the follow-through after it fires. */
+  private channelTotal = 1;
+  private releaseLeft = 0;
+  private releaseFired = false;
+  private wispLeft = 0;
+  /** Called when a puppet has finished its death performance, just before it is cleared away. */
+  onFallen: (() => void) | null = null;
+  private readonly scene: Phaser.Scene;
 
   constructor(scene: Phaser.Scene) {
+    this.scene = scene;
     const img = (ox: number, oy: number) => scene.add.image(0, 0, ZOMBIE_ATLAS, 'shadow').setOrigin(ox, oy);
     this.shadow = scene.add.image(0, 0, ZOMBIE_ATLAS, 'shadow').setOrigin(0.5, 0.5);
     this.thigh = [img(PART.thigh.ox, PART.thigh.oy), img(PART.thigh.ox, PART.thigh.oy)];
@@ -167,11 +189,13 @@ export class Zombie {
 
   reset(def: EnemyDef, healthMul: number, speedMul: number, x: number, z: number, rng: () => number): void {
     this.def = def;
-    this.figure = FIGURES[def.look] ?? null;
-    this.rigHeight = this.figure ? this.figure.height : RIG_HEIGHT[def.rig];
+    this.puppet = this.puppetFor(def.look);
+    this.figure = this.puppet ? null : FIGURES[def.look] ?? null;
+    this.rigHeight = this.puppet ? this.puppet.height : this.figure ? this.figure.height : RIG_HEIGHT[def.rig];
     // Pooled zombies are built before the atlas exists, so the shadow needs its texture set here.
     this.shadow.setTexture(ZOMBIE_ATLAS, 'shadow');
-    if (this.figure) this.dressSheet(this.figure);
+    if (this.puppet) this.dressPuppet(this.puppet);
+    else if (this.figure) this.dressSheet(this.figure);
     else this.dressProcedural(def, rng);
     this.head.setVisible(true);
     this.maxHp = this.hp = def.health * healthMul;
@@ -201,7 +225,8 @@ export class Zombie {
       this.stopZ = FIELD.attackZ + rng() * 1.3;
     }
     this.state = 'emerge';
-    this.emergeLeft = 0.5 + rng() * 1.2;
+    // It comes up out of the ground over about a second and a half, not in a single frame.
+    this.emergeTotal = this.emergeLeft = 1.1 + rng() * 0.6;
     this.phase = rng() * TAU;
     this.time = rng() * 10;
     this.wanderSeed = rng() * 100;
@@ -215,6 +240,9 @@ export class Zombie {
     this.slowLeft = 0;
     this.legsHurtLeft = 0;
     this.attackT = rng() * 0.5;
+    this.releaseLeft = 0;
+    this.wispLeft = 0;
+    this.onFallen = null;
     this.struck = false;
     this.deathT = 0;
     this.lieLeft = 0;
@@ -241,7 +269,7 @@ export class Zombie {
     this.state = 'walk';
     this.update(0);
     // A crawler spreads its arms wider than the dead that walk.
-    const half = this.figure ? this.figure.halfWidth : def.rig === 'crawl' ? 140 : 95;
+    const half = this.puppet ? this.puppet.halfWidth : this.figure ? this.figure.halfWidth : def.rig === 'crawl' ? 140 : 95;
     const scale = Math.min(height / this.rigHeight, width / (2 * half));
     this.root.setScale(scale).setPosition(0, 0).setRotation(0).setAlpha(1).setDepth(0);
     this.shadow.setVisible(false);
@@ -300,6 +328,45 @@ export class Zombie {
     ]);
   }
 
+  /** The puppet for a look, built once per zombie and then reused. */
+  private puppetFor(look: string): PuppetBody | null {
+    const creature = CREATURES[look];
+    if (!creature) return null;
+    let body = this.puppets.get(look);
+    if (!body) {
+      body = new PuppetBody(this.scene, creature, look);
+      this.puppets.set(look, body);
+    }
+    return body;
+  }
+
+  private dressPuppet(body: PuppetBody): void {
+    body.reset();
+    // The haze tint is applied afresh to the newly laid-out parts.
+    this.baseTint = -1;
+    this.layout([this.shadow, ...body.images, ...body.glows]);
+  }
+
+  /** Poses the puppet from what the zombie is doing; its hit shapes move with its limbs. */
+  private posePuppet(body: PuppetBody): void {
+    const dying = this.state === 'dying' || this.state === 'dead';
+    const free = this.staggerLeft <= 0;
+    body.pose({
+      time: this.time,
+      walk: this.phase,
+      moving: this.state === 'walk' && this.channelLeft <= 0 && free ? 1 : 0,
+      attack: this.state === 'attack' && free ? clamp01(this.attackT) : -1,
+      channel: this.channelLeft > 0 && !dying ? clamp01(1 - this.channelLeft / this.channelTotal) : -1,
+      release: this.releaseLeft > 0 && !dying ? clamp01(1 - this.releaseLeft / RELEASE_SECONDS) : -1,
+      hit: Math.min(1, this.flinch),
+      hitDir: this.flinchDir < 0 ? -1 : 1,
+      death: dying ? this.deathT : -1,
+      deathDir: this.deathDir,
+    });
+    body.hitShapes(this.segs, this.headC);
+    this.applyRoot(0, 1);
+  }
+
   private layout(children: Phaser.GameObjects.GameObject[]): void {
     this.root.removeAll(false);
     this.root.add(children);
@@ -312,7 +379,7 @@ export class Zombie {
 
   /** Full width of the body on screen, in pixels (widest span of the cut figure). */
   get screenWidth(): number {
-    return 2 * (this.figure ? this.figure.halfWidth : 95) * this.scale;
+    return 2 * (this.puppet ? this.puppet.halfWidth : this.figure ? this.figure.halfWidth : 95) * this.scale;
   }
 
   get alive(): boolean {
@@ -343,6 +410,21 @@ export class Zombie {
     if (this.hasteLeft > 0) {
       this.hasteLeft -= dt;
       if (this.hasteLeft <= 0) this.hasteMul = 1;
+    }
+    if (this.releaseLeft > 0 && this.alive) {
+      this.releaseLeft -= dt;
+      if (!this.releaseFired && this.releaseLeft <= RELEASE_SECONDS * 0.76) {
+        this.releaseFired = true;
+        this.releaseFx();
+      }
+    }
+    if (this.puppet && this.def.look === 'wraith' && this.alive) {
+      this.wispLeft -= dt;
+      if (this.wispLeft <= 0) {
+        this.wispLeft = 0.16;
+        const p = this.anchorScreen('tail');
+        smokeWisp(this.scene, p.x, p.y, this.scale, this.root.depth - 1);
+      }
     }
     // A spit or howl winding up: it stands still, then the action fires.
     if (this.channelLeft > 0 && this.alive) {
@@ -423,16 +505,22 @@ export class Zombie {
         break;
       }
       case 'dying':
-        this.deathT += dt / (this.deathStyle === 'crumple' ? 0.95 : 0.62);
+        // A puppet's fall is a performance of its own, so it is given the time to play.
+        this.deathT += dt / (this.puppet ? 1.5 : this.deathStyle === 'crumple' ? 0.95 : 0.62);
         if (this.deathT >= 1) {
           this.deathT = 1;
           this.state = 'dead';
-          this.lieLeft = 2.6;
+          // A performing puppet lies a beat before it is swallowed; the others lie and fade.
+          this.lieLeft = this.onFallen ? 0.5 : 2.6;
         }
         break;
       case 'dead':
         this.lieLeft -= dt;
-        if (this.lieLeft <= 0) this.active = false;
+        if (this.lieLeft <= 0) {
+          this.onFallen?.();
+          this.onFallen = null;
+          this.active = false;
+        }
         break;
     }
 
@@ -450,9 +538,12 @@ export class Zombie {
         }
         this.x = Phaser.Math.Clamp(this.x, -lim - 3, lim + 3);
       } else {
-        const t = Phaser.Math.Clamp((this.z - FIELD.attackZ) / (FIELD.spawnZ - FIELD.attackZ), 0, 1);
-        const wander = Math.sin(this.time * 0.35 + this.wanderSeed) * 1.6 * t;
-        const desired = Phaser.Math.Clamp(this.targetX + (this.spawnX - this.targetX) * t + wander, -lim, lim);
+        // Walk straight in along the spawn ray: the sideways position scales with the distance, so
+        // on screen the zombie keeps its column and never slides across the field. It reaches the
+        // bunker line at about the window's width, because spawns sit within the field's spread.
+        const depth = Phaser.Math.Clamp(this.z / FIELD.spawnZ, 0, 1);
+        const wander = Math.sin(this.time * 0.35 + this.wanderSeed) * 1.6 * depth;
+        const desired = Phaser.Math.Clamp(this.spawnX * depth + wander, -lim, lim);
         this.x = Phaser.Math.Clamp(this.x + (desired - this.x) * Math.min(1, dt * 2), -lim, lim);
       }
     }
@@ -460,6 +551,7 @@ export class Zombie {
     this.updateScreen();
     this.pose();
     if (!this.active) this.root.setVisible(false);
+    if (strike) this.strikeFx();
     return strike;
   }
 
@@ -467,7 +559,40 @@ export class Zombie {
     const ranged = this.def.special?.ranged;
     this.channelKind = ranged ? 'spit' : 'howl';
     this.channelLeft = ranged ? ranged.windup : 1.35;
+    this.channelTotal = this.channelLeft;
+    this.releaseLeft = 0;
     this.action = 'charge';
+    if (this.puppet && this.def.look === 'screamer') {
+      const p = this.anchorScreen('mouth');
+      screechRing(this.scene, p.x, p.y, this.scale, this.root.depth + 1);
+    }
+  }
+
+  /** A named spot on the puppet (mouth, claw), on screen. */
+  private anchorScreen(name: string): { x: number; y: number } {
+    const [x, y] = this.puppet ? this.puppet.anchor(name) : [this.headC.x, this.headC.y];
+    return this.localToScreen(x, y, { x: 0, y: 0 });
+  }
+
+  /** The moment a wind-up lands: the spit leaves, the shriek peaks, the slam hits the ground. */
+  private releaseFx(): void {
+    const depth = this.root.depth + 1;
+    const mouth = this.anchorScreen('mouth');
+    if (this.def.look === 'brood') spitPuff(this.scene, mouth.x, mouth.y, this.scale * 1.6, depth);
+    if (this.def.look === 'screamer') screechRing(this.scene, mouth.x, mouth.y, this.scale * 1.4, depth);
+    if (this.def.look === 'gorger') stompDust(this.scene, this.sx, this.sy, this.scale * 2.4, depth);
+  }
+
+  /** A melee blow lands: dust, claw marks or smoke where the limb is. */
+  private strikeFx(): void {
+    if (!this.puppet) return;
+    const depth = this.root.depth + 1;
+    const claw = this.anchorScreen('claw');
+    const look = this.def.look;
+    if (look === 'crimson') stompDust(this.scene, claw.x, this.sy, this.scale * 1.3, depth);
+    else if (look === 'gorger') stompDust(this.scene, this.sx, this.sy, this.scale * 2.4, depth);
+    else if (look === 'wraith') smokeBurst(this.scene, claw.x, claw.y, this.scale, depth);
+    else clawSlash(this.scene, claw.x, claw.y, this.scale, depth);
   }
 
   private finishChannel(): void {
@@ -475,6 +600,10 @@ export class Zombie {
     this.channelKind = null;
     this.channelLeft = 0;
     this.holdsLeft -= 1;
+    if (this.puppet) {
+      this.releaseLeft = RELEASE_SECONDS;
+      this.releaseFired = false;
+    }
     const ranged = this.def.special?.ranged;
     const howl = this.def.special?.howl;
     this.holdCooldown = ranged ? ranged.interval : howl ? howl.interval : 0;
@@ -522,6 +651,11 @@ export class Zombie {
 
   stagger(seconds: number): void {
     this.staggerLeft = Math.max(this.staggerLeft, seconds);
+  }
+
+  /** True for creatures with a death of their own worth watching. */
+  get performsDeath(): boolean {
+    return this.puppet !== null;
   }
 
   kill(style: 'bullet' | 'headshot' | 'blast', dir: number): void {
@@ -691,6 +825,10 @@ export class Zombie {
   }
 
   private pose(): void {
+    if (this.puppet) {
+      this.posePuppet(this.puppet);
+      return;
+    }
     if (this.figure) {
       this.poseSheet();
       return;
@@ -891,13 +1029,21 @@ export class Zombie {
   }
 
   /** Shared tail of every pose: place the rig, fade it in and out, and tint it by distance. */
+  /** 0 as the emerge starts, 1 when it ends; eased so it slows as it breaks the surface. */
+  private emergeProgress(): number {
+    const t = Phaser.Math.Clamp(1 - this.emergeLeft / this.emergeTotal, 0, 1);
+    return 1 - (1 - t) * (1 - t) * (1 - t);
+  }
+
   private applyRoot(rootRot: number, rootSY: number): void {
     const style = this.def.rig;
-    this.root.setScale(this.scale, this.scale * rootSY);
+    // While emerging the body grows upward out of its feet, as if pushed up through the mud.
+    const risen = this.state === 'emerge' ? this.emergeProgress() : 1;
+    this.root.setScale(this.scale, this.scale * rootSY * (0.03 + 0.97 * risen));
     this.root.setRotation(rootRot);
     let alpha = 1;
     if (this.state === 'emerge' || this.z > FIELD.spawnZ - 6) alpha = Math.min(alpha, Phaser.Math.Clamp((FIELD.spawnZ + 0.5 - this.z) / 5, 0.15, 1));
-    if (this.state === 'emerge') alpha = Math.min(alpha, 1 - this.emergeLeft / 1.7);
+    if (this.state === 'emerge') alpha = Math.min(alpha, 0.25 + 0.75 * risen);
     if (this.state === 'dead' && this.lieLeft < 0.8) alpha = Math.max(0, this.lieLeft / 0.8);
     this.root.setAlpha(alpha);
     this.shadow.setPosition(0, -2).setScale(style === 'bloat' ? 1.6 : style === 'crawl' ? 1.4 : 1.1, 1);
@@ -916,7 +1062,10 @@ export class Zombie {
     if (this.channelKind) {
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 24);
       tint = this.channelKind === 'spit'
-        ? Phaser.Display.Color.GetColor(Math.round(120 + 60 * pulse), 255, Math.round(60 + 40 * pulse))
+        // The Gorger winds up a slam rather than a spit, so its tell is a hot red.
+        ? this.def.look === 'gorger'
+          ? Phaser.Display.Color.GetColor(255, Math.round(150 + 70 * pulse), Math.round(130 + 70 * pulse))
+          : Phaser.Display.Color.GetColor(Math.round(120 + 60 * pulse), 255, Math.round(60 + 40 * pulse))
         : Phaser.Display.Color.GetColor(Math.round(190 + 60 * pulse), Math.round(210 + 40 * pulse), 255);
     }
     if (this.slowLeft > 0) tint = 0x9fd4ff;
@@ -924,7 +1073,8 @@ export class Zombie {
     if (this.hitFlash > 0) tint = this.flashColor;
     if (tint !== this.baseTint) {
       this.baseTint = tint;
-      for (const c of this.root.list as Phaser.GameObjects.Image[]) if (c !== this.shadow) c.setTint(tint);
+      // Glows keep their own colour: the haze and the hit flash only touch the body.
+      for (const c of this.root.list as Phaser.GameObjects.Image[]) if (c !== this.shadow && c.blendMode !== Phaser.BlendModes.ADD) c.setTint(tint);
     }
   }
 
@@ -936,9 +1086,12 @@ export class Zombie {
     const s = this.scale;
     if (s <= 0) return null;
     // quick reject by bounding radius
-    const top = this.sy - this.rigHeight * s * 1.05;
-    const halfW = (this.figure ? this.figure.halfWidth : this.def.rig === 'bloat' ? 120 : 95) * s + 4;
-    if (py < top - 4 || py > this.sy + 6 || px < this.sx - halfW || px > this.sx + halfW) return null;
+    // A puppet rears, leaps and throws its limbs past its standing outline, so its box is roomier.
+    const room = this.puppet ? 1.6 : 1;
+    const top = this.sy - this.rigHeight * s * (this.puppet ? 1.7 : 1.05);
+    const below = this.puppet ? this.rigHeight * s * 0.25 : 0;
+    const halfW = (this.puppet ? this.puppet.halfWidth : this.figure ? this.figure.halfWidth : this.def.rig === 'bloat' ? 120 : 95) * s * room + 4;
+    if (py < top - 4 || py > this.sy + 6 + below || px < this.sx - halfW || px > this.sx + halfW) return null;
     const rot = this.root.rotation;
     const dx = px - this.sx, dy = py - this.sy;
     const c = Math.cos(-rot), sn = Math.sin(-rot);

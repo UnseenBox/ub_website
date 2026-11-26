@@ -127,7 +127,7 @@ function paintStation(): HTMLCanvasElement {
   ctx.fillStyle = '#26323a';
   ctx.fillRect(150, 44, 160, 20);
   ctx.fillStyle = '#c8c8b8';
-  ctx.font = 'bold 14px Consolas, monospace';
+  ctx.font = 'bold 14px "Saira", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('MILLBROOK', 230, 59);
   grime(ctx, rng, 10, 30, 440, 270);
@@ -213,7 +213,7 @@ function paintFuel(): HTMLCanvasElement {
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = '#b02a1a';
-    ctx.font = 'bold 22px Impact, sans-serif';
+    ctx.font = 'bold 22px "Saira Stencil One", sans-serif';
     ctx.fillText('FUEL', x + w / 2 - 26, y + h / 2 + 8);
   }
   ctx.fillStyle = '#2a2a26';
@@ -312,7 +312,7 @@ function paintOverpass(): HTMLCanvasElement {
   ctx.lineWidth = 2;
   for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(560 + i * 12, 60); ctx.lineTo(556 + i * 12 + rand(rng, -6, 6), 30); ctx.stroke(); }
   ctx.fillStyle = '#c8b870';
-  ctx.font = 'bold 18px Consolas, monospace';
+  ctx.font = 'bold 18px "Saira", sans-serif';
   ctx.fillText('HWY 9  MILLBROOK', 60, 80);
   grime(ctx, rng, 0, 26, W, H - 26);
   return canvas;
@@ -344,7 +344,7 @@ function paintWreck(): HTMLCanvasElement {
   ctx.lineWidth = 8;
   ctx.beginPath(); ctx.moveTo(190, 66); ctx.lineTo(40, 30); ctx.moveTo(210, 66); ctx.lineTo(420, 20); ctx.stroke();
   ctx.fillStyle = '#c8c0a0';
-  ctx.font = 'bold 22px Impact, sans-serif';
+  ctx.font = 'bold 22px "Saira Stencil One", sans-serif';
   ctx.fillText('KESTREL', 220, 150);
   ctx.fillStyle = 'rgba(255,140,40,0.55)';
   for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(rand(rng, 300, 360), rand(rng, 140, 200), rand(rng, 6, 14), 0, Math.PI * 2); ctx.fill(); }
@@ -415,7 +415,7 @@ function paintDrum(): HTMLCanvasElement {
   ctx.fillStyle = '#e8c040';
   ctx.beginPath(); ctx.moveTo(40, 44); ctx.lineTo(54, 68); ctx.lineTo(26, 68); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#1a1a1a';
-  ctx.font = 'bold 16px Impact, sans-serif';
+  ctx.font = 'bold 16px "Saira Stencil One", sans-serif';
   ctx.fillText('!', 37, 65);
   ctx.fillStyle = '#7a1a10';
   ctx.beginPath(); ctx.ellipse(40, 9, 34, 6, 0, 0, Math.PI * 2); ctx.fill();

@@ -43,14 +43,13 @@ describe('main menu background', () => {
     expect(Object.keys(assets).some((k) => k.endsWith('menu-buttons.webp'))).toBe(true);
   });
 
-  it('uses all five baked-label menu buttons with no text overlay', () => {
-    const sources = import.meta.glob('../../src/{game,ui}/*.ts', { eager: true, query: '?raw', import: 'default' });
-    const menu = Object.entries(sources).find(([k]) => k.endsWith('MenuScene.ts'))?.[1] ?? '';
-    const art = Object.entries(sources).find(([k]) => k.endsWith('buttonArt.ts'))?.[1] ?? '';
-    expect(menu.match(/artButton\(/g)?.length).toBe(5);
-    expect(menu).not.toContain('imageButton(');
-    expect(art).not.toContain('btn_patch');
-    expect(art).not.toContain('scene.add.text');
+  it('lists the five main menu entries in one analog-styled column', () => {
+    const sources = import.meta.glob('../../src/{game,ui,rendering}/*.ts', { eager: true, query: '?raw', import: 'default' });
+    const menu = Object.entries(sources).find(([k]) => k.endsWith('game/MenuScene.ts'))?.[1] ?? '';
+    for (const label of ['CONTINUE', 'NEW GAME', 'ARMORY', 'SETTINGS', 'STORE']) expect(menu).toContain(`label: '${label}'`);
+    expect(menu).not.toContain('artButton(');
+    expect(menu).toContain('new ScreenOverlay(');
+    expect(menu).toContain('playIris');
   });
 
   it('defines exactly the five supplied button frames', () => {

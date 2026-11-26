@@ -9,6 +9,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen" />
     <title>Fogline — Bunker Defense</title>
     <style>
+      /* The game's two faces, bundled so they draw the same on every device. */
+      @font-face { font-family: "Saira Stencil One"; src: url("./fonts/SairaStencilOne-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: block; }
+      @font-face { font-family: "Saira"; src: url("./fonts/Saira-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: block; }
+      @font-face { font-family: "Saira"; src: url("./fonts/Saira-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: block; }
       html, body {
         margin: 0;
         width: 100%;
@@ -36,7 +40,7 @@
         position: fixed;
         z-index: 10;
         pointer-events: none;
-        font-family: Consolas, "Courier New", monospace;
+        font-family: "Saira", sans-serif;
       }
       #rotate-hint {
         display: none;

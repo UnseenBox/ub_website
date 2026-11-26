@@ -54,7 +54,7 @@ function paintContainer(seed: number, base: string): HTMLCanvasElement {
   ctx.fillStyle = 'rgba(120,60,30,0.4)';
   for (let i = 0; i < 10; i++) ctx.fillRect(rand(rng, 10, 460), rand(rng, 20, 120), 6, rand(rng, 30, 80));
   ctx.fillStyle = 'rgba(230,220,200,0.5)';
-  ctx.font = 'bold 26px Impact, sans-serif';
+  ctx.font = 'bold 26px "Saira Stencil One", sans-serif';
   ctx.fillText(`SLTU ${100000 + Math.floor(rng() * 899999)}`, 24, 50);
   grime(ctx, rng, 4, 10, 472, 186);
   return canvas;

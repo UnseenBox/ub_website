@@ -17,6 +17,8 @@ export interface RecruitDef {
   interval: number;
   /** How far out they engage, in metres. */
   range: number;
+  /** Said over the radio when a wave starts and they are in position, so you know they are ready. */
+  ready: string;
   /** Radio lines, picked at random now and then. */
   lines: string[];
 }
@@ -30,6 +32,7 @@ export const RECRUITS: RecruitDef[] = [
     power: 6,
     interval: 0,
     range: 0,
+    ready: 'On the left wall, patching as we go.',
     lines: ['Holding it together, Warden.', 'Patching the left wall!', 'Sandbags up. Keep shooting.'],
   },
   {
@@ -40,6 +43,7 @@ export const RECRUITS: RecruitDef[] = [
     power: 170,
     interval: 2.6,
     range: 75,
+    ready: 'In position at the left window, covering the far field.',
     lines: ['Got the screamer.', 'Long one down.', 'Watching the far field.'],
   },
   {
@@ -50,6 +54,7 @@ export const RECRUITS: RecruitDef[] = [
     power: 22,
     interval: 0.16,
     range: 16,
+    ready: 'On the right window. Nothing gets to the wire.',
     lines: ['Too close! Too close!', 'Nothing gets over this wall.', 'Reloading. Cover me!'],
   },
   {
@@ -60,6 +65,7 @@ export const RECRUITS: RecruitDef[] = [
     power: 70,
     interval: 38,
     range: 70,
+    ready: 'Gunship on standby. Circling the lane.',
     lines: ['Coming in hot. Keep your heads down!', 'Rolling in on the lane.', 'Kestrel, off target. Going round again.'],
   },
   {
@@ -70,6 +76,7 @@ export const RECRUITS: RecruitDef[] = [
     power: 120,
     interval: 7,
     range: 45,
+    ready: 'Grenades ready. Waiting for a crowd.',
     lines: ['Frag out!', 'That bunched them nicely.', 'Grenade! Down range!'],
   },
   {
@@ -80,6 +87,7 @@ export const RECRUITS: RecruitDef[] = [
     power: 260,
     interval: 12,
     range: 90,
+    ready: 'Mortar laid on the far field. Ready when you are.',
     lines: ['Shot out! Splash in five.', 'Adjusting fire.', 'Target the far field? Gladly.'],
   },
 ];

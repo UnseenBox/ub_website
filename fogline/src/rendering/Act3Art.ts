@@ -86,7 +86,7 @@ function paintBoxcar(seed: number, base: string): HTMLCanvasElement {
   ctx.fillStyle = '#0c0c0b';
   for (const x of [70, 140, 420, 490]) { ctx.beginPath(); ctx.arc(x, 204, 24, 0, Math.PI * 2); ctx.fill(); }
   ctx.fillStyle = 'rgba(230,220,190,0.55)';
-  ctx.font = 'bold 26px Impact, sans-serif';
+  ctx.font = 'bold 26px "Saira Stencil One", sans-serif';
   ctx.fillText(`HV ${400 + Math.floor(rng() * 500)}`, 40, 70);
   grime(ctx, rng, 10, 20, 540, 170);
   return canvas;
@@ -151,7 +151,7 @@ function paintMeridian(): HTMLCanvasElement {
   ctx.fillStyle = '#1c1e1e';
   ctx.fillRect(300, 330, 100, 90);
   ctx.fillStyle = '#d8d4c4';
-  ctx.font = 'bold 34px Impact, sans-serif';
+  ctx.font = 'bold 34px "Saira Stencil One", sans-serif';
   ctx.fillText('MERIDIAN', 60, 150);
   // fog seeping out of the doors and windows
   for (let i = 0; i < 26; i++) {
@@ -198,7 +198,7 @@ function paintTank(): HTMLCanvasElement {
   ctx.fillStyle = '#e8c040';
   ctx.beginPath(); ctx.moveTo(130, 140); ctx.lineTo(160, 190); ctx.lineTo(100, 190); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#1a1a1a';
-  ctx.font = 'bold 30px Impact, sans-serif';
+  ctx.font = 'bold 30px "Saira Stencil One", sans-serif';
   ctx.fillText('☣', 116, 184);
   grime(ctx, rng, 20, 40, 220, 260);
   return canvas;
@@ -227,7 +227,7 @@ function paintTrain(): HTMLCanvasElement {
   ctx.fillStyle = '#0c0c0b';
   for (const x of [60, 150, 300, 400, 480, 580]) { ctx.beginPath(); ctx.arc(x, 204, 22, 0, Math.PI * 2); ctx.fill(); }
   ctx.fillStyle = 'rgba(230,220,190,0.6)';
-  ctx.font = 'bold 22px Impact, sans-serif';
+  ctx.font = 'bold 22px "Saira Stencil One", sans-serif';
   ctx.fillText('ARMY 7', 400, 100);
   grime(ctx, rng, 20, 20, 600, 170);
   return canvas;

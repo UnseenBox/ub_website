@@ -10,3 +10,7 @@ export const MENU_BUTTON_FRAMES = {
   settings: 'btn_settings',
   store: 'btn_store',
 } as const;
+
+/** The supplied Act 1 painting, and the map texture cropped from it for the map screen. */
+export const MAP_VALLEY_ART = 'map_valley_art';
+export const MAP_VALLEY_TEXTURE = 'valley_map_1';

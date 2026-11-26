@@ -26,10 +26,11 @@ function wonThrough(id: string): ProfileData {
 describe('Act 4: The Fog Returns', () => {
   const act4 = MISSIONS.filter((m) => m.act === 4);
 
-  it('has nine coastal missions ending with the Bloom', () => {
-    expect(act4).toHaveLength(9);
+  it('has ten coastal missions: the Bloom, then the Gorger at the gate', () => {
+    expect(act4).toHaveLength(10);
     expect(act4[8].objective).toEqual({ kind: 'boss', enemy: 'bloom' });
-    expect(isActFinale(act4[8])).toBe(true);
+    expect(act4[9].objective).toEqual({ kind: 'boss', enemy: 'gorger' });
+    expect(isActFinale(act4[9])).toBe(true);
     for (const m of act4) {
       expect(LOCATIONS[m.location], m.id).toBeDefined();
       for (const w of m.waves) for (const g of w.groups) expect(ENEMIES[g.enemy], `${m.id} ${g.enemy}`).toBeDefined();
