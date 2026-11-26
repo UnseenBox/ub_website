@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
 import { BUNKER_TRACK, MAX_LEVEL, TRACKS, TrackId, bunkerHealth } from '../data/workshop';
-import { WEAPONS, WeaponDef, weaponById } from '../data/weapons';
+import { WEAPONS, WEAPON_ORDER, WeaponDef, weaponById } from '../data/weapons';
 import {
   ATTACHMENTS, attachmentStatus, attachmentsOpen, buyAttachment, buyBunkerUpgrade, buyUpgrade, bunkerUpgradeStatus, fitAttachment,
-  fittedAttachment, ownedWeapons, playerPower, playerWeapon, upgradeStatus, weaponLevels,
+  fittedAttachment, ownedWeapons, playerPower, playerWeapon, upgradeStatus, weaponLevels, weaponUnlockMission,
 } from '../systems/Campaign';
 import { attachmentById } from '../data/attachments';
 import { gainChip } from '../ui/messages';
@@ -14,11 +14,15 @@ import { activeSkin, masteryStatus, ownedSkins, setSkin } from '../systems/Reten
 import { ITEM_ICON, WEAPON_ICON, icon, type IconName } from '../ui/icons';
 import { C, STENCIL, box, chip, css, meter, pushButton, row, text, type Part } from '../ui/kit';
 import { backdrop } from '../rendering/Margins';
+import { skinTexture } from '../rendering/SkinArt';
+import { GunTile } from '../ui/gunTile';
 import { VIEW } from './config';
 
 const BUNKER = 'bunker';
 /** Left column, and where the detail column starts. */
-const LIST_X = 28, LIST_W = 306, X0 = 360, W = VIEW.width - X0 - 28, TOP = 96;
+const LIST_X = 28, X0 = 360, W = VIEW.width - X0 - 28, TOP = 96;
+/** The arsenal's squares: two across, every gun and the bunker. */
+const TILE = 146, TILE_GAP = 8;
 
 const STAT_ICON: Record<TrackId, IconName> = { damage: 'skull', handling: 'bolt', magazine: 'plus', reload: 'clock' };
 
@@ -50,6 +54,7 @@ type Add = <T extends Phaser.GameObjects.GameObject>(o: T) => T;
 export class WorkshopScene extends Phaser.Scene {
   private selected = 'service';
   private dynamic: Phaser.GameObjects.GameObject[] = [];
+  private tiles: GunTile[] = [];
   private msg!: Phaser.GameObjects.Text;
 
   constructor() {
@@ -71,6 +76,7 @@ export class WorkshopScene extends Phaser.Scene {
   private draw(): void {
     for (const o of this.dynamic) o.destroy();
     this.dynamic = [];
+    this.tiles = [];
     const p = profile.get();
     const add: Add = (o) => {
       this.dynamic.push(o);
@@ -83,36 +89,74 @@ export class WorkshopScene extends Phaser.Scene {
     for (const t of totals) add(t.c);
     row(totals, VIEW.width - 28 - totals.reduce((n, t) => n + t.w, 8), 46);
 
-    // Left: owned weapons and the bunker.
-    const items = [...ownedWeapons(p), BUNKER];
-    // Rows tighten up as the arsenal grows, so every entry fits.
-    const step = Math.min(76, Math.floor((VIEW.height - TOP - 12) / items.length));
-    const h = step - 8;
-    items.forEach((id, i) => {
-      const y = TOP + i * step;
+    // Left: every gun as a picture, grey until it is unlocked, and the bunker.
+    const owned = ownedWeapons(p);
+    [...WEAPON_ORDER, BUNKER].forEach((id, i) => {
+      const x = LIST_X + (i % 2) * (TILE + TILE_GAP), y = TOP + Math.floor(i / 2) * (TILE + TILE_GAP);
+      const bunker = id === BUNKER;
+      const locked = !bunker && !owned.includes(id);
       const sel = id === this.selected;
-      const bg = add(box(this, LIST_X, y, LIST_W, h, C.tile, sel ? C.brass : 0x2a2c24));
-      bg.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+      this.gunTile(add, x, y, TILE, bunker ? null : id, locked, i);
+      add(this.add.rectangle(x, y + TILE - 30, TILE, 30, 0x000000, 0.66).setOrigin(0));
+      add(text(this, x + TILE / 2, y + TILE - 15, bunker ? 'BUNKER' : weaponById(id).shortName, {
+        size: 19, font: STENCIL, color: locked ? C.muted : C.text,
+      }).setOrigin(0.5));
+      if (bunker) add(icon(this, 'shield', x + TILE / 2, y + TILE / 2 - 12, 62, C.iconTone));
+      if (locked) {
+        add(icon(this, 'lock', x + 18, y + 18, 26, C.text));
+      } else {
+        const lv = bunker ? null : weaponLevels(p, id);
+        const filled = lv ? Math.ceil((lv.damage + lv.handling + lv.magazine + lv.reload) / 4) : p.bunkerLevel;
+        const g = add(this.add.graphics());
+        g.fillStyle(0x000000, 0.6).fillRect(x + TILE - 6 - MAX_LEVEL * 11, y + 5, MAX_LEVEL * 11 + 1, 12);
+        for (let k = 0; k < MAX_LEVEL; k++) {
+          g.fillStyle(k < filled ? C.brass : 0x55574a, 1).fillRect(x + TILE - 4 - (MAX_LEVEL - k) * 11, y + 7, 8, 8);
+        }
+      }
+      // The frame is also what takes the tap.
+      const frame = add(this.add.rectangle(x, y, TILE, TILE, 0, 0).setOrigin(0));
+      frame.setStrokeStyle(sel ? 3 : 1, sel ? C.brass : C.lineStrong);
+      frame.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
         audio.play('ui_click', { volume: 0.6 });
         this.selected = id;
         this.draw();
       });
-      const mid = y + h / 2;
-      const bunker = id === BUNKER;
-      const skin = bunker ? '' : activeSkin(p, id);
-      const tone = skin ? Phaser.Display.Color.HexStringToColor(SKINS[skin].color).color : C.iconTone;
-      add(icon(this, bunker ? 'shield' : WEAPON_ICON[id], LIST_X + 52, mid, Math.min(bunker ? 38 : 32, h - 12), tone));
-      add(text(this, LIST_X + 100, mid, bunker ? 'BUNKER' : weaponById(id).shortName, { size: Math.min(28, h - 16), font: STENCIL }).setOrigin(0, 0.5));
-      const lv = bunker ? null : weaponLevels(p, id);
-      const filled = lv ? Math.ceil((lv.damage + lv.handling + lv.magazine + lv.reload) / 4) : p.bunkerLevel;
-      const g = add(this.add.graphics());
-      for (let k = 0; k < MAX_LEVEL; k++) {
-        g.fillStyle(k < filled ? C.brass : 0x3a3c32, 1).fillRect(LIST_X + LIST_W - 90 + k * 16, mid - 6, 12, 12);
-      }
     });
 
     if (this.selected === BUNKER) this.drawBunker(add);
+    else if (!owned.includes(this.selected)) this.drawLocked(this.selected, add);
     else this.drawWeapon(this.selected, add);
+  }
+
+  /** A gun's square (null for the bunker's), wearing the skin the player has chosen. */
+  private gunTile(add: Add, x: number, y: number, size: number, id: string | null, locked: boolean, seed: number): void {
+    let gun: { id: string; source: string } | null = null;
+    if (id) {
+      const skin = locked ? '' : activeSkin(profile.get(), id);
+      gun = { id, source: skinTexture(this, weaponById(id).viewTexture, skin) };
+    }
+    const tile = new GunTile(this, x, y, size, gun, locked, seed);
+    add(tile.c);
+    this.tiles.push(tile);
+  }
+
+  /** A gun not yet unlocked: its grey picture, and the mission that hands it over. */
+  private drawLocked(id: string, add: Add): void {
+    add(text(this, X0, TOP - 4, weaponById(id).name.toUpperCase(), { size: 34, font: STENCIL, color: C.muted }));
+    const size = 440, x = X0 + (W - size) / 2, y = TOP + 50;
+    this.gunTile(add, x, y, size, id, true, 8);
+    add(this.add.rectangle(x, y, size, size, 0, 0).setOrigin(0).setStrokeStyle(2, C.lineStrong));
+    add(icon(this, 'lock', x + 40, y + 40, 52, C.text));
+    const m = weaponUnlockMission(id);
+    const how = chip(this, {
+      icon: 'lock', text: m ? `WIN ACT ${m.act} · ${m.number}  ${m.name.toUpperCase()}` : 'LOCKED', tone: 'gold', size: 22,
+    });
+    add(how.c);
+    how.c.setPosition(x + size / 2 - how.w / 2, y + size + 16);
+  }
+
+  override update(time: number): void {
+    for (const t of this.tiles) t.update(time / 1000);
   }
 
   /** One stat: icon, bar with the next level's gain in green, the gain as a number and the buy button. */

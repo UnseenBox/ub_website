@@ -295,6 +295,11 @@ export function ownedWeapons(p: ProfileData): string[] {
   return sortWeapons(WEAPONS.filter((w) => w.price === 0 || p.weapons.includes(w.id)).map((w) => w.id));
 }
 
+/** The mission whose first win hands the player a weapon (undefined for the one they start with). */
+export function weaponUnlockMission(id: string): MissionDef | undefined {
+  return MISSIONS.find((m) => m.firstClear.weapons.includes(id));
+}
+
 export function ownedSupports(p: ProfileData): SupportId[] {
   return SUPPORT.filter((s) => p.gear.includes(`support:${s.id}`)).map((s) => s.id);
 }

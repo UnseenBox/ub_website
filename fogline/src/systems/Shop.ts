@@ -42,6 +42,22 @@ export const STATUS_TEXT: Record<ItemStatus, string> = {
   locked: 'LOCKED',
 };
 
+/** A gun's square on the armory shelf: what it sells depends on whether the gun is owned. */
+export interface GunShelf {
+  id: string;
+  pick(owned: boolean): ShopItem;
+}
+
+/** One square for every gun on sale: the gun itself until it is owned, then its rounds. */
+export function gunShelf(items: readonly ShopItem[]): GunShelf[] {
+  const ids = [...new Set(items.filter((i) => i.category === 'weapons').map((i) => i.id.split(':')[1]))];
+  return ids.map((id) => {
+    const gun = items.find((i) => i.id === `weapon:${id}`);
+    const rounds = items.find((i) => i.id === `ammo:${id}`);
+    return { id, pick: (owned) => (owned ? rounds ?? gun! : gun ?? rounds!) };
+  });
+}
+
 /**
  * Builds the shop catalogue. Every buy() checks affordability, deducts once
  * via EconomyManager.spend and then mutates inventory.
