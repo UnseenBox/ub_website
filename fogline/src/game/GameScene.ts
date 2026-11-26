@@ -45,7 +45,8 @@ import { Tutorial } from '../ui/Tutorial';
 import { toggleFullscreen } from '../ui/widgets';
 import { fireAllowed, wavesAllowed } from './tutorialSteps';
 import { isTestMode } from './testMode';
-import { AIM_ASSIST_RADIUS as AIM_ASSIST_REACH, aimAssistOffset, isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt, TouchButton } from './touchControls';
+import { isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt, TouchButton } from './touchControls';
+import { AIM, AimAssist, type AimPoint } from './aimAssist';
 import { TouchUI } from '../ui/TouchUI';
 import { Zombie, depthForZ } from '../entities/Zombie';
 import type { ModId, SupportId } from '../data/upgrades';
@@ -136,9 +137,9 @@ export class GameScene extends Phaser.Scene {
   /** Crosshair while playing by touch (relative drag aim). */
   private touchCursor: { x: number; y: number } = { x: VIEW.centerX, y: 300 };
   private touchLast: { x: number; y: number } = { x: 0, y: 0 };
-  /** Smoothed aim-assist nudge applied on top of the finger's crosshair. */
-  private assistOffset = { x: 0, y: 0 };
-  private readonly assistPoints: { x: number; y: number }[] = [];
+  /** Draws the touch crosshair onto an enemy it is near. */
+  private readonly assist = new AimAssist();
+  private readonly assistPoints: AimPoint[] = [];
   private readonly assistScratch = { x: 0, y: 0 };
   aimPointerId: number | null = null;
   firePointerId: number | null = null;
@@ -310,6 +311,7 @@ export class GameScene extends Phaser.Scene {
     this.touchUi = new TouchUI(this);
     this.touchUi.setEnabled(this.prefersTouch());
     this.touchCursor = { x: VIEW.centerX, y: 300 };
+    this.assist.reset();
     this.wireEvents();
     this.wireInput();
 
@@ -928,48 +930,25 @@ export class GameScene extends Phaser.Scene {
     return typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   }
 
-  /**
-   * Phone aim assistance. Enemies close to the crosshair (their head or chest) gently
-   * pull it onto them, so a slightly off tap still hits. The nudge is recomputed from
-   * the finger's position every frame and eased in and out, so it never builds up.
-   */
-  private assistAim(x: number, y: number): { x: number; y: number } {
-    const reach = AIM_ASSIST_REACH;
+  /** Phone aim assistance (see aimAssist.ts): where the crosshair goes for a finger at (x, y). */
+  private assistAim(x: number, y: number, dt: number): { x: number; y: number } {
     const pts = this.assistPoints;
+    const at = this.assistScratch;
     pts.length = 0;
     for (const z of this.enemies.live) {
       if (!z.alive) continue;
       // Skip enemies that are clearly out of reach sideways. Their feet can be far below
       // the crosshair while their head and chest are right on it, so don't cull vertically.
-      if (Math.abs(z.sx - x) > reach + 60) continue;
-      z.headScreen(this.assistScratch);
-      pts.push({ x: this.assistScratch.x, y: this.assistScratch.y });
-      z.chestScreen(this.assistScratch);
-      pts.push({ x: this.assistScratch.x, y: this.assistScratch.y });
+      if (Math.abs(z.sx - x) > AIM.reach + 60) continue;
+      z.headScreen(at);
+      pts.push({ owner: z, part: 'head', x: at.x, y: at.y, baseX: z.sx, baseY: z.sy });
+      z.chestScreen(at);
+      pts.push({ owner: z, part: 'chest', x: at.x, y: at.y, baseX: z.sx, baseY: z.sy });
     }
-    // Pull from where the crosshair is now, so the help builds up over frames and can
-    // lock onto a target. With no target near, the nudge fades back to the finger.
-    let ox = this.assistOffset.x;
-    let oy = this.assistOffset.y;
-    const step = aimAssistOffset({ x: x + ox, y: y + oy }, pts);
-    if (step.x !== 0 || step.y !== 0) {
-      ox += step.x;
-      oy += step.y;
-    } else {
-      ox *= 0.85;
-      oy *= 0.85;
-    }
-    // Never let the help drift further from the finger than the reach it works within.
-    const mag = Math.hypot(ox, oy);
-    if (mag > reach) {
-      ox *= reach / mag;
-      oy *= reach / mag;
-    }
-    this.assistOffset.x = ox;
-    this.assistOffset.y = oy;
+    const aim = this.assist.step({ x, y }, pts, dt);
     return {
-      x: Phaser.Math.Clamp(x + ox, 0, VIEW.width),
-      y: Phaser.Math.Clamp(y + oy, 0, VIEW.hudTop),
+      x: Phaser.Math.Clamp(aim.x, 0, VIEW.width),
+      y: Phaser.Math.Clamp(aim.y, 0, VIEW.hudTop),
     };
   }
 
@@ -1466,7 +1445,8 @@ export class GameScene extends Phaser.Scene {
     const rawX = Phaser.Math.Clamp(touchMode ? this.touchCursor.x : mouse.x, 0, VIEW.width);
     const rawY = Phaser.Math.Clamp(touchMode ? this.touchCursor.y : mouse.y, 0, VIEW.hudTop);
     // On touch the crosshair also gets a little aim assistance toward nearby enemies.
-    const assisted = touchMode ? this.assistAim(rawX, rawY) : { x: rawX, y: rawY };
+    if (!touchMode) this.assist.reset();
+    const assisted = touchMode ? this.assistAim(rawX, rawY, dt) : { x: rawX, y: rawY };
     const cursorAimX = assisted.x;
     const cursorAimY = assisted.y;
     this.aimCursorX = cursorAimX;

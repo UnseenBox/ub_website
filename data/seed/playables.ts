@@ -31,9 +31,9 @@ export const playables: Playable[] = [
       "الفأرة للتصويب · النقر لإطلاق النار · R لإعادة التذخير · 1–4 لتبديل الأسلحة · 5–8 تعديلات الذخيرة · A S D الدعم · W E المخبأ · المسافة تفتح الترسانة · Enter يبدأ الموجة التالية · Esc للإيقاف المؤقت",
     ),
     phoneControls: L(
-      "Best on a computer with a mouse and keyboard. The bunker line does not take touch controls yet.",
-      "Mieux sur ordinateur avec souris et clavier. La ligne de bunker n'a pas encore de commandes tactiles.",
-      "الأفضل على حاسوب بفأرة ولوحة مفاتيح. لا يدعم خط المخبأ أدوات اللمس بعد.",
+      "Hold the phone sideways. Drag on the left to aim, with aim assist to help you onto targets, and tap FIRE to shoot (hold it for automatic guns). RLD reloads, the bottom bar switches guns and calls support, and the buttons top left pause or open the armory.",
+      "Tenez le téléphone à l'horizontale. Glissez à gauche pour viser, avec une aide à la visée qui vous cale sur les cibles, et touchez FIRE pour tirer (maintenez pour les armes automatiques). RLD recharge, la barre du bas change d'arme et appelle les renforts, et les boutons en haut à gauche mettent en pause ou ouvrent l'armurerie.",
+      "أمسك الهاتف بالوضع الأفقي. اسحب على اليسار للتصويب، مع مساعد تصويب يوصلك إلى الأهداف، واضغط FIRE لإطلاق النار (استمر بالضغط مع الأسلحة الآلية). زر RLD لإعادة التذخير، والشريط السفلي لتبديل الأسلحة وطلب الدعم، والزران أعلى اليسار للإيقاف المؤقت أو فتح الترسانة.",
     ),
     enabled: true,
     order: 0,

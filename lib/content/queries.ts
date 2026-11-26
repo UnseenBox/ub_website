@@ -14,6 +14,7 @@ import type {
   Service,
   SiteContent,
 } from "@/types/content";
+import { refreshOutdatedCopy } from "./outdated-copy";
 import { getStore } from "./store";
 
 export const CONTENT_TAG = "site-content";
@@ -102,7 +103,8 @@ export async function getPlayables(): Promise<Playable[]> {
   }
   return list
     .filter((game) => game.enabled)
-    .sort((a, b) => a.order - b.order || b.added.localeCompare(a.added));
+    .sort((a, b) => a.order - b.order || b.added.localeCompare(a.added))
+    .map((game) => refreshOutdatedCopy(game, seedPlayables));
 }
 
 export async function getPlayableBySlug(slug: string): Promise<Playable | undefined> {
