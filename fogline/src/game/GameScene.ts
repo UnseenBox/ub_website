@@ -45,7 +45,7 @@ import { Tutorial } from '../ui/Tutorial';
 import { toggleFullscreen } from '../ui/widgets';
 import { fireAllowed, wavesAllowed } from './tutorialSteps';
 import { isTestMode } from './testMode';
-import { isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt, TouchButton } from './touchControls';
+import { isAimTouch, isFireTouch, pushStick, resetTouchPointerIds, stepStickAim, touchButtonAt, TouchButton } from './touchControls';
 import { AIM, AimAssist, type AimPoint } from './aimAssist';
 import { TouchUI } from '../ui/TouchUI';
 import { Zombie, depthForZ } from '../entities/Zombie';
@@ -134,9 +134,11 @@ export class GameScene extends Phaser.Scene {
   private activeMods = new Set<ModId>();
   private trigger = false;
   private touchUi!: TouchUI;
-  /** Crosshair while playing by touch (relative drag aim). */
+  /** Crosshair while playing by touch: only the aim stick moves it. */
   private touchCursor: { x: number; y: number } = { x: VIEW.centerX, y: 300 };
-  private touchLast: { x: number; y: number } = { x: 0, y: 0 };
+  /** The held aim stick: where the thumb took hold of it, and where its knob is now. */
+  private stickBase: { x: number; y: number } = { x: 0, y: 0 };
+  private stickKnob: { x: number; y: number } = { x: 0, y: 0 };
   /** Draws the touch crosshair onto an enemy it is near. */
   private readonly assist = new AimAssist();
   private readonly assistPoints: AimPoint[] = [];
@@ -689,7 +691,7 @@ export class GameScene extends Phaser.Scene {
   private startHints(): void {
     const touch = this.touchUi.isEnabled;
     this.hint('aim', touch
-      ? [{ icon: 'touch', label: 'DRAG TO AIM' }]
+      ? [{ icon: 'touch', label: 'LEFT: AIM' }, { icon: 'touch', label: 'RIGHT: FIRE' }]
       : [{ icon: 'mouse', label: 'AIM' }, { icon: 'mouse', label: 'FIRE' }]);
     if (this.night) this.hint('flare', touch ? [{ icon: 'flare', label: 'TAP THE FLARE' }] : [{ key: 'Q', icon: 'flare', label: 'FLARE' }]);
     if (this.weaponSlots.length > 1) {
@@ -1015,7 +1017,7 @@ export class GameScene extends Phaser.Scene {
       if (e.code.startsWith('Numpad') && n >= 1 && n <= 4) this.selectWeapon(n);
     });
 
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       audio.unlock();
       // A click on a card over the field is that card's, not a shot or an aim.
       if (p.downTime === this.cardClickAt) return;
@@ -1025,17 +1027,22 @@ export class GameScene extends Phaser.Scene {
         // HUD slots handle their own taps; only the battlefield is routed here.
         const at = designPoint(p);
         if (at.y >= VIEW.hudTop) return;
+        // The flare chip and the focus bar sit over the field and take their own taps.
+        if (over.length > 0) return;
         const button = touchButtonAt(at.x, at.y, this.touchUi.deployVisible);
         if (button) {
           if (button === 'fire' && !this.fireAllowed()) return;
           if (button !== 'fire' || this.firePointerId === null) this.pressTouchButton(button, p);
           return;
         }
-        if (this.aimPointerId === null && isAimTouch(at.x, at.y)) {
-          this.aimPointerId = p.id;
-          this.touchLast.x = p.x;
-          this.touchLast.y = p.y;
-          this.touchUi.noteAimUsed();
+        if (isAimTouch(at.x, at.y)) {
+          if (this.aimPointerId === null) {
+            this.aimPointerId = p.id;
+            this.stickBase = { x: at.x, y: at.y };
+            this.stickKnob = { x: at.x, y: at.y };
+          }
+        } else if (isFireTouch(at.x, at.y) && this.firePointerId === null && this.fireAllowed()) {
+          this.pressTouchButton('fire', p);
         }
         return;
       }
@@ -1046,13 +1053,7 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       // A real mouse on a hybrid laptop switches the on-screen controls off.
       if (!p.wasTouch && this.touchUi.isEnabled && !this.prefersTouch()) this.touchUi.setEnabled(false);
-      if (p.wasTouch && p.id === this.aimPointerId) {
-        const next = stepTouchAim(this.touchCursor, p.x - this.touchLast.x, p.y - this.touchLast.y);
-        this.touchCursor.x = next.x;
-        this.touchCursor.y = next.y;
-        this.touchLast.x = p.x;
-        this.touchLast.y = p.y;
-      }
+      if (p.wasTouch && p.id === this.aimPointerId) this.stickKnob = pushStick(this.stickBase, designPoint(p));
     });
 
     const releasePointer = (p: Phaser.Input.Pointer): void => {
@@ -1074,19 +1075,27 @@ export class GameScene extends Phaser.Scene {
       if (!p.leftButtonDown()) this.trigger = false;
     });
     this.input.on('pointerupoutside', releasePointer);
-    this.input.on('gameout', () => { this.trigger = false; });
+    // A finger sliding off the canvas must not stop the other thumb's fire.
+    this.input.on('gameout', () => { if (this.firePointerId === null) this.trigger = false; });
+    this.events.on(Phaser.Scenes.Events.PAUSE, this.releaseTouch, this);
     this.game.events.on(Phaser.Core.Events.BLUR, this.onBlur, this);
   }
 
-  private onBlur(): void {
+  /** Lets go of both thumbs, for when their lifting would go unseen (pause, armory, window switch). */
+  private releaseTouch(): void {
     this.trigger = false;
     this.aimPointerId = null;
     this.firePointerId = null;
     this.touchUi?.setPressed('fire', false);
+  }
+
+  private onBlur(): void {
+    this.releaseTouch();
     if (this.scene.isActive() && !this.over && this.waves.phase === 'active') this.openPause();
   }
 
   private teardown(): void {
+    this.events.off(Phaser.Scenes.Events.PAUSE, this.releaseTouch, this);
     this.tutorial?.destroy();
     this.tutorial = null;
     portal.gameplayStop();
@@ -1497,6 +1506,9 @@ export class GameScene extends Phaser.Scene {
       this.aimZoomed = scopeOn;
       for (const o of this.hudObjects) (o as unknown as { setVisible(v: boolean): unknown }).setVisible(!scopeOn);
     }
+    // Unzoomed, the aim is the one passed in. On a phone that is the stick's: the raw pointer
+    // there is whichever finger moved last, often the one firing.
+    if (z === 1) return plain;
     return {
       x: Cd.x + (Pd.x - C.x) / z,
       y: Cd.y + (Pd.y - C.y) / z,
@@ -1507,10 +1519,14 @@ export class GameScene extends Phaser.Scene {
     const dt = Math.min(deltaMs / 1000, 0.05);
     this.tutorial?.update(dt);
     const p = this.input.activePointer;
-    // The crosshair is exactly where the mouse is (or where the touch aim pad
-    // has dragged it); the gun is then rotated to point its barrel at it.
+    // The crosshair is exactly where the mouse is (or where the touch aim stick
+    // has moved it); the gun is then rotated to point its barrel at it.
     const touchMode = this.touchUi.isEnabled;
     const mouse = designPoint(p);
+    // The stick moves the crosshair for as long as it is pushed, in real time even during Focus.
+    if (touchMode && this.aimPointerId !== null && !this.over) {
+      this.touchCursor = stepStickAim(this.touchCursor, this.stickBase, this.stickKnob, dt);
+    }
     const rawX = Phaser.Math.Clamp(touchMode ? this.touchCursor.x : mouse.x, 0, VIEW.width);
     const rawY = Phaser.Math.Clamp(touchMode ? this.touchCursor.y : mouse.y, 0, VIEW.hudTop);
     // On touch the crosshair also gets a little aim assistance toward nearby enemies.
@@ -1588,6 +1604,7 @@ export class GameScene extends Phaser.Scene {
       reloadProgress: this.weapons.reloadProgress,
       deploy: w.canStartNext && w.remaining === 0 && !this.over ? `DEPLOY WAVE ${w.wave + 1}` : null,
       inputLocked: this.over,
+      stick: this.aimPointerId === null ? null : { base: this.stickBase, knob: this.stickKnob },
     });
     this.updateAmbience(dt);
   }

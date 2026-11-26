@@ -1,9 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH } from '../game/depths';
-import { edgeShift } from '../game/screen';
-import { TOUCH_LAYOUT, TouchButton, TouchCircle, touchLayout } from '../game/touchControls';
+import { TOUCH_LAYOUT, TouchButton, TouchCircle, TouchPoint, stickHome, touchLayout } from '../game/touchControls';
 
-const MONO = '"Saira", sans-serif';
 const STENCIL = '"Saira Stencil One", sans-serif';
 
 interface Round {
@@ -15,19 +13,18 @@ interface Round {
 }
 
 /**
- * On-screen phone controls: a FIRE button, RELOAD, SHOP, PAUSE and a
- * "deploy next wave" pill, plus a faint AIM hint on the left. Pure visuals —
- * GameScene does the pointer routing via touchButtonAt().
+ * On-screen phone controls: the aim stick on the left, a FIRE button, RELOAD,
+ * SHOP, PAUSE and a "deploy next wave" pill. Pure visuals — GameScene does the
+ * pointer routing with the rules in game/touchControls.ts.
  */
 export class TouchUI {
   private buttons = new Map<TouchButton, Round>();
   private deployG: Phaser.GameObjects.Graphics;
   private deployText: Phaser.GameObjects.Text;
-  private aimHint: Phaser.GameObjects.Graphics;
+  private stickG: Phaser.GameObjects.Graphics;
   private aimLabel: Phaser.GameObjects.Text;
   private enabled = false;
   private deployShown = false;
-  private hintLeft = 5;
   private reloadArc = 0;
   private reloading = false;
   private time = 0;
@@ -35,10 +32,10 @@ export class TouchUI {
   constructor(scene: Phaser.Scene) {
     const L = TOUCH_LAYOUT;
     const d = DEPTH.hud - 2;
-    this.aimHint = scene.add.graphics().setDepth(d);
-    this.aimLabel = scene.add.text(200, 470, 'DRAG TO AIM', {
-      fontFamily: MONO, fontSize: '18px', color: '#e0dcc0', letterSpacing: 4,
-    }).setOrigin(0.5).setDepth(d).setAlpha(0.7);
+    this.stickG = scene.add.graphics().setDepth(d);
+    this.aimLabel = scene.add.text(0, 0, 'AIM', {
+      fontFamily: STENCIL, fontSize: '22px', color: '#f2ead0', stroke: '#000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(d).setAlpha(0.75);
     this.add(scene, 'fire', L.fire, 'FIRE', 0xd8452c, 26, d);
     this.add(scene, 'reload', L.reload, 'RLD', 0xc8a040, 13, d);
     this.add(scene, 'pause', L.pause, 'II', 0x7a8a9a, 18, d);
@@ -77,18 +74,13 @@ export class TouchUI {
     if (b) b.pressed = pressed;
   }
 
-  /** The aim thumb touched the pad, so the hint can go away. */
-  noteAimUsed(): void {
-    this.hintLeft = Math.min(this.hintLeft, 0.6);
-  }
-
   private apply(): void {
     const on = this.enabled;
     for (const b of this.buttons.values()) {
       b.g.setVisible(on);
       b.label.setVisible(on);
     }
-    this.aimHint.setVisible(on);
+    this.stickG.setVisible(on);
     this.aimLabel.setVisible(on);
     this.deployG.setVisible(on && this.deployShown);
     this.deployText.setVisible(on && this.deployShown);
@@ -96,6 +88,8 @@ export class TouchUI {
 
   update(dt: number, state: {
     reloading: boolean; reloadProgress: number; deploy: string | null; inputLocked: boolean;
+    /** The held aim stick, or null while no thumb is on it. */
+    stick: { base: TouchPoint; knob: TouchPoint } | null;
   }): void {
     this.time += dt;
     if (!this.enabled) return;
@@ -104,6 +98,8 @@ export class TouchUI {
       b.g.setVisible(show);
       b.label.setVisible(show);
     }
+    this.stickG.setVisible(show);
+    this.aimLabel.setVisible(show);
     const wantDeploy = state.deploy !== null && show;
     if (wantDeploy !== this.deployShown) this.deployShown = wantDeploy;
     this.deployG.setVisible(wantDeploy);
@@ -119,26 +115,7 @@ export class TouchUI {
       b.label.setPosition(b.c.x, key === 'fire' ? b.c.y - 22 : b.c.y);
       this.drawRound(key, b);
     }
-    const aimX = 200 - edgeShift();
-    this.aimLabel.setX(aimX);
-
-    // faint aim pad hint that fades after the first touch
-    this.hintLeft = Math.max(0, this.hintLeft - dt);
-    const a = Math.min(1, this.hintLeft / 1.2);
-    const g = this.aimHint;
-    g.clear();
-    if (a > 0) {
-      const pulse = 0.5 + 0.5 * Math.sin(this.time * 2.4);
-      g.lineStyle(3, 0xe0dcc0, (0.22 + 0.12 * pulse) * a);
-      g.strokeCircle(aimX, 448, 78);
-      g.lineStyle(2, 0xe0dcc0, 0.16 * a);
-      g.strokeCircle(aimX, 448, 36);
-      g.lineBetween(aimX - 108, 448, aimX - 52, 448);
-      g.lineBetween(aimX + 52, 448, aimX + 108, 448);
-      g.lineBetween(aimX, 448 - 108, aimX, 448 - 52);
-      g.lineBetween(aimX, 448 + 52, aimX, 448 + 108);
-    }
-    this.aimLabel.setAlpha(0.75 * a);
+    this.drawStick(state.stick);
 
     if (wantDeploy) {
       const L = TOUCH_LAYOUT.deploy;
@@ -151,6 +128,42 @@ export class TouchUI {
       dg.strokeRoundedRect(L.x - L.w / 2, L.y - L.h / 2, L.w, L.h, 14);
       this.deployText.setText(state.deploy!);
     }
+  }
+
+  /** The stick rests at home and moves to wherever the thumb takes hold of it. */
+  private drawStick(held: { base: TouchPoint; knob: TouchPoint } | null): void {
+    const home = stickHome();
+    const base = held ? held.base : home;
+    const knob = held ? held.knob : home;
+    const r = home.r;
+    const g = this.stickG;
+    g.clear();
+    g.fillStyle(0x000000, held ? 0.34 : 0.24);
+    g.fillCircle(base.x, base.y, r);
+    g.lineStyle(3, 0xe0dcc0, held ? 0.75 : 0.45);
+    g.strokeCircle(base.x, base.y, r);
+    // four arrow heads around the rim
+    g.fillStyle(0xe0dcc0, held ? 0.7 : 0.45);
+    const tip = r - 8, foot = r - 20, half = 8;
+    for (const [ax, ay] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+      g.fillTriangle(
+        base.x + ax * tip, base.y + ay * tip,
+        base.x + ax * foot - ay * half, base.y + ay * foot + ax * half,
+        base.x + ax * foot + ay * half, base.y + ay * foot - ax * half,
+      );
+    }
+    // knob
+    g.fillStyle(0x000000, 0.45);
+    g.fillCircle(knob.x + 2, knob.y + 4, 34);
+    g.fillStyle(held ? 0x34302c : 0x1e1f1e, 0.92);
+    g.fillCircle(knob.x, knob.y, 34);
+    g.lineStyle(3, 0xe0dcc0, held ? 1 : 0.8);
+    g.strokeCircle(knob.x, knob.y, 34);
+    g.lineStyle(1.5, 0xffffff, 0.14);
+    g.strokeCircle(knob.x, knob.y, 26);
+
+    this.aimLabel.setPosition(home.x, home.y - r - 20);
+    this.aimLabel.setAlpha(held ? 0 : 0.75);
   }
 
   private drawRound(key: TouchButton, b: Round): void {

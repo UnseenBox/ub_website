@@ -68,7 +68,7 @@ export function buildSteps(o: StepOptions): TutorialStep[] {
       id: 'aim',
       title: 'AIM',
       lines: o.touch
-        ? ['Drag with one finger on the left side of the screen to move the crosshair.', 'It is pulled gently toward nearby zombies, so small drags are enough.']
+        ? ['Push the stick on the left to move the crosshair: a light push is slow, a full push is fast.', 'It is pulled gently toward nearby zombies, so getting close is enough.']
         : ['Your crosshair follows the mouse, and your shots go exactly where it sits.', 'Keep the window clear: anything that gets through the frame is out of sight.'],
       gate: 'continue',
     },
@@ -76,7 +76,7 @@ export function buildSteps(o: StepOptions): TutorialStep[] {
       id: 'fire',
       title: 'FIRE',
       lines: o.touch
-        ? ['Hold FIRE on the right, or tap the battlefield. A practice zombie stands in the window.', 'Aim for the head: a headshot does extra damage and pays a bonus.']
+        ? ['Hold anywhere on the right side to fire. A practice zombie stands in the window.', 'Aim for the head: a headshot does extra damage and pays a bonus.']
         : ['Click to fire. A practice zombie stands in the window.', 'Aim for the head: a headshot does extra damage and pays a bonus.'],
       gate: 'fire',
       hint: 'Shoot the practice zombie',

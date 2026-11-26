@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { MAX_SCREEN, SCREEN, designPoint, edgeShift, fitScreen } from './screen';
-import { TOUCH_LAYOUT, isAimTouch, touchButtonAt, touchLayout } from './touchControls';
+import { STICK, TOUCH_LAYOUT, isAimTouch, isFireTouch, stickHome, touchButtonAt, touchLayout } from './touchControls';
 
 /** How much of a vw × vh window the fitted canvas covers when scaled to fit inside it. */
 function coverage(vw: number, vh: number, inset = 0): number {
@@ -63,6 +63,13 @@ describe('touch controls on a wide screen', () => {
     Object.assign(SCREEN, phone);
     expect(isAimTouch(-SCREEN.mx + 5, 300)).toBe(true);
     expect(isAimTouch(-SCREEN.mx - 5, 300)).toBe(false);
+  });
+
+  it('rests the aim stick by the left edge and fires out to the right edge', () => {
+    Object.assign(SCREEN, phone);
+    expect(stickHome().x).toBe(STICK.home.x - edgeShift());
+    expect(isFireTouch(1280 + SCREEN.mx - 5, 300)).toBe(true);
+    expect(isFireTouch(1280 + SCREEN.mx + 5, 300)).toBe(false);
   });
 
   it('turns a canvas point into a point in the design area', () => {

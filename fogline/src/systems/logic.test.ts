@@ -7,7 +7,7 @@ import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
 import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
-import { TOUCH_AIM_SENSITIVITY, TOUCH_LAYOUT, isAimTouch, resetTouchPointerIds, stepTouchAim, touchButtonAt } from '../game/touchControls';
+import { STICK, TOUCH_LAYOUT, isAimTouch, isFireTouch, pushStick, resetTouchPointerIds, stepStickAim, stickVelocity, touchButtonAt } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { enterFullscreen } from '../game/phoneFullscreen';
 import { Abilities } from './Abilities';
@@ -421,20 +421,47 @@ describe('Abilities', () => {
 });
 
 describe('phone touch controls', () => {
-  it('drags the crosshair relatively, scaled by the sensitivity', () => {
-    const next = stepTouchAim({ x: 640, y: 300 }, 10, -20);
-    expect(next).toEqual({ x: 640 + 10 * TOUCH_AIM_SENSITIVITY, y: 300 - 20 * TOUCH_AIM_SENSITIVITY });
+  const base = { x: 200, y: 400 };
+  const r = STICK.home.r;
+
+  it('holds the aim still while the stick rests or barely moves', () => {
+    expect(stickVelocity(base, base)).toEqual({ x: 0, y: 0 });
+    expect(stickVelocity(base, { x: base.x + r * STICK.dead * 0.9, y: base.y })).toEqual({ x: 0, y: 0 });
+  });
+
+  it('moves the crosshair the way the stick is pushed, at full speed at the rim', () => {
+    const right = stickVelocity(base, { x: base.x + r, y: base.y });
+    expect(right.x).toBeCloseTo(STICK.speed);
+    expect(right.y).toBeCloseTo(0);
+    const up = stepStickAim({ x: 640, y: 300 }, base, { x: base.x, y: base.y - r }, 0.1);
+    expect(up.x).toBeCloseTo(640);
+    expect(up.y).toBeCloseTo(300 - STICK.speed * 0.1);
+  });
+
+  it('is fine near the middle: half a push is well under half speed', () => {
+    const half = stickVelocity(base, { x: base.x + r / 2, y: base.y }).x;
+    expect(half).toBeGreaterThan(0);
+    expect(half).toBeLessThan(STICK.speed * 0.3);
+  });
+
+  it('keeps the knob inside the stick however far the thumb goes', () => {
+    const knob = pushStick(base, { x: base.x + 500, y: base.y + 500 });
+    expect(Math.hypot(knob.x - base.x, knob.y - base.y)).toBeCloseTo(r);
+    expect(pushStick(base, { x: base.x + 10, y: base.y })).toEqual({ x: base.x + 10, y: base.y });
   });
 
   it('clamps the touch crosshair to the battlefield', () => {
-    expect(stepTouchAim({ x: 1270, y: 580 }, 500, 500)).toEqual({ x: VIEW.width, y: VIEW.hudTop });
-    expect(stepTouchAim({ x: 5, y: 5 }, -500, -500)).toEqual({ x: 0, y: 0 });
+    expect(stepStickAim({ x: 1270, y: 580 }, base, { x: base.x + r, y: base.y + r }, 1)).toEqual({ x: VIEW.width, y: VIEW.hudTop });
+    expect(stepStickAim({ x: 5, y: 5 }, base, { x: base.x - r, y: base.y - r }, 1)).toEqual({ x: 0, y: 0 });
   });
 
-  it('the left half above the HUD is the aim zone, the right half is not', () => {
+  it('the left half above the HUD aims and the right half fires, never both', () => {
     expect(isAimTouch(200, 300)).toBe(true);
+    expect(isFireTouch(200, 300)).toBe(false);
     expect(isAimTouch(900, 300)).toBe(false);
+    expect(isFireTouch(900, 300)).toBe(true);
     expect(isAimTouch(200, VIEW.hudTop + 5)).toBe(false);
+    expect(isFireTouch(900, VIEW.hudTop + 5)).toBe(false);
   });
 
   it('only the on-screen buttons fire, reload, pause, shop and deploy', () => {
@@ -445,7 +472,7 @@ describe('phone touch controls', () => {
     expect(touchButtonAt(L.shop.x, L.shop.y, false)).toBe('shop');
     expect(touchButtonAt(L.deploy.x, L.deploy.y, false)).toBeNull();
     expect(touchButtonAt(L.deploy.x, L.deploy.y, true)).toBe('deploy');
-    // empty right-side battlefield does nothing
+    // empty battlefield is no button: the aim and fire zones handle it
     expect(touchButtonAt(900, 200, true)).toBeNull();
   });
 

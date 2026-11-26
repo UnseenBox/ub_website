@@ -31,9 +31,9 @@ export const playables: Playable[] = [
       "الفأرة للتصويب · النقر لإطلاق النار · R لإعادة التذخير · 1–4 لتبديل الأسلحة · 5–8 تعديلات الذخيرة · A S D الدعم · W E المخبأ · المسافة تفتح الترسانة · Enter يبدأ الموجة التالية · Esc للإيقاف المؤقت",
     ),
     phoneControls: L(
-      "Hold the phone sideways. Drag on the left to aim, with aim assist to help you onto targets, and tap FIRE to shoot (hold it for automatic guns). RLD reloads, the bottom bar switches guns and calls support, and the buttons top left pause or open the armory.",
-      "Tenez le téléphone à l'horizontale. Glissez à gauche pour viser, avec une aide à la visée qui vous cale sur les cibles, et touchez FIRE pour tirer (maintenez pour les armes automatiques). RLD recharge, la barre du bas change d'arme et appelle les renforts, et les boutons en haut à gauche mettent en pause ou ouvrent l'armurerie.",
-      "أمسك الهاتف بالوضع الأفقي. اسحب على اليسار للتصويب، مع مساعد تصويب يوصلك إلى الأهداف، واضغط FIRE لإطلاق النار (استمر بالضغط مع الأسلحة الآلية). زر RLD لإعادة التذخير، والشريط السفلي لتبديل الأسلحة وطلب الدعم، والزران أعلى اليسار للإيقاف المؤقت أو فتح الترسانة.",
+      "Hold the phone sideways. Aim with the stick on the left, with aim assist to help you onto targets, and touch anywhere on the right to shoot (hold for automatic guns). RLD reloads, the bottom bar switches guns and calls support, and the buttons top left pause or open the armory.",
+      "Tenez le téléphone à l'horizontale. Visez avec le joystick à gauche, avec une aide à la visée qui vous cale sur les cibles, et touchez n'importe où à droite pour tirer (maintenez pour les armes automatiques). RLD recharge, la barre du bas change d'arme et appelle les renforts, et les boutons en haut à gauche mettent en pause ou ouvrent l'armurerie.",
+      "أمسك الهاتف بالوضع الأفقي. صوّب بعصا التحكم على اليسار، مع مساعد تصويب يوصلك إلى الأهداف، والمس أي مكان على اليمين لإطلاق النار (استمر بالضغط مع الأسلحة الآلية). زر RLD لإعادة التذخير، والشريط السفلي لتبديل الأسلحة وطلب الدعم، والزران أعلى اليسار للإيقاف المؤقت أو فتح الترسانة.",
     ),
     enabled: true,
     order: 0,

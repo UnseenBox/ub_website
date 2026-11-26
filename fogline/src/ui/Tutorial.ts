@@ -297,7 +297,7 @@ export class Tutorial {
     c.add(g);
     this.stage.add(c);
     this.scene.tweens.add({ targets: c, x: VIEW.centerX + 200, duration: 1300, yoyo: true, repeat: -1, hold: 250, ease: 'Sine.easeInOut' });
-    this.text(VIEW.centerX, 468, this.deps.touch ? 'drag to aim · the crosshair follows' : 'move the mouse · the crosshair follows', { fontFamily: MONO, fontSize: '13px', color: '#c8c4a0', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+    this.text(VIEW.centerX, 468, this.deps.touch ? 'left stick aims · right side fires' : 'move the mouse · the crosshair follows', { fontFamily: MONO, fontSize: '13px', color: '#c8c4a0', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
   }
 
   private spawnPractice(): void {
