@@ -5,6 +5,7 @@ import m249ViewUrl from '../assets/m249-view.webp';
 import m32ViewUrl from '../assets/m32-view.webp';
 import shotgunViewUrl from '../assets/shotgun-view.webp';
 import m82ViewUrl from '../assets/m82-view.webp';
+import teslaViewUrl from '../assets/tesla-view.webp';
 import menuBgUrl from '../assets/main-menu.webp';
 import mapValleyUrl from '../assets/map-valley.webp';
 import menuButtonsUrl from '../assets/menu-buttons.webp';
@@ -44,6 +45,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('view_m32_photo', m32ViewUrl);
     this.load.image('view_shotgun_photo', shotgunViewUrl);
     this.load.image('view_m82_photo', m82ViewUrl);
+    this.load.image('view_tesla_photo', teslaViewUrl);
     this.load.image(MENU_BG_TEXTURE, menuBgUrl);
     this.load.image(MAP_VALLEY_ART, mapValleyUrl);
     this.load.image(MENU_BUTTONS_TEXTURE, menuButtonsUrl);

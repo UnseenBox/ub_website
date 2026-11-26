@@ -217,7 +217,7 @@ export const FIELD_NOTES: Record<string, { tactic: string; lore: string }> = {
     lore: 'The fog has started improving its dead. Each generation is quicker than the last.',
   },
   ravager: {
-    tactic: 'Rockets and the railgun, far out. If it bursts at the wire, the Fogborn are already on you.',
+    tactic: 'Rockets and the M82, far out. If it bursts at the wire, the Fogborn are already on you.',
     lore: 'It is not one body. It is a nursery. The fog is carrying its young to the line.',
   },
   heart: {

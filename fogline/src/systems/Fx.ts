@@ -268,6 +268,26 @@ export class Fx {
     this.frost.burst(x, y, scale, 8);
   }
 
+  /** A Tesla shot: a blue ring rolls out from the coil and fades. */
+  shockwave(x: number, y: number): void {
+    const g = this.scene.add.graphics().setDepth(DEPTH.casings);
+    this.scene.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 320,
+      ease: 'Quad.easeOut',
+      onUpdate: (tw) => {
+        const k = tw.getValue() ?? 0;
+        g.clear();
+        g.lineStyle(4 * (1 - k) + 1, 0x90d0ff, 0.9 * (1 - k));
+        g.strokeCircle(x, y, 10 + 90 * k);
+        g.lineStyle(2, 0xe0f4ff, 0.6 * (1 - k));
+        g.strokeCircle(x, y, 4 + 50 * k);
+      },
+      onComplete: () => g.destroy(),
+    });
+  }
+
   ejectCasing(x: number, y: number): void {
     this.casings.explode(1, x, y);
   }

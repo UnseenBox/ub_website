@@ -100,7 +100,6 @@ describe('weapon shot recordings', () => {
   it('gives only the launchers an impact cue', () => {
     const m32 = WEAPONS.find((w) => w.id === 'm32')!;
     expect(m32.sound.impact).toBe('rocket_impact');
-    expect(WEAPONS.find((w) => w.id === 'rpg')!.sound.impact).toBe('explosion');
     for (const w of WEAPONS.filter((x) => x.kind !== 'grenade')) expect(w.sound.impact).toBeUndefined();
   });
 

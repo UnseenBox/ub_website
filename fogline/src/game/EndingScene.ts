@@ -19,7 +19,7 @@ const ACT3_LINES: Line[] = [
   { text: 'The Heart stopped at 04:12. By sunrise the fog had drawn back off Harlow Valley for the first time in six weeks.' },
   { who: 'HALE', text: 'Every bunker on the Fogline is reporting clear skies. We held, Warden. Then we pushed. Then we won.' },
   { who: 'VARGA', text: 'I will testify. Everything we did at Meridian goes on the record, and every name it took goes on the memorial.' },
-  { who: 'DOT', text: 'I am keeping the railgun. For research.' },
+  { who: 'DOT', text: 'I am keeping the M82. For research.' },
   { who: 'KESTREL', text: 'First flight in weeks with nothing to shoot at. It is boring. I love it.' },
   { text: 'Three days later, a farmer north of the quarry reported a grey haze over his well.' },
   { who: 'VARGA', text: 'The Heart was a culture, Warden. Cultures leave spores. It will come back, and the line has to be ready.' },

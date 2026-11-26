@@ -187,7 +187,7 @@ describe('campaign progress', () => {
     expect(campaignComplete(p)).toBe(true);
     expect(nextUnlockHint(p)).toBeNull();
     expect(missionAfter(MISSIONS[MISSIONS.length - 1].id)).toBeNull();
-    expect(ownedWeapons(p)).toEqual(['service', 'm4', 'shotgun', 'tesla', 'flamer', 'm249', 'm82', 'railgun', 'm32', 'rpg']);
+    expect(ownedWeapons(p)).toEqual(['service', 'm4', 'shotgun', 'tesla', 'm249', 'm82', 'm32']);
     expect([...p.recruits].sort()).toEqual(['brick', 'dot', 'kestrel', 'mara', 'rook', 'vesna']);
   });
 
@@ -525,13 +525,10 @@ describe('nests', () => {
 });
 
 describe('Act 2 weapons', () => {
-  it('the .50 pierces and ignores armour; the flamer has a short reach', () => {
+  it('the .50 pierces and ignores armour', () => {
     const m82 = weaponById('m82');
     expect(m82.pierce).toBeGreaterThan(1);
     expect(m82.armorPiercing).toBe(true);
-    const fl = weaponById('flamer');
-    expect(fl.kind).toBe('flame');
-    expect(fl.flameRange).toBeLessThan(30);
   });
 
   it('names vehicles in plural correctly', () => {

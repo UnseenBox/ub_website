@@ -29,13 +29,11 @@ export const WEAPON_BASE_COST: Record<string, number> = {
   service: 40,
   rpg: 100,
   tesla: 105,
-  railgun: 110,
   m4: 55,
   shotgun: 60,
   m249: 80,
   m32: 90,
   m82: 95,
-  flamer: 75,
 };
 
 export type WeaponLevels = Record<TrackId, number>;

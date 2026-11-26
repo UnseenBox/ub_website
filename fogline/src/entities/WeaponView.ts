@@ -29,9 +29,12 @@ export class WeaponView {
   private model: ResolvedViewModel;
   /** How far the camera is zoomed on the scene; the crosshair is drawn smaller by the same amount. */
   private cameraZoom = 1;
+  /** The Tesla's crosshair is a ring, not ticks. */
+  private roundCross = false;
 
   constructor(scene: Phaser.Scene, def: WeaponDef) {
     this.model = resolveViewModel(def);
+    this.roundCross = def.id === 'tesla';
     this.gun = scene.add.image(0, 0, def.viewTexture).setOrigin(0.5, 1).setDepth(DEPTH.gun);
     this.flash = scene.add.image(0, 0, 'flash_0').setDepth(DEPTH.muzzle).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.flashLight = scene.add.image(0, 0, 'glow').setDepth(DEPTH.muzzle - 1).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
@@ -44,6 +47,7 @@ export class WeaponView {
   setWeapon(def: WeaponDef): void {
     this.gun.setTexture(def.viewTexture);
     this.model = resolveViewModel(def);
+    this.roundCross = def.id === 'tesla';
   }
 
   beginSwitch(): void {
@@ -167,9 +171,16 @@ export class WeaponView {
     const gap = 6 + spread;
     const len2 = 9;
     g.lineStyle(3, 0x000000, 0.55);
-    this.ticks(g, drawX, drawY, gap, len2);
-    g.lineStyle(1.6, col, 0.95);
-    this.ticks(g, drawX, drawY, gap, len2);
+    if (this.roundCross) {
+      g.lineStyle(3, 0x000000, 0.55);
+      g.strokeCircle(drawX, drawY, gap + 4);
+      g.lineStyle(1.6, col, 0.95);
+      g.strokeCircle(drawX, drawY, gap + 4);
+    } else {
+      this.ticks(g, drawX, drawY, gap, len2);
+      g.lineStyle(1.6, col, 0.95);
+      this.ticks(g, drawX, drawY, gap, len2);
+    }
     g.fillStyle(col, 1);
     g.fillCircle(drawX, drawY, 1.4);
     if (this.hitMarker > 0) {

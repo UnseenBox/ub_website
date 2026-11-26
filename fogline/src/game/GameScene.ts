@@ -1435,7 +1435,9 @@ export class GameScene extends Phaser.Scene {
       const x = aimX + Math.cos(a) * r, y = aimY + Math.sin(a) * r;
       this.combat.fireHitscan(def, x, y, this.view.muzzle.x, this.view.muzzle.y, pellets > 1 ? (i === 0 ? 'first' : 'rest') : null);
     }
-    this.fx.ejectCasing(this.view.ejectPort.x, this.view.ejectPort.y);
+    // The Tesla throws a shockwave from its coil instead of a shell.
+    if (def.id === 'tesla') this.fx.shockwave(this.view.muzzle.x, this.view.muzzle.y);
+    else this.fx.ejectCasing(this.view.ejectPort.x, this.view.ejectPort.y);
   }
 
   // ------------------------------------------------------------ loop

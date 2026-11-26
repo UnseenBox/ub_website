@@ -72,12 +72,12 @@ describe('Act 3 content', () => {
 });
 
 describe('door gunner', () => {
-  it('puts the door gun first and leaves the squad behind', () => {
+  it('gives the gunner an M249 and leaves the squad behind', () => {
     const p = wonThrough('a3m2');
     p.squad = ['dot', 'mara'];
     const m = MISSIONS.find((x) => x.id === 'a3m3')!;
     const a = missionArsenal(p, m);
-    expect(a.weapons[0]).toBe('doorgun');
+    expect(a.weapons).toContain('m249');
     expect(a.weapons.length).toBeLessThanOrEqual(4);
     expect(a.squad).toEqual([]);
   });
