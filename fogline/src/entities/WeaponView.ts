@@ -27,6 +27,8 @@ export class WeaponView {
   readonly muzzle = { x: 0, y: 0 };
   readonly ejectPort = { x: 0, y: 0 };
   private model: ResolvedViewModel;
+  /** How far the camera is zoomed on the scene; the crosshair is drawn smaller by the same amount. */
+  private cameraZoom = 1;
 
   constructor(scene: Phaser.Scene, def: WeaponDef) {
     this.model = resolveViewModel(def);
@@ -115,7 +117,10 @@ export class WeaponView {
       swayX,
       swayY,
     });
-    this.gun.setPosition(pose.pivotX, pose.pivotY).setRotation(pose.rotation).setScale(pose.scale);
+    // The camera may be zoomed on the scene: the gun stays where it is on screen, so it is placed
+    // back through the zoom, and drawn smaller by the same amount.
+    const [gx, gy] = this.screenToWorld(pose.pivotX, pose.pivotY);
+    this.gun.setPosition(gx, gy).setRotation(pose.rotation).setScale(pose.scale / this.cameraZoom);
     this.muzzle.x = pose.muzzleX;
     this.muzzle.y = pose.muzzleY;
     this.ejectPort.x = pose.ejectX;
@@ -125,8 +130,9 @@ export class WeaponView {
     const fx = this.muzzle.x + this.model.flashOffsetX;
     const fy = this.muzzle.y + this.model.flashOffsetY;
     const flashOn = this.flashLeft > 0;
-    this.flash.setVisible(flashOn).setPosition(fx, fy);
-    this.flashLight.setVisible(flashOn).setPosition(fx, fy).setAlpha(0.35);
+    const [flx, fly] = this.screenToWorld(fx, fy);
+    this.flash.setVisible(flashOn).setPosition(flx, fly);
+    this.flashLight.setVisible(flashOn).setPosition(flx, fly).setAlpha(0.35);
 
     // crosshair
     const g = this.cross;
@@ -184,6 +190,10 @@ export class WeaponView {
       g.arc(drawX, drawY, gap + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * reloadProgress);
       g.strokePath();
     }
+    // The crosshair stays the same size on screen, whatever the camera's zoom: scaled about its
+    // own centre, so it is drawn where it always is.
+    const s = 1 / this.cameraZoom;
+    g.setScale(s).setPosition(drawX * (1 - s), drawY * (1 - s));
     this.reloadText.setVisible(reloading).setPosition(drawX, drawY + gap + 22);
   }
 
@@ -192,6 +202,17 @@ export class WeaponView {
     g.lineBetween(x + gap, y, x + gap + len, y);
     g.lineBetween(x, y - gap - len, x, y - gap);
     g.lineBetween(x, y + gap, x, y + gap + len);
+  }
+
+  /** Sets the camera's zoom on the scene, so the gun and crosshair keep their size and place on screen. */
+  setCameraZoom(k: number): void {
+    this.cameraZoom = k;
+  }
+
+  /** A screen point (design pixels) as the world point the zoomed camera shows it at. */
+  private screenToWorld(x: number, y: number): [number, number] {
+    const k = this.cameraZoom;
+    return [VIEW.centerX + (x - VIEW.centerX) / k, VIEW.height / 2 + (y - VIEW.height / 2) / k];
   }
 
   setVisible(v: boolean): void {

@@ -131,6 +131,10 @@ export interface WeaponDef {
   iconTexture: string;
   /** Optional per-weapon placement/motion tuning for the view model. */
   viewModel?: Partial<WeaponViewModel>;
+  /** Magnification while the fire button's alternate (right) button is held. Defaults to 1.35. */
+  aimZoom?: number;
+  /** The scope: aiming zooms the whole view, and the camera moves with the crosshair. */
+  scopeZoom?: boolean;
   description: string;
 }
 
@@ -419,9 +423,39 @@ export const WEAPONS: WeaponDef[] = [
     shake: 0.003,
     muzzleFlash: { scale: 1.25, tint: 0xffc890 },
     sound: { shot: 'shot_shotgun', reload: 'reload_shotgun', empty: 'empty_heavy', pitchJitter: 0.04 },
-    // Procedural view model (no photo yet): a steadier, larger take on the default placement.
-    viewTexture: 'view_shotgun',
-    viewModel: { pivotX: 800, pivotY: 800, scale: 1.45, maxRot: 0.45, sway: 0.7, reloadTilt: 0.6 },
+    // Supplied photo of the pump shotgun (1280 wide, transparent background), aligned to the
+    // crosshair the same way as the other photographed guns.
+    viewTexture: 'view_shotgun_photo',
+    viewModel: {
+      pivotX: 620,
+      pivotY: 780,
+      scale: 0.74,
+      // Muzzle = the barrel tip, and the ejection port on the receiver, in photo pixels.
+      muzzleX: 420,
+      muzzleY: 22,
+      ejectX: 790,
+      ejectY: 290,
+      maxRot: 0.4,
+      sway: 0,
+      reloadTilt: 0.28,
+      switchDrop: 840,
+      muzzleLock: true,
+      muzzleLockX: 0,
+      muzzleLockY: 80,
+      barrelAlign: true,
+      tailX: 800,
+      tailY: 330,
+      anchorX: 640,
+      anchorY: 8000,
+      aimX: 0.36,
+      aimY: 0.06,
+      muzzleGap: 70,
+      gunShiftX: 55,
+      gunShiftY: -40,
+      flashOffsetX: 0,
+      flashOffsetY: 0,
+      rotationTrim: -0.8897,
+    },
     iconTexture: 'icon_shotgun',
     description: 'Pump-action 12 gauge. A wall of pellets that stops anything at the wire. Weak at range.',
   },
@@ -451,8 +485,40 @@ export const WEAPONS: WeaponDef[] = [
     shake: 0.006,
     muzzleFlash: { scale: 1.3, tint: 0xffd090 },
     sound: { shot: 'shot_m82', reload: 'reload_m32', empty: 'empty_heavy', pitchJitter: 0.02 },
-    viewTexture: 'view_m82',
-    viewModel: { pivotX: 800, pivotY: 800, scale: 1.4, maxRot: 0.4, sway: 0.6, reloadTilt: 0.6 },
+    viewTexture: 'view_m82_photo',
+    viewModel: {
+      pivotX: 700,
+      pivotY: 800,
+      scale: 0.74,
+      // Muzzle = the muzzle brake's opening, and the ejection port on the receiver, in photo pixels.
+      muzzleX: 340,
+      muzzleY: 148,
+      ejectX: 775,
+      ejectY: 433,
+      maxRot: 0.4,
+      sway: 0,
+      reloadTilt: 0.3,
+      switchDrop: 840,
+      muzzleLock: true,
+      muzzleLockX: 0,
+      muzzleLockY: 80,
+      barrelAlign: true,
+      tailX: 1242,
+      tailY: 667,
+      anchorX: 640,
+      anchorY: 8000,
+      aimX: 0.36,
+      aimY: 0.06,
+      muzzleGap: 70,
+      gunShiftX: 55,
+      gunShiftY: -40,
+      flashOffsetX: 0,
+      flashOffsetY: 0,
+      rotationTrim: -1.0487,
+    },
+    // The scope: magnified about the aim point, seen through a lens.
+    aimZoom: 2.6,
+    scopeZoom: true,
     iconTexture: 'icon_m82',
     description: 'Anti-materiel rifle. One round goes through armour and up to three bodies in a line. Slow.',
   },

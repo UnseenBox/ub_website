@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BLEED, MAX_SCREEN, designPoint } from './screen';
+import { BLEED, MAX_SCREEN, SCREEN, designPoint } from './screen';
 import { audio, LoopHandle } from '../audio/AudioManager';
 import { BUNKER_UPGRADE, DEFENSES, MODS, REPAIR_AMOUNT, SUPPORT, WALL_DURATION } from '../data/upgrades';
 import { CLASSIC_WEAPONS, MOUNTED_WEAPONS, WEAPONS, WEAPON_ORDER, WeaponDef, weaponById } from '../data/weapons';
@@ -152,6 +152,13 @@ export class GameScene extends Phaser.Scene {
   private over = false;
   private ended = false;
   private hoverZone: string | null = null;
+  /** Magnification now, eased toward the target while the alternate button is held. */
+  private zoomNow = 1;
+  private aimZoomed = false;
+  /** The point the scope's camera is centred on, and the mouse last frame, in design pixels. */
+  private scopeCentre: { x: number; y: number } = { x: VIEW.centerX, y: VIEW.height / 2 };
+  private lastMouse: { x: number; y: number } = { x: VIEW.centerX, y: VIEW.height / 2 };
+  private hudObjects: Phaser.GameObjects.GameObject[] = [];
   /** Exposed for automated tests (window.__fogline). */
   debugLog: string[] = [];
 
@@ -279,6 +286,7 @@ export class GameScene extends Phaser.Scene {
     const mods = this.mission.modifiers;
     this.night = mods?.night || mods?.storm ? new NightSystem(this, this.field.barrelFire, !!mods?.storm && !mods?.night) : null;
     this.catalog = buildCatalog({ economy: this.economy, weapons: this.weapons, abilities: this.abilities, bunker: this.bunker, upgrades: this.upgrades, gear: this.gear });
+    const hudBefore = new Set<Phaser.GameObjects.GameObject>(this.children.list);
     this.hud = new HUD(this, {
       weapons: this.weapons, abilities: this.abilities, economy: this.economy, bunker: this.bunker, waves: this.waves, support: this.support,
       offers: (id) => this.offers(id),
@@ -306,6 +314,8 @@ export class GameScene extends Phaser.Scene {
         this.startNextWave();
       },
     });
+    // The HUD's objects, so they can step aside while aiming.
+    this.hudObjects = this.children.list.filter((o) => !hudBefore.has(o));
     this.squad.onLine = (who, text) => this.hud.radio([{ who, text }]);
 
     this.touchUi = new TouchUI(this);
@@ -1030,10 +1040,6 @@ export class GameScene extends Phaser.Scene {
         return;
       }
       if (!this.prefersTouch()) this.touchUi.setEnabled(false);
-      if (p.rightButtonDown()) {
-        this.weapons.reload();
-        return;
-      }
       if (p.leftButtonDown() && designPoint(p).y < VIEW.hudTop && this.fireAllowed()) this.trigger = true;
     });
 
@@ -1434,6 +1440,67 @@ export class GameScene extends Phaser.Scene {
 
   // ------------------------------------------------------------ loop
 
+  /**
+   * Holding the right button aims down the sights: the camera magnifies about the middle of
+   * the screen, the HUD and the gun step aside, and only the crosshair is shown, magnified.
+   */
+  /**
+   * Holding the right button zooms the camera onto the scene, for every gun. The cursor stays as
+   * it is. The M82 is a scope: the zoom centres on the crosshair, and the camera moves one-to-one
+   * with it, so the two keep a fixed place to each other.
+   * Returns where the crosshair is in the world, for the shots and the gun to aim at.
+   */
+  private updateAimZoom(dt: number, mouse: { x: number; y: number }, plain: { x: number; y: number }): { x: number; y: number } {
+    const def = this.weapons.current.def;
+    const holding = this.input.activePointer.rightButtonDown() && !this.prefersTouch() && !this.over;
+    const busy = this.weapons.reloading || this.weapons.switching;
+    const top = def.aimZoom ?? 1.35;
+    const want = holding && !busy ? top : 1;
+    this.zoomNow += (want - this.zoomNow) * Math.min(1, dt * 12);
+    if (Math.abs(this.zoomNow - 1) < 0.002) this.zoomNow = 1;
+    const z = this.zoomNow;
+    const zoomed = z > 1.02;
+    const blend = Phaser.Math.Clamp((z - 1) / Math.max(0.001, top - 1), 0, 1);
+    const scope = !!def.scopeZoom;
+    const C: { x: number; y: number } = { x: VIEW.centerX, y: VIEW.height / 2 };
+    const S = mouse;
+
+    // The scope's camera centre moves by exactly the mouse's movement (divided by the zoom, so it
+    // matches on screen), and rests on the mouse otherwise.
+    if (holding && !busy && blend > 0) {
+      this.scopeCentre.x += (S.x - this.lastMouse.x) / z;
+      this.scopeCentre.y += (S.y - this.lastMouse.y) / z;
+    } else {
+      this.scopeCentre.x = S.x;
+      this.scopeCentre.y = S.y;
+    }
+    this.lastMouse.x = S.x;
+    this.lastMouse.y = S.y;
+
+    // Where the crosshair is drawn on the screen, and the world point the camera is centred on.
+    // Other guns keep the cursor where the mouse is and zoom about the middle of the screen.
+    const Pd = scope
+      ? { x: Phaser.Math.Linear(S.x, C.x, blend), y: Phaser.Math.Linear(S.y, C.y, blend) }
+      : S;
+    const Cd = scope
+      ? { x: Phaser.Math.Linear(C.x, this.scopeCentre.x, blend), y: Phaser.Math.Linear(C.y, this.scopeCentre.y, blend) }
+      : C;
+    const scopeOn = scope && zoomed;
+    const cam = this.cameras.main;
+    cam.setZoom(z);
+    cam.setScroll(-SCREEN.mx + (Cd.x - C.x), -SCREEN.my + (Cd.y - C.y));
+    this.view.setCameraZoom(z);
+
+    if (scopeOn !== this.aimZoomed) {
+      this.aimZoomed = scopeOn;
+      for (const o of this.hudObjects) (o as unknown as { setVisible(v: boolean): unknown }).setVisible(!scopeOn);
+    }
+    return {
+      x: Cd.x + (Pd.x - C.x) / z,
+      y: Cd.y + (Pd.y - C.y) / z,
+    };
+  }
+
   override update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05);
     this.tutorial?.update(dt);
@@ -1447,8 +1514,9 @@ export class GameScene extends Phaser.Scene {
     // On touch the crosshair also gets a little aim assistance toward nearby enemies.
     if (!touchMode) this.assist.reset();
     const assisted = touchMode ? this.assistAim(rawX, rawY, dt) : { x: rawX, y: rawY };
-    const cursorAimX = assisted.x;
-    const cursorAimY = assisted.y;
+    const aimed = this.updateAimZoom(dt, mouse, assisted);
+    const cursorAimX = aimed.x;
+    const cursorAimY = aimed.y;
     this.aimCursorX = cursorAimX;
     this.aimCursorY = cursorAimY;
     const gunAimX = cursorAimX;
@@ -1506,7 +1574,8 @@ export class GameScene extends Phaser.Scene {
     const hover = inField ? this.enemies.raycast(cursorAimX, cursorAimY) : null;
     this.hoverZone = hover ? hover.zone : null;
     this.view.update(dt, cursorAimX, cursorAimY, gunAimX, gunAimY, this.weapons.spread, this.weapons.reloadProgress, this.weapons.reloading, this.hoverZone === 'head', !!hover);
-    this.view.setVisible(!this.over);
+    // While aiming, only the magnified crosshair is shown: the gun itself steps out of view.
+    this.view.setVisible(!this.over && !(this.aimZoomed && this.weapons.current.def.scopeZoom));
     this.night?.update(dt, cursorAimX, cursorAimY);
     this.hud.setFocus(this.focusEnabled, this.focusMeter, this.focusLeft / FOCUS_SECONDS);
     this.hud.setStreak(this.training ? 0 : this.streak, GameScene.streakMul(this.streak), this.night ? this.night.flaresLeft : -1);
