@@ -3,7 +3,7 @@
 // profile and a timestamp, so every rule is unit-tested without Phaser or a clock.
 
 import { ENEMIES } from '../data/enemies';
-import { MISSIONS, MissionDef, TRAINING, missionById, plural } from '../data/missions';
+import { MISSIONS, MissionDef, missionById, plural } from '../data/missions';
 import {
   CODEX_TIERS, CONTRACTS_PER_DAY, CONTRACT_RULES, CONTRACT_SET_BONUS, ContractKind, DEPOT_LEVELS, DEPOT_UPGRADE_COST,
   ENDLESS_CASH, ENDLESS_MILESTONES, ENDLESS_PER_WAVE, ENDLESS_UNLOCK, ENDLESS_WAVES, ENEMY_CONTRACT_TARGET, HQ_UNLOCK,
@@ -367,19 +367,17 @@ export function endlessWave(n: number, met: ReadonlySet<string>): WaveDef {
   const groups: WaveDef['groups'] = [
     { enemy: 'shambler', count: Math.min(60, 14 + 3 * k), delay: 0, interval: Math.max(0.45, 1.8 - 0.05 * k), burst: k >= 6 ? 2 : undefined },
   ];
-  if (n >= 2) groups.push({ enemy: 'runner', count: Math.round(3 + k * 1.2), delay: 6, interval: Math.max(0.6, 3.5 - 0.1 * k) });
-  if (n >= 3) groups.push({ enemy: 'crawler', count: 6 + k, delay: 10, interval: 1.6, burst: 2 });
+  if (n >= 2) groups.push({ enemy: 'hollow_hound', count: 1 + Math.floor(k * 0.75), delay: 6, interval: Math.max(1.4, 8 - 0.25 * k) });
+  if (n >= 3) groups.push({ enemy: 'shambler', count: 3 + 2 * k, delay: 10, interval: 1.6, burst: 2 });
   if (n >= 4) groups.push({ enemy: 'brute', count: 1 + Math.floor(k / 4), delay: 8, interval: Math.max(8, 22 - k * 0.6) });
-  if (n >= 5) groups.push({ enemy: 'plated', count: 2 + Math.floor(k / 2), delay: 12, interval: Math.max(2.5, 6 - k * 0.12) });
+  if (n >= 5) groups.push({ enemy: 'wraith', count: 2 + Math.floor((2 * k) / 3), delay: 12, interval: Math.max(2.5, 6 - k * 0.12) });
   if (n >= 6 && has('spitter')) groups.push({ enemy: 'spitter', count: 2 + Math.floor(k / 4), delay: 14, interval: 7 });
-  if (n >= 7) groups.push({ enemy: 'carrier', count: 1 + Math.floor(k / 5), delay: 16, interval: 9 });
-  if (n >= 8 && has('sapper')) groups.push({ enemy: 'sapper', count: 2 + Math.floor(k / 3), delay: 18, interval: 5 });
-  if (n >= 9 && has('howler')) groups.push({ enemy: 'howler', count: 1 + Math.floor(k / 6), delay: 20, interval: 12 });
+  if (n >= 7) groups.push({ enemy: 'pumpkin_brood', count: 1 + Math.floor(k / 12), delay: 16, interval: 12 });
+  if (n >= 8 && has('stalker')) groups.push({ enemy: 'stalker', count: 2 + Math.floor(k / 3), delay: 9, interval: 3 });
+  if (n >= 9 && has('carrion_screamer')) groups.push({ enemy: 'carrion_screamer', count: 1 + Math.floor(k / 8), delay: 20, interval: 12 });
   if (n >= 13 && has('lurker')) groups.push({ enemy: 'lurker', count: 2 + Math.floor(k / 3), delay: 11, interval: 2.8 });
-  if (n >= 14 && has('sporeling')) groups.push({ enemy: 'sporeling', count: 1 + Math.floor(k / 5), delay: 15, interval: 6 });
-  if (n >= 12 && has('fogborn')) groups.push({ enemy: 'fogborn', count: 2 + Math.floor(k / 3), delay: 9, interval: 2.5 });
   if (n >= 15 && has('ravager')) groups.push({ enemy: 'ravager', count: 1 + Math.floor(k / 10), delay: 26, interval: 16 });
-  if (n >= 11 && has('juggernaut')) groups.push({ enemy: 'juggernaut', count: 1 + Math.floor(k / 6), delay: 22, interval: 14 });
+  if (n >= 11 && has('crimson_brute')) groups.push({ enemy: 'crimson_brute', count: 1 + Math.floor(k / 10), delay: 22, interval: 14 });
   // Every fifth wave ends with a pack of giants.
   if (n % 5 === 0) groups.push({ enemy: 'brute', count: 2 + Math.floor(n / 10), delay: 34, interval: 3 });
   return {
@@ -412,10 +410,9 @@ export function endlessMission(p: ProfileData): MissionDef {
 
 // ------------------------------------------------------------------ missions by id
 
-/** Any playable mission: campaign, training, today's Fog Surge or Last Stand. */
+/** Any playable mission: campaign, today's Fog Surge or Last Stand. */
 export function resolveMission(id: string | undefined, p: ProfileData, now: number): MissionDef | undefined {
   if (!id) return undefined;
-  if (id === 'training') return TRAINING;
   if (id === SURGE_ID) return surgeMission(p, dayKey(now));
   if (id === ENDLESS_ID) return endlessMission(p);
   return missionById(id);
@@ -659,7 +656,7 @@ export interface PlayRow {
 
 /** One row per mission played, in campaign order, then the modes. */
 export function playReport(p: ProfileData): PlayRow[] {
-  const order = [...MISSIONS.map((m) => m.id), SURGE_ID, ENDLESS_ID, 'training'];
+  const order = [...MISSIONS.map((m) => m.id), SURGE_ID, ENDLESS_ID];
   return Object.entries(p.meta.play)
     .sort(([a], [b]) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999))
     .map(([id, s]) => {

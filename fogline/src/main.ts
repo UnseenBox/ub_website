@@ -13,6 +13,8 @@ import { EndingScene } from './game/EndingScene';
 import { GameScene } from './game/GameScene';
 import { MenuScene } from './game/MenuScene';
 import { installAutoFullscreen } from './game/phoneFullscreen';
+import { CRAZY } from './portal/flags';
+import { mouseLock } from './portal/mouseLock';
 import { PauseScene } from './game/PauseScene';
 import { SettingsScene } from './game/SettingsScene';
 import { ShopScene } from './game/ShopScene';
@@ -24,18 +26,28 @@ import { profile } from './systems/Profile';
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('selectstart', (e) => e.preventDefault());
 window.addEventListener('dragstart', (e) => e.preventDefault());
+// Nor may the wheel, the space bar or the arrows scroll the page the game is embedded in.
+window.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+window.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key.startsWith('Arrow')) e.preventDefault();
+});
+// iOS stops the sound when the game is left or a call comes in, and lets it start again
+// only from a touch, click or key press.
+for (const type of ['touchend', 'click', 'keydown']) {
+  document.addEventListener(type, () => { void audio.unlock(); }, true);
+}
 
 // Go full screen automatically: the browser needs one tap, click or key press first,
-// so the game asks on that very first one.
-installAutoFullscreen();
+// so the game asks on that very first one. CrazyGames has its own full screen and allows no other.
+if (!CRAZY) installAutoFullscreen();
 
 // Swap the synthesized gun, reload, kill and headshot cues for the supplied recordings.
 registerFoglineOverrides();
 
-// CrazyGames (only in that build): the SDK boots in the background. Its data module becomes the
-// profile's cloud copy (the save with more progress wins), and its mute switch overrides ours.
+// CrazyGames (only in that build): the SDK starts behind the loading screen. Its data module
+// becomes the save, and its mute switch overrides ours.
 portal.onCloud = (store) => {
-  profile.attachCloud(store);
+  profile.moveTo(store);
   audio.setVolumes(profile.get().volumes);
   // A save from another device may be further along: redraw the title screen with it.
   const menu = game.scene.getScene('Menu');
@@ -45,16 +57,29 @@ portal.watchMute((muted) => audio.setHold('platform', muted));
 void portal.init();
 if (import.meta.env.DEV) (window as unknown as { __foglinePortal: typeof portal }).__foglinePortal = portal;
 
-// The part of the window the player can see, and how much of its sides a notch covers.
+// The part of the window the player can see, and how much of its edges a notch or a home bar
+// covers. In the CrazyGames app the SDK sets the --safe-area-inset variables, since the
+// browser's own are no use inside its frame.
 const probe = document.createElement('div');
-probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left)';
+const inset = (side: string): string => `var(--safe-area-inset-${side}, env(safe-area-inset-${side}, 0px))`;
+probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;'
+  + `padding:${inset('top')} ${inset('right')} ${inset('bottom')} ${inset('left')}`;
 document.body.appendChild(probe);
+
+/** The covered strips along the top and bottom, which the CrazyGames build keeps clear. */
+function verticalInsets(): { top: number; bottom: number } {
+  if (!CRAZY) return { top: 0, bottom: 0 };
+  const style = getComputedStyle(probe);
+  return { top: parseFloat(style.paddingTop) || 0, bottom: parseFloat(style.paddingBottom) || 0 };
+}
 
 function windowSize(): { w: number; h: number } {
   const vv = window.visualViewport;
   // A pinch zoom shrinks the visual viewport; the game keeps the unzoomed size.
   const zoom = vv?.scale ?? 1;
-  return { w: Math.round(vv ? vv.width * zoom : window.innerWidth), h: Math.round(vv ? vv.height * zoom : window.innerHeight) };
+  const { top, bottom } = verticalInsets();
+  const h = (vv ? vv.height * zoom : window.innerHeight) - top - bottom;
+  return { w: Math.round(vv ? vv.width * zoom : window.innerWidth), h: Math.round(h) };
 }
 
 function fitWindow(): ScreenFit {
@@ -92,6 +117,7 @@ function keepFitted(g: Phaser.Game): void {
     const { w, h } = windowSize();
     host.style.width = `${w}px`;
     host.style.height = `${h}px`;
+    if (CRAZY) host.style.top = `${verticalInsets().top}px`;
   };
   const refit = (): void => {
     sizeHost();
@@ -125,11 +151,14 @@ function keepFitted(g: Phaser.Game): void {
 }
 
 keepFitted(game);
+// The page's own title card steps aside once the game is drawing.
+game.events.once(Phaser.Core.Events.POST_RENDER, () => document.getElementById('boot-hint')?.remove());
+if (CRAZY) mouseLock.install(game);
 
 // Every scene is drawn with the design area in the middle of the canvas.
 game.events.on(Phaser.Core.Events.PRE_STEP, () => {
   for (const scene of game.scene.getScenes(false)) scene.cameras?.main?.setScroll(-SCREEN.mx, -SCREEN.my);
 });
 
-// Debug/test hooks (used by the automated playtest; harmless in production).
-Object.assign(window, { __game: game, __audio: audio });
+// Debug/test hooks (used by the automated playtest). The CrazyGames build players get has none.
+if (!CRAZY || import.meta.env.DEV) Object.assign(window, { __game: game, __audio: audio });

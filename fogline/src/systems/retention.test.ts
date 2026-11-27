@@ -141,11 +141,11 @@ describe('daily contracts', () => {
     refreshDay(p, T0);
     p.meta.daily.contracts = [
       { kind: 'kills', target: 100, progress: 0, reward: 70, done: false },
-      { kind: 'enemy', param: 'runner', target: 10, progress: 0, reward: 70, done: false },
+      { kind: 'enemy', param: 'hollow_hound', target: 10, progress: 0, reward: 70, done: false },
       { kind: 'wins', target: 2, progress: 0, reward: 80, done: false },
     ];
     const before = p.supplies;
-    const r1 = recordRun(p, run({ kills: 60, enemyKills: { runner: 12 } }), T0);
+    const r1 = recordRun(p, run({ kills: 60, enemyKills: { hollow_hound: 12 } }), T0);
     expect(r1.contracts.map((c) => c.reward)).toEqual([70]);
     const r2 = recordRun(p, run({ kills: 60 }), T0 + HOUR);
     expect(r2.contracts.map((c) => c.reward)).toEqual([70, 80]);
@@ -275,13 +275,13 @@ describe('fog surge', () => {
     expect(resolveMission(SURGE_ID, p, T0)!.name).toBe(surgeMission(p, dayKey(T0)).name);
     expect(resolveMission(ENDLESS_ID, p, T0)!.mode).toBe('endless');
     expect(resolveMission('a1m3', p, T0)!.id).toBe('a1m3');
-    expect(resolveMission('training', p, T0)!.id).toBe('training');
+    expect(resolveMission('training', p, T0)).toBeUndefined();
   });
 });
 
 describe('last stand', () => {
   it('grows every wave and only brings enemies the player has met', () => {
-    const met = new Set(['shambler', 'runner', 'crawler', 'brute', 'plated', 'carrier']);
+    const met = new Set(['shambler', 'hollow_hound', 'brute', 'wraith', 'pumpkin_brood']);
     let last = 0;
     for (let n = 1; n <= 40; n++) {
       const w = endlessWave(n, met);
@@ -293,7 +293,7 @@ describe('last stand', () => {
         expect(ENEMIES[g.enemy]).toBeDefined();
       }
     }
-    expect(endlessWave(12, new Set([...met, 'sapper', 'juggernaut'])).groups.some((g) => g.enemy === 'juggernaut')).toBe(true);
+    expect(endlessWave(12, new Set([...met, 'crimson_brute'])).groups.some((g) => g.enemy === 'crimson_brute')).toBe(true);
   });
 
   it('pays per wave, pays milestones once, and keeps the best wave', () => {
@@ -343,7 +343,7 @@ describe('save', () => {
     const p = wonThrough(ENDLESS_UNLOCK);
     refreshDay(p, T0);
     claimLogin(p, T0);
-    recordRun(p, run({ enemyKills: { runner: 20 }, weaponKills: { service: 150 } }), T0);
+    recordRun(p, run({ enemyKills: { hollow_hound: 20 }, weaponKills: { service: 150 } }), T0);
     const back = parseProfile(JSON.stringify(p))!;
     expect(back.meta).toEqual(p.meta);
     const junk = parseMeta({ login: { last: 'yesterday', streak: 99 }, depot: { level: 40, since: -5 }, codex: { x: 'many' }, skinOn: { m4: 'neon' } });

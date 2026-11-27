@@ -52,7 +52,7 @@ const ACT_MAPS: Record<number, { title: string; headline: string; card: string[]
       'Command has stopped retreating. Today the Fogline moves forward, into Millbrook.',
       '',
       'Survivors are joining the line. Post them at the side windows and train them in the Barracks.',
-      'New dead walk here: spitters, howlers, sappers and worse. Something is singing on the river.',
+      'New dead walk here: spitters, screamers and worse. Something is singing on the river.',
     ],
   },
   3: {
@@ -63,7 +63,7 @@ const ACT_MAPS: Record<number, { title: string; headline: string; card: string[]
       'At its centre is the first culture: the Heart. All of the fog comes from it.',
       '',
       'The valley is being evacuated by rail. Kestrel is flying again. Dot is building attachments for your guns.',
-      'The dead here are changing: Fogborn, and worse. Push through the quarry and the yard to the gate.',
+      'The dead here are changing: Stalkers, and worse. Push through the quarry and the yard to the gate.',
     ],
   },
   4: {
@@ -71,7 +71,7 @@ const ACT_MAPS: Record<number, { title: string; headline: string; card: string[]
     headline: 'The spores came north. Burn the Bloom.',
     card: [
       'The Heart is dead, but its spores rode the river down to the sea. Saltmarsh harbour woke up last night.',
-      'Lurkers wait in the mud. Sporelings burst into clouds you cannot see through. Storms roll in off the water.',
+      'Lurkers wait in the mud. Wraiths come in on the spray. Storms roll in off the water.',
       '',
       'Somewhere up the coast, at Fort Ashby, the Heart\'s last seed is flowering.',
       'The Fogline moves north. One more push, Warden.',
@@ -133,7 +133,11 @@ export class MapScene extends Phaser.Scene {
     this.paintFog(p, data.reveal);
     // The source of the fog shows faintly through it: the far goal of the campaign.
     if (this.act < 3) this.add.text(MERIDIAN.x, MERIDIAN.y, '☣', { fontFamily: STENCIL, fontSize: '30px', color: '#d8c8a0' }).setOrigin(0.5).setAlpha(0.55);
-    if (this.act < 3) this.add.text(MERIDIAN.x, MERIDIAN.y + 26, 'MERIDIAN STATION', { fontFamily: MONO, fontSize: '12px', color: '#d8d0b0' }).setOrigin(0.5).setAlpha(0.6);
+    if (this.act < 3) {
+      const label = this.add.text(MERIDIAN.x, MERIDIAN.y + 26, 'MERIDIAN STATION', { fontFamily: MONO, fontSize: '17px', color: '#d8d0b0' }).setOrigin(0.5).setAlpha(0.6);
+      // Kept clear of the side panel.
+      label.x = Math.min(label.x, PANEL_X - 8 - label.width / 2);
+    }
 
     // Header.
     this.add.rectangle(-BLEED.x, -BLEED.y, PANEL_X + BLEED.x, 54 + BLEED.y, C.chip, 0.85).setOrigin(0);
@@ -203,9 +207,9 @@ export class MapScene extends Phaser.Scene {
     const h = 74;
     const bg = this.add.rectangle(0, 0, w, h, C.tile).setStrokeStyle(2, C.line);
     const size = iconWidth(name, 1) > 1 ? 26 : 32;
-    const c = this.add.container(x, y, [
-      bg, icon(this, name, 0, -11, size, C.iconTone), text(this, 0, 23, label, { size: 12, color: C.soft, bold: true }).setOrigin(0.5),
-    ]).setSize(w, h).setDepth(10);
+    const caption = text(this, 0, 23, label, { size: 12, color: C.soft, bold: true }).setOrigin(0.5);
+    if (caption.width > w - 6) caption.setScale((w - 6) / caption.width);
+    const c = this.add.container(x, y, [bg, icon(this, name, 0, -11, size, C.iconTone), caption]).setSize(w, h).setDepth(10);
     c.setInteractive({ useHandCursor: true });
     press(c, go, (over) => bg.setStrokeStyle(2, over ? C.brass : C.line));
     return c;
@@ -445,8 +449,8 @@ export class MapScene extends Phaser.Scene {
     const body = rows.length
       ? rows.map((r) => `${r.name.padEnd(24).slice(0, 24)} ${String(r.starts).padStart(6)} ${String(r.wins).padStart(5)} ${String(r.fails).padStart(6)} ${String(Math.round(r.failRate * 100)).padStart(5)}% ${r.minutes.toFixed(1).padStart(8)}`).join('\n')
       : 'No missions played on this save yet.';
-    parts.push(this.add.text(40, 74, `${head}\n${body}`, { fontFamily: MONO, fontSize: '14px', color: '#d0ccb4', lineSpacing: 3 }));
-    parts.push(this.add.text(40, VIEW.height - 40, 'Target fail rate 15–30% per mission. Kept on this device only.', { fontFamily: MONO, fontSize: '13px', color: '#9a9a86' }));
+    parts.push(this.add.text(40, 74, `${head}\n${body}`, { fontFamily: MONO, fontSize: '17px', color: '#d0ccb4', lineSpacing: 3 }));
+    parts.push(this.add.text(40, VIEW.height - 40, 'Target fail rate 15–30% per mission. Kept on this device only.', { fontFamily: MONO, fontSize: '17px', color: '#9a9a86' }));
     this.report = this.add.container(0, 0, parts).setDepth(80);
   }
 

@@ -1,5 +1,9 @@
+import { RETIRED_ENEMIES } from '../data/enemies';
+import { CREATURES } from '../puppet/index';
+import { FIGURES } from '../rendering/figures';
+import { parseMeta } from './MetaState';
 import { describe, expect, it } from 'vitest';
-import { ACT_STAR_GATE, MISSIONS, STARTING_GEAR, TRAINING, missionById, newEnemiesInMissionWave, plural } from '../data/missions';
+import { ACT_STAR_GATE, MISSIONS, STARTING_GEAR, missionById, newEnemiesInMissionWave, plural } from '../data/missions';
 import { RECRUITS, SQUAD_SLOTS, recruitCost } from '../data/squad';
 import { NEST_SPOTS } from './ObjectiveState';
 import { ENEMIES } from '../data/enemies';
@@ -61,7 +65,7 @@ describe('mission data', () => {
   it('every mission refers only to things that exist', () => {
     const gearIds = new Set([...MODS.map((m) => `mod:${m.id}`), ...SUPPORT.map((s) => `support:${s.id}`), ...DEFENSES.map((d) => `defense:${d.id}`)]);
     const ids = new Set<string>();
-    for (const m of [...MISSIONS, TRAINING]) {
+    for (const m of MISSIONS) {
       expect(ids.has(m.id)).toBe(false);
       ids.add(m.id);
       expect(m.waves.length).toBeGreaterThan(0);
@@ -96,13 +100,8 @@ describe('mission data', () => {
 
   it('new-enemy banners count enemies met in earlier missions', () => {
     expect(newEnemiesInMissionWave('a1m1', 1)).toEqual(['shambler']);
-    expect(newEnemiesInMissionWave('a1m2', 1)).toEqual(['runner']);
+    expect(newEnemiesInMissionWave('a1m2', 1)).toEqual(['hollow_hound']);
     expect(newEnemiesInMissionWave('a1m9', 2)).toEqual(['colossus']);
-  });
-
-  it('the training run is the classic eight waves and is found by id', () => {
-    expect(TRAINING.waves).toHaveLength(8);
-    expect(missionById('training')).toBe(TRAINING);
   });
 });
 
@@ -443,21 +442,17 @@ describe('Act 2 enemies', () => {
     const sp = ENEMIES.spitter.special!.ranged!;
     expect(sp.stopRange[0]).toBeLessThan(sp.stopRange[1]);
     expect(sp.windup).toBeGreaterThan(0.4); // readable tell
-    const howl = ENEMIES.howler.special!.howl!;
+    const howl = ENEMIES.carrion_screamer.special!.howl!;
     expect(howl.speedMul).toBeGreaterThan(1);
-    expect(howl.summon).toBeDefined();
-    expect(ENEMIES.sapper.special!.deathBlast!.radius).toBeGreaterThan(0);
-    expect(ENEMIES.sapper.special!.detonateDamage).toBeGreaterThan(0);
-    expect(ENEMIES.juggernaut.armoredZones).toEqual(['torso', 'legs']);
-    expect(ENEMIES.juggernaut.zoneMultiplier.head).toBe(1);
-    for (const id of ['spitter', 'howler', 'sapper', 'juggernaut', 'choir']) expect(ENEMIES[id].intel, id).toBeTruthy();
+    expect(ENEMIES.crimson_brute.armoredZones).toEqual(['torso', 'legs']);
+    expect(ENEMIES.crimson_brute.zoneMultiplier.head).toBeGreaterThanOrEqual(1);
+    for (const id of ['spitter', 'carrion_screamer', 'crimson_brute', 'choir']) expect(ENEMIES[id].intel, id).toBeTruthy();
   });
 
   it('they debut in Act 2 in order, one new threat at a time', () => {
     expect(newEnemiesInMissionWave('a2m1', 1)).toContain('spitter');
-    expect(newEnemiesInMissionWave('a2m2', 1)).toContain('howler');
-    expect(newEnemiesInMissionWave('a2m3', 1)).toContain('sapper');
-    expect(newEnemiesInMissionWave('a2m6', 1)).toContain('juggernaut');
+    expect(newEnemiesInMissionWave('a2m2', 1)).toContain('carrion_screamer');
+    expect(newEnemiesInMissionWave('a2m6', 1)).toContain('crimson_brute');
   });
 
   it('the Choir keeps its head on screen at its stop line', () => {
@@ -534,5 +529,34 @@ describe('Act 2 weapons', () => {
   it('names vehicles in plural correctly', () => {
     expect(plural('BUS')).toBe('BUSES');
     expect(plural('TRUCK')).toBe('TRUCKS');
+  });
+});
+
+describe('monsters', () => {
+  it('only come from supplied pictures', () => {
+    const everyone = new Set(Object.keys(ENEMIES));
+    for (const [gone, stand] of Object.entries(RETIRED_ENEMIES)) {
+      expect(everyone.has(gone), gone).toBe(false);
+      expect(everyone.has(stand), stand).toBe(true);
+    }
+    for (const e of Object.values(ENEMIES)) expect(FIGURES[e.look] ?? CREATURES[e.look], e.id).toBeTruthy();
+  });
+
+  it('are all that any wave, nest or boss can call for', () => {
+    for (const m of MISSIONS) {
+      for (const w of m.waves) for (const g of w.groups) expect(ENEMIES[g.enemy], `${m.id} ${g.enemy}`).toBeDefined();
+      if (m.objective.kind === 'nests') expect(ENEMIES[m.objective.spawn.id], m.id).toBeDefined();
+      if (m.objective.kind === 'boss') expect(ENEMIES[m.objective.enemy], m.id).toBeDefined();
+    }
+    for (const e of Object.values(ENEMIES)) {
+      for (const id of [e.boss?.summon.id, e.special?.burstInto?.id, e.special?.howl?.summon?.id]) {
+        if (id) expect(ENEMIES[id], `${e.id} calls ${id}`).toBeDefined();
+      }
+    }
+  });
+
+  it('move an old save’s contract to the monster that took its place', () => {
+    const meta = parseMeta({ daily: { day: '2026-11-26', contracts: [{ kind: 'enemy', param: 'runner', target: 35, progress: 4, reward: 70 }] } });
+    expect(meta.daily.contracts[0]).toMatchObject({ param: 'hollow_hound', progress: 4 });
   });
 });

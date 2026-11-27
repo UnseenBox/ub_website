@@ -2,11 +2,11 @@ import Phaser from 'phaser';
 import { BLEED, MAX_SCREEN, SCREEN, designPoint } from './screen';
 import { audio, LoopHandle } from '../audio/AudioManager';
 import { BUNKER_UPGRADE, DEFENSES, MODS, REPAIR_AMOUNT, SUPPORT, WALL_DURATION } from '../data/upgrades';
-import { CLASSIC_WEAPONS, MOUNTED_WEAPONS, WEAPONS, WEAPON_ORDER, WeaponDef, weaponById } from '../data/weapons';
+import { MOUNTED_WEAPONS, WEAPONS, WEAPON_ORDER, WeaponDef, weaponById } from '../data/weapons';
 import { ENEMIES } from '../data/enemies';
 import { stripChips, threatTags } from '../ui/messages';
 import { ITEM_ICON } from '../ui/iconPaths';
-import { MissionDef, TRAINING, newEnemiesInMissionWave } from '../data/missions';
+import { MissionDef, newEnemiesInMissionWave } from '../data/missions';
 import { newEnemiesInWave } from '../data/waves';
 import { FIELD, VIEW } from './config';
 import { DEPTH } from './depths';
@@ -41,13 +41,13 @@ import { SupportSystem } from '../systems/SupportSystem';
 import { WaveManager } from '../systems/WaveManager';
 import { WeaponManager } from '../systems/WeaponManager';
 import { HUD, type HintPart } from '../ui/HUD';
-import { Tutorial } from '../ui/Tutorial';
 import { toggleFullscreen } from '../ui/widgets';
-import { fireAllowed, wavesAllowed } from './tutorialSteps';
 import { isTestMode } from './testMode';
 import { isAimTouch, isFireTouch, pushStick, resetTouchPointerIds, stepStickAim, touchButtonAt, TouchButton } from './touchControls';
 import { AIM, AimAssist, type AimPoint } from './aimAssist';
 import { TouchUI } from '../ui/TouchUI';
+import { CRAZY, isDesktop, isHandheld } from '../portal/flags';
+import { mouseLock } from '../portal/mouseLock';
 import { Zombie, depthForZ } from '../entities/Zombie';
 import type { ModId, SupportId } from '../data/upgrades';
 
@@ -61,8 +61,6 @@ export interface GameStartData {
   /** Mission to play; defaults to the next unwon one. */
   missionId?: string;
   openShop?: boolean;
-  /** Run the replayable briefing on the training run (the classic eight waves). */
-  tutorial?: boolean;
   /** Extra starting cash as a share of the mission's (a rewarded-ad retry). */
   bonusCash?: number;
   /** Play the Veteran version of a won campaign mission. */
@@ -75,8 +73,6 @@ type HintId = 'aim' | 'reload' | 'armory' | 'switch' | 'mod' | 'support' | 'focu
 /** The battle: fixed first-person bunker view, waves, shooting, economy. */
 export class GameScene extends Phaser.Scene {
   mission!: MissionDef;
-  /** Training run: classic arsenal bought in the armory, nothing saved. */
-  training = false;
   /** Gear ids this mission offers in the armory and on the HUD (undefined = everything). */
   gear: ReadonlySet<string> | undefined;
   /** Weapon ids on HUD keys 1–4. */
@@ -150,7 +146,6 @@ export class GameScene extends Phaser.Scene {
   private ambientLeft = 3;
   private wind: LoopHandle | null = null;
   private music: LoopHandle | null = null;
-  private tutorial: Tutorial | null = null;
   private over = false;
   private ended = false;
   private hoverZone: string | null = null;
@@ -181,9 +176,8 @@ export class GameScene extends Phaser.Scene {
 
     const test = isTestMode();
     const save = profile.get();
-    this.training = !!data?.tutorial || data?.missionId === 'training';
-    this.mission = this.training ? TRAINING : resolveMission(data?.missionId, save, Date.now()) ?? nextMission(save);
-    if (data?.veteran && !this.training && !this.mission.mode) this.mission = veteranMission(this.mission);
+    this.mission = resolveMission(data?.missionId, save, Date.now()) ?? nextMission(save);
+    if (data?.veteran && !this.mission.mode) this.mission = veteranMission(this.mission);
     this.economy = new EconomyManager(Math.round(this.mission.startCash * (1 + (data?.bonusCash ?? 0))));
     this.revived = false;
     this.bunker = new BunkerManager();
@@ -202,7 +196,7 @@ export class GameScene extends Phaser.Scene {
     this.streak = 0;
     this.focusMeter = 0;
     this.focusLeft = 0;
-    this.focusEnabled = !this.training && (test || focusUnlocked(save));
+    this.focusEnabled = test || focusUnlocked(save);
     this.globs = [];
     this.beeps.clear();
     this.runEnemyKills = {};
@@ -211,37 +205,29 @@ export class GameScene extends Phaser.Scene {
     this.bestStreak = 0;
     let lent: Set<string> = new Set();
     let squad: { id: RecruitId; level: number }[] = [];
-    if (this.training) {
-      // The classic run: four guns bought in the armory as they unlock by wave.
-      this.weapons = new WeaponManager();
-      this.weaponSlots = CLASSIC_WEAPONS.map((w) => w.id);
+    // The loadout plus what this mission lends, with Workshop upgrades, each gun painted in the skin it wears.
+    const defs = Object.fromEntries(WEAPONS.map((w) => {
+      const d = playerWeapon(save, w.id);
+      const skin = activeSkin(save, w.id);
+      return [w.id, skin ? { ...d, viewTexture: skinTexture(this, d.viewTexture, skin), iconTexture: skinTexture(this, d.iconTexture, skin) } : d];
+    }));
+    if (test) {
+      const mounted = this.mission.issue.weapons.filter((w) => MOUNTED_WEAPONS.includes(w));
+      const ids = [...new Set([...this.mission.issue.weapons, ...WEAPON_ORDER])].filter((id) => !mounted.includes(id)).slice(0, 4 - mounted.length);
+      this.weaponSlots = [...mounted, ...WEAPON_ORDER.filter((id) => ids.includes(id))];
       this.gear = undefined;
+      squad = this.mission.modifiers?.chopper ? [] : [{ id: 'mara', level: 3 }, { id: 'brick', level: 3 }];
     } else {
-      // Campaign: the loadout plus what this mission lends, with Workshop upgrades.
-      // Workshop upgrades, painted in the skin each weapon wears.
-      const defs = Object.fromEntries(WEAPONS.map((w) => {
-        const d = playerWeapon(save, w.id);
-        const skin = activeSkin(save, w.id);
-        return [w.id, skin ? { ...d, viewTexture: skinTexture(this, d.viewTexture, skin), iconTexture: skinTexture(this, d.iconTexture, skin) } : d];
-      }));
-      if (test) {
-        const mounted = this.mission.issue.weapons.filter((w) => MOUNTED_WEAPONS.includes(w));
-        const ids = [...new Set([...this.mission.issue.weapons, ...WEAPON_ORDER])].filter((id) => !mounted.includes(id)).slice(0, 4 - mounted.length);
-        this.weaponSlots = [...mounted, ...WEAPON_ORDER.filter((id) => ids.includes(id))];
-        this.gear = undefined;
-        squad = this.mission.modifiers?.chopper ? [] : [{ id: 'mara', level: 3 }, { id: 'brick', level: 3 }];
-      } else {
-        const arsenal = missionArsenal(save, this.mission);
-        this.weaponSlots = arsenal.weapons;
-        this.gear = arsenal.gear;
-        lent = arsenal.lent;
-        squad = arsenal.squad;
-      }
-      this.weapons = new WeaponManager({ owned: this.weaponSlots, unlockAfterWave: {}, defs });
-      if (this.weaponSlots[0] !== this.weapons.current.def.id) this.weapons.forceSelect(this.weaponSlots[0]);
-      this.bunker.setMax(playerBunkerHealth(save));
-      if (this.mission.modifiers?.bunkerMul) this.bunker.startAt(this.mission.modifiers.bunkerMul);
+      const arsenal = missionArsenal(save, this.mission);
+      this.weaponSlots = arsenal.weapons;
+      this.gear = arsenal.gear;
+      lent = arsenal.lent;
+      squad = arsenal.squad;
     }
+    this.weapons = new WeaponManager({ owned: this.weaponSlots, unlockAfterWave: {}, defs });
+    if (this.weaponSlots[0] !== this.weapons.current.def.id) this.weapons.forceSelect(this.weaponSlots[0]);
+    this.bunker.setMax(playerBunkerHealth(save));
+    if (this.mission.modifiers?.bunkerMul) this.bunker.startAt(this.mission.modifiers.bunkerMul);
     // Lent gear arrives with one charge, so it can be tried at once.
     for (const g of lent) {
       const [kind, id] = g.split(':');
@@ -271,7 +257,7 @@ export class GameScene extends Phaser.Scene {
     // Things bullets can hit besides the dead: fog nests, supply crates, fuel drums.
     this.shootables = new Shootables();
     this.combat.shootables = this.shootables;
-    this.fieldObjects = new FieldObjects(this, this.shootables, this.training ? [] : this.field.location.drums, this.mission.modifiers?.drops);
+    this.fieldObjects = new FieldObjects(this, this.shootables, this.field.location.drums, this.mission.modifiers?.drops);
     this.fieldObjects.onDrum = (x, z) => this.blowDrum(x, z);
     this.fieldObjects.onClaim = (reward, x, y) => this.claimDrop(reward, x, y);
     this.fieldObjects.onLost = () => this.fx.floatText(VIEW.centerX, 210, 'SUPPLY CRATE LOST', '#ff9a70', 18);
@@ -333,27 +319,23 @@ export class GameScene extends Phaser.Scene {
     this.music = audio.loop('drone_loop', 0.55, 'music', 3);
     this.chopper = this.mission.modifiers?.chopper ? this.buildChopper() : null;
     this.playSeconds = 0;
-    if (!test && !this.training) profile.update((d) => noteStart(d, this.mission.id));
+    if (!test) profile.update((d) => noteStart(d, this.mission.id));
     this.events.once('shutdown', () => this.teardown());
 
     const m = this.mission;
     // The objective strip says what to do, so a campaign mission starts without a banner.
-    if (this.training) {
-      this.hud.banner('TRAINING', null, 2.4);
-    } else {
-      if (m.mode === 'surge') this.hud.banner('FOG SURGE', { icon: 'bolt', text: (m.modifiers?.tags ?? []).join(' + '), tone: 'gold' }, 2.4);
-      else if (m.mode === 'endless') this.hud.banner('LAST STAND', null, 2.4);
-      else if (m.veteran) this.hud.banner('VETERAN', { icon: 'medal', text: m.name.toUpperCase(), tone: 'gold' }, 2.4);
-      this.refreshStrip();
-      this.hud.radio(m.brief);
-      this.time.delayedCall(1200, () => this.startHints());
-    }
+    if (m.mode === 'surge') this.hud.banner('FOG SURGE', { icon: 'bolt', text: (m.modifiers?.tags ?? []).join(' + '), tone: 'gold' }, 2.4);
+    else if (m.mode === 'endless') this.hud.banner('LAST STAND', null, 2.4);
+    else if (m.veteran) this.hud.banner('VETERAN', { icon: 'medal', text: m.name.toUpperCase(), tone: 'gold' }, 2.4);
+    this.refreshStrip();
+    this.hud.radio(m.brief);
+    this.time.delayedCall(1200, () => this.startHints());
     this.time.delayedCall(2600, () => {
       if (this.waves.phase === 'idle') this.startNextWave();
     });
-    (window as unknown as { __fogline: GameScene }).__fogline = this;
-    if (data?.tutorial) this.startTutorial();
+    if (!CRAZY || import.meta.env.DEV) (window as unknown as { __fogline: GameScene }).__fogline = this;
     if (data?.openShop) this.time.delayedCall(0, () => this.openShop());
+    portal.context({ mission: this.mission.id, name: this.mission.name });
     portal.gameplayStart();
   }
 
@@ -394,8 +376,7 @@ export class GameScene extends Phaser.Scene {
     this.waves.events.on('countdown', ({ wave }) => {
       const def = this.waves.current!;
       const mode = this.mission.mode;
-      const freshIds = this.training ? newEnemiesInWave(wave - 1)
-        : mode === 'endless' ? (wave > 1 ? newEnemiesInWave(wave - 1, this.mission.waves) : [])
+      const freshIds = mode === 'endless' ? (wave > 1 ? newEnemiesInWave(wave - 1, this.mission.waves) : [])
         : mode === 'surge' ? []
         : newEnemiesInMissionWave(this.mission.id, wave);
       // The pips in the strip count the waves; the title only marks the moment.
@@ -454,9 +435,10 @@ export class GameScene extends Phaser.Scene {
   /** The bunker fell: in a CrazyGames build with ads, offer reinforcements once; otherwise the mission is lost. */
   private onBunkerDown(): void {
     if (this.over) return;
-    if (!this.training && !this.revived && portal.rewardReady) {
+    if (!this.revived && portal.rewardReady) {
       this.revived = true;
       this.trigger = false;
+      mouseLock.release();
       audio.setLoopsPaused(true);
       portal.gameplayStop();
       this.scene.pause();
@@ -591,7 +573,7 @@ export class GameScene extends Phaser.Scene {
       this.bossPhase++;
       b.rage = def.rageSpeed ** this.bossPhase;
       this.hud.banner('ENRAGED', { icon: 'fast', text: 'FASTER', tone: 'red' }, 2.5);
-      this.bossSummon(def.summon.count + 2, 'runner');
+      this.bossSummon(Math.ceil((def.summon.count + 2) * 0.4), 'hollow_hound');
     }
     this.bossSummonLeft -= dt;
     if (this.bossSummonLeft <= 0 && (b.state === 'walk' || b.state === 'hold')) {
@@ -703,7 +685,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Shows a control hint once ever (remembered in the profile). */
   private hint(id: HintId, parts: HintPart[]): void {
-    if (this.training || this.hintsShown.has(id)) return;
+    if (this.hintsShown.has(id)) return;
     this.hintsShown.add(id);
     this.hud.hint(parts);
     if (!isTestMode()) profile.update((d) => { if (!d.hints.includes(id)) d.hints.push(id); });
@@ -711,7 +693,6 @@ export class GameScene extends Phaser.Scene {
 
   /** Hints that wait for a moment in battle: low ammo, a mod or support in hand. */
   private checkHints(): void {
-    if (this.training) return;
     const touch = this.touchUi.isEnabled;
     const key = (k: string): string | undefined => (touch ? undefined : k);
     const cur = this.weapons.current;
@@ -827,7 +808,6 @@ export class GameScene extends Phaser.Scene {
       this.sporeCloud(z.x, z.z, cloud.seconds, cloud.radiusM);
       audio.play('acid_splash', { volume: Phaser.Math.Clamp(12 / z.z, 0.3, 0.8), rate: 0.7 });
     }
-    if (this.training) return;
     this.runEnemyKills[z.def.id] = (this.runEnemyKills[z.def.id] ?? 0) + 1;
     // The player's own kills count toward the weapon in hand (mastery); squad and supports do not.
     if (source === 'bullet' || source === 'burn' || source === 'blast') {
@@ -937,9 +917,19 @@ export class GameScene extends Phaser.Scene {
     if (ev) this.onObjectiveEvent(ev);
   }
 
-  /** True on phones/tablets whose primary pointer is a finger. */
+  /** True on phones and tablets. */
   private prefersTouch(): boolean {
-    return typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    return isHandheld();
+  }
+
+  /** A finger on a phone or tablet. A desktop's touch screen is treated like its mouse. */
+  private isFinger(p: Phaser.Input.Pointer): boolean {
+    return p.wasTouch && !isDesktop();
+  }
+
+  /** On CrazyGames a fight on desktop keeps the mouse inside the game. */
+  private lockMouse(p: Phaser.Input.Pointer): void {
+    if (CRAZY && !this.over && !p.wasTouch && !this.touchUi.isEnabled) mouseLock.request();
   }
 
   /** Phone aim assistance (see aimAssist.ts): where the crosshair goes for a finger at (x, y). */
@@ -994,7 +984,9 @@ export class GameScene extends Phaser.Scene {
 
   private wireInput(): void {
     const kb = this.input.keyboard!;
-    kb.addCapture('SPACE,ENTER,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,A,S,D,W,E,R,Q,SHIFT');
+    kb.addCapture('SPACE,ENTER,TAB,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,A,S,D,W,E,R,Q,SHIFT');
+    // Escape frees a locked mouse without reaching the game, so losing the lock opens the pause menu.
+    mouseLock.onFreed = () => this.openPause();
     const map: Record<string, () => void> = {
       ONE: () => this.selectWeapon(1), TWO: () => this.selectWeapon(2), THREE: () => this.selectWeapon(3), FOUR: () => this.selectWeapon(4),
       FIVE: () => this.activateMod('double'), SIX: () => this.activateMod('ap'), SEVEN: () => this.activateMod('fire'), EIGHT: () => this.activateMod('cryo'),
@@ -1003,9 +995,10 @@ export class GameScene extends Phaser.Scene {
       R: () => this.weapons.reload(),
       SPACE: () => this.openShop(),
       ENTER: () => this.startNextWave(),
-      ESC: () => this.openPause(),
       P: () => this.openPause(),
-      F: () => toggleFullscreen(this),
+      ESC: () => this.openPause(),
+      TAB: () => { if (CRAZY) this.openPause(); },
+      ...(CRAZY ? {} : { F: () => toggleFullscreen(this) }),
       Q: () => this.fireFlare(),
       SHIFT: () => this.activateFocus(),
     };
@@ -1021,7 +1014,7 @@ export class GameScene extends Phaser.Scene {
       audio.unlock();
       // A click on a card over the field is that card's, not a shot or an aim.
       if (p.downTime === this.cardClickAt) return;
-      if (p.wasTouch) {
+      if (this.isFinger(p)) {
         document.body.classList.add('touched');
         this.touchUi.setEnabled(true);
         // HUD slots handle their own taps; only the battlefield is routed here.
@@ -1031,7 +1024,6 @@ export class GameScene extends Phaser.Scene {
         if (over.length > 0) return;
         const button = touchButtonAt(at.x, at.y, this.touchUi.deployVisible);
         if (button) {
-          if (button === 'fire' && !this.fireAllowed()) return;
           if (button !== 'fire' || this.firePointerId === null) this.pressTouchButton(button, p);
           return;
         }
@@ -1041,19 +1033,22 @@ export class GameScene extends Phaser.Scene {
             this.stickBase = { x: at.x, y: at.y };
             this.stickKnob = { x: at.x, y: at.y };
           }
-        } else if (isFireTouch(at.x, at.y) && this.firePointerId === null && this.fireAllowed()) {
+        } else if (isFireTouch(at.x, at.y) && this.firePointerId === null) {
           this.pressTouchButton('fire', p);
         }
         return;
       }
       if (!this.prefersTouch()) this.touchUi.setEnabled(false);
-      if (p.leftButtonDown() && designPoint(p).y < VIEW.hudTop && this.fireAllowed()) this.trigger = true;
+      if (p.leftButtonDown() && designPoint(p).y < VIEW.hudTop) {
+        this.lockMouse(p);
+        this.trigger = true;
+      }
     });
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       // A real mouse on a hybrid laptop switches the on-screen controls off.
       if (!p.wasTouch && this.touchUi.isEnabled && !this.prefersTouch()) this.touchUi.setEnabled(false);
-      if (p.wasTouch && p.id === this.aimPointerId) this.stickKnob = pushStick(this.stickBase, designPoint(p));
+      if (this.isFinger(p) && p.id === this.aimPointerId) this.stickKnob = pushStick(this.stickBase, designPoint(p));
     });
 
     const releasePointer = (p: Phaser.Input.Pointer): void => {
@@ -1068,7 +1063,7 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
-      if (p.wasTouch) {
+      if (this.isFinger(p)) {
         releasePointer(p);
         return;
       }
@@ -1095,9 +1090,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private teardown(): void {
+    mouseLock.onFreed = null;
+    mouseLock.release();
+    portal.context(null);
     this.events.off(Phaser.Scenes.Events.PAUSE, this.releaseTouch, this);
-    this.tutorial?.destroy();
-    this.tutorial = null;
     portal.gameplayStop();
     this.wind?.stop(0.3);
     this.music?.stop(0.6);
@@ -1121,41 +1117,14 @@ export class GameScene extends Phaser.Scene {
     audio.setLoopsPaused(false);
   }
 
-  /** The first-time briefing, or a replay of it from the menu. */
-  private startTutorial(): void {
-    this.tutorial = new Tutorial(this, {
-      weapons: this.weapons,
-      enemies: this.enemies,
-      waves: this.waves,
-      touch: this.touchUi.isEnabled,
-      clearBanner: () => this.hud.clearBanner(),
-      slots: this.hud.slots,
-      onFinish: () => this.finishTutorial(),
-    });
-  }
-
-  private finishTutorial(): void {
-    profile.update((d) => {
-      d.tutorialSeen = true;
-    });
-    this.tutorial = null;
-    this.hud.radio(this.mission.brief);
-  }
-
   /** Whether this mission offers a HUD/armory item (`weapon:m4`, `mod:ap`, `support:nuke`…). */
   offers(id: string): boolean {
     if (id.startsWith('weapon:')) return this.weaponSlots.includes(id.slice(7));
     return !this.gear || this.gear.has(id);
   }
 
-  /** Fire is held back while the briefing talks, so a click on Continue never shoots. */
-  private fireAllowed(): boolean {
-    return !this.tutorial || fireAllowed(this.tutorial.stepId);
-  }
-
   /** The objective, the bonus star's progress and the waves, across the top. */
   private refreshStrip(): void {
-    if (this.training) return;
     const o = this.objective;
     const stats = this.combat.stats;
     const asset = o.targets[0];
@@ -1174,7 +1143,6 @@ export class GameScene extends Phaser.Scene {
 
   startNextWave(): boolean {
     if (this.over) return false;
-    if (this.tutorial && !wavesAllowed(this.tutorial.stepId)) return false;
     const ok = this.waves.startNext();
     if (ok) this.hud.clearBanner();
     return ok;
@@ -1267,6 +1235,7 @@ export class GameScene extends Phaser.Scene {
   openShop(): void {
     if (this.over || this.scene.isPaused()) return;
     this.trigger = false;
+    mouseLock.release();
     audio.play('shop_open', { volume: 0.7 });
     audio.setLoopsPaused(true);
     portal.gameplayStop();
@@ -1277,6 +1246,7 @@ export class GameScene extends Phaser.Scene {
   openPause(): void {
     if (this.over || this.scene.isPaused()) return;
     this.trigger = false;
+    mouseLock.release();
     audio.setLoopsPaused(true);
     portal.gameplayStop();
     this.scene.pause();
@@ -1333,6 +1303,7 @@ export class GameScene extends Phaser.Scene {
     // A win and a lost bunker can both be pending; only the first one to land counts.
     if (this.ended) return;
     this.ended = true;
+    mouseLock.release();
     portal.gameplayStop();
     const s = this.combat.stats;
     const cleared = victory ? this.waves.wave : Math.max(0, this.waves.wave - 1);
@@ -1348,26 +1319,23 @@ export class GameScene extends Phaser.Scene {
       earned: this.economy.totalEarned,
       ...this.objective.summary(),
     };
-    // Test-mode runs (full arsenal, $500k) and training are scored but never saved.
-    const test = isTestMode() || this.training;
+    // Test-mode runs (full arsenal, $500k) are scored but never saved.
+    const test = isTestMode();
     const target = test ? structuredClone(profile.get()) : profile.get();
     const now = Date.now();
     const m = this.mission;
     const outcome = m.mode ? applyModeResult(target, m, result, now) : applyResult(target, m, result);
     // Every saved battle also counts toward daily contracts, Field Notes and weapon mastery.
-    const rewards = this.training ? undefined : recordRun(target, {
+    const rewards = recordRun(target, {
       mode: m.mode ?? 'campaign', objective: m.objective.kind, victory, kills: s.kills, headshots: s.headshotKills,
       stars: outcome.stars, wavesCleared: cleared, enemyKills: this.runEnemyKills, weaponKills: this.runWeaponKills,
       supportCalls: this.supportCalls, bestStreak: this.bestStreak,
     }, now);
-    const contested = this.training || m.mode ? 0 : claimContested(target, m, victory, now);
-    if (!this.training) noteFinish(target, m.id, victory, this.playSeconds);
+    const contested = m.mode ? 0 : claimContested(target, m, victory, now);
+    noteFinish(target, m.id, victory, this.playSeconds);
     if (!test) profile.save();
     this.over = true;
     this.hud.hideBanner();
-    // A mission can end while the briefing is still up; it is not marked as seen.
-    this.tutorial?.destroy();
-    this.tutorial = null;
     this.scene.pause();
     const data: ResultsData = { missionId: m.id, mission: m, result, outcome, rewards, contested, saved: !test, failReason: victory ? undefined : this.failReason };
     this.scene.launch('Results', data);
@@ -1517,12 +1485,14 @@ export class GameScene extends Phaser.Scene {
 
   override update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05);
-    this.tutorial?.update(dt);
     const p = this.input.activePointer;
     // The crosshair is exactly where the mouse is (or where the touch aim stick
     // has moved it); the gun is then rotated to point its barrel at it.
     const touchMode = this.touchUi.isEnabled;
-    const mouse = designPoint(p);
+    // Until the mouse has been somewhere over the game (a new player lands straight in the
+    // fight), the sights rest in the middle of the window.
+    const seen = p.moveTime > 0 || p.downTime > 0;
+    const mouse = seen ? designPoint(p) : { x: VIEW.centerX, y: 300 };
     // The stick moves the crosshair for as long as it is pushed, in real time even during Focus.
     if (touchMode && this.aimPointerId !== null && !this.over) {
       this.touchCursor = stepStickAim(this.touchCursor, this.stickBase, this.stickKnob, dt);
@@ -1592,11 +1562,12 @@ export class GameScene extends Phaser.Scene {
     const hover = inField ? this.enemies.raycast(cursorAimX, cursorAimY) : null;
     this.hoverZone = hover ? hover.zone : null;
     this.view.update(dt, cursorAimX, cursorAimY, gunAimX, gunAimY, this.weapons.spread, this.weapons.reloadProgress, this.weapons.reloading, this.hoverZone === 'head', !!hover);
-    // While aiming, only the magnified crosshair is shown: the gun itself steps out of view.
-    this.view.setVisible(!this.over && !(this.aimZoomed && this.weapons.current.def.scopeZoom));
+    this.view.setVisible(!this.over);
+    // Through a scope the gun steps out of view and the crosshair stays.
+    if (this.aimZoomed && this.weapons.current.def.scopeZoom) this.view.hideGun();
     this.night?.update(dt, cursorAimX, cursorAimY);
     this.hud.setFocus(this.focusEnabled, this.focusMeter, this.focusLeft / FOCUS_SECONDS);
-    this.hud.setStreak(this.training ? 0 : this.streak, GameScene.streakMul(this.streak), this.night ? this.night.flaresLeft : -1);
+    this.hud.setStreak(this.streak, GameScene.streakMul(this.streak), this.night ? this.night.flaresLeft : -1);
     this.hud.update(dt);
     const w = this.waves;
     this.touchUi.update(dt, {

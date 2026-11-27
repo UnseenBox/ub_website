@@ -51,11 +51,10 @@ describe('Act 4: The Fog Returns', () => {
     expect(act4.filter((m) => m.modifiers?.storm).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('Lurkers come up near the wire; Sporelings leave a cloud; the Bloom has pods', () => {
+  it('Lurkers come up near the wire; the Bloom has pods', () => {
     const b = ENEMIES.lurker.special!.burrow!;
     expect(b.near).toBeGreaterThan(10);
     expect(b.far).toBeLessThan(40);
-    expect(ENEMIES.sporeling.special?.sporeCloud?.seconds).toBeGreaterThan(0);
     expect(ENEMIES.bloom.boss?.pods).toBe(4);
     // Its pods stand in front of where it stops, so the head stays visible.
     expect(ENEMIES.bloom.special!.ranged!.stopRange[0]).toBeGreaterThan(ENEMIES.bloom.boss!.stopZ);
@@ -74,10 +73,10 @@ describe('Act 4: The Fog Returns', () => {
     expect(missionArsenal(p, MISSIONS.find((m) => m.id === 'a4m6')!).lent.has('recruit:vesna')).toBe(true);
   });
 
-  it('Last Stand brings Lurkers and Sporelings late, once met', () => {
-    const met = new Set(['shambler', 'runner', 'crawler', 'brute', 'plated', 'carrier', 'lurker', 'sporeling']);
+  it('Last Stand brings Lurkers late, once met', () => {
+    const met = new Set(['shambler', 'hollow_hound', 'brute', 'wraith', 'pumpkin_brood', 'lurker']);
     expect(endlessWave(12, met).groups.some((g) => g.enemy === 'lurker')).toBe(false);
-    expect(endlessWave(14, met).groups.some((g) => g.enemy === 'lurker' || g.enemy === 'sporeling')).toBe(true);
+    expect(endlessWave(14, met).groups.some((g) => g.enemy === 'lurker')).toBe(true);
   });
 });
 

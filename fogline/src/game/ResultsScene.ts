@@ -6,7 +6,7 @@ import { ModeOutcome, RunRewards } from '../systems/Retention';
 import { MODS, SUPPORT, DEFENSES } from '../data/upgrades';
 import { weaponById } from '../data/weapons';
 import {
-  BUNKER_STAR_FRACTION, MissionOutcome, MissionResult, campaignComplete, isActFinale, nextMission, playerPower, veteranMedals, workshopOpen,
+  BUNKER_STAR_FRACTION, MissionOutcome, MissionResult, campaignComplete, completionPercent, isActFinale, nextMission, playerPower, veteranMedals, workshopOpen,
 } from '../systems/Campaign';
 import { recruitById } from '../data/squad';
 import { profile } from '../systems/Profile';
@@ -29,7 +29,7 @@ export interface ResultsData {
   rewards?: RunRewards;
   /** Supplies for retaking a contested node today. */
   contested?: number;
-  /** False in test mode and training: the result is shown but not kept. */
+  /** False in test mode: the result is shown but not kept. */
   saved: boolean;
   /** Why a lost mission was lost (bunker, asset, evacuation). */
   failReason?: string;
@@ -66,14 +66,13 @@ export class ResultsScene extends Phaser.Scene {
     this.saved = data.saved;
     this.suppliesValue = null;
     const mission = data.mission ?? missionById(data.missionId)!;
-    const training = mission.id === 'training';
     const mode = mission.mode;
     const { result, outcome } = data;
     const win = result.victory;
     this.input.setDefaultCursor('default');
 
     const title = mode === 'endless' ? 'THE LINE FELL'
-      : win ? (training ? 'THE LINE HELD' : mode === 'surge' ? 'SURGE BROKEN' : 'MISSION COMPLETE')
+      : win ? (mode === 'surge' ? 'SURGE BROKEN' : 'MISSION COMPLETE')
       : data.failReason ?? 'BUNKER OVERRUN';
     backdrop(this, win || mode === 'endless' ? C.night : 0x1a100e).setInteractive();
     const heading = text(this, VIEW.centerX, 66, title, {
@@ -83,7 +82,7 @@ export class ResultsScene extends Phaser.Scene {
     if (mission.veteran) centreRow([chip(this, { icon: 'medal', text: 'VETERAN', tone: 'gold', size: 18 })], VIEW.centerX, 116);
 
     if (mode) this.drawScore(mode, outcome as ModeOutcome, result.wavesCleared);
-    else if (!training) this.drawStars(mission.bonus, data);
+    else this.drawStars(mission.bonus, data);
 
     // Battle stats: an icon and a number each. Waves only matter when they were not all cleared.
     const tiles: [IconName, string][] = [];
@@ -91,38 +90,38 @@ export class ResultsScene extends Phaser.Scene {
     tiles.push(['skull', `${result.kills}`], ['head', `${result.headshots}`], ['gauge', `${Math.round(result.accuracy * 100)}%`]);
     if (result.vehicles !== undefined) tiles.push(['truck', `${result.saved}/${result.vehicles}`]);
     if (result.assetFraction !== undefined) tiles.push(['mast', `${Math.round(result.assetFraction * 100)}%`]);
-    this.drawTiles(tiles, training ? 220 : 268);
+    this.drawTiles(tiles, 268);
 
     const p = profile.get();
-    if (!training) this.drawRewards(this.rewards(data, mission), 398);
+    this.drawRewards(this.rewards(data, mission), 398);
 
     // A defeat shows the power the player had against the threat of the mission.
-    if (!win && !mode && !training) this.drawGauge(playerPower(p), mission.threat, 548);
-    if (!data.saved && !training) centreRow([chip(this, { icon: 'cross', text: 'NOT SAVED', tone: 'muted', size: 16 })], VIEW.centerX, 600);
+    if (!win && !mode) this.drawGauge(playerPower(p), mission.threat, 548);
+    if (!data.saved) centreRow([chip(this, { icon: 'cross', text: 'NOT SAVED', tone: 'muted', size: 16 })], VIEW.centerX, 600);
 
     this.drawActions(data, mission);
 
     // CrazyGames: the portal's celebration for a boss kill, a finished act, a first three-star result.
-    if (data.saved && win && !training) {
+    if (data.saved && win) {
       const proud = mission.objective.kind === 'boss' || (outcome.stars === 3 && outcome.previousStars < 3) || (mode === 'surge' && outcome.firstClear);
       if (proud) portal.happytime();
+      portal.reportCompleted(completionPercent(profile.get()));
     }
   }
 
   /** The buttons: the way on at the bottom right, the others at the bottom left. */
   private drawActions(data: ResultsData, mission: MissionDef): void {
-    const training = mission.id === 'training';
     const mode = mission.mode;
     const { result, outcome } = data;
     const win = result.victory;
     const p = profile.get();
     // The Heart (Act 3) and the Bloom (Act 4) each end with an epilogue.
-    const finale = win && outcome.firstClear && data.saved && !mode && !training && isActFinale(mission) && mission.act >= 3;
-    const debrief = win && !mode && !training ? mission.debrief : [];
+    const finale = win && outcome.firstClear && data.saved && !mode && isActFinale(mission) && mission.act >= 3;
+    const debrief = win && !mode ? mission.debrief : [];
     const toMap = (): void => this.leave(() => (finale
       ? this.scene.start('Ending', { act: mission.act })
       : this.scene.start('Map', { reveal: win && outcome.firstClear && data.saved ? mission.id : undefined, debrief })));
-    const retry = (): void => this.leave(() => this.scene.start('Game', training ? { tutorial: false, missionId: 'training' } : { missionId: mission.id, veteran: mission.veteran }));
+    const retry = (): void => this.leave(() => this.scene.start('Game', { missionId: mission.id, veteran: mission.veteran }));
     const menu = (): void => this.leave(() => this.scene.start('Menu'));
     const y = VIEW.height - 52;
     const left: Button[] = [];
@@ -135,9 +134,6 @@ export class ResultsScene extends Phaser.Scene {
       primary = () => this.leave(() => this.scene.start('HQ', { tab: mode === 'surge' ? 'surge' : 'endless' }));
       way = { icon: 'play', label: 'HQ', onClick: primary, tone: 'go' };
       small({ icon: 'replay', label: 'AGAIN', onClick: () => this.leave(() => this.scene.start('Game', { missionId: mission.id })) });
-    } else if (training) {
-      primary = retry;
-      way = { icon: 'replay', label: 'TRAIN AGAIN', onClick: retry, tone: 'go' };
     } else if (win) {
       primary = toMap;
       const next = data.saved && !campaignComplete(p) ? nextMission(p) : null;
@@ -164,7 +160,7 @@ export class ResultsScene extends Phaser.Scene {
     go.c.x = VIEW.width - 26 - go.w / 2;
     this.input.keyboard!.on('keydown-ENTER', () => primary());
     // Optional rewarded ads (only in a CrazyGames build with ads on).
-    if (data.saved && !training) this.rewardOffers(data, mission.id, win, VIEW.centerX + 60, y);
+    if (data.saved) this.rewardOffers(data, mission.id, win, VIEW.centerX + 60, y);
   }
 
   /** Double the Supplies after any finish, or retry a loss with extra cash: the player's choice, never forced. */

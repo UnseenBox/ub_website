@@ -14,6 +14,7 @@ import { ScreenOverlay, buildScreenFx } from '../rendering/ScreenFx';
 import { VIEW } from './config';
 import { isTestMode } from './testMode';
 import { MENU_BG_TEXTURE } from './textureKeys';
+import { CRAZY } from '../portal/flags';
 
 /** The size of a menu entry, and the gap between entries. */
 const ENTRY = { x: 690, y: 196, w: 380, h: 64, step: 80 } as const;
@@ -101,7 +102,7 @@ export class MenuScene extends Phaser.Scene {
 
     if (isTestMode()) {
       this.add.text(VIEW.centerX, 430, 'TEST MODE — ALL WEAPONS & GEAR UNLOCKED', {
-        fontFamily: MONO, fontSize: '12px', color: '#c8a040', stroke: '#000', strokeThickness: 3,
+        fontFamily: MONO, fontSize: '17px', color: '#c8a040', stroke: '#000', strokeThickness: 3,
       }).setOrigin(0.5);
     }
 
@@ -115,7 +116,7 @@ export class MenuScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-DOWN', () => this.move(1));
     this.input.keyboard!.on('keydown-S', () => this.move(1));
     this.input.keyboard!.on('keydown-ENTER', () => this.activate(this.selected));
-    this.input.keyboard!.on('keydown-F', () => toggleFullscreen(this));
+    if (!CRAZY) this.input.keyboard!.on('keydown-F', () => toggleFullscreen(this));
     this.input.once('pointerdown', () => {
       audio.unlock();
       if (!this.wind) this.wind = audio.loop('wind_loop', 0.5, 'music', 1.5);
@@ -166,7 +167,8 @@ export class MenuScene extends Phaser.Scene {
     const g = this.add.graphics();
     const pic = icon(this, entry.icon, 36, h / 2, 28, C.iconTone);
     const label = text(this, 66, h / 2, entry.label, { size: 30, font: STENCIL }).setOrigin(0, 0.5);
-    const c = this.add.container(x, row, [g, pic, label]).setSize(w, h).setDepth(10);
+    // No setSize: a sized container measures its hit area from the middle, and only a corner would click.
+    const c = this.add.container(x, row, [g, pic, label]).setDepth(10);
     c.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
     c.on('pointerover', () => this.select(i));
     c.on('pointerdown', () => this.activate(i));
@@ -222,11 +224,11 @@ export class MenuScene extends Phaser.Scene {
         tx += t.w + 8;
       }
     }
-    // The training briefing, at the foot of the screen.
-    pushButton(this, 130, 660, { w: 216, h: 48, size: 22, icon: 'book', label: 'TRAINING', onClick: () => this.startBriefing() }).c.setDepth(10);
-    this.add.text(VIEW.width - 12, VIEW.height - 10, 'original prototype · supplied art and audio', {
-      fontFamily: MONO, fontSize: '11px', color: '#5a5a50',
-    }).setOrigin(1, 1);
+    if (!CRAZY) {
+      this.add.text(VIEW.width - 12, VIEW.height - 10, 'original prototype · supplied art and audio', {
+        fontFamily: MONO, fontSize: '17px', color: '#5a5a50',
+      }).setOrigin(1, 1);
+    }
   }
 
   /** The screen opens like a lens coming into focus: black fills the screen, with a round hole that grows out of the middle. */
@@ -352,10 +354,5 @@ export class MenuScene extends Phaser.Scene {
     });
     const cancel = pushButton(this, VIEW.centerX + 140, VIEW.height / 2 + 78, { w: 250, h: 56, size: 26, icon: 'back', label: 'KEEP', onClick: close });
     this.confirm = this.add.container(0, 0, [bg, panel, t, ...lost.map((c) => c.c), erase.c, cancel.c]).setDepth(100);
-  }
-
-  private startBriefing(): void {
-    audio.unlock();
-    this.scene.start('Game', { tutorial: true });
   }
 }

@@ -23,7 +23,7 @@ npm run dev        # http://localhost:5191
 | --- | --- |
 | `npm run dev` | Vite dev server with hot reload |
 | `npm run build` | Type-check and build a static bundle into `dist/` |
-| `npm run build:crazygames` | CrazyGames build into `dist-crazygames/`: SDK tag, loading/gameplay events, happytime, cloud save. Ads stay off until `VITE_ADS=on` in `.env.crazygames` (Full Launch) |
+| `npm run build:crazygames` | CrazyGames build into `dist-crazygames/`: SDK tag, loading/gameplay events, happytime, the data module as the save, no fullscreen controls, mouse lock on desktop, black ink for blood, and new players start in the first mission. Ads stay off until `VITE_ADS=on` in `.env.crazygames` (Full Launch) |
 | `npm run dev:crazygames` | Dev server in CrazyGames mode (loads the real SDK, which shows test overlays on localhost) |
 | `npm run test` | Vitest unit tests for the game logic |
 | `npm run typecheck` | TypeScript only |
@@ -130,7 +130,6 @@ the head is checked before the body.
 - Fog Surge (after mission 7): one generated mission a day with two modifiers (night, drops, horde, quickened, hardened, bounty, thin walls); big reward for the first win, best score kept
 - Last Stand (after Act 1): endless waves at the farm, Supplies per wave and one-time milestones at waves 5–30
 - Weapon mastery: kills with a gun unlock Desert, Winter, Fogline and Gold skins (Workshop); day 7 of the drop gives Crimson
-- Training (menu → TRAINING & BRIEFING): the original 8-wave run with the replayable briefing; never saved
 - Ammo mods with charges and timed activation, each with clear HUD indicators and hit effects
 - Support strikes:
   - Gunship: flies in, strafes and chain-guns enemies, with rotor loop audio

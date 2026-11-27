@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../data/enemies';
 import { WAVES, newEnemiesInWave, scheduledCount } from '../data/waves';
-import { CLASSIC_WEAPONS, WEAPONS } from '../data/weapons';
+import { WEAPONS } from '../data/weapons';
 import { SUPPORT_SFX_FILES, WEAPON_IMPACT_FILES, WEAPON_SHOT_FILES } from '../audio/overrides';
 import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
@@ -78,9 +78,10 @@ describe('main menu background', () => {
 
 describe('weapon shot recordings', () => {
   it('gives every gun its own supplied shot file', () => {
-    expect(new Set(CLASSIC_WEAPONS.map((w) => w.sound.shot)).size).toBe(4);
+    const first = WEAPONS.filter((w) => w.slot <= 4);
+    expect(new Set(first.map((w) => w.sound.shot)).size).toBe(4);
     const mapping = Object.fromEntries(
-      CLASSIC_WEAPONS.map((w) => [w.id, WEAPON_SHOT_FILES[w.sound.shot as keyof typeof WEAPON_SHOT_FILES]]),
+      first.map((w) => [w.id, WEAPON_SHOT_FILES[w.sound.shot as keyof typeof WEAPON_SHOT_FILES]]),
     );
     expect(mapping).toEqual({
       service: 'audio/fogline/gun-1.mp3',
@@ -161,7 +162,7 @@ describe('EconomyManager', () => {
 });
 
 describe('CombatRules', () => {
-  const shambler = ENEMIES.shambler, plated = ENEMIES.plated;
+  const shambler = ENEMIES.shambler, plated = ENEMIES.crimson_brute;
   it('headshots multiply damage', () => {
     const body = bulletDamage(30, 3, 'torso', shambler, none).damage;
     const head = bulletDamage(30, 3, 'head', shambler, none).damage;
@@ -169,7 +170,7 @@ describe('CombatRules', () => {
   });
   it('armour reduces body damage and AP removes it', () => {
     const plain = bulletDamage(40, 2, 'torso', plated, none);
-    expect(plain.damage).toBeCloseTo(10);
+    expect(plain.damage).toBeCloseTo(18);
     expect(plain.deflected).toBe(true);
     const ap = bulletDamage(40, 2, 'torso', plated, new Set(['ap'] as const));
     expect(ap.damage).toBeCloseTo(40);
@@ -273,8 +274,8 @@ describe('WaveManager', () => {
     expect(wm.startNext()).toBe(true);
     expect(wm.wave).toBe(2);
   });
-  it('extra spawns (crawler bursts) keep the wave open', () => {
-    const wm = new WaveManager([{ name: 't', speedMul: 1, healthMul: 1, groups: [{ enemy: 'carrier', count: 1, delay: 0, interval: 1 }] }]);
+  it('extra spawns (bursts) keep the wave open', () => {
+    const wm = new WaveManager([{ name: 't', speedMul: 1, healthMul: 1, groups: [{ enemy: 'ravager', count: 1, delay: 0, interval: 1 }] }]);
     let victory = false;
     wm.events.on('victory', () => { victory = true; });
     wm.startNext();
@@ -293,19 +294,15 @@ describe('WaveManager', () => {
     for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeGreaterThan(counts[i - 1]);
   });
 
-  it('introduces Brutes in wave 2 and Crawler packs in wave 3', () => {
+  it('introduces Brutes and Hounds in wave 2', () => {
     const kinds = (i: number) => new Set(WAVES[i].groups.map((g) => g.enemy));
     expect(kinds(0).has('brute')).toBe(false);
-    expect(kinds(1).has('brute')).toBe(true);
-    expect(kinds(1).has('crawler')).toBe(false);
-    expect(kinds(2).has('crawler')).toBe(true);
-    expect(newEnemiesInWave(1)).toContain('brute');
-    expect(newEnemiesInWave(2)).toContain('crawler');
+    expect(newEnemiesInWave(1)).toEqual(expect.arrayContaining(['brute', 'hollow_hound']));
     expect(newEnemiesInWave(0)).toEqual(['shambler']);
-    // Brutes and Crawlers keep coming in every later wave.
+    // Brutes and Hounds keep coming in every later wave.
     for (let i = 2; i < WAVES.length; i++) {
       expect(kinds(i).has('brute')).toBe(true);
-      expect(kinds(i).has('crawler')).toBe(true);
+      expect(kinds(i).has('hollow_hound')).toBe(true);
     }
   });
 
@@ -328,10 +325,9 @@ describe('WaveManager', () => {
     expect(counts[7]).toBeGreaterThan(counts[0] * 4);
     expect(WAVES[7].speedMul).toBeGreaterThan(WAVES[0].speedMul);
     const types = (i: number) => new Set(WAVES[i].groups.map((g) => g.enemy));
-    expect(types(0).has('runner')).toBe(false);
-    expect(types(2).has('runner')).toBe(true);
-    expect(types(4).has('plated')).toBe(true);
-    expect(types(6).has('carrier')).toBe(true);
+    expect(types(0).has('wraith')).toBe(false);
+    expect(types(4).has('wraith')).toBe(true);
+    expect(types(6).has('pumpkin_brood')).toBe(true);
   });
 });
 

@@ -83,7 +83,7 @@ export interface WeaponDef {
   id: string;
   name: string;
   shortName: string;
-  /** Key in the old fixed four-gun layout (training). Campaign battles number the loadout instead. */
+  /** Place in the classic four-gun layout (1–4 are the first guns). Battles number the loadout instead. */
   slot: number;
   price: number;
   /** Cleared-wave number that puts the weapon on sale in the armory (0 = from the start). */
@@ -589,8 +589,6 @@ WEAPONS.push({
 /** Mounted guns: lent by one mission, never owned, never in a loadout. */
 export const MOUNTED_WEAPONS: string[] = [];
 
-/** The classic four guns of the training run, on keys 1–4. */
-export const CLASSIC_WEAPONS: WeaponDef[] = WEAPONS.filter((w) => w.slot <= 4);
 
 /** Display order for loadouts and the HUD: lightest to heaviest. */
 export const WEAPON_ORDER = ['service', 'm4', 'shotgun', 'tesla', 'm249', 'm82', 'm32'];

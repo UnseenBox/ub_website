@@ -17,6 +17,9 @@ import { buildFxTextures } from '../rendering/FxArt';
 import { buildAct3Textures } from '../rendering/Act3Art';
 import { buildAct4Textures } from '../rendering/Act4Art';
 import { portal } from '../portal/Portal';
+import { CRAZY } from '../portal/flags';
+import { MISSIONS } from '../data/missions';
+import { completionPercent } from '../systems/Campaign';
 import { loadGameFonts } from '../ui/fonts';
 import { buildLocationTextures } from '../rendering/LocationArt';
 import { buildWeaponTextures } from '../rendering/WeaponArt';
@@ -30,6 +33,8 @@ import { buildValleyMap } from '../rendering/ValleyMap';
 
 /** The creature part atlases, by file path. */
 const puppetAtlases = import.meta.glob('../assets/puppets/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+/** The longest the loading screen waits for the CrazyGames SDK. */
+const SDK_WAIT_MS = 5000;
 
 /** Paints every procedural texture and synthesizes the sound bank. */
 export class BootScene extends Phaser.Scene {
@@ -37,7 +42,21 @@ export class BootScene extends Phaser.Scene {
     super('Boot');
   }
 
+  /** A bar that fills as the pictures arrive, so a slow connection never sees a still screen. */
+  private showProgress(): void {
+    const w = 360, x = VIEW.centerX - w / 2, y = VIEW.height / 2 + 28;
+    const frame = this.add.rectangle(x, y, w, 10, 0x1c1d19).setOrigin(0, 0.5).setStrokeStyle(2, 0x55554a);
+    const fill = this.add.rectangle(x + 2, y, 0, 6, 0xd3a948).setOrigin(0, 0.5);
+    this.load.on('progress', (done: number) => { fill.width = (w - 4) * done; });
+    this.load.once('complete', () => {
+      frame.destroy();
+      fill.destroy();
+    });
+  }
+
   preload(): void {
+    portal.loadingStart();
+    this.showProgress();
     // Supplied bitmaps; everything else is generated below.
     this.load.image('view_service_photo', m1aViewUrl);
     this.load.image('view_m4_photo', m4ViewUrl);
@@ -55,13 +74,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    portal.loadingStart();
     const t = this.add.text(VIEW.centerX, VIEW.height / 2, 'ESTABLISHING PERIMETER…', {
       fontFamily: '"Saira", sans-serif', fontSize: '18px', color: '#9a9a86',
     }).setOrigin(0.5);
     // let the loading text render before the heavy synchronous work
     // The fonts are loaded before any text or canvas label is drawn, so none falls back.
-    void loadGameFonts().then(() => this.time.delayedCall(40, () => {
+    void Promise.all([loadGameFonts(), portal.settled(SDK_WAIT_MS)]).then(() => this.time.delayedCall(40, () => {
       const t0 = performance.now();
       buildEnvironmentTextures(this);
       buildValleyMap(this);
@@ -93,8 +111,12 @@ export class BootScene extends Phaser.Scene {
       console.info(`[fogline] assets generated in ${Math.round(performance.now() - t0)} ms`);
       audio.setVolumes(profile.get().volumes);
       t.destroy();
+      portal.reportCompleted(completionPercent(profile.get()));
       portal.loadingStop();
-      this.scene.start('Menu');
+      // On CrazyGames a new player lands straight in the first fight.
+      const fresh = !Object.values(profile.get().missions).some((r) => r.plays > 0);
+      if (CRAZY && fresh) this.scene.start('Game', { missionId: MISSIONS[0].id });
+      else this.scene.start('Menu');
     }));
   }
 }

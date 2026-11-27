@@ -1,3 +1,4 @@
+import { RETIRED_ENEMIES } from '../data/enemies';
 // The retention part of the profile: daily drop, contracts, depot, Fog Surge,
 // Last Stand, Field Notes and mastery. Kept apart from Profile.ts so the save
 // format stays readable; Profile stores it under `meta`.
@@ -107,11 +108,13 @@ export function parseMeta(raw: unknown): MetaData {
     for (const c of daily.contracts.slice(0, 5)) {
       const o = obj(c);
       if (typeof o.kind !== 'string') continue;
+      // A contract on a monster that has since been taken out moves to the one in its place.
+      const param = typeof o.param === 'string' ? (o.kind === 'enemy' ? RETIRED_ENEMIES[o.param] ?? o.param : o.param) : undefined;
       const target = int(o.target, 1);
       const progress = int(o.progress, 0, target);
       m.daily.contracts.push({
         kind: o.kind as ContractKind,
-        param: typeof o.param === 'string' ? o.param : undefined,
+        param,
         target, progress, reward: int(o.reward), done: o.done === true || progress >= target,
       });
     }

@@ -193,7 +193,7 @@ export class SupportSystem {
       const t = this.nukeBlastT;
       const p = project(0, 75);
       // stem and expanding cap built from smoke and fire bursts
-      if (t < 3.5 && Math.random() < 0.9) {
+      if (t < 3.5 && Math.random() < dt * 54) {
         const rise = Math.min(1, t / 2.2);
         const capY = p.sy - 40 - rise * 200;
         this.fx.fireBurst(p.sx + (Math.random() - 0.5) * 40, p.sy - Math.random() * (p.sy - capY), 0.9, 1);

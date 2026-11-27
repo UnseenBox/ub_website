@@ -22,7 +22,7 @@ export interface MissionRecord {
 export interface ProfileData {
   version: 2;
   volumes: { master: number; sfx: number; music: number };
-  /** The first-time briefing has been shown or skipped. */
+  /** From older saves. The briefing it recorded is gone. */
   tutorialSeen: boolean;
   bestKills: number;
   /** Persistent currency for upgrades between missions. */
@@ -59,6 +59,7 @@ export interface ProfileData {
 export interface KeyValueStore {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem?(key: string): void;
 }
 
 export const PROFILE_KEY = 'fogline.profile.v2';
@@ -229,6 +230,8 @@ function read(store: KeyValueStore | null, key: string): string | null {
 export class ProfileStore {
   private data: ProfileData | null = null;
   private cloud: KeyValueStore | null = null;
+  /** True once the portal's store has taken over as the save. */
+  private localOff = false;
 
   constructor(private readonly local: () => KeyValueStore | null = safeLocalStorage) {}
 
@@ -248,11 +251,34 @@ export class ProfileStore {
     const d = this.get();
     d.savedAt = Date.now();
     const raw = JSON.stringify(d);
-    for (const store of [this.local(), this.cloud]) {
+    for (const store of [this.localOff ? null : this.local(), this.cloud]) {
       try {
         store?.setItem(PROFILE_KEY, raw);
       } catch {
         /* storage unavailable: progress lives for this session only */
+      }
+    }
+  }
+
+  /**
+   * Makes the portal's data store the only save, as CrazyGames asks: it keeps a guest's
+   * progress itself and swaps in the account's on signing in, so a second copy here would
+   * leak one player's progress into another's. Progress saved before is carried over, and the
+   * local copy is dropped only once the store is seen to hold it.
+   */
+  moveTo(store: KeyValueStore): void {
+    const remote = parseProfile(read(store, PROFILE_KEY));
+    if (remote) this.data = remote;
+    this.cloud = store;
+    this.save();
+    if (read(store, PROFILE_KEY) === null) return;
+    const local = this.local();
+    this.localOff = true;
+    for (const key of [PROFILE_KEY, LEGACY_KEY]) {
+      try {
+        local?.removeItem?.(key);
+      } catch {
+        /* nothing to tidy */
       }
     }
   }
@@ -273,6 +299,7 @@ export class ProfileStore {
   reset(): void {
     this.data = null;
     this.cloud = null;
+    this.localOff = false;
   }
 
   private loadLocal(): ProfileData {

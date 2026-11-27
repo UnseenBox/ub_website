@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CRAZY } from '../portal/flags';
 import { backdrop } from '../rendering/Margins';
 import { VIEW } from '../game/config';
 import { DEPTH } from '../game/depths';
@@ -9,6 +10,8 @@ type Emitter = Phaser.GameObjects.Particles.ParticleEmitter;
 type EmitterConfig = Phaser.Types.GameObjects.Particles.ParticleEmitterConfig;
 
 const BANDS = [0.1, 0.17, 0.28, 0.45, 0.7, 1.05, 1.5];
+/** CrazyGames is played from 13 up: there the wounds spill the same black ink the dead sink into. */
+const INK = [0x050404, 0x0e0b0a];
 
 /**
  * A particle effect authored at near-camera scale, instanced at fixed
@@ -78,14 +81,14 @@ export class Fx {
     });
     this.blood = mk('dot', {
       speed: { min: 60, max: 300 }, angle: { min: 195, max: 345 }, gravityY: 760, lifespan: { min: 260, max: 640 },
-      scale: { start: 0.7, end: 0.25 }, tint: [0x5a0806, 0x7a120c, 0x3d0504], alpha: { start: 1, end: 0.6 },
+      scale: { start: 0.7, end: 0.25 }, tint: CRAZY ? INK : [0x5a0806, 0x7a120c, 0x3d0504], alpha: { start: 1, end: 0.6 },
     });
     this.gore = mk('chunk_0', {
       speed: { min: 90, max: 330 }, angle: { min: 205, max: 335 }, gravityY: 950, lifespan: { min: 400, max: 800 },
-      scale: { min: 0.7, max: 1.3 }, rotate: { min: 0, max: 360 }, tint: [0x4a0806, 0x5d1410, 0x7a5a50],
+      scale: { min: 0.7, max: 1.3 }, rotate: { min: 0, max: 360 }, tint: CRAZY ? INK : [0x4a0806, 0x5d1410, 0x7a5a50],
     });
     this.mist = mk('smoke_0', {
-      speed: { min: 10, max: 60 }, lifespan: 520, scale: { start: 0.35, end: 1.3 }, alpha: { start: 0.55, end: 0 }, tint: 0x6a0c0a,
+      speed: { min: 10, max: 60 }, lifespan: 520, scale: { start: 0.35, end: 1.3 }, alpha: { start: 0.55, end: 0 }, tint: CRAZY ? 0x14100e : 0x6a0c0a,
     });
     this.dust = mk('smoke_1', {
       speed: { min: 10, max: 50 }, angle: { min: 230, max: 310 }, lifespan: { min: 500, max: 900 },

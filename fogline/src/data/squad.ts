@@ -39,7 +39,7 @@ export const RECRUITS: RecruitDef[] = [
     id: 'mara',
     name: 'Mara Ilic',
     role: 'sniper',
-    description: 'Sniper. Slow, deadly shots at the farthest threat. Spitters and Howlers first.',
+    description: 'Sniper. Slow, deadly shots at the farthest threat. Spitters and Screamers first.',
     power: 170,
     interval: 2.6,
     range: 75,

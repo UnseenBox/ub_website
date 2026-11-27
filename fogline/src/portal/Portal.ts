@@ -8,9 +8,10 @@
 import { audio } from '../audio/AudioManager';
 import type { KeyValueStore } from '../systems/Profile';
 import { midgameAllowed, rewardAllowed, rewardWait } from './adRules';
+import { PORTAL, setDeviceKind } from './flags';
 
-/** The portal this build targets: '' (website, itch.io) or 'crazygames'. */
-export const PORTAL: string = import.meta.env.VITE_PORTAL ?? '';
+export { PORTAL };
+
 /** Ad breaks and rewarded ads only when the build switches them on (Full Launch). */
 export const ADS_ON: boolean = import.meta.env.VITE_ADS === 'on';
 
@@ -36,10 +37,14 @@ export interface CrazySdk {
     gameplayStart(): void;
     gameplayStop(): void;
     happytime(): void;
+    reportGameCompletedPercentage?(percent: number): void;
+    setGameContext?(context: Record<string, unknown>): void;
+    clearGameContext?(): void;
     readonly settings?: { readonly muteAudio?: unknown } | null;
     addSettingsChangeListener?(fn: () => void): void;
   };
   readonly ad: { requestAd(type: 'midgame' | 'rewarded', callbacks?: AdCallbacks): void };
+  readonly user?: { readonly systemInfo?: { readonly device?: { readonly type?: unknown } | null } | null } | null;
   /** The data module: the localStorage shape, saved to the cloud for signed-in players. */
   readonly data?: KeyValueStore | null;
 }
@@ -87,10 +92,25 @@ export class Portal {
   private muteWatcher: ((muted: boolean) => void) | null = null;
   /** Ads switched on for a test SDK (development only). */
   private forceAds = false;
+  /** Resolves once the SDK has started, or has been given up on. */
+  private readonly attempt: Promise<void>;
+  private settle: () => void = () => undefined;
+  private completed: number | null = null;
   /** Called once with the SDK's cloud data store (the profile merges itself into it). */
   onCloud: ((store: KeyValueStore) => void) | null = null;
 
-  constructor(private readonly cfg: PortalConfig = { portal: PORTAL, adsOn: ADS_ON }) {}
+  constructor(private readonly cfg: PortalConfig = { portal: PORTAL, adsOn: ADS_ON }) {
+    this.attempt = new Promise((resolve) => { this.settle = resolve; });
+  }
+
+  /**
+   * Waits for the SDK before the save is read, but never longer than `ms`: a blocked or slow
+   * SDK must not hold up the game.
+   */
+  settled(ms: number): Promise<void> {
+    if (!this.isCrazyGames) return Promise.resolve();
+    return Promise.race([this.attempt, new Promise<void>((resolve) => window.setTimeout(resolve, ms))]);
+  }
 
   get isCrazyGames(): boolean {
     return this.cfg.portal === 'crazygames';
@@ -114,6 +134,8 @@ export class Portal {
       if (sdk) await this.attach(sdk);
     } catch {
       this.sdk = null;
+    } finally {
+      this.settle();
     }
   }
 
@@ -133,6 +155,11 @@ export class Portal {
     if (sdk.environment !== 'local' && sdk.environment !== 'crazygames') return;
     this.sdk = sdk;
     try {
+      setDeviceKind(sdk.user?.systemInfo?.device?.type);
+    } catch {
+      /* the device is then guessed from the pointer */
+    }
+    try {
       if (this.ready) {
         sdk.game.loadingStart();
         sdk.game.loadingStop();
@@ -149,6 +176,19 @@ export class Portal {
         /* the local save carries on */
       }
     }
+    if (this.completed !== null) this.reportCompleted(this.completed);
+    this.settle();
+  }
+
+  /** How much of the campaign is won, 0 to 100. */
+  reportCompleted(percent: number): void {
+    this.completed = Math.max(0, Math.min(100, Math.round(percent)));
+    this.call(() => this.sdk?.game.reportGameCompletedPercentage?.(this.completed!));
+  }
+
+  /** What the player is doing, attached to any feedback they send. Null once it no longer applies. */
+  context(info: Record<string, unknown> | null): void {
+    this.call(() => (info ? this.sdk?.game.setGameContext?.(info) : this.sdk?.game.clearGameContext?.()));
   }
 
   /** Development only: plug in a stand-in SDK (with ads) to try the ad flows without the portal. */

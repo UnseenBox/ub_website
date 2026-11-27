@@ -68,7 +68,7 @@ const CASH_W = 138;
 
 /** The battle screen: a flat bar of what the mission offers, health and cash, and short messages over the field. */
 export class HUD {
-  /** Where each offered slot sits (the training briefing rings them). */
+  /** Where each offered slot sits. */
   readonly slots: HudSlots;
   private weaponSlots: Slot[] = [];
   private modSlots: Slot[] = [];

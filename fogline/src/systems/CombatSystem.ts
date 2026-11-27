@@ -238,7 +238,7 @@ export class CombatSystem {
       }
     }
     for (const z of this.enemies.live) {
-      if (z.headless && z.state === 'dying' && Math.random() < 0.6) {
+      if (z.headless && z.state === 'dying' && Math.random() < dt * 36) {
         z.headScreen(tmp);
         this.fx.neckSpurt(tmp.x, tmp.y + 6 * z.scale, z.scale);
       }

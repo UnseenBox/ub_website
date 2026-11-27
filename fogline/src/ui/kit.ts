@@ -65,11 +65,18 @@ export interface TextStyle {
   shadow?: number;
 }
 
+/**
+ * The smallest text drawn, in game pixels: still readable on CrazyGames' smallest frame,
+ * 800 × 450, where the 1280-wide design is shown at five eighths.
+ */
+export const MIN_TEXT = 17;
+export const readable = (size: number): number => Math.max(size, MIN_TEXT);
+
 /** Plain text in one of the three faces. Origin is top left unless set. */
 export function text(scene: Phaser.Scene, x: number, y: number, s: string, st: TextStyle): Phaser.GameObjects.Text {
   const t = scene.add.text(x, y, s, {
     fontFamily: st.font ?? MONO,
-    fontSize: `${st.size}px`,
+    fontSize: `${readable(st.size)}px`,
     color: css(st.color ?? C.text),
     fontStyle: st.bold ? 'bold' : 'normal',
     align: st.align ?? 'left',

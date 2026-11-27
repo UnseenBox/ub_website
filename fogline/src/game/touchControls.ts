@@ -1,6 +1,7 @@
 // Phone touch helpers: an aim stick on the left, firing on the right. Only the stick
 // moves the crosshair, so the firing thumb can never disturb the aim.
 
+import { isDesktop, isHandheld } from '../portal/flags';
 import { VIEW } from './config';
 import { SCREEN, edgeShift } from './screen';
 
@@ -114,9 +115,9 @@ export function touchButtonAt(x: number, y: number, deployVisible: boolean): Tou
 
 /** True on phones/tablets (coarse primary pointer) or once a touch has been seen. */
 export function isTouchDevice(): boolean {
-  if (typeof document === 'undefined') return false;
+  if (typeof document === 'undefined' || isDesktop()) return false;
   if (document.body.classList.contains('touched')) return true;
-  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  return isHandheld();
 }
 
 /** Button label with its keyboard shortcut, dropped on touch devices that have no keyboard. */

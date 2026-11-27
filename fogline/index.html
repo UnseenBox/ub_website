@@ -25,6 +25,8 @@
       }
       body {
         -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
         user-select: none;
         -webkit-touch-callout: none;
       }
@@ -55,6 +57,19 @@
         text-align: center;
       }
 
+      #boot-hint {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        color: #e0e6c0;
+        font-family: "Saira Stencil One", sans-serif;
+        font-size: clamp(28px, 7vw, 72px);
+        letter-spacing: 0.06em;
+      }
+
       @media (orientation: portrait) and (pointer: coarse) {
         #rotate-hint { display: flex; }
       }
@@ -62,6 +77,8 @@
   </head>
   <body>
     <div id="game"></div>
+    <!-- Shown until the game draws its first frame, so the page is never just black. -->
+    <div id="boot-hint">FOG LINE</div>
     <div id="rotate-hint" aria-hidden="true">ROTATE TO LANDSCAPE</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -8,6 +8,7 @@ import { backdrop } from '../rendering/Margins';
 import { VIEW } from './config';
 import type { GameScene } from './GameScene';
 import { isTouchDevice } from './touchControls';
+import { CRAZY } from '../portal/flags';
 
 /** Pause overlay with volume controls, fullscreen, restart and quit. */
 export class PauseScene extends Phaser.Scene {
@@ -19,7 +20,8 @@ export class PauseScene extends Phaser.Scene {
     const game = this.scene.get('Game') as GameScene;
     this.input.setDefaultCursor('default');
     backdrop(this, 0x000000, 0.65).setInteractive();
-    const W = 460, H = 560, x0 = (VIEW.width - W) / 2, y0 = (VIEW.height - H) / 2;
+    // CrazyGames supplies full screen itself, so its build has one button fewer.
+    const W = 460, H = CRAZY ? 500 : 560, x0 = (VIEW.width - W) / 2, y0 = (VIEW.height - H) / 2;
     box(this, x0, y0, W, H, C.night, C.lineStrong);
     icon(this, 'pause', VIEW.centerX - 96, y0 + 40, 34, C.text);
     text(this, VIEW.centerX + 16, y0 + 40, 'PAUSED', { size: 40, font: STENCIL, color: C.title }).setOrigin(0.5);
@@ -53,10 +55,13 @@ export class PauseScene extends Phaser.Scene {
     const touch = isTouchDevice();
     const wide = 340;
     const at = (i: number): number => y0 + 268 + i * 60;
-    pushButton(this, VIEW.centerX, at(0), { w: wide, h: 52, size: 26, icon: 'play', label: 'RESUME', key: touch ? undefined : 'ESC', tone: 'go', onClick: () => this.resume() });
+    pushButton(this, VIEW.centerX, at(0), { w: wide, h: 52, size: 26, icon: 'play', label: 'RESUME', key: touch ? undefined : 'P', tone: 'go', onClick: () => this.resume() });
     pushButton(this, VIEW.centerX, at(1), { w: wide, h: 48, size: 22, icon: 'radio', label: 'RADIO LOG', tone: 'brass', onClick: () => logPanel.setVisible(true) });
-    pushButton(this, VIEW.centerX, at(2), { w: wide, h: 48, size: 22, icon: 'plus', label: 'FULLSCREEN', key: touch ? undefined : 'F', onClick: () => toggleFullscreen(this) });
-    pushButton(this, VIEW.centerX, at(3), {
+    if (!CRAZY) {
+      pushButton(this, VIEW.centerX, at(2), { w: wide, h: 48, size: 22, icon: 'plus', label: 'FULLSCREEN', key: touch ? undefined : 'F', onClick: () => toggleFullscreen(this) });
+    }
+    const last = CRAZY ? 2 : 3;
+    pushButton(this, VIEW.centerX, at(last), {
       w: wide, h: 48, size: 22, icon: 'replay', label: 'RESTART', onClick: () => {
         const missionId = game.mission.id;
         this.scene.stop();
@@ -64,16 +69,18 @@ export class PauseScene extends Phaser.Scene {
         this.scene.start('Game', { missionId });
       },
     });
-    pushButton(this, VIEW.centerX, at(4) - 4, {
+    pushButton(this, VIEW.centerX, at(last + 1) - 4, {
       w: wide, h: 44, size: 20, icon: 'home', label: 'QUIT', onClick: () => {
         this.scene.stop('Game');
         this.scene.start('Menu');
       },
     });
 
-    this.input.keyboard!.on('keydown-ESC', () => this.resume());
+    // The Escape that opened this menu (by freeing the mouse) must not close it again at once.
+    const opened = this.time.now;
+    this.input.keyboard!.on('keydown-ESC', () => { if (this.time.now - opened > 250) this.resume(); });
     this.input.keyboard!.on('keydown-P', () => this.resume());
-    this.input.keyboard!.on('keydown-F', () => toggleFullscreen(this));
+    if (!CRAZY) this.input.keyboard!.on('keydown-F', () => toggleFullscreen(this));
   }
 
   private resume(): void {

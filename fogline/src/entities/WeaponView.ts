@@ -40,7 +40,7 @@ export class WeaponView {
     this.flashLight = scene.add.image(0, 0, 'glow').setDepth(DEPTH.muzzle - 1).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.cross = scene.add.graphics().setDepth(DEPTH.crosshair);
     this.reloadText = scene.add.text(0, 0, 'RELOADING', {
-      fontFamily: '"Saira", sans-serif', fontSize: '12px', color: '#e8d890', stroke: '#000', strokeThickness: 3,
+      fontFamily: '"Saira", sans-serif', fontSize: '17px', color: '#e8d890', stroke: '#000', strokeThickness: 3,
     }).setOrigin(0.5, 0).setDepth(DEPTH.crosshair).setVisible(false);
   }
 
@@ -224,6 +224,13 @@ export class WeaponView {
   private screenToWorld(x: number, y: number): [number, number] {
     const k = this.cameraZoom;
     return [VIEW.centerX + (x - VIEW.centerX) / k, VIEW.height / 2 + (y - VIEW.height / 2) / k];
+  }
+
+  /** Through a scope only the sight shows: the gun and its flash step out of the picture. */
+  hideGun(): void {
+    this.gun.setVisible(false);
+    this.flash.setVisible(false);
+    this.flashLight.setVisible(false);
   }
 
   setVisible(v: boolean): void {

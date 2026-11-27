@@ -26,7 +26,7 @@ export const MODS: ModDef[] = [
   },
   {
     id: 'ap', key: '6', name: 'Armour-Piercing', short: 'AP', price: 300, duration: 25, maxCharges: 5,
-    color: 0x9fb4c8, icon: 'icon_mod_ap', description: 'Tungsten-core rounds ignore body armour for 25 s. Riot Husks fold.',
+    color: 0x9fb4c8, icon: 'icon_mod_ap', description: 'Tungsten-core rounds ignore armour for 25 s. Bone plate and thick hide fold.',
   },
   {
     id: 'fire', key: '7', name: 'Incendiary', short: 'FIRE', price: 300, duration: 20, maxCharges: 5,

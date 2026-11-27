@@ -64,8 +64,8 @@ describe('Act 3 content', () => {
     expect(isMissionUnlocked(q, 'a3m1')).toBe(true);
   });
 
-  it('a Ravager bursts into Fogborn, and the Heart holds back and spits', () => {
-    expect(ENEMIES.ravager.special?.burstInto?.id).toBe('fogborn');
+  it('a Ravager bursts into Stalkers, and the Heart holds back and spits', () => {
+    expect(ENEMIES.ravager.special?.burstInto?.id).toBe('stalker');
     const heart = ENEMIES.heart;
     expect(heart.special?.ranged?.stopRange[0]).toBeGreaterThan(heart.boss!.stopZ);
   });
@@ -183,10 +183,10 @@ describe('playtest numbers', () => {
 });
 
 describe('last stand with Act 3 enemies', () => {
-  it('brings Fogborn and Ravagers late, once they have been met', () => {
-    const met = new Set(['shambler', 'runner', 'crawler', 'brute', 'plated', 'carrier', 'fogborn', 'ravager']);
-    expect(endlessWave(10, met).groups.some((g) => g.enemy === 'fogborn')).toBe(false);
-    expect(endlessWave(12, met).groups.some((g) => g.enemy === 'fogborn')).toBe(true);
+  it('brings Stalkers and Ravagers late, once they have been met', () => {
+    const met = new Set(['shambler', 'hollow_hound', 'brute', 'wraith', 'pumpkin_brood', 'stalker', 'ravager']);
+    expect(endlessWave(7, met).groups.some((g) => g.enemy === 'stalker')).toBe(false);
+    expect(endlessWave(8, met).groups.some((g) => g.enemy === 'stalker')).toBe(true);
     expect(endlessWave(16, met).groups.some((g) => g.enemy === 'ravager')).toBe(true);
     expect(endlessWave(16, new Set(['shambler'])).groups.some((g) => g.enemy === 'ravager')).toBe(false);
   });

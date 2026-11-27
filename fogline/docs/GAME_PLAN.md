@@ -401,8 +401,9 @@ Each phase ships on its own and should move a metric.
 
 Status: built (24 Nov 2026). Act 1 has 9 missions: Hold, Protect (relay mast, fuel depot), Evacuate
 (bus convoys) and the Colossus boss, across three locations (Harlow farm, Orchard road, Millbrook
-station). Workshop covers every weapon plus the bunker. The 13-step briefing stays available from the
-menu as Training; campaign players get one-time control hints and Dr. Varga's intro per new enemy.
+station). Workshop covers every weapon plus the bunker. Campaign players get one-time control hints
+and Dr. Varga's intro per new enemy. The Training run and its typed briefing were removed on
+26 Nov 2026: the first mission teaches by doing.
 
 
 - Valley Map scene with fog retreat animation and Act 1's 9 nodes.
@@ -484,10 +485,21 @@ off (Basic Launch blocks them) until `VITE_ADS=on` for Full Launch. The eight bo
 (11.3 MB → 2 MB); the build is 8.9 MB, of which 5.4 MB is audio that loads after the menu appears.
 Still to do by hand: run the build on the CrazyGames developer portal's QA tool and submit it.
 
+Update (26 Nov 2026): checked again against the Basic Launch documentation. The CrazyGames build now
+takes the device type from the SDK, uses the data module as the only save, reports completion and game
+context, has no fullscreen controls, locks the mouse during desktop missions, replaces red blood with
+ink, starts new players in mission 1, and keeps text readable at 800×450. The submission package
+(game, covers, preview videos, listing text and checklist) was made as `Fogline-CrazyGames.zip`.
+
 - Portal integration adapted from `crazy-goal` (§12): gameplay events, happytime,
   midgame and rewarded ads, `--mode crazygames` build.
 - Cloud save: `Profile.attachCloud()` already merges a cloud copy; hook it to the SDK
   data module.
+
+Update (26 Nov 2026): only monsters made from supplied pictures remain. The drawn ones (Sprinter,
+Crawler, Riot Husk, Bloater, Howler, Sapper, Juggernaut, Fogborn, Sporeling) are gone; `RETIRED_ENEMIES`
+in `data/enemies.ts` says which picture monster took each one's place. The Choir wears the Screamer's
+picture. Brutes and Crimson Brutes are the armoured ones. The phase notes below name the old monsters.
 
 ### Phase 6 — Act 4 "The Fog Returns" (added 26 Nov 2026, after the user chose more content)
 

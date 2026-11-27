@@ -1,6 +1,5 @@
 // Where the battle HUD's slots sit. Only the items a mission offers get a slot, so the bar
-// starts nearly empty and fills as the campaign unlocks things. Pure, so it is unit-tested
-// and the training briefing can ring the same places.
+// starts nearly empty and fills as the campaign unlocks things. Pure, so it is unit-tested.
 
 import { VIEW } from '../game/config';
 

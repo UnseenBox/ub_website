@@ -7,7 +7,7 @@ import { ENEMIES } from './enemies';
 import type { LocationId } from './locations';
 import type { RecruitId } from './squad';
 import type { DefenseId, ModId, SupportId } from './upgrades';
-import { WAVES, WaveDef, newEnemiesInWave } from './waves';
+import { WaveDef, newEnemiesInWave } from './waves';
 
 /** Gear the player can own and bring into a mission, named like the shop items. */
 export type GearId = `mod:${ModId}` | `support:${SupportId}` | `defense:${DefenseId}`;
@@ -127,16 +127,16 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Movement', speedMul: 1, healthMul: 1, groups: [
         { enemy: 'shambler', count: 14, delay: 0, interval: 2.0 },
-        { enemy: 'runner', count: 3, delay: 12, interval: 6 },
+        { enemy: 'hollow_hound', count: 1, delay: 12, interval: 18 },
       ] },
       { name: 'Fast Movers', speedMul: 1.02, healthMul: 1.02, groups: [
         { enemy: 'shambler', count: 16, delay: 0, interval: 1.8 },
-        { enemy: 'runner', count: 6, delay: 8, interval: 4 },
+        { enemy: 'hollow_hound', count: 2, delay: 8, interval: 12 },
       ] },
       { name: 'Stampede', speedMul: 1.03, healthMul: 1.03, groups: [
         { enemy: 'shambler', count: 18, delay: 0, interval: 1.6 },
-        { enemy: 'runner', count: 6, delay: 6, interval: 3.4 },
-        { enemy: 'runner', count: 6, delay: 34, interval: 0.6, burst: 2 },
+        { enemy: 'hollow_hound', count: 2, delay: 6, interval: 10.2 },
+        { enemy: 'hollow_hound', count: 2, delay: 34, interval: 1.8, burst: 2 },
       ] },
     ],
     issue: { weapons: ['m4'], gear: [] },
@@ -157,17 +157,17 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Ground Level', speedMul: 1.02, healthMul: 1.03, groups: [
         { enemy: 'shambler', count: 14, delay: 0, interval: 1.9 },
-        { enemy: 'crawler', count: 6, delay: 10, interval: 2.2, burst: 2 },
+        { enemy: 'shambler', count: 2, delay: 10, interval: 6.6, burst: 2 },
       ] },
-      { name: 'Crawl Space', speedMul: 1.03, healthMul: 1.04, groups: [
+      { name: 'Close Quarters', speedMul: 1.03, healthMul: 1.04, groups: [
         { enemy: 'shambler', count: 16, delay: 0, interval: 1.7 },
-        { enemy: 'runner', count: 5, delay: 8, interval: 4 },
-        { enemy: 'crawler', count: 8, delay: 14, interval: 1.8, burst: 2 },
+        { enemy: 'hollow_hound', count: 2, delay: 8, interval: 10 },
+        { enemy: 'shambler', count: 3, delay: 14, interval: 4.8, burst: 2 },
       ] },
       { name: 'Static', speedMul: 1.04, healthMul: 1.05, groups: [
         { enemy: 'shambler', count: 18, delay: 0, interval: 1.5 },
-        { enemy: 'runner', count: 6, delay: 6, interval: 3.4 },
-        { enemy: 'crawler', count: 10, delay: 12, interval: 1.6, burst: 2 },
+        { enemy: 'hollow_hound', count: 2, delay: 6, interval: 10.2 },
+        { enemy: 'shambler', count: 4, delay: 12, interval: 4, burst: 2 },
       ] },
     ],
     issue: { weapons: [], gear: ['support:gunship'] },
@@ -188,18 +188,18 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Boarding', speedMul: 1.03, healthMul: 1.05, groups: [
         { enemy: 'shambler', count: 16, delay: 0, interval: 1.7 },
-        { enemy: 'runner', count: 4, delay: 10, interval: 4.5 },
+        { enemy: 'hollow_hound', count: 2, delay: 10, interval: 9 },
         { enemy: 'brute', count: 1, delay: 20, interval: 1 },
       ] },
       { name: 'Giants in the Fog', speedMul: 1.04, healthMul: 1.06, groups: [
         { enemy: 'shambler', count: 18, delay: 0, interval: 1.5 },
-        { enemy: 'runner', count: 6, delay: 6, interval: 3.6 },
-        { enemy: 'crawler', count: 6, delay: 14, interval: 2, burst: 2 },
+        { enemy: 'hollow_hound', count: 2, delay: 6, interval: 10.8 },
+        { enemy: 'shambler', count: 2, delay: 14, interval: 6, burst: 2 },
         { enemy: 'brute', count: 2, delay: 12, interval: 22 },
       ] },
       { name: 'Last Seats', speedMul: 1.05, healthMul: 1.07, groups: [
         { enemy: 'shambler', count: 20, delay: 0, interval: 1.4 },
-        { enemy: 'runner', count: 8, delay: 5, interval: 3 },
+        { enemy: 'hollow_hound', count: 3, delay: 5, interval: 8 },
         { enemy: 'brute', count: 2, delay: 10, interval: 20 },
       ] },
     ],
@@ -216,22 +216,22 @@ export const MISSIONS: MissionDef[] = [
     map: { x: 320, y: 300 },
   },
   {
-    id: 'a1m5', act: 1, number: 5, name: 'Riot Line', location: 'orchard', place: 'Orchard road, east gate',
+    id: 'a1m5', act: 1, number: 5, name: 'Smoke Line', location: 'orchard', place: 'Orchard road, east gate',
     objective: hold, threat: 24, startCash: 800,
     waves: [
       { name: 'Shields Up', speedMul: 1.04, healthMul: 1.07, groups: [
         { enemy: 'shambler', count: 18, delay: 0, interval: 1.5 },
-        { enemy: 'plated', count: 3, delay: 8, interval: 7 },
+        { enemy: 'wraith', count: 3, delay: 8, interval: 7 },
       ] },
-      { name: 'Riot Line', speedMul: 1.05, healthMul: 1.08, groups: [
+      { name: 'Smoke Line', speedMul: 1.05, healthMul: 1.08, groups: [
         { enemy: 'shambler', count: 20, delay: 0, interval: 1.3 },
-        { enemy: 'plated', count: 5, delay: 6, interval: 5.5 },
-        { enemy: 'runner', count: 6, delay: 12, interval: 3 },
+        { enemy: 'wraith', count: 5, delay: 6, interval: 5.5 },
+        { enemy: 'hollow_hound', count: 2, delay: 12, interval: 9 },
       ] },
       { name: 'Breach', speedMul: 1.06, healthMul: 1.09, groups: [
         { enemy: 'shambler', count: 22, delay: 0, interval: 1.2 },
-        { enemy: 'plated', count: 6, delay: 6, interval: 4.6 },
-        { enemy: 'crawler', count: 10, delay: 14, interval: 1.6, burst: 2 },
+        { enemy: 'wraith', count: 6, delay: 6, interval: 4.6 },
+        { enemy: 'shambler', count: 4, delay: 14, interval: 4, burst: 2 },
         { enemy: 'brute', count: 1, delay: 20, interval: 1 },
       ] },
     ],
@@ -240,7 +240,7 @@ export const MISSIONS: MissionDef[] = [
     supplies: 220,
     firstClear: { weapons: [], gear: ['mod:ap', 'mod:fire', 'defense:wall'] },
     brief: [
-      { who: 'VARGA', text: 'Dead riot police in body armour. Shoot the visor, or press 6 to load armour-piercing.' },
+      { who: 'VARGA', text: 'Wraiths. They drift in wrapped in their own smoke. Shoot early, and aim high.' },
     ],
     debrief: [
       { who: 'VARGA', text: 'Did you see that? The fog pulled back when they fell. It reacted.' },
@@ -255,19 +255,19 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Fuel Run', speedMul: 1.05, healthMul: 1.09, groups: [
         { enemy: 'shambler', count: 20, delay: 0, interval: 1.3 },
-        { enemy: 'runner', count: 8, delay: 6, interval: 3 },
-        { enemy: 'plated', count: 3, delay: 12, interval: 6 },
+        { enemy: 'hollow_hound', count: 3, delay: 6, interval: 8 },
+        { enemy: 'wraith', count: 3, delay: 12, interval: 6 },
       ] },
       { name: 'Pressure', speedMul: 1.06, healthMul: 1.1, groups: [
         { enemy: 'shambler', count: 24, delay: 0, interval: 1.1 },
-        { enemy: 'runner', count: 8, delay: 4, interval: 2.6 },
-        { enemy: 'crawler', count: 12, delay: 10, interval: 1.5, burst: 3 },
+        { enemy: 'hollow_hound', count: 3, delay: 4, interval: 6.9 },
+        { enemy: 'shambler', count: 5, delay: 10, interval: 3.6, burst: 3 },
         { enemy: 'brute', count: 2, delay: 10, interval: 18 },
       ] },
       { name: 'Hot Zone', speedMul: 1.07, healthMul: 1.11, groups: [
         { enemy: 'shambler', count: 26, delay: 0, interval: 1.0 },
-        { enemy: 'plated', count: 5, delay: 8, interval: 4.5 },
-        { enemy: 'runner', count: 10, delay: 10, interval: 2.4 },
+        { enemy: 'wraith', count: 5, delay: 8, interval: 4.5 },
+        { enemy: 'hollow_hound', count: 4, delay: 10, interval: 6 },
         { enemy: 'brute', count: 2, delay: 14, interval: 16 },
       ] },
     ],
@@ -288,19 +288,19 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Swollen', speedMul: 1.06, healthMul: 1.11, groups: [
         { enemy: 'shambler', count: 22, delay: 0, interval: 1.2 },
-        { enemy: 'carrier', count: 2, delay: 6, interval: 12 },
-        { enemy: 'runner', count: 8, delay: 10, interval: 2.6 },
+        { enemy: 'pumpkin_brood', count: 1, delay: 6, interval: 24 },
+        { enemy: 'hollow_hound', count: 3, delay: 10, interval: 6.9 },
       ] },
       { name: 'Burst', speedMul: 1.07, healthMul: 1.12, groups: [
         { enemy: 'shambler', count: 24, delay: 0, interval: 1.0 },
-        { enemy: 'carrier', count: 3, delay: 4, interval: 9 },
-        { enemy: 'plated', count: 5, delay: 10, interval: 4.5 },
-        { enemy: 'crawler', count: 12, delay: 16, interval: 1.4, burst: 3 },
+        { enemy: 'pumpkin_brood', count: 1, delay: 4, interval: 27 },
+        { enemy: 'wraith', count: 5, delay: 10, interval: 4.5 },
+        { enemy: 'shambler', count: 5, delay: 16, interval: 3.4, burst: 3 },
       ] },
       { name: 'Swollen Dead', speedMul: 1.08, healthMul: 1.13, groups: [
         { enemy: 'shambler', count: 28, delay: 0, interval: 0.9 },
-        { enemy: 'carrier', count: 4, delay: 4, interval: 8 },
-        { enemy: 'runner', count: 12, delay: 8, interval: 2 },
+        { enemy: 'pumpkin_brood', count: 2, delay: 4, interval: 16 },
+        { enemy: 'hollow_hound', count: 5, delay: 8, interval: 4.8 },
         { enemy: 'brute', count: 3, delay: 8, interval: 14 },
       ] },
     ],
@@ -309,7 +309,7 @@ export const MISSIONS: MissionDef[] = [
     supplies: 280,
     firstClear: { weapons: ['m32'], gear: ['mod:cryo'] },
     brief: [
-      { who: 'VARGA', text: 'Bloaters. Pop them far out: they burst into crawlers, and they explode on the wall.' },
+      { who: 'VARGA', text: 'Pumpkin Broods. They stop short and spit at the sandbags. Shoot them while the belly is still.' },
       { who: 'DOT', text: 'Grenade launcher on loan. Lob it into the crowds.' },
     ],
     debrief: [{ who: 'DOT', text: 'Keep the M32. And the cryo rounds: they slow anything you hit.' }],
@@ -322,15 +322,15 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Final Call', speedMul: 1.07, healthMul: 1.13, groups: [
         { enemy: 'shambler', count: 26, delay: 0, interval: 1.0 },
-        { enemy: 'runner', count: 10, delay: 4, interval: 2.4 },
-        { enemy: 'plated', count: 4, delay: 10, interval: 5 },
+        { enemy: 'hollow_hound', count: 4, delay: 4, interval: 6 },
+        { enemy: 'wraith', count: 4, delay: 10, interval: 5 },
         { enemy: 'brute', count: 2, delay: 12, interval: 16 },
       ] },
       { name: 'Everyone Out', speedMul: 1.08, healthMul: 1.14, groups: [
         { enemy: 'shambler', count: 30, delay: 0, interval: 0.9, burst: 2 },
-        { enemy: 'runner', count: 12, delay: 5, interval: 1.8 },
-        { enemy: 'carrier', count: 3, delay: 10, interval: 8 },
-        { enemy: 'crawler', count: 14, delay: 14, interval: 1.2, burst: 3 },
+        { enemy: 'hollow_hound', count: 5, delay: 5, interval: 4.3 },
+        { enemy: 'pumpkin_brood', count: 1, delay: 10, interval: 24 },
+        { enemy: 'shambler', count: 6, delay: 14, interval: 2.8, burst: 3 },
         { enemy: 'brute', count: 3, delay: 8, interval: 13 },
       ] },
     ],
@@ -354,15 +354,15 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Tremors', speedMul: 1.08, healthMul: 1.14, groups: [
         { enemy: 'shambler', count: 26, delay: 0, interval: 1.0 },
-        { enemy: 'runner', count: 10, delay: 4, interval: 2.2 },
-        { enemy: 'plated', count: 5, delay: 10, interval: 4.4 },
+        { enemy: 'hollow_hound', count: 4, delay: 4, interval: 5.5 },
+        { enemy: 'wraith', count: 5, delay: 10, interval: 4.4 },
         { enemy: 'brute', count: 2, delay: 10, interval: 15 },
       ] },
       { name: 'The Colossus', speedMul: 1.08, healthMul: 1.15, groups: [
         { enemy: 'colossus', count: 1, delay: 3, interval: 1 },
         { enemy: 'shambler', count: 30, delay: 0, interval: 1.4 },
-        { enemy: 'runner', count: 10, delay: 10, interval: 3 },
-        { enemy: 'crawler', count: 12, delay: 18, interval: 2, burst: 2 },
+        { enemy: 'hollow_hound', count: 4, delay: 10, interval: 7.5 },
+        { enemy: 'shambler', count: 5, delay: 18, interval: 4.8, burst: 2 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -388,18 +388,18 @@ export const MISSIONS: MissionDef[] = [
       { name: 'Main Street', speedMul: 1.08, healthMul: 1.14, groups: [
         { enemy: 'shambler', count: 24, delay: 0, interval: 1.1 },
         { enemy: 'spitter', count: 2, delay: 10, interval: 12 },
-        { enemy: 'runner', count: 8, delay: 8, interval: 2.4 },
+        { enemy: 'hollow_hound', count: 3, delay: 8, interval: 6.4 },
       ] },
       { name: 'Acid Rain', speedMul: 1.08, healthMul: 1.15, groups: [
         { enemy: 'shambler', count: 26, delay: 0, interval: 1.0 },
         { enemy: 'spitter', count: 4, delay: 6, interval: 8 },
-        { enemy: 'plated', count: 4, delay: 12, interval: 5 },
-        { enemy: 'crawler', count: 10, delay: 16, interval: 1.4, burst: 2 },
+        { enemy: 'wraith', count: 4, delay: 12, interval: 5 },
+        { enemy: 'shambler', count: 4, delay: 16, interval: 3.5, burst: 2 },
       ] },
       { name: 'Town Square', speedMul: 1.09, healthMul: 1.16, groups: [
         { enemy: 'shambler', count: 30, delay: 0, interval: 0.9 },
         { enemy: 'spitter', count: 4, delay: 4, interval: 7 },
-        { enemy: 'runner', count: 12, delay: 8, interval: 2 },
+        { enemy: 'hollow_hound', count: 5, delay: 8, interval: 4.8 },
         { enemy: 'brute', count: 2, delay: 12, interval: 16 },
       ] },
     ],
@@ -424,14 +424,14 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Growths', speedMul: 1.09, healthMul: 1.16, groups: [
         { enemy: 'shambler', count: 22, delay: 0, interval: 1.2 },
-        { enemy: 'howler', count: 2, delay: 10, interval: 14 },
-        { enemy: 'runner', count: 8, delay: 6, interval: 2.4 },
+        { enemy: 'carrion_screamer', count: 1, delay: 10, interval: 28 },
+        { enemy: 'hollow_hound', count: 3, delay: 6, interval: 6.4 },
       ] },
       { name: 'Choir Practice', speedMul: 1.1, healthMul: 1.17, groups: [
         { enemy: 'shambler', count: 26, delay: 0, interval: 1.0 },
-        { enemy: 'howler', count: 3, delay: 6, interval: 10 },
+        { enemy: 'carrion_screamer', count: 2, delay: 6, interval: 15 },
         { enemy: 'spitter', count: 3, delay: 12, interval: 8 },
-        { enemy: 'plated', count: 4, delay: 16, interval: 5 },
+        { enemy: 'wraith', count: 4, delay: 16, interval: 5 },
       ] },
     ],
     issue: { weapons: ['m82'], gear: [] },
@@ -451,19 +451,19 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Traffic', speedMul: 1.1, healthMul: 1.17, groups: [
         { enemy: 'shambler', count: 26, delay: 0, interval: 1.0 },
-        { enemy: 'sapper', count: 4, delay: 10, interval: 6 },
-        { enemy: 'runner', count: 10, delay: 6, interval: 2.2 },
+        { enemy: 'hollow_hound', count: 1, delay: 10, interval: 24 },
+        { enemy: 'hollow_hound', count: 4, delay: 6, interval: 5.5 },
       ] },
       { name: 'Live Wires', speedMul: 1.1, healthMul: 1.18, groups: [
         { enemy: 'shambler', count: 30, delay: 0, interval: 0.9, burst: 2 },
-        { enemy: 'sapper', count: 6, delay: 8, interval: 4.5 },
+        { enemy: 'hollow_hound', count: 2, delay: 8, interval: 13.5 },
         { enemy: 'spitter', count: 3, delay: 12, interval: 8 },
-        { enemy: 'plated', count: 4, delay: 16, interval: 5 },
+        { enemy: 'wraith', count: 4, delay: 16, interval: 5 },
       ] },
       { name: 'Pile-Up', speedMul: 1.11, healthMul: 1.19, groups: [
         { enemy: 'shambler', count: 32, delay: 0, interval: 0.8, burst: 2 },
-        { enemy: 'sapper', count: 6, delay: 6, interval: 4 },
-        { enemy: 'howler', count: 2, delay: 12, interval: 14 },
+        { enemy: 'hollow_hound', count: 2, delay: 6, interval: 12 },
+        { enemy: 'carrion_screamer', count: 1, delay: 12, interval: 28 },
         { enemy: 'brute', count: 2, delay: 14, interval: 16 },
       ] },
     ],
@@ -473,7 +473,7 @@ export const MISSIONS: MissionDef[] = [
     firstClear: { weapons: [], gear: [], recruits: ['mara'] },
     brief: [
       { who: 'HALE', text: 'A sniper has been holding the overpass alone for two days. Get her out.' },
-      { who: 'MARA', text: 'About time. I take the far ones, you take the close ones. Watch for the beeping ones.' },
+      { who: 'MARA', text: 'About time. I take the far ones, you take the close ones. Watch the hounds: they cover ground fast.' },
       { who: 'KESTREL', text: 'Dropping supply crates on the road. Shoot the chutes before the dead get them.' },
     ],
     debrief: [{ who: 'MARA', text: 'I owe you one, Warden. I will hold the side window.' }],
@@ -485,19 +485,19 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Lights Out', speedMul: 1.11, healthMul: 1.19, groups: [
         { enemy: 'shambler', count: 26, delay: 0, interval: 1.0 },
-        { enemy: 'runner', count: 12, delay: 4, interval: 2 },
+        { enemy: 'hollow_hound', count: 5, delay: 4, interval: 4.8 },
         { enemy: 'spitter', count: 3, delay: 10, interval: 8 },
       ] },
       { name: 'Eyes in the Dark', speedMul: 1.12, healthMul: 1.2, groups: [
         { enemy: 'shambler', count: 30, delay: 0, interval: 0.9 },
-        { enemy: 'sapper', count: 5, delay: 6, interval: 5 },
-        { enemy: 'howler', count: 2, delay: 10, interval: 14 },
-        { enemy: 'crawler', count: 14, delay: 14, interval: 1.2, burst: 3 },
+        { enemy: 'hollow_hound', count: 2, delay: 6, interval: 12.5 },
+        { enemy: 'carrion_screamer', count: 1, delay: 10, interval: 28 },
+        { enemy: 'shambler', count: 6, delay: 14, interval: 2.8, burst: 3 },
       ] },
       { name: 'Dawn', speedMul: 1.12, healthMul: 1.21, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.8, burst: 2 },
-        { enemy: 'runner', count: 14, delay: 4, interval: 1.8 },
-        { enemy: 'plated', count: 5, delay: 10, interval: 4.5 },
+        { enemy: 'hollow_hound', count: 6, delay: 4, interval: 4.2 },
+        { enemy: 'wraith', count: 5, delay: 10, interval: 4.5 },
         { enemy: 'brute', count: 2, delay: 14, interval: 15 },
       ] },
     ],
@@ -519,19 +519,19 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Mayday', speedMul: 1.12, healthMul: 1.21, groups: [
         { enemy: 'shambler', count: 28, delay: 0, interval: 1.0 },
-        { enemy: 'runner', count: 12, delay: 4, interval: 2 },
-        { enemy: 'sapper', count: 4, delay: 10, interval: 6 },
+        { enemy: 'hollow_hound', count: 5, delay: 4, interval: 4.8 },
+        { enemy: 'hollow_hound', count: 1, delay: 10, interval: 24 },
       ] },
       { name: 'Hold Them Off', speedMul: 1.13, healthMul: 1.22, groups: [
         { enemy: 'shambler', count: 32, delay: 0, interval: 0.9, burst: 2 },
         { enemy: 'spitter', count: 4, delay: 6, interval: 7 },
-        { enemy: 'howler', count: 2, delay: 10, interval: 14 },
-        { enemy: 'plated', count: 5, delay: 12, interval: 4.5 },
+        { enemy: 'carrion_screamer', count: 1, delay: 10, interval: 28 },
+        { enemy: 'wraith', count: 5, delay: 12, interval: 4.5 },
       ] },
       { name: 'Extraction', speedMul: 1.13, healthMul: 1.23, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.8, burst: 2 },
-        { enemy: 'runner', count: 14, delay: 4, interval: 1.6 },
-        { enemy: 'sapper', count: 6, delay: 8, interval: 4 },
+        { enemy: 'hollow_hound', count: 6, delay: 4, interval: 3.7 },
+        { enemy: 'hollow_hound', count: 2, delay: 8, interval: 12 },
         { enemy: 'brute', count: 3, delay: 10, interval: 13 },
       ] },
     ],
@@ -550,25 +550,25 @@ export const MISSIONS: MissionDef[] = [
     map: { x: 560, y: 340 },
   },
   {
-    id: 'a2m6', act: 2, number: 6, name: 'Plate and Steel', location: 'bridge', place: 'Millbrook river bridge',
+    id: 'a2m6', act: 2, number: 6, name: 'Bone and Steel', location: 'bridge', place: 'Millbrook river bridge',
     objective: hold, threat: 59, startCash: 1800,
     waves: [
       { name: 'Heavy Feet', speedMul: 1.13, healthMul: 1.23, groups: [
         { enemy: 'shambler', count: 30, delay: 0, interval: 0.9 },
-        { enemy: 'juggernaut', count: 1, delay: 14, interval: 1 },
-        { enemy: 'runner', count: 12, delay: 6, interval: 2 },
+        { enemy: 'crimson_brute', count: 1, delay: 14, interval: 1 },
+        { enemy: 'hollow_hound', count: 5, delay: 6, interval: 4.8 },
       ] },
       { name: 'Ironclad', speedMul: 1.14, healthMul: 1.24, groups: [
         { enemy: 'shambler', count: 32, delay: 0, interval: 0.85, burst: 2 },
-        { enemy: 'juggernaut', count: 2, delay: 10, interval: 20 },
-        { enemy: 'plated', count: 6, delay: 8, interval: 4 },
-        { enemy: 'sapper', count: 4, delay: 14, interval: 5 },
+        { enemy: 'crimson_brute', count: 1, delay: 10, interval: 40 },
+        { enemy: 'wraith', count: 6, delay: 8, interval: 4 },
+        { enemy: 'hollow_hound', count: 1, delay: 14, interval: 20 },
       ] },
       { name: 'Steel Tide', speedMul: 1.14, healthMul: 1.25, groups: [
         { enemy: 'shambler', count: 36, delay: 0, interval: 0.75, burst: 2 },
-        { enemy: 'juggernaut', count: 2, delay: 8, interval: 18 },
+        { enemy: 'crimson_brute', count: 1, delay: 8, interval: 36 },
         { enemy: 'spitter', count: 4, delay: 6, interval: 7 },
-        { enemy: 'crawler', count: 16, delay: 14, interval: 1.1, burst: 3 },
+        { enemy: 'shambler', count: 6, delay: 14, interval: 2.9, burst: 3 },
       ] },
     ],
     issue: { weapons: ['shotgun'], gear: [] },
@@ -576,7 +576,7 @@ export const MISSIONS: MissionDef[] = [
     supplies: 430,
     firstClear: { weapons: ['shotgun'], gear: [] },
     brief: [
-      { who: 'VARGA', text: 'Juggernauts. Welded plate on top of dead muscle. The visor slit is the only way in.' },
+      { who: 'VARGA', text: 'Crimson Brutes. Plates of bone over dead muscle. Aim for the head, or load armour-piercing.' },
       { who: 'DOT', text: 'Try the shotgun when they reach the wire. Short reach, but nothing walks through it.' },
     ],
     debrief: [{ who: 'DOT', text: 'Keep the shotgun. Close work from here on.' }],
@@ -589,15 +589,15 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Convoy', speedMul: 1.14, healthMul: 1.25, groups: [
         { enemy: 'shambler', count: 32, delay: 0, interval: 0.9 },
-        { enemy: 'runner', count: 14, delay: 4, interval: 1.8 },
-        { enemy: 'sapper', count: 5, delay: 8, interval: 5 },
+        { enemy: 'hollow_hound', count: 6, delay: 4, interval: 4.2 },
+        { enemy: 'hollow_hound', count: 2, delay: 8, interval: 12.5 },
         { enemy: 'spitter', count: 3, delay: 12, interval: 9 },
       ] },
       { name: 'Over the Water', speedMul: 1.15, healthMul: 1.26, groups: [
         { enemy: 'shambler', count: 36, delay: 0, interval: 0.8, burst: 2 },
-        { enemy: 'howler', count: 2, delay: 8, interval: 14 },
-        { enemy: 'juggernaut', count: 1, delay: 14, interval: 1 },
-        { enemy: 'crawler', count: 16, delay: 12, interval: 1.1, burst: 3 },
+        { enemy: 'carrion_screamer', count: 1, delay: 8, interval: 28 },
+        { enemy: 'crimson_brute', count: 1, delay: 14, interval: 1 },
+        { enemy: 'shambler', count: 6, delay: 12, interval: 2.9, burst: 3 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -612,19 +612,19 @@ export const MISSIONS: MissionDef[] = [
   },
   {
     id: 'a2m8', act: 2, number: 8, name: 'The Hive', location: 'town', place: 'Millbrook old mill, night',
-    objective: { kind: 'nests', count: 4, health: 1300, spawn: { id: 'runner', every: 8 } },
+    objective: { kind: 'nests', count: 4, health: 1300, spawn: { id: 'hollow_hound', every: 20 } },
     threat: 65, startCash: 2000, modifiers: { night: true },
     waves: [
       { name: 'Hive Mind', speedMul: 1.15, healthMul: 1.26, groups: [
         { enemy: 'shambler', count: 30, delay: 0, interval: 0.9 },
-        { enemy: 'howler', count: 2, delay: 8, interval: 12 },
+        { enemy: 'carrion_screamer', count: 1, delay: 8, interval: 24 },
         { enemy: 'spitter', count: 4, delay: 10, interval: 7 },
       ] },
       { name: 'Swarm', speedMul: 1.16, healthMul: 1.27, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.8, burst: 2 },
-        { enemy: 'sapper', count: 6, delay: 6, interval: 4 },
-        { enemy: 'juggernaut', count: 1, delay: 12, interval: 1 },
-        { enemy: 'crawler', count: 16, delay: 14, interval: 1.1, burst: 3 },
+        { enemy: 'hollow_hound', count: 2, delay: 6, interval: 12 },
+        { enemy: 'crimson_brute', count: 1, delay: 12, interval: 1 },
+        { enemy: 'shambler', count: 6, delay: 14, interval: 2.9, burst: 3 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -647,15 +647,15 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Overture', speedMul: 1.16, healthMul: 1.27, groups: [
         { enemy: 'shambler', count: 32, delay: 0, interval: 0.85 },
-        { enemy: 'runner', count: 14, delay: 4, interval: 1.8 },
-        { enemy: 'juggernaut', count: 1, delay: 12, interval: 1 },
-        { enemy: 'sapper', count: 5, delay: 8, interval: 5 },
+        { enemy: 'hollow_hound', count: 6, delay: 4, interval: 4.2 },
+        { enemy: 'crimson_brute', count: 1, delay: 12, interval: 1 },
+        { enemy: 'hollow_hound', count: 2, delay: 8, interval: 12.5 },
       ] },
       { name: 'The Choir', speedMul: 1.16, healthMul: 1.28, groups: [
         { enemy: 'choir', count: 1, delay: 3, interval: 1 },
         { enemy: 'shambler', count: 34, delay: 0, interval: 1.2 },
         { enemy: 'spitter', count: 4, delay: 10, interval: 9 },
-        { enemy: 'crawler', count: 14, delay: 16, interval: 1.6, burst: 2 },
+        { enemy: 'shambler', count: 6, delay: 16, interval: 3.7, burst: 2 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -679,19 +679,19 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Dust', speedMul: 1.16, healthMul: 1.28, groups: [
         { enemy: 'shambler', count: 30, delay: 0, interval: 0.95 },
-        { enemy: 'runner', count: 12, delay: 6, interval: 2 },
+        { enemy: 'hollow_hound', count: 5, delay: 6, interval: 4.8 },
         { enemy: 'spitter', count: 3, delay: 10, interval: 9 },
       ] },
-      { name: 'Fogborn', speedMul: 1.17, healthMul: 1.29, groups: [
+      { name: 'Long Arms', speedMul: 1.17, healthMul: 1.29, groups: [
         { enemy: 'shambler', count: 32, delay: 0, interval: 0.85 },
-        { enemy: 'fogborn', count: 8, delay: 8, interval: 3.2 },
-        { enemy: 'juggernaut', count: 1, delay: 14, interval: 1 },
+        { enemy: 'stalker', count: 6, delay: 8, interval: 4.3 },
+        { enemy: 'crimson_brute', count: 1, delay: 14, interval: 1 },
       ] },
       { name: 'Rockfall', speedMul: 1.17, healthMul: 1.3, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.8, burst: 2 },
-        { enemy: 'fogborn', count: 10, delay: 6, interval: 2.6 },
-        { enemy: 'sapper', count: 4, delay: 10, interval: 5 },
-        { enemy: 'crawler', count: 14, delay: 16, interval: 1.2, burst: 3 },
+        { enemy: 'stalker', count: 8, delay: 6, interval: 3.2 },
+        { enemy: 'hollow_hound', count: 1, delay: 10, interval: 20 },
+        { enemy: 'shambler', count: 6, delay: 16, interval: 2.8, burst: 3 },
       ] },
     ],
     issue: { weapons: ['m32'], gear: [] },
@@ -700,9 +700,9 @@ export const MISSIONS: MissionDef[] = [
     firstClear: { weapons: ['m32'], gear: [] },
     brief: [
       { who: 'VARGA', text: 'Meridian was never a weather station. We were growing something to clean up battlefields. It learned to raise them instead.' },
-      { who: 'HALE', text: 'Then we finish it, Doctor. Warden, the quarry road. Take the rocket launcher.' },
+      { who: 'HALE', text: 'Then we finish it, Doctor. Warden, the quarry road. Take the grenade launcher.' },
     ],
-    debrief: [{ who: 'DOT', text: 'The launcher is yours. One rocket at a time, so make each one count.' }],
+    debrief: [{ who: 'DOT', text: 'The launcher is yours. Make every round count.' }],
     map: { x: 130, y: 565 },
   },
   {
@@ -712,14 +712,14 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Powder Keg', speedMul: 1.17, healthMul: 1.3, groups: [
         { enemy: 'shambler', count: 32, delay: 0, interval: 0.9 },
-        { enemy: 'fogborn', count: 8, delay: 6, interval: 3 },
-        { enemy: 'sapper', count: 5, delay: 10, interval: 4.5 },
+        { enemy: 'stalker', count: 6, delay: 6, interval: 4 },
+        { enemy: 'hollow_hound', count: 2, delay: 10, interval: 11.2 },
       ] },
       { name: 'Short Fuse', speedMul: 1.18, healthMul: 1.31, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.8, burst: 2 },
         { enemy: 'spitter', count: 4, delay: 8, interval: 7 },
-        { enemy: 'juggernaut', count: 2, delay: 12, interval: 14 },
-        { enemy: 'fogborn', count: 8, delay: 16, interval: 2.4 },
+        { enemy: 'crimson_brute', count: 1, delay: 12, interval: 28 },
+        { enemy: 'stalker', count: 6, delay: 16, interval: 3.2 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -741,14 +741,14 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Wheels Up', speedMul: 1.18, healthMul: 1.31, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7, burst: 2 },
-        { enemy: 'fogborn', count: 10, delay: 6, interval: 2.4 },
+        { enemy: 'stalker', count: 8, delay: 6, interval: 3 },
         { enemy: 'spitter', count: 3, delay: 10, interval: 8 },
       ] },
       { name: 'Hot Rails', speedMul: 1.18, healthMul: 1.32, groups: [
         { enemy: 'shambler', count: 44, delay: 0, interval: 0.65, burst: 2 },
-        { enemy: 'runner', count: 16, delay: 4, interval: 1.6 },
-        { enemy: 'juggernaut', count: 2, delay: 10, interval: 14 },
-        { enemy: 'sapper', count: 5, delay: 14, interval: 4 },
+        { enemy: 'hollow_hound', count: 6, delay: 4, interval: 4.3 },
+        { enemy: 'crimson_brute', count: 1, delay: 10, interval: 28 },
+        { enemy: 'hollow_hound', count: 2, delay: 14, interval: 10 },
       ] },
     ],
     issue: { weapons: ['m249'], gear: [] },
@@ -766,19 +766,19 @@ export const MISSIONS: MissionDef[] = [
   },
   {
     id: 'a3m4', act: 3, number: 4, name: 'The Yard', location: 'railyard', place: 'Harlow rail yard',
-    objective: { kind: 'nests', count: 3, health: 1600, spawn: { id: 'fogborn', every: 9 } },
+    objective: { kind: 'nests', count: 3, health: 1600, spawn: { id: 'stalker', every: 11 } },
     threat: 79, startCash: 2400,
     waves: [
       { name: 'Sidings', speedMul: 1.18, healthMul: 1.32, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.85 },
-        { enemy: 'howler', count: 2, delay: 8, interval: 12 },
-        { enemy: 'fogborn', count: 8, delay: 10, interval: 2.8 },
+        { enemy: 'carrion_screamer', count: 1, delay: 8, interval: 24 },
+        { enemy: 'stalker', count: 6, delay: 10, interval: 3.7 },
       ] },
       { name: 'Roundhouse', speedMul: 1.19, healthMul: 1.33, groups: [
         { enemy: 'shambler', count: 36, delay: 0, interval: 0.8, burst: 2 },
-        { enemy: 'juggernaut', count: 2, delay: 8, interval: 12 },
+        { enemy: 'crimson_brute', count: 1, delay: 8, interval: 24 },
         { enemy: 'spitter', count: 4, delay: 10, interval: 7 },
-        { enemy: 'crawler', count: 16, delay: 14, interval: 1.1, burst: 3 },
+        { enemy: 'shambler', count: 6, delay: 14, interval: 2.9, burst: 3 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -799,8 +799,8 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Lights Out', speedMul: 1.19, healthMul: 1.33, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.85 },
-        { enemy: 'fogborn', count: 10, delay: 6, interval: 2.6 },
-        { enemy: 'sapper', count: 4, delay: 12, interval: 5 },
+        { enemy: 'stalker', count: 8, delay: 6, interval: 3.2 },
+        { enemy: 'hollow_hound', count: 1, delay: 12, interval: 20 },
       ] },
       { name: 'Something Big', speedMul: 1.19, healthMul: 1.34, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.8, burst: 2 },
@@ -810,8 +810,8 @@ export const MISSIONS: MissionDef[] = [
       { name: 'Ravaged', speedMul: 1.2, healthMul: 1.35, groups: [
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75, burst: 2 },
         { enemy: 'ravager', count: 3, delay: 6, interval: 16 },
-        { enemy: 'fogborn', count: 10, delay: 10, interval: 2.4 },
-        { enemy: 'howler', count: 2, delay: 16, interval: 12 },
+        { enemy: 'stalker', count: 8, delay: 10, interval: 3 },
+        { enemy: 'carrion_screamer', count: 1, delay: 16, interval: 24 },
       ] },
     ],
     issue: { weapons: ['m82'], gear: [] },
@@ -832,14 +832,14 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'All Aboard', speedMul: 1.2, healthMul: 1.35, groups: [
         { enemy: 'shambler', count: 36, delay: 0, interval: 0.8 },
-        { enemy: 'fogborn', count: 12, delay: 6, interval: 2.2 },
-        { enemy: 'sapper', count: 5, delay: 10, interval: 4.5 },
+        { enemy: 'stalker', count: 10, delay: 6, interval: 2.6 },
+        { enemy: 'hollow_hound', count: 2, delay: 10, interval: 11.2 },
       ] },
       { name: 'Derail', speedMul: 1.2, healthMul: 1.36, groups: [
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75, burst: 2 },
         { enemy: 'ravager', count: 2, delay: 8, interval: 18 },
-        { enemy: 'juggernaut', count: 2, delay: 12, interval: 12 },
-        { enemy: 'crawler', count: 16, delay: 14, interval: 1.1, burst: 3 },
+        { enemy: 'crimson_brute', count: 1, delay: 12, interval: 24 },
+        { enemy: 'shambler', count: 6, delay: 14, interval: 2.9, burst: 3 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -859,14 +859,14 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'The Fence', speedMul: 1.2, healthMul: 1.36, groups: [
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75 },
-        { enemy: 'fogborn', count: 12, delay: 6, interval: 2.2 },
+        { enemy: 'stalker', count: 10, delay: 6, interval: 2.6 },
         { enemy: 'spitter', count: 4, delay: 10, interval: 7 },
       ] },
       { name: 'Watchtowers', speedMul: 1.21, healthMul: 1.37, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7, burst: 2 },
         { enemy: 'ravager', count: 2, delay: 6, interval: 16 },
-        { enemy: 'howler', count: 2, delay: 10, interval: 12 },
-        { enemy: 'sapper', count: 6, delay: 14, interval: 4 },
+        { enemy: 'carrion_screamer', count: 1, delay: 10, interval: 24 },
+        { enemy: 'hollow_hound', count: 2, delay: 14, interval: 12 },
       ] },
     ],
     issue: { weapons: ['m82'], gear: [] },
@@ -883,19 +883,19 @@ export const MISSIONS: MissionDef[] = [
   },
   {
     id: 'a3m8', act: 3, number: 8, name: 'The Breach', location: 'gate', place: 'Meridian Station, inner yard, night',
-    objective: { kind: 'nests', count: 4, health: 1800, spawn: { id: 'fogborn', every: 8 } },
+    objective: { kind: 'nests', count: 4, health: 1800, spawn: { id: 'stalker', every: 10 } },
     threat: 91, startCash: 2800, modifiers: { night: true },
     waves: [
       { name: 'Breach', speedMul: 1.21, healthMul: 1.37, groups: [
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75 },
-        { enemy: 'juggernaut', count: 2, delay: 8, interval: 12 },
+        { enemy: 'crimson_brute', count: 1, delay: 8, interval: 24 },
         { enemy: 'spitter', count: 4, delay: 10, interval: 7 },
       ] },
       { name: 'Deep Fog', speedMul: 1.22, healthMul: 1.38, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7, burst: 2 },
         { enemy: 'ravager', count: 2, delay: 6, interval: 14 },
-        { enemy: 'fogborn', count: 12, delay: 10, interval: 2 },
-        { enemy: 'howler', count: 2, delay: 14, interval: 12 },
+        { enemy: 'stalker', count: 10, delay: 10, interval: 2.4 },
+        { enemy: 'carrion_screamer', count: 1, delay: 14, interval: 24 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -917,15 +917,15 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Antechamber', speedMul: 1.22, healthMul: 1.38, groups: [
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75 },
-        { enemy: 'fogborn', count: 12, delay: 6, interval: 2.2 },
+        { enemy: 'stalker', count: 10, delay: 6, interval: 2.6 },
         { enemy: 'ravager', count: 1, delay: 12, interval: 1 },
-        { enemy: 'sapper', count: 5, delay: 10, interval: 5 },
+        { enemy: 'hollow_hound', count: 2, delay: 10, interval: 12.5 },
       ] },
       { name: 'The Heart', speedMul: 1.22, healthMul: 1.4, groups: [
         { enemy: 'heart', count: 1, delay: 3, interval: 1 },
         { enemy: 'shambler', count: 36, delay: 0, interval: 1.1 },
-        { enemy: 'juggernaut', count: 2, delay: 12, interval: 14 },
-        { enemy: 'crawler', count: 16, delay: 16, interval: 1.4, burst: 2 },
+        { enemy: 'crimson_brute', count: 1, delay: 12, interval: 28 },
+        { enemy: 'shambler', count: 6, delay: 16, interval: 3.7, burst: 2 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -948,18 +948,18 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Mudflats', speedMul: 1.22, healthMul: 1.4, groups: [
         { enemy: 'shambler', count: 36, delay: 0, interval: 0.8 },
-        { enemy: 'fogborn', count: 10, delay: 6, interval: 2.4 },
+        { enemy: 'stalker', count: 8, delay: 6, interval: 3 },
         { enemy: 'spitter', count: 3, delay: 10, interval: 8 },
       ] },
       { name: 'From Below', speedMul: 1.22, healthMul: 1.41, groups: [
         { enemy: 'shambler', count: 34, delay: 0, interval: 0.8 },
         { enemy: 'lurker', count: 10, delay: 8, interval: 3 },
-        { enemy: 'juggernaut', count: 2, delay: 12, interval: 14 },
+        { enemy: 'crimson_brute', count: 1, delay: 12, interval: 28 },
       ] },
       { name: 'Harbour Wall', speedMul: 1.23, healthMul: 1.42, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7, burst: 2 },
         { enemy: 'lurker', count: 12, delay: 6, interval: 2.4 },
-        { enemy: 'sapper', count: 5, delay: 12, interval: 4.5 },
+        { enemy: 'hollow_hound', count: 2, delay: 12, interval: 11.2 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -980,8 +980,8 @@ export const MISSIONS: MissionDef[] = [
     waves: [
       { name: 'Stacks', speedMul: 1.23, healthMul: 1.42, groups: [
         { enemy: 'shambler', count: 36, delay: 0, interval: 0.8 },
-        { enemy: 'howler', count: 2, delay: 8, interval: 12 },
-        { enemy: 'fogborn', count: 10, delay: 10, interval: 2.4 },
+        { enemy: 'carrion_screamer', count: 1, delay: 8, interval: 24 },
+        { enemy: 'stalker', count: 8, delay: 10, interval: 3 },
       ] },
       { name: 'Quayside', speedMul: 1.23, healthMul: 1.43, groups: [
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75, burst: 2 },
@@ -1009,8 +1009,8 @@ export const MISSIONS: MissionDef[] = [
       ] },
       { name: 'Lightning', speedMul: 1.24, healthMul: 1.44, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7, burst: 2 },
-        { enemy: 'fogborn', count: 12, delay: 6, interval: 2 },
-        { enemy: 'juggernaut', count: 2, delay: 12, interval: 14 },
+        { enemy: 'stalker', count: 10, delay: 6, interval: 2.4 },
+        { enemy: 'crimson_brute', count: 1, delay: 12, interval: 28 },
       ] },
     ],
     issue: { weapons: ['tesla'], gear: [] },
@@ -1033,7 +1033,7 @@ export const MISSIONS: MissionDef[] = [
         { enemy: 'pumpkin_brood', count: 3, delay: 8, interval: 9 },
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75 },
         { enemy: 'lurker', count: 10, delay: 6, interval: 2.6 },
-        { enemy: 'sapper', count: 5, delay: 10, interval: 4.5 },
+        { enemy: 'hollow_hound', count: 2, delay: 10, interval: 11.2 },
       ] },
       { name: 'High Water', speedMul: 1.24, healthMul: 1.45, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7, burst: 2 },
@@ -1050,32 +1050,32 @@ export const MISSIONS: MissionDef[] = [
     map: { x: 480, y: 420 },
   },
   {
-    id: 'a4m5', act: 4, number: 5, name: 'Sporelings', location: 'lighthouse', place: 'Gull Point, night',
+    id: 'a4m5', act: 4, number: 5, name: 'Dead Light', location: 'lighthouse', place: 'Gull Point, night',
     objective: hold, threat: 110, startCash: 3400, modifiers: { night: true },
     waves: [
       { name: 'Spore Fall', speedMul: 1.24, healthMul: 1.45, groups: [
         { enemy: 'stalker', count: 5, delay: 12, interval: 5 },
         { enemy: 'shambler', count: 36, delay: 0, interval: 0.8 },
-        { enemy: 'sporeling', count: 6, delay: 6, interval: 6 },
-        { enemy: 'fogborn', count: 10, delay: 10, interval: 2.4 },
+        { enemy: 'wraith', count: 4, delay: 6, interval: 9 },
+        { enemy: 'stalker', count: 8, delay: 10, interval: 3 },
       ] },
       { name: 'Grey Air', speedMul: 1.25, healthMul: 1.46, groups: [
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75, burst: 2 },
-        { enemy: 'sporeling', count: 8, delay: 4, interval: 5 },
+        { enemy: 'wraith', count: 6, delay: 4, interval: 6.7 },
         { enemy: 'lurker', count: 10, delay: 10, interval: 2.6 },
       ] },
       { name: 'Choked', speedMul: 1.25, healthMul: 1.47, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7, burst: 2 },
-        { enemy: 'sporeling', count: 8, delay: 4, interval: 4.5 },
-        { enemy: 'juggernaut', count: 2, delay: 10, interval: 14 },
-        { enemy: 'howler', count: 2, delay: 14, interval: 12 },
+        { enemy: 'wraith', count: 6, delay: 4, interval: 6 },
+        { enemy: 'crimson_brute', count: 1, delay: 10, interval: 28 },
+        { enemy: 'carrion_screamer', count: 1, delay: 14, interval: 24 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
     bonus: { kind: 'headshots', count: 75 },
     supplies: 1050,
     firstClear: { weapons: [], gear: [] },
-    brief: [{ who: 'VARGA', text: 'New growth: Sporelings. When they die they burst into a cloud. Kill them far out.' }],
+    brief: [{ who: 'VARGA', text: 'Wraiths in the sea spray. You will lose them in their own smoke: kill them far out.' }],
     debrief: [{ who: 'VARGA', text: 'The spores are all coming from one place: Fort Ashby, up the coast.' }],
     map: { x: 600, y: 520 },
   },
@@ -1088,11 +1088,11 @@ export const MISSIONS: MissionDef[] = [
         { enemy: 'carrion_screamer', count: 3, delay: 10, interval: 6 },
         { enemy: 'shambler', count: 38, delay: 0, interval: 0.75 },
         { enemy: 'lurker', count: 12, delay: 6, interval: 2.4 },
-        { enemy: 'sapper', count: 5, delay: 10, interval: 4.5 },
+        { enemy: 'hollow_hound', count: 2, delay: 10, interval: 11.2 },
       ] },
       { name: 'Breakers', speedMul: 1.25, healthMul: 1.48, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7, burst: 2 },
-        { enemy: 'sporeling', count: 6, delay: 6, interval: 6 },
+        { enemy: 'wraith', count: 4, delay: 6, interval: 9 },
         { enemy: 'ravager', count: 2, delay: 10, interval: 16 },
       ] },
     ],
@@ -1109,19 +1109,19 @@ export const MISSIONS: MissionDef[] = [
   },
   {
     id: 'a4m7', act: 4, number: 7, name: 'Fort Ashby', location: 'fort', place: 'Fort Ashby, outer walls',
-    objective: { kind: 'nests', count: 4, health: 2200, spawn: { id: 'sporeling', every: 10 } },
+    objective: { kind: 'nests', count: 4, health: 2200, spawn: { id: 'wraith', every: 14 } },
     threat: 116, startCash: 3600,
     waves: [
       { name: 'The Walls', speedMul: 1.26, healthMul: 1.48, groups: [
         { enemy: 'crimson_brute', count: 2, delay: 16, interval: 14 },
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7 },
-        { enemy: 'fogborn', count: 12, delay: 6, interval: 2.2 },
+        { enemy: 'stalker', count: 10, delay: 6, interval: 2.6 },
         { enemy: 'spitter', count: 4, delay: 10, interval: 7 },
       ] },
       { name: 'Gatehouse', speedMul: 1.26, healthMul: 1.49, groups: [
         { enemy: 'shambler', count: 42, delay: 0, interval: 0.68, burst: 2 },
         { enemy: 'lurker', count: 12, delay: 6, interval: 2.4 },
-        { enemy: 'juggernaut', count: 2, delay: 10, interval: 14 },
+        { enemy: 'crimson_brute', count: 1, delay: 10, interval: 28 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -1139,20 +1139,20 @@ export const MISSIONS: MissionDef[] = [
       { name: 'Downpour', speedMul: 1.26, healthMul: 1.5, groups: [
         { enemy: 'wraith', count: 6, delay: 9, interval: 4 },
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7 },
-        { enemy: 'sporeling', count: 6, delay: 6, interval: 6 },
+        { enemy: 'wraith', count: 4, delay: 6, interval: 9 },
         { enemy: 'lurker', count: 12, delay: 8, interval: 2.4 },
       ] },
       { name: 'Gale', speedMul: 1.27, healthMul: 1.51, groups: [
         { enemy: 'shambler', count: 42, delay: 0, interval: 0.66, burst: 2 },
         { enemy: 'ravager', count: 2, delay: 6, interval: 14 },
-        { enemy: 'howler', count: 2, delay: 10, interval: 12 },
-        { enemy: 'sapper', count: 6, delay: 14, interval: 4 },
+        { enemy: 'carrion_screamer', count: 1, delay: 10, interval: 24 },
+        { enemy: 'hollow_hound', count: 2, delay: 14, interval: 12 },
       ] },
       { name: 'Eye of the Storm', speedMul: 1.27, healthMul: 1.52, groups: [
         { enemy: 'shambler', count: 44, delay: 0, interval: 0.64, burst: 2 },
-        { enemy: 'fogborn', count: 14, delay: 4, interval: 1.8 },
-        { enemy: 'juggernaut', count: 3, delay: 10, interval: 12 },
-        { enemy: 'sporeling', count: 6, delay: 14, interval: 5 },
+        { enemy: 'stalker', count: 11, delay: 4, interval: 2.3 },
+        { enemy: 'crimson_brute', count: 2, delay: 10, interval: 18 },
+        { enemy: 'wraith', count: 4, delay: 14, interval: 7.5 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -1172,13 +1172,13 @@ export const MISSIONS: MissionDef[] = [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7 },
         { enemy: 'lurker', count: 12, delay: 6, interval: 2.4 },
         { enemy: 'ravager', count: 1, delay: 12, interval: 1 },
-        { enemy: 'sporeling', count: 5, delay: 10, interval: 6 },
+        { enemy: 'wraith', count: 4, delay: 10, interval: 7.5 },
       ] },
       { name: 'The Bloom', speedMul: 1.27, healthMul: 1.54, groups: [
         { enemy: 'bloom', count: 1, delay: 3, interval: 1 },
         { enemy: 'shambler', count: 38, delay: 0, interval: 1.1 },
-        { enemy: 'juggernaut', count: 2, delay: 12, interval: 14 },
-        { enemy: 'fogborn', count: 12, delay: 16, interval: 2.2 },
+        { enemy: 'crimson_brute', count: 1, delay: 12, interval: 28 },
+        { enemy: 'stalker', count: 10, delay: 16, interval: 2.6 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -1202,12 +1202,12 @@ export const MISSIONS: MissionDef[] = [
       { name: 'Gorged', speedMul: 1.3, healthMul: 1.55, groups: [
         { enemy: 'shambler', count: 40, delay: 0, interval: 0.7 },
         { enemy: 'lurker', count: 10, delay: 6, interval: 2.4 },
-        { enemy: 'juggernaut', count: 2, delay: 10, interval: 12 },
+        { enemy: 'crimson_brute', count: 1, delay: 10, interval: 24 },
       ] },
       { name: 'The Gorger', speedMul: 1.3, healthMul: 1.58, groups: [
         { enemy: 'gorger', count: 1, delay: 3, interval: 1 },
         { enemy: 'shambler', count: 38, delay: 0, interval: 1.1 },
-        { enemy: 'fogborn', count: 10, delay: 16, interval: 2.2 },
+        { enemy: 'stalker', count: 8, delay: 16, interval: 2.8 },
       ] },
     ],
     issue: { weapons: [], gear: [] },
@@ -1232,23 +1232,8 @@ export const ACT_NAMES: Record<number, string> = { 1: 'HOLD THE LINE', 2: 'PUSH 
 /** The gear every new player starts with. */
 export const STARTING_GEAR: GearId[] = ['defense:repair'];
 
-/**
- * The training run: the original eight waves with the classic four guns bought in the
- * armory. The replayable briefing runs here. Not part of the campaign; never saved.
- */
-export const TRAINING: MissionDef = {
-  id: 'training', act: 0, number: 0, name: 'Training', location: 'farm', place: 'Training range',
-  objective: hold, threat: 0, startCash: 500, waves: WAVES,
-  issue: { weapons: [], gear: [] },
-  bonus: { kind: 'headshots', count: 60 },
-  supplies: 0,
-  firstClear: { weapons: [], gear: [] },
-  brief: [], debrief: [],
-  map: { x: 0, y: 0 },
-};
-
 export function missionById(id: string): MissionDef | undefined {
-  return id === TRAINING.id ? TRAINING : MISSIONS.find((m) => m.id === id);
+  return MISSIONS.find((m) => m.id === id);
 }
 
 export function missionIndex(id: string): number {

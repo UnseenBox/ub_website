@@ -5,8 +5,8 @@
 // Pacing is deliberately gentle: each wave grows by about a quarter, enemies come a
 // little slower, and the toughening per wave is halved.
 //
-// Introductions: Brutes (giant, hard to kill) arrive in wave 2, Crawler packs in
-// wave 3, Riot Husks in wave 5 and Bloaters in wave 6. Every wave is bigger than
+// Introductions: Brutes (giant, hard to kill) and Hollow Hounds arrive in wave 2,
+// Wraiths in wave 5 and Pumpkin Broods in wave 7. Every wave is bigger than
 // the one before.
 
 export interface SpawnGroup {
@@ -41,18 +41,18 @@ export const WAVES: WaveDef[] = [
     healthMul: 1.0,
     groups: [
       { enemy: 'shambler', count: 20, delay: 0, interval: 1.7 },
-      { enemy: 'runner', count: 4, delay: 14, interval: 4.6 },
+      { enemy: 'hollow_hound', count: 2, delay: 14, interval: 9.2 },
       { enemy: 'brute', count: 2, delay: 5, interval: 25.3 },
     ],
   },
   {
-    name: 'Crawl Space',
+    name: 'Close Quarters',
     speedMul: 1.02,
     healthMul: 1.02,
     groups: [
-      { enemy: 'shambler', count: 16, delay: 0, interval: 1.6 },
-      { enemy: 'crawler', count: 11, delay: 6, interval: 1.8, burst: 2 },
-      { enemy: 'runner', count: 5, delay: 12, interval: 3.9 },
+      { enemy: 'shambler', count: 22, delay: 0, interval: 1.6 },
+      { enemy: 'shambler', count: 4, delay: 6, interval: 5, burst: 2 },
+      { enemy: 'hollow_hound', count: 2, delay: 12, interval: 9.8 },
       { enemy: 'brute', count: 2, delay: 8, interval: 23.0 },
     ],
   },
@@ -61,21 +61,21 @@ export const WAVES: WaveDef[] = [
     speedMul: 1.04,
     healthMul: 1.04,
     groups: [
-      { enemy: 'shambler', count: 19, delay: 0, interval: 1.4 },
-      { enemy: 'runner', count: 9, delay: 5, interval: 2.8 },
-      { enemy: 'crawler', count: 12, delay: 10, interval: 1.6, burst: 2 },
+      { enemy: 'shambler', count: 25, delay: 0, interval: 1.4 },
+      { enemy: 'hollow_hound', count: 4, delay: 5, interval: 6.3 },
+      { enemy: 'shambler', count: 5, delay: 10, interval: 3.8, burst: 2 },
       { enemy: 'brute', count: 2, delay: 6, interval: 18.4 },
     ],
   },
   {
-    name: 'Riot Line',
+    name: 'Smoke Line',
     speedMul: 1.04,
     healthMul: 1.05,
     groups: [
-      { enemy: 'shambler', count: 24, delay: 0, interval: 1.3 },
-      { enemy: 'plated', count: 4, delay: 8, interval: 5.8 },
-      { enemy: 'runner', count: 8, delay: 12, interval: 2.8 },
-      { enemy: 'crawler', count: 12, delay: 16, interval: 1.8, burst: 2 },
+      { enemy: 'shambler', count: 32, delay: 0, interval: 1.3 },
+      { enemy: 'wraith', count: 4, delay: 8, interval: 5.8 },
+      { enemy: 'hollow_hound', count: 3, delay: 12, interval: 7.5 },
+      { enemy: 'shambler', count: 5, delay: 16, interval: 4.3, burst: 2 },
       { enemy: 'brute', count: 2, delay: 10, interval: 18.4 },
     ],
   },
@@ -84,10 +84,10 @@ export const WAVES: WaveDef[] = [
     speedMul: 1.05,
     healthMul: 1.07,
     groups: [
-      { enemy: 'shambler', count: 27, delay: 0, interval: 1.0 },
-      { enemy: 'runner', count: 11, delay: 4, interval: 2.3 },
-      { enemy: 'plated', count: 5, delay: 10, interval: 4.6 },
-      { enemy: 'crawler', count: 14, delay: 14, interval: 1.4, burst: 3 },
+      { enemy: 'shambler', count: 38, delay: 0, interval: 1.0 },
+      { enemy: 'hollow_hound', count: 4, delay: 4, interval: 6.3 },
+      { enemy: 'wraith', count: 5, delay: 10, interval: 4.6 },
+      { enemy: 'shambler', count: 6, delay: 14, interval: 3.3, burst: 3 },
       { enemy: 'brute', count: 3, delay: 8, interval: 16.1 },
     ],
   },
@@ -96,11 +96,11 @@ export const WAVES: WaveDef[] = [
     speedMul: 1.06,
     healthMul: 1.09,
     groups: [
-      { enemy: 'shambler', count: 27, delay: 0, interval: 1.0 },
-      { enemy: 'carrier', count: 3, delay: 4, interval: 9.2 },
-      { enemy: 'runner', count: 14, delay: 8, interval: 2.0 },
-      { enemy: 'plated', count: 7, delay: 12, interval: 4.1 },
-      { enemy: 'crawler', count: 17, delay: 18, interval: 1.4, burst: 3 },
+      { enemy: 'shambler', count: 43, delay: 0, interval: 1.0 },
+      { enemy: 'pumpkin_brood', count: 1, delay: 4, interval: 27.6 },
+      { enemy: 'hollow_hound', count: 6, delay: 8, interval: 4.7 },
+      { enemy: 'wraith', count: 7, delay: 12, interval: 4.1 },
+      { enemy: 'shambler', count: 7, delay: 18, interval: 3.4, burst: 3 },
       { enemy: 'brute', count: 4, delay: 8, interval: 13.8 },
     ],
   },
@@ -109,18 +109,18 @@ export const WAVES: WaveDef[] = [
     speedMul: 1.07,
     healthMul: 1.11,
     groups: [
-      { enemy: 'shambler', count: 30, delay: 0, interval: 0.8, burst: 2 },
-      { enemy: 'runner', count: 16, delay: 5, interval: 1.5 },
-      { enemy: 'plated', count: 8, delay: 9, interval: 3.2 },
-      { enemy: 'carrier', count: 4, delay: 12, interval: 6.9 },
-      { enemy: 'crawler', count: 20, delay: 16, interval: 1.1, burst: 3 },
+      { enemy: 'shambler', count: 52, delay: 0, interval: 0.8, burst: 2 },
+      { enemy: 'hollow_hound', count: 6, delay: 5, interval: 4 },
+      { enemy: 'wraith', count: 8, delay: 9, interval: 3.2 },
+      { enemy: 'pumpkin_brood', count: 2, delay: 12, interval: 13.8 },
+      { enemy: 'shambler', count: 8, delay: 16, interval: 2.8, burst: 3 },
       { enemy: 'brute', count: 5, delay: 6, interval: 11.5 },
-      { enemy: 'runner', count: 7, delay: 50, interval: 0.5, burst: 5 },
+      { enemy: 'hollow_hound', count: 3, delay: 50, interval: 1.2 },
     ],
   },
 ];
 
-/** Total enemies a wave spawns from its schedule (not counting Crawler bursts). */
+/** Total enemies a wave spawns from its schedule (not counting bursts). */
 export function scheduledCount(wave: WaveDef): number {
   return wave.groups.reduce((n, g) => n + g.count, 0);
 }

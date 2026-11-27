@@ -56,8 +56,8 @@ export const CONTRACT_RULES: Record<ContractKind, { target: number; reward: numb
 
 /** How many of each enemy an "enemy" contract asks for. */
 export const ENEMY_CONTRACT_TARGET: Record<string, number> = {
-  shambler: 100, runner: 35, crawler: 35, brute: 8, plated: 12, carrier: 6,
-  spitter: 10, howler: 6, sapper: 10, juggernaut: 5, fogborn: 20, ravager: 4, lurker: 20, sporeling: 8,
+  shambler: 100, brute: 8, spitter: 10, lurker: 20, ravager: 4,
+  hollow_hound: 25, wraith: 12, stalker: 12, carrion_screamer: 6, pumpkin_brood: 6, crimson_brute: 4,
 };
 
 // ------------------------------------------------------------------ supply depot
@@ -132,26 +132,12 @@ export const FIELD_NOTES: Record<string, { tactic: string; lore: string }> = {
     tactic: 'Slow, but they never stop. A clean headshot is cheaper than a magazine in the chest.',
     lore: 'Most of them still wear what they died in. The fog keeps the body, not the person.',
   },
-  runner: {
-    tactic: 'Sprinters break into a run at forty metres. Track them early, not at the wire.',
-    lore: 'Younger hosts. The fog seems to burn them faster, so they are lighter and quicker.',
-  },
-  crawler: {
-    tactic: 'Packs keep low. Aim a hand-width lower than you think, and bring the shotgun.',
-    lore: 'They lose the legs and keep coming. Whatever drives them does not care about the shape.',
-  },
+
   brute: {
-    tactic: 'Too heavy to stagger. Grenades and the .50 do the work; save a support charge.',
+    tactic: 'Too heavy to stagger. Grenades, the .50 and armour-piercing rounds do the work.',
     lore: 'Fog builds on fog: a Brute has more than one body inside it. I stopped counting at four.',
   },
-  plated: {
-    tactic: 'The riot gear stops rifle rounds. Armour-piercing rounds or the .50 go straight through.',
-    lore: 'The Millbrook riot squad. They were sent to keep people away from Meridian.',
-  },
-  carrier: {
-    tactic: 'Drop it far from the wire: it bursts into crawlers where it falls.',
-    lore: 'It is incubating. The fog is learning to make more of itself without new dead.',
-  },
+
   colossus: {
     tactic: 'Leg and head damage both count. When it roars, the next swing is coming: shutters up.',
     lore: 'Built from the farm line\'s own dead. The fog remembers where we fought.',
@@ -160,32 +146,18 @@ export const FIELD_NOTES: Record<string, { tactic: string; lore: string }> = {
     tactic: 'It stops out of reach and spits at the sandbags. Mara takes them first; so should you.',
     lore: 'The acid is concentrated fog. It eats concrete the way the fog eats the valley.',
   },
-  howler: {
-    tactic: 'Kill it before it screams: every scream hastens the dead around it.',
-    lore: 'The fog has a voice now. The Howlers are how it gives orders.',
-  },
-  sapper: {
-    tactic: 'Shoot it in the field and its vest takes the others with it. Never at the wall.',
-    lore: 'Demolition crews from the quarry. The fog kept their training. That frightens me.',
-  },
-  juggernaut: {
-    tactic: 'Armoured all over except the visor. Headshots, or the .50 through the plates.',
-    lore: 'Bomb-disposal suits. The quarry teams went in to seal Meridian and walked back out like this.',
-  },
+
   lurker: {
     tactic: 'They come up between twenty and thirty metres out. Keep a gun on the near field, not just the fog.',
     lore: 'The tide carried spores into the mud. The dead have been lying in it, waiting, for weeks.',
   },
-  sporeling: {
-    tactic: 'Kill them at range: the cloud hides everything behind it for a few seconds.',
-    lore: 'A walking seed pod. When it bursts, it is trying to plant itself.',
-  },
+
   bloom: {
     tactic: 'Burst the four pods first; while one lives the Bloom shrugs off four fifths of every hit. It regrows them once.',
     lore: "The Heart's last seed. If it had flowered, the spores would have reached the sea lanes.",
   },
   crimson_brute: {
-    tactic: 'Shoot the head while it winds up. Its stomp throws dust, and the lower body takes little.',
+    tactic: 'Bone covers the body. Shoot the head while it winds up, or load armour-piercing rounds.',
     lore: 'It was a soldier on the coast road. The veins are the red of what it fed on.',
   },
   pumpkin_brood: {
@@ -212,12 +184,9 @@ export const FIELD_NOTES: Record<string, { tactic: string; lore: string }> = {
     tactic: 'It stays out in the yard and slams the ground. Shoot the head while it winds up; the belly takes little.',
     lore: 'It was a man once. Then it ate the valley, and it still has not stopped.',
   },
-  fogborn: {
-    tactic: 'Leg shots barely slow them. Heads, early, or a shotgun blast at the wire.',
-    lore: 'The fog has started improving its dead. Each generation is quicker than the last.',
-  },
+
   ravager: {
-    tactic: 'Rockets and the M82, far out. If it bursts at the wire, the Fogborn are already on you.',
+    tactic: 'The M82 or the M32, far out. If it bursts at the wire, the Stalkers are already on you.',
     lore: 'It is not one body. It is a nursery. The fog is carrying its young to the line.',
   },
   heart: {

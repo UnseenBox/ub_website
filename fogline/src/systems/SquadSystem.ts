@@ -26,8 +26,8 @@ interface Member {
 const tmp = { x: 0, y: 0 };
 
 /**
- * The squad at the side windows. Snipers pick off the far threats (Spitters, Howlers,
- * Sappers first), gunners spray what reaches the wire, engineers patch the bunker.
+ * The squad at the side windows. Snipers pick off the far threats (Spitters and
+ * Screamers first), gunners spray what reaches the wire, engineers patch the bunker.
  * Their kills pay like the player's.
  */
 export class SquadSystem {
@@ -172,7 +172,7 @@ export class SquadSystem {
     this.onLine(m.def.name.split(' ')[0].toUpperCase(), m.def.lines[Math.floor(Math.random() * m.def.lines.length)]);
   }
 
-  /** The most dangerous far target: Spitters, Howlers and Sappers first, then the farthest. */
+  /** The most dangerous far target: Spitters and Screamers first, then the farthest. */
   private sniperTarget(range: number): Zombie | null {
     let best: Zombie | null = null;
     let bestScore = -Infinity;

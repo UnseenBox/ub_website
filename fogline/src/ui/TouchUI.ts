@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { DEPTH } from '../game/depths';
+import { readable } from './kit';
 import { TOUCH_LAYOUT, TouchButton, TouchCircle, TouchPoint, stickHome, touchLayout } from '../game/touchControls';
 
 const STENCIL = '"Saira Stencil One", sans-serif';
@@ -50,7 +51,7 @@ export class TouchUI {
   private add(scene: Phaser.Scene, key: TouchButton, c: TouchCircle, text: string, accent: number, size: number, depth: number): void {
     const g = scene.add.graphics().setDepth(depth);
     const label = scene.add.text(c.x, key === 'fire' ? c.y - 22 : c.y, text, {
-      fontFamily: STENCIL, fontSize: `${size}px`, color: '#f2ead0', stroke: '#000', strokeThickness: 4,
+      fontFamily: STENCIL, fontSize: `${readable(size)}px`, color: '#f2ead0', stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(depth + 1);
     this.buttons.set(key, { g, label, c, accent, pressed: false });
   }

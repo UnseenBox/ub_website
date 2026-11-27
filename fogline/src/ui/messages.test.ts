@@ -51,9 +51,9 @@ describe('results and threat text', () => {
 
   it('tags the new things about an enemy, three at most', () => {
     expect(threatTags(ENEMIES.spitter)).toEqual(['RANGED', 'HEAD', 'GLOWS = SPIT']);
-    expect(threatTags(ENEMIES.howler)).toEqual(['HOWLS', 'HEAD']);
-    expect(threatTags(ENEMIES.sapper)).toEqual(['EXPLODES', 'FAST']);
-    expect(threatTags(ENEMIES.juggernaut)).toEqual(['ARMOURED']);
+    expect(threatTags(ENEMIES.carrion_screamer)[0]).toBe('HOWLS');
+    expect(threatTags(ENEMIES.hollow_hound)[0]).toBe('FAST');
+    expect(threatTags(ENEMIES.crimson_brute)[0]).toBe('ARMOURED');
     expect(threatTags(ENEMIES.bloom)[0]).toBe('BOSS');
     for (const def of Object.values(ENEMIES)) expect(threatTags(def).length).toBeLessThanOrEqual(3);
   });
@@ -95,7 +95,7 @@ describe('the objective strip', () => {
   });
 
   it('has no bonus chip in modes without stars', () => {
-    expect(stripChips({ kind: 'boss', enemy: 'juggernaut' }, null, state)).toEqual([{ icon: 'skull', text: 'BOSS', tone: 'red' }]);
+    expect(stripChips({ kind: 'boss', enemy: 'gorger' }, null, state)).toEqual([{ icon: 'skull', text: 'BOSS', tone: 'red' }]);
   });
 
   it('warns when a protected asset or a bonus is slipping', () => {

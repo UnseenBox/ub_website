@@ -295,6 +295,11 @@ export function ownedWeapons(p: ProfileData): string[] {
   return sortWeapons(WEAPONS.filter((w) => w.price === 0 || p.weapons.includes(w.id)).map((w) => w.id));
 }
 
+/** How much of the campaign has been won, as a percentage. */
+export function completionPercent(p: ProfileData): number {
+  return Math.round((100 * MISSIONS.filter((m) => isWon(p, m.id)).length) / MISSIONS.length);
+}
+
 /** The mission whose first win hands the player a weapon (undefined for the one they start with). */
 export function weaponUnlockMission(id: string): MissionDef | undefined {
   return MISSIONS.find((m) => m.firstClear.weapons.includes(id));
