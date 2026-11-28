@@ -31,6 +31,10 @@ export interface EnemyDef {
   groanInterval: [number, number];
   /** Ignores stagger from bullets below this damage. */
   staggerThreshold: number;
+  /** Share of its speed kept after a shot to the legs, when it is not the usual one. */
+  legSlow?: number;
+  /** Metres further out than the rest that it stops to strike: a tall one keeps its head in view. */
+  standOff?: number;
   special?: {
     /** Spawns these enemies where it dies. */
     burstInto?: { id: string; count: number };
@@ -45,6 +49,28 @@ export interface EnemyDef {
     };
     /** Explodes when it dies, hurting the dead around it (Sapper). */
     deathBlast?: { radius: number; damage: number };
+    /** Gets back up once after a death that was not a headshot (Shambler). */
+    rises?: { chance: number; health: number };
+    /** Springs from side to side as it runs, then pounces on the wire from `pounceAt` metres (Hound). */
+    leap?: { every: [number, number]; distance: [number, number]; seconds: number; pounceAt: number };
+    /** Fades out on the way in and comes back right in front of the wire (Stalker). */
+    vanish?: { times: number; at: [number, number]; gone: number; back: [number, number] };
+    /** Dims the field as it nears; close in, it works a spell that blacks out the view (Wraith). */
+    gloom?: { from: number; dim: number; castAt: number; windup: number; seconds: number; cooldown: number; casts: number };
+    /** Rears back to roar every so often; while it does, the belly is a soft spot (Brute). */
+    roar?: { first: number; every: number; seconds: number; belly: number };
+    /** Its footfalls shake the bunker when it is close. */
+    stomp?: boolean;
+    /** Its spit is a slow bomb that can be shot out of the air, or acid that clouds the view. */
+    shot?: 'bomb' | 'acid';
+    /** Its scream shakes the player's aim for this long; a headshot during the wind-up cuts it off. */
+    disrupt?: number;
+    /** Winds up, then sprints at the wire; enough damage during the wind-up stops it (Crimson Brute). */
+    rush?: { from: number; windup: number; speed: number };
+    /** Armour that breaks off after this share of its health has been done to the body. */
+    shatter?: number;
+    /** Once, when hurt, it digs under and comes up this much closer (Lurker). */
+    dive?: { below: number; seconds: number; closer: number };
     /** Bursts out of the ground this close to the wire instead of walking in from the fog (Lurker). */
     burrow?: { near: number; far: number };
     /** Leaves a spore cloud where it dies that hides what is behind it (Sporeling). */
@@ -100,25 +126,29 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_shambler',
     groanInterval: [5, 12],
     staggerThreshold: 60,
-    description: 'The bulk of the dead. Slow, relentless, folds to a clean headshot.',
+    special: {
+      rises: { chance: 0.3, health: 0.45 },
+    },
+    description: 'The bulk of the dead. Slow and relentless, and some get back up unless the head is taken.',
   },
 
   brute: {
     id: 'brute',
-    intel: 'A Brute. Body shots barely hurt it. Aim for the head, load armour-piercing, or use explosives.',
+    intel: 'A Brute. Bullets barely mark its hide. Shoot the head, or the belly when it roars.',
     name: 'Brute',
     // Taller than a doorframe and twice as wide: a wall of dead flesh.
     height: 3.6,
-    health: 900,
-    speed: 1.3,
+    health: 2000,
+    speed: 1.0,
     speedJitter: 0.12,
     // Thick fat soaks body shots; the head is the only soft spot.
-    zoneMultiplier: { head: 1, torso: 0.5, legs: 0.5 },
+    zoneMultiplier: { head: 1, torso: 0.28, legs: 0.28 },
     armoredZones: ['torso', 'legs'],
-    attackDamage: 55,
+    standOff: 3,
+    attackDamage: 70,
     attackInterval: 2.2,
-    reward: 180,
-    headshotBonus: 90,
+    reward: 320,
+    headshotBonus: 140,
     rig: 'bloat',
     look: 'brute',
     looks: 2,
@@ -126,7 +156,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
     groanInterval: [5, 9],
     // Bullets never stagger it; only a big blast shoves it.
     staggerThreshold: 9999,
-    description: 'A giant, bloated hulk. Bullets barely slow it and body shots bounce off the fat. Aim for the head, load armour-piercing rounds, or use explosives.',
+    special: {
+      roar: { first: 3, every: 7, seconds: 2.1, belly: 3 },
+      stomp: true,
+    },
+    description: 'A giant, bloated hulk that takes an army of bullets. Aim for the head; when it rears back to roar, its swollen belly is soft. Armour-piercing rounds and explosives help.',
   },
   colossus: {
     id: 'colossus',
@@ -158,6 +192,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
       nukeShare: 0.2,
       tint: 0xc89080,
     },
+    special: {
+      stomp: true,
+    },
     description: 'The giant that broke the farm line. Body shots barely mark it. Only the head bleeds.',
   },
   spitter: {
@@ -180,7 +217,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_carrier',
     groanInterval: [4, 8],
     staggerThreshold: 45,
-    special: { ranged: { damage: 14, interval: 4.4, stopRange: [24, 32], shots: 3, windup: 0.75 } },
+    special: {
+      shot: 'acid',
+      ranged: { damage: 14, interval: 4.4, stopRange: [24, 32], shots: 3, windup: 0.75 } },
     tint: 0xc8e070,
     description: 'Holds out in the field and spits acid at the bunker. Kill it during the green wind-up.',
   },
@@ -301,7 +340,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_runner',
     groanInterval: [2, 5],
     staggerThreshold: 50,
-    special: { burrow: { near: 16, far: 28 } },
+    special: {
+      dive: { below: 0.6, seconds: 1.1, closer: 8 },
+      burrow: { near: 16, far: 28 } },
     tint: 0x6a7058,
     description: 'Bursts out of the mud close to the wire, skipping the long walk. Watch the near field.',
   },
@@ -391,7 +432,10 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_runner',
     groanInterval: [2, 5],
     staggerThreshold: 40,
-    description: 'A smoke-thin dead thing that glides through the fog. Hard to see, and its claws reach.',
+    special: {
+      gloom: { from: 42, dim: 0.46, castAt: 15, windup: 1.2, seconds: 3.4, cooldown: 11, casts: 2 },
+    },
+    description: 'A smoke-thin thing that darkens the field as it nears and blinds you with a spell. Hurt it while its eyes burn to break the spell.',
   },
   stalker: {
     id: 'stalker',
@@ -413,13 +457,17 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_runner',
     groanInterval: [2, 5],
     staggerThreshold: 50,
-    description: 'A lanky, pale runner with long arms. It lunges at the wire from a long way off.',
+    special: {
+      vanish: { times: 1, at: [19, 30], gone: 1.5, back: [5.8, 7] },
+    },
+    description: 'A lanky, pale hunter. It flickers, vanishes, and comes back right in front of you. Be ready where it was heading.',
   },
   crimson_brute: {
     id: 'crimson_brute',
     intel: 'Crimson Brutes. Plates of bone over dead muscle. Aim for the head, or load armour-piercing rounds.',
     name: 'Crimson Brute',
     height: 3.4,
+    standOff: 2,
     health: 1400,
     speed: 0.9,
     speedJitter: 0.1,
@@ -435,6 +483,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_plated',
     groanInterval: [3, 6],
     staggerThreshold: 60,
+    special: {
+      rush: { from: 28, windup: 1.0, speed: 4.2 },
+      shatter: 0.35,
+      stomp: true,
+    },
     description: 'A heavy, slow brute plated in bone, with glowing red veins. Its fist shakes the ground when it lands.',
   },
   pumpkin_brood: {
@@ -457,7 +510,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_carrier',
     groanInterval: [4, 8],
     staggerThreshold: 60,
-    special: { ranged: { damage: 26, interval: 3.2, stopRange: [14, 16], shots: 9999, windup: 1.0 } },
+    special: {
+      shot: 'bomb',
+      ranged: { damage: 26, interval: 3.2, stopRange: [14, 16], shots: 9999, windup: 1.0 } },
     description: 'A hunched, lumbering spitter. It stops at range and spits; watch the belly swell first.',
   },
   hollow_hound: {
@@ -466,8 +521,10 @@ export const ENEMIES: Record<string, EnemyDef> = {
     name: 'Hollow Hound',
     height: 1.2,
     health: 180,
-    speed: 4.6,
+    // The fastest thing in the fog: a full gallop, which a shot to a leg barely checks.
+    speed: 7.4,
     speedJitter: 0.8,
+    legSlow: 0.85,
     zoneMultiplier: { head: 1.4, torso: 1, legs: 0.8 },
     armoredZones: [],
     attackDamage: 16,
@@ -480,7 +537,10 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_runner',
     groanInterval: [2, 5],
     staggerThreshold: 30,
-    description: 'A low, fast hound that gallops in and pounces with its claws.',
+    special: {
+      leap: { every: [0.7, 1.4], distance: [2.2, 3.4], seconds: 0.34, pounceAt: 9 },
+    },
+    description: 'A low, very fast hound that leaps from side to side, crouches, and pounces on the wire. Hit it as it crouches.',
   },
   carrion_screamer: {
     id: 'carrion_screamer',
@@ -502,7 +562,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
     voice: 'groan_runner',
     groanInterval: [3, 6],
     staggerThreshold: 50,
-    special: { howl: { interval: 4, firstDelay: 2, radius: 12, speedMul: 1.6, duration: 4, maxHowls: 3, stopRange: [18, 20] } },
+    special: {
+      disrupt: 2.6,
+      howl: { interval: 4, firstDelay: 2, radius: 12, speedMul: 1.6, duration: 4, maxHowls: 3, stopRange: [18, 20] } },
     description: 'A skeletal bird on stilt legs. It shrieks from the fog and calls the dead to speed up.',
   },
 

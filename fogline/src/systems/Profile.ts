@@ -8,6 +8,7 @@ import { MISSIONS, STARTING_GEAR } from '../data/missions';
 import { MAX_LEVEL, WeaponLevels } from '../data/workshop';
 import { MetaData, defaultMeta, parseMeta } from './MetaState';
 import { attachmentById } from '../data/attachments';
+import { questById } from '../data/quests';
 
 export interface MissionRecord {
   /** Best star rating, 0–3. */
@@ -46,6 +47,8 @@ export interface ProfileData {
   recruitLevels: Record<string, number>;
   squad: string[];
   missions: Record<string, MissionRecord>;
+  /** Side quests won: their tools and keepsakes are the player's for good. */
+  quests: string[];
   /** Attachments bought in the Workshop, and the one fitted to each weapon. */
   attachments: string[];
   fitted: Record<string, string>;
@@ -85,6 +88,7 @@ export function defaultProfile(): ProfileData {
     recruitLevels: {},
     squad: [],
     missions: {},
+    quests: [],
     attachments: [],
     fitted: {},
     meta: defaultMeta(),
@@ -124,6 +128,7 @@ export function parseProfile(raw: string | null): ProfileData | null {
   p.weapons = strings(d.weapons);
   p.gear = [...new Set([...STARTING_GEAR, ...strings(d.gear)])];
   p.bunkerLevel = level(d.bunkerLevel);
+  p.quests = strings(d.quests).filter((q) => questById(q));
   p.hints = strings(d.hints);
   p.recruits = strings(d.recruits);
   p.squad = strings(d.squad).filter((r) => p.recruits.includes(r));

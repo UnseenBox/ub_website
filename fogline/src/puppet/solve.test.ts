@@ -82,7 +82,7 @@ describe('the skeleton', () => {
 
 describe('creatures', () => {
   it('draws every enemy that asks for a puppet look', () => {
-    for (const look of ['gorger', 'wraith', 'stalker', 'crimson', 'brood', 'hound', 'screamer']) {
+    for (const look of ['gorger', 'wraith', 'stalker', 'crimson', 'brood', 'hound', 'screamer', 'brute']) {
       expect(CREATURES[look], look).toBeDefined();
       expect(Object.values(ENEMIES).some((e) => e.look === look), look).toBe(true);
     }

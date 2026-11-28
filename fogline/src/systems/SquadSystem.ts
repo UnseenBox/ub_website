@@ -126,7 +126,7 @@ export class SquadSystem {
   private crowd(range: number, radius: number, minZ = 6): { x: number; z: number } | null {
     let best: { x: number; z: number } | null = null;
     let bestN = 0;
-    const live = this.enemies.live.filter((z) => z.alive && z.state !== 'emerge' && z.z <= range && z.z >= minZ);
+    const live = this.enemies.live.filter((z) => z.targetable && z.state !== 'emerge' && z.z <= range && z.z >= minZ);
     for (const a of live) {
       let n = 0;
       for (const b of live) if (Math.abs(a.x - b.x) <= radius && Math.abs(a.z - b.z) <= radius * 2) n++;
@@ -140,7 +140,7 @@ export class SquadSystem {
 
   /** Kestrel's gunship strafes a lane of the field: every body in it takes a burst. */
   private strafe(m: Member, laneX: number): void {
-    const targets = this.enemies.live.filter((z) => z.alive && Math.abs(z.x - laneX) < 3.5 && z.z <= m.def.range).slice(0, 10);
+    const targets = this.enemies.live.filter((z) => z.targetable && Math.abs(z.x - laneX) < 3.5 && z.z <= m.def.range).slice(0, 10);
     this.say(m, 0.5);
     audio.play('heli_loop', { volume: 0.4 });
     targets.forEach((z, i) => {
@@ -177,7 +177,7 @@ export class SquadSystem {
     let best: Zombie | null = null;
     let bestScore = -Infinity;
     for (const z of this.enemies.live) {
-      if (!z.alive || z.state === 'emerge' || z.z > range || z.z < 8) continue;
+      if (!z.targetable || z.state === 'emerge' || z.z > range || z.z < 8) continue;
       const s = z.def.special;
       const priority = s?.ranged || s?.howl ? 1000 : s?.deathBlast ? 800 : 0;
       const score = priority + z.z;
@@ -193,7 +193,7 @@ export class SquadSystem {
   private gunnerTarget(range: number): Zombie | null {
     let best: Zombie | null = null;
     for (const z of this.enemies.live) {
-      if (!z.alive || z.z > range) continue;
+      if (!z.targetable || z.z > range) continue;
       if (!best || z.z < best.z) best = z;
     }
     return best;

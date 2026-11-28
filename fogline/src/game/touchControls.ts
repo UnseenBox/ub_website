@@ -1,5 +1,6 @@
-// Phone touch helpers: an aim stick on the left, firing on the right. Only the stick
-// moves the crosshair, so the firing thumb can never disturb the aim.
+// Phone touch helpers: an aim pad on the left, firing on the right. The crosshair moves
+// with the aiming thumb, at once and only while the thumb moves. Only that thumb moves it,
+// so the firing thumb can never disturb the aim. There is no aim assistance.
 
 import { isDesktop, isHandheld } from '../portal/flags';
 import { VIEW } from './config';
@@ -19,15 +20,11 @@ export const TOUCH_LAYOUT = {
   deploy: { x: 640, y: 528, w: 320, h: 58 } as TouchPill,
 };
 
-/** The aim stick: where it rests, how far its knob travels, and how fast it moves the crosshair. */
+/** The aim pad: where it rests, how far its knob sits from its middle, and how far the crosshair goes. */
 export const STICK = {
   home: { x: 160, y: 432, r: 76 } as TouchCircle,
-  /** Share of the travel that does nothing, so a resting thumb holds the aim still. */
-  dead: 0.1,
-  /** Crosshair pixels a second at full push. */
-  speed: 1000,
-  /** Above 1 gives fine control near the middle and speed at the rim. */
-  curve: 1.8,
+  /** Crosshair pixels for each pixel the thumb moves: a short swipe crosses half the field. */
+  gain: 2.2,
 };
 
 export interface TouchPoint { x: number; y: number }
@@ -56,7 +53,7 @@ export function stickHome(): TouchCircle {
 
 const onBattlefield = (y: number): boolean => y >= -SCREEN.my && y < VIEW.hudTop;
 
-/** Left half of the battlefield (above the HUD), out to the screen edge, works the aim stick. */
+/** Left half of the battlefield (above the HUD), out to the screen edge, works the aim pad. */
 export function isAimTouch(x: number, y: number): boolean {
   return x >= -SCREEN.mx && x < VIEW.width / 2 && onBattlefield(y);
 }
@@ -66,30 +63,23 @@ export function isFireTouch(x: number, y: number): boolean {
   return x >= VIEW.width / 2 && x <= VIEW.width + SCREEN.mx && onBattlefield(y);
 }
 
-/** Where the knob sits for a thumb at `thumb` on a stick centred on `base`. */
-export function pushStick(base: TouchPoint, thumb: TouchPoint): TouchPoint {
+/**
+ * The pad under a thumb at `thumb`: the knob is on the thumb, and once the thumb passes the
+ * rim the ring is dragged along behind it.
+ */
+export function followThumb(base: TouchPoint, thumb: TouchPoint): { base: TouchPoint; knob: TouchPoint } {
   const dx = thumb.x - base.x, dy = thumb.y - base.y;
   const far = Math.hypot(dx, dy);
-  const k = far > STICK.home.r ? STICK.home.r / far : 1;
-  return { x: base.x + dx * k, y: base.y + dy * k };
+  if (far <= STICK.home.r) return { base, knob: thumb };
+  const k = (far - STICK.home.r) / far;
+  return { base: { x: base.x + dx * k, y: base.y + dy * k }, knob: thumb };
 }
 
-/** Crosshair speed, in pixels a second, for a stick held with its knob at `knob`. */
-export function stickVelocity(base: TouchPoint, knob: TouchPoint): TouchPoint {
-  const dx = knob.x - base.x, dy = knob.y - base.y;
-  const far = Math.hypot(dx, dy);
-  const push = Math.min(1, far / STICK.home.r);
-  if (push <= STICK.dead) return { x: 0, y: 0 };
-  const speed = Math.pow((push - STICK.dead) / (1 - STICK.dead), STICK.curve) * STICK.speed;
-  return { x: (dx / far) * speed, y: (dy / far) * speed };
-}
-
-/** Move the crosshair for `dt` seconds of a held stick, clamped to the battlefield. */
-export function stepStickAim(cursor: TouchPoint, base: TouchPoint, knob: TouchPoint, dt: number): TouchPoint {
-  const v = stickVelocity(base, knob);
+/** The crosshair after the thumb moved from `from` to `to`, clamped to the battlefield. */
+export function dragAim(cursor: TouchPoint, from: TouchPoint, to: TouchPoint): TouchPoint {
   return {
-    x: clamp(cursor.x + v.x * dt, 0, VIEW.width),
-    y: clamp(cursor.y + v.y * dt, 0, VIEW.hudTop),
+    x: clamp(cursor.x + (to.x - from.x) * STICK.gain, 0, VIEW.width),
+    y: clamp(cursor.y + (to.y - from.y) * STICK.gain, 0, VIEW.hudTop),
   };
 }
 

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { ENEMIES, EnemyDef, HitZone } from '../data/enemies';
 import { FIELD } from '../game/config';
-import { Zombie } from '../entities/Zombie';
+import { Zombie, type ZombieAction } from '../entities/Zombie';
 import { audio } from '../audio/AudioManager';
 
 export interface RayHit {
@@ -21,8 +21,8 @@ export class EnemyManager {
   onStrike: (z: Zombie) => void = () => {};
   /** Called when a zombie reaches the line for the first time. */
   onArrive: (z: Zombie) => void = () => {};
-  /** Spitter/Howler actions: 'charge' (wind-up starts), 'spit', 'howl'. */
-  onAction: (z: Zombie, action: 'charge' | 'spit' | 'howl') => void = () => {};
+  /** What a monster just did: 'charge' (a wind-up starts), then the move itself. */
+  onAction: (z: Zombie, action: ZombieAction) => void = () => {};
   /** Called when a corpse finishes fading and is returned to the pool. */
   onRecycle: (z: Zombie) => void = () => {};
 
@@ -66,10 +66,10 @@ export class EnemyManager {
     const live = this.live;
     for (let i = 0; i < live.length; i++) {
       const a = live[i];
-      if (!a.alive) continue;
+      if (!a.alive || a.hidden) continue;
       for (let j = i + 1; j < live.length; j++) {
         const b = live[j];
-        if (!b.alive) continue;
+        if (!b.alive || b.hidden) continue;
         const dz = Math.abs(a.z - b.z);
         if (dz > 1.6) continue;
         const dx = b.x - a.x;
@@ -155,12 +155,12 @@ export class EnemyManager {
   /** The alive zombie closest to the bunker (for support targeting). */
   closest(): Zombie | null {
     let best: Zombie | null = null;
-    for (const z of this.live) if (z.alive && (!best || z.z < best.z)) best = z;
+    for (const z of this.live) if (z.targetable && (!best || z.z < best.z)) best = z;
     return best;
   }
 
   randomAlive(maxZ = Infinity): Zombie | null {
-    const c = this.live.filter((z) => z.alive && z.z < maxZ);
+    const c = this.live.filter((z) => z.targetable && z.z < maxZ);
     return c.length ? c[Math.floor(this.rng() * c.length)] : null;
   }
 

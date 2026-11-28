@@ -43,9 +43,14 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { HUD, type HintPart } from '../ui/HUD';
 import { toggleFullscreen } from '../ui/widgets';
 import { isTestMode } from './testMode';
-import { isAimTouch, isFireTouch, pushStick, resetTouchPointerIds, stepStickAim, touchButtonAt, TouchButton } from './touchControls';
-import { AIM, AimAssist, type AimPoint } from './aimAssist';
+import { dragAim, followThumb, isAimTouch, isFireTouch, resetTouchPointerIds, touchButtonAt, TouchButton } from './touchControls';
 import { TouchUI } from '../ui/TouchUI';
+import { GimmickFx } from '../systems/GimmickFx';
+import { ToolBelt } from '../systems/ToolBelt';
+import { ToolButtons } from '../ui/ToolButtons';
+import { applyQuestResult, ownedRelics, ownedTools } from '../systems/Quests';
+import { RELICS, RELIC_EFFECTS, TOOLS, TOOL_EFFECTS, toolById, type RelicId, type ToolId } from '../data/tools';
+import type { ZombieAction } from '../entities/Zombie';
 import { CRAZY, isDesktop, isHandheld } from '../portal/flags';
 import { mouseLock } from '../portal/mouseLock';
 import { Zombie, depthForZ } from '../entities/Zombie';
@@ -100,7 +105,16 @@ export class GameScene extends Phaser.Scene {
   private focusEnabled = false;
   private focusTint: Phaser.GameObjects.Rectangle | null = null;
   /** Acid globs in flight from Spitters. */
-  private globs: { img: Phaser.GameObjects.Image; t: number; dur: number; x0: number; y0: number; x1: number; y1: number; dmg: number }[] = [];
+  private globs: {
+    img: Phaser.GameObjects.Image; t: number; dur: number; x0: number; y0: number; x1: number; y1: number; dmg: number;
+    /** A bomb or acid can be shot down on its way. */
+    kind?: 'bomb' | 'acid';
+  }[] = [];
+  private gimmicks!: GimmickFx;
+  /** Special tools carried, their buttons, and the keepsakes held (all from side quests). */
+  private belt!: ToolBelt;
+  private toolButtons!: ToolButtons;
+  private relics = new Set<RelicId>();
   /** Seconds to each Sapper's next warning beep. */
   private beeps = new Map<Zombie, number>();
   /** This run's kills per enemy and per weapon, support calls and best streak (contracts, Field Notes, mastery). */
@@ -130,15 +144,11 @@ export class GameScene extends Phaser.Scene {
   private activeMods = new Set<ModId>();
   private trigger = false;
   private touchUi!: TouchUI;
-  /** Crosshair while playing by touch: only the aim stick moves it. */
+  /** Crosshair while playing by touch: only the aiming thumb moves it. */
   private touchCursor: { x: number; y: number } = { x: VIEW.centerX, y: 300 };
-  /** The held aim stick: where the thumb took hold of it, and where its knob is now. */
+  /** The held aim pad: the middle of its ring, and the thumb (its knob), as last seen. */
   private stickBase: { x: number; y: number } = { x: 0, y: 0 };
   private stickKnob: { x: number; y: number } = { x: 0, y: 0 };
-  /** Draws the touch crosshair onto an enemy it is near. */
-  private readonly assist = new AimAssist();
-  private readonly assistPoints: AimPoint[] = [];
-  private readonly assistScratch = { x: 0, y: 0 };
   aimPointerId: number | null = null;
   firePointerId: number | null = null;
   private aimCursorX: number = VIEW.centerX;
@@ -273,6 +283,16 @@ export class GameScene extends Phaser.Scene {
     this.squad = new SquadSystem(this, squad, this.enemies, this.combat, this.fx, this.bunker);
     const mods = this.mission.modifiers;
     this.night = mods?.night || mods?.storm ? new NightSystem(this, this.field.barrelFire, !!mods?.storm && !mods?.night) : null;
+    // Spells and screams are gentler in the first missions.
+    this.gimmicks = new GimmickFx(this, this.fx, this.enemies, Phaser.Math.Clamp(0.55 + this.mission.threat / 80, 0.65, 1));
+    this.combat.onTrick = (z, what) => this.gimmicks.onTrick(z, what);
+    this.relics = new Set(test ? RELICS.map((r) => r.id) : ownedRelics(save));
+    this.belt = new ToolBelt(test ? TOOLS.map((t) => t.id) : ownedTools(save));
+    this.combat.headshotBoost = this.relics.has('sight') ? RELIC_EFFECTS.headshot : 1;
+    if (this.relics.has('plating')) this.bunker.setMax(this.bunker.max + RELIC_EFFECTS.bunker);
+    if (this.relics.has('satchel') && !test) {
+      for (const gear of this.gear ?? []) if (gear.startsWith('mod:')) this.abilities.addCharge('mod', gear.slice(4));
+    }
     this.catalog = buildCatalog({ economy: this.economy, weapons: this.weapons, abilities: this.abilities, bunker: this.bunker, upgrades: this.upgrades, gear: this.gear });
     const hudBefore = new Set<Phaser.GameObjects.GameObject>(this.children.list);
     this.hud = new HUD(this, {
@@ -280,6 +300,7 @@ export class GameScene extends Phaser.Scene {
       offers: (id) => this.offers(id),
       weaponSlots: this.weaponSlots,
       touch: () => this.touchUi?.isEnabled ?? this.prefersTouch(),
+      rightInset: () => (this.belt?.slots.length ? 64 : 0),
     }, {
       weapon: (slot) => this.selectWeapon(slot),
       mod: (i) => this.activateMod(MODS[i].id),
@@ -309,7 +330,6 @@ export class GameScene extends Phaser.Scene {
     this.touchUi = new TouchUI(this);
     this.touchUi.setEnabled(this.prefersTouch());
     this.touchCursor = { x: VIEW.centerX, y: 300 };
-    this.assist.reset();
     this.wireEvents();
     this.wireInput();
 
@@ -324,7 +344,8 @@ export class GameScene extends Phaser.Scene {
 
     const m = this.mission;
     // The objective strip says what to do, so a campaign mission starts without a banner.
-    if (m.mode === 'surge') this.hud.banner('FOG SURGE', { icon: 'bolt', text: (m.modifiers?.tags ?? []).join(' + '), tone: 'gold' }, 2.4);
+    if (m.mode === 'side') this.hud.banner('SIDE QUEST', { icon: 'star', text: m.name.toUpperCase(), tone: 'gold' }, 2.4);
+    else if (m.mode === 'surge') this.hud.banner('FOG SURGE', { icon: 'bolt', text: (m.modifiers?.tags ?? []).join(' + '), tone: 'gold' }, 2.4);
     else if (m.mode === 'endless') this.hud.banner('LAST STAND', null, 2.4);
     else if (m.veteran) this.hud.banner('VETERAN', { icon: 'medal', text: m.name.toUpperCase(), tone: 'gold' }, 2.4);
     this.refreshStrip();
@@ -332,6 +353,10 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(1200, () => this.startHints());
     this.time.delayedCall(2600, () => {
       if (this.waves.phase === 'idle') this.startNextWave();
+    });
+    this.toolButtons = new ToolButtons(this, this.belt, () => this.touchUi.isEnabled, (id) => {
+      this.cardClickAt = this.input.activePointer.downTime;
+      this.useTool(id);
     });
     if (!CRAZY || import.meta.env.DEV) (window as unknown as { __fogline: GameScene }).__fogline = this;
     if (data?.openShop) this.time.delayedCall(0, () => this.openShop());
@@ -362,11 +387,12 @@ export class GameScene extends Phaser.Scene {
     };
     this.enemies.onStrike = (z) => {
       if (z.def.attackDamage <= 0) return;
+      const blow = z.def.attackDamage * z.strikeMul;
       if (z.goal) {
-        this.hitTarget(z.goal as FieldTarget, z.def.attackDamage);
+        this.hitTarget(z.goal as FieldTarget, blow);
         return;
       }
-      this.hitBunker(z.def.attackDamage, z);
+      this.hitBunker(blow, z);
       // A giant's slam rattles the whole bunker.
       if (z.def.attackDamage >= 40 && !this.bunker.shielded) this.cameras.main.shake(260, 0.008);
     };
@@ -377,12 +403,14 @@ export class GameScene extends Phaser.Scene {
       const def = this.waves.current!;
       const mode = this.mission.mode;
       const freshIds = mode === 'endless' ? (wave > 1 ? newEnemiesInWave(wave - 1, this.mission.waves) : [])
-        : mode === 'surge' ? []
+        : mode === 'surge' || mode === 'side' ? []
         : newEnemiesInMissionWave(this.mission.id, wave);
       // The pips in the strip count the waves; the title only marks the moment.
       this.hud.banner(`WAVE ${wave}`, { icon: 'wave', text: def.name.toUpperCase() }, 2.4);
       // A new enemy gets a threat card. Its full description is in Field Notes (HQ).
-      if (freshIds.length) this.hud.threatCards(freshIds.map((id) => ({ def: ENEMIES[id], tags: threatTags(ENEMIES[id]) })));
+      // Only two cards fit: the ordinary shambler gives up its place to the stranger ones.
+      const cards = [...freshIds].sort((a, b) => Number(a === 'shambler') - Number(b === 'shambler'));
+      if (cards.length) this.hud.threatCards(cards.map((id) => ({ def: ENEMIES[id], tags: threatTags(ENEMIES[id]) })));
       audio.play('wave_start', { volume: 0.75 });
     });
     this.waves.events.on('start', () => this.hud.clearBanner());
@@ -390,6 +418,7 @@ export class GameScene extends Phaser.Scene {
       if (reward > 0) this.economy.earn(reward, 'wave');
       this.weapons.topUpStarter();
       this.night?.restock();
+      this.belt.restock();
       audio.play('wave_clear', { volume: 0.7 });
       for (const def of this.weapons.unlockForCleared(wave)) {
         this.fx.floatText(VIEW.centerX, VIEW.hudTop - 120, `${def.shortName} UNLOCKED — BUY IN THE ARMORY${this.touchUi.isEnabled ? '' : ' [SPACE]'}`, '#e8c060', 18);
@@ -713,10 +742,11 @@ export class GameScene extends Phaser.Scene {
 
   // ------------------------------------------------------------ Act 2 enemies
 
-  /** Spitter and Howler actions: the wind-up tell, the spit, the howl. */
-  private onEnemyAction(z: Zombie, action: 'charge' | 'spit' | 'howl'): void {
+  /** A monster's move: the wind-up tell, then the spit, the howl or its own special. */
+  private onEnemyAction(z: Zombie, action: ZombieAction): void {
     const pan = (z.sx - VIEW.centerX) / VIEW.centerX;
     const vol = Phaser.Math.Clamp(18 / z.z, 0.25, 1);
+    this.gimmicks.onAction(z, action);
     if (action === 'charge') {
       // The howl itself is the warning: it rises for the whole wind-up.
       if (z.channelKind === 'howl') audio.play('howl', { volume: vol, pan, rate: z.def.boss ? 0.7 : 1 });
@@ -725,14 +755,20 @@ export class GameScene extends Phaser.Scene {
     if (action === 'spit') {
       const spit = z.def.special?.ranged;
       if (!spit) return;
+      const kind = z.def.special?.shot;
+      const bomb = kind === 'bomb';
       const from = { x: 0, y: 0 };
       z.headScreen(from);
-      const img = this.add.image(from.x, from.y, 'glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0x9aff60).setScale(0.12).setDepth(DEPTH_GLOB);
+      const img = this.add.image(from.x, from.y, 'glow').setBlendMode(Phaser.BlendModes.ADD)
+        .setTint(bomb ? 0xff8a20 : 0x9aff60).setScale(0.12).setDepth(DEPTH_GLOB);
       const toX = Phaser.Math.Clamp(z.sx + (Math.random() - 0.5) * 260, 140, VIEW.width - 140);
-      this.globs.push({ img, t: 0, dur: 0.45 + z.z / 60, x0: from.x, y0: from.y, x1: toX, y1: VIEW.wallTop + 8, dmg: spit.damage });
-      audio.play('acid_spit', { volume: vol, pan });
+      // A bomb floats over slowly, to be shot down, and hits harder if it is not.
+      const dur = (0.45 + z.z / 60) * (bomb ? 2.4 : kind ? 1.35 : 1);
+      this.globs.push({ img, t: 0, dur, x0: from.x, y0: from.y, x1: toX, y1: VIEW.wallTop + 8, dmg: spit.damage * (bomb ? 1.5 : 1), kind });
+      audio.play('acid_spit', { volume: vol, pan, rate: bomb ? 0.7 : 1 });
       return;
     }
+    if (action !== 'howl') return;
     // The howl lands: the dead around it speed up; a Howler's first howl calls more out of the fog.
     const howl = z.def.special?.howl;
     if (!howl) return;
@@ -742,6 +778,7 @@ export class GameScene extends Phaser.Scene {
     const circle = this.add.circle(ring.x, ring.y, 10).setStrokeStyle(4, 0xc8d8ff, 0.9).setFillStyle(0, 0).setDepth(DEPTH_GLOB);
     this.tweens.add({ targets: circle, radius: 220, alpha: 0, duration: 900, onComplete: () => circle.destroy() });
     if (sped > 0) this.fx.floatText(ring.x, ring.y - 30, 'HOWL — THEY SPEED UP', '#c8d8ff', 16);
+    if (z.def.special?.disrupt) this.gimmicks.scream(z.def.special.disrupt);
     if (howl.summon && (!z.summoned || z.def.boss)) {
       z.summoned = true;
       const wave = this.waves.current;
@@ -759,15 +796,35 @@ export class GameScene extends Phaser.Scene {
       const g = this.globs[i];
       g.t += dt;
       const k = Math.min(1, g.t / g.dur);
-      const arc = Math.sin(k * Math.PI) * 120;
-      g.img.setPosition(g.x0 + (g.x1 - g.x0) * k, g.y0 + (g.y1 - g.y0) * k - arc).setScale(0.12 + k * 0.35);
+      const arc = Math.sin(k * Math.PI) * (g.kind === 'bomb' ? 190 : 120);
+      const swell = g.kind === 'bomb' ? 1.35 + 0.18 * Math.sin(g.t * 20) : 1;
+      g.img.setPosition(g.x0 + (g.x1 - g.x0) * k, g.y0 + (g.y1 - g.y0) * k - arc).setScale((0.12 + k * 0.35) * swell);
       if (k < 1) continue;
       g.img.destroy();
       this.globs.splice(i, 1);
       if (this.over) continue;
-      audio.play('acid_splash', { volume: 0.8, pan: (g.x1 - VIEW.centerX) / VIEW.centerX });
+      audio.play(g.kind === 'bomb' ? 'explosion_small' : 'acid_splash', { volume: 0.8, pan: (g.x1 - VIEW.centerX) / VIEW.centerX });
       this.fx.sandbagImpact(g.x1, g.y1);
+      if (g.kind === 'bomb') {
+        this.fx.glow(g.x1, g.y1 - 20, 320, 0xff8a30, 0.45);
+        this.cameras.main.shake(220, 0.007);
+      } else if (g.kind === 'acid' && !this.bunker.shielded) this.gimmicks.splash(g.x1);
       this.damageBunker(g.dmg, g.x1);
+    }
+  }
+
+  /** A shot that crosses a bomb or a gob of acid in the air bursts it. */
+  private shootDown(x: number, y: number): void {
+    for (let i = this.globs.length - 1; i >= 0; i--) {
+      const g = this.globs[i];
+      if (!g.kind || Math.hypot(g.img.x - x, g.img.y - y) > Math.max(34, g.img.displayWidth * 0.3)) continue;
+      this.fx.glow(g.img.x, g.img.y, g.kind === 'bomb' ? 280 : 150, g.kind === 'bomb' ? 0xff8a30 : 0x9aff60, 0.3);
+      this.fx.ricochet(g.img.x, g.img.y, 0.8);
+      this.fx.floatText(g.img.x, g.img.y - 26, 'SHOT DOWN', '#a8e090', 20);
+      audio.play(g.kind === 'bomb' ? 'explosion_small' : 'acid_splash', { volume: 0.6, rate: 1.3 });
+      this.economy.earn(15, 'kill');
+      g.img.destroy();
+      this.globs.splice(i, 1);
     }
   }
 
@@ -799,7 +856,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Kill cash multiplier from the mission (Fog Surge "Bounty"). */
   private get cashMul(): number {
-    return this.mission.modifiers?.cashMul ?? 1;
+    return (this.mission.modifiers?.cashMul ?? 1) * (this.relics.has('coin') ? RELIC_EFFECTS.cash : 1);
   }
 
   private onKill(z: Zombie, headshot: boolean, source: DamageSource): void {
@@ -932,28 +989,6 @@ export class GameScene extends Phaser.Scene {
     if (CRAZY && !this.over && !p.wasTouch && !this.touchUi.isEnabled) mouseLock.request();
   }
 
-  /** Phone aim assistance (see aimAssist.ts): where the crosshair goes for a finger at (x, y). */
-  private assistAim(x: number, y: number, dt: number): { x: number; y: number } {
-    const pts = this.assistPoints;
-    const at = this.assistScratch;
-    pts.length = 0;
-    for (const z of this.enemies.live) {
-      if (!z.alive) continue;
-      // Skip enemies that are clearly out of reach sideways. Their feet can be far below
-      // the crosshair while their head and chest are right on it, so don't cull vertically.
-      if (Math.abs(z.sx - x) > AIM.reach + 60) continue;
-      z.headScreen(at);
-      pts.push({ owner: z, part: 'head', x: at.x, y: at.y, baseX: z.sx, baseY: z.sy });
-      z.chestScreen(at);
-      pts.push({ owner: z, part: 'chest', x: at.x, y: at.y, baseX: z.sx, baseY: z.sy });
-    }
-    const aim = this.assist.step({ x, y }, pts, dt);
-    return {
-      x: Phaser.Math.Clamp(aim.x, 0, VIEW.width),
-      y: Phaser.Math.Clamp(aim.y, 0, VIEW.hudTop),
-    };
-  }
-
   private pressTouchButton(button: TouchButton, p: Phaser.Input.Pointer): void {
     switch (button) {
       case 'fire':
@@ -984,7 +1019,7 @@ export class GameScene extends Phaser.Scene {
 
   private wireInput(): void {
     const kb = this.input.keyboard!;
-    kb.addCapture('SPACE,ENTER,TAB,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,A,S,D,W,E,R,Q,SHIFT');
+    kb.addCapture('SPACE,ENTER,TAB,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,A,S,D,W,E,R,Q,Z,X,C,V,SHIFT');
     // Escape frees a locked mouse without reaching the game, so losing the lock opens the pause menu.
     mouseLock.onFreed = () => this.openPause();
     const map: Record<string, () => void> = {
@@ -1000,6 +1035,7 @@ export class GameScene extends Phaser.Scene {
       TAB: () => { if (CRAZY) this.openPause(); },
       ...(CRAZY ? {} : { F: () => toggleFullscreen(this) }),
       Q: () => this.fireFlare(),
+      ...Object.fromEntries(TOOLS.map((t) => [t.key, () => this.useTool(t.id)])),
       SHIFT: () => this.activateFocus(),
     };
     for (const [k, fn] of Object.entries(map)) kb.on(`keydown-${k}`, () => { if (!this.over) fn(); });
@@ -1039,7 +1075,8 @@ export class GameScene extends Phaser.Scene {
         return;
       }
       if (!this.prefersTouch()) this.touchUi.setEnabled(false);
-      if (p.leftButtonDown() && designPoint(p).y < VIEW.hudTop) {
+      // A tool button or a card over the field takes its own click.
+      if (over.length === 0 && p.leftButtonDown() && designPoint(p).y < VIEW.hudTop) {
         this.lockMouse(p);
         this.trigger = true;
       }
@@ -1048,7 +1085,14 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       // A real mouse on a hybrid laptop switches the on-screen controls off.
       if (!p.wasTouch && this.touchUi.isEnabled && !this.prefersTouch()) this.touchUi.setEnabled(false);
-      if (this.isFinger(p) && p.id === this.aimPointerId) this.stickKnob = pushStick(this.stickBase, designPoint(p));
+      // The aim moves here, as the thumb does, so the gun is already there on the next frame drawn.
+      if (this.isFinger(p) && p.id === this.aimPointerId && !this.over) {
+        const at = designPoint(p);
+        this.touchCursor = dragAim(this.touchCursor, this.stickKnob, at);
+        const pad = followThumb(this.stickBase, at);
+        this.stickBase = pad.base;
+        this.stickKnob = pad.knob;
+      }
     });
 
     const releasePointer = (p: Phaser.Input.Pointer): void => {
@@ -1107,6 +1151,7 @@ export class GameScene extends Phaser.Scene {
     this.fieldObjects.clear();
     this.night?.clear();
     this.night = null;
+    this.gimmicks?.destroy();
     this.clearPods();
     for (const g of this.globs) g.img.destroy();
     this.globs = [];
@@ -1232,6 +1277,55 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** A special tool: each one answers a kind of monster. */
+  useTool(id: ToolId): void {
+    if (this.over) return;
+    const E = TOOL_EFFECTS;
+    const alive = this.enemies.live.filter((z) => z.alive);
+    // The charge is only spent when there is something for it to do.
+    const biggest = alive.filter((z) => z.targetable).sort((a, b) => b.maxHp - a.maxHp || a.z - b.z)[0];
+    if ((id === 'breach' && !biggest) || !this.belt.use(id)) {
+      audio.play('deny', { volume: 0.5 });
+      return;
+    }
+    const def = toolById(id)!;
+    this.fx.floatText(VIEW.centerX, 190, def.name.toUpperCase(), `#${def.color.toString(16).padStart(6, '0')}`, 30);
+    const at = { x: 0, y: 0 };
+    if (id === 'uv') {
+      this.gimmicks.lamp(E.lamp);
+      this.fx.whiteFlash(0.3, 1.4, 0x6038d0);
+      audio.play('orbital_charge', { volume: 0.7, rate: 1.7 });
+    } else if (id === 'shock') {
+      audio.play('shot_tesla', { volume: 1, rate: 0.7 });
+      this.cameras.main.shake(300, 0.006);
+      for (let x = 150; x < VIEW.width - 150; x += 120) {
+        this.fx.tracer(x, VIEW.wallTop - 4, x + 120, VIEW.wallTop - 18 + Math.random() * 28, 2.2, 0.35);
+        this.fx.glow(x + 60, VIEW.wallTop - 10, 150, 0x70c8ff, 0.35);
+      }
+      for (const z of alive) {
+        if (z.z > E.shockReach) continue;
+        z.chestScreen(at);
+        this.fx.tracer(at.x, VIEW.wallTop - 8, at.x, at.y, 2, 0.3);
+        this.fx.ricochet(at.x, at.y, z.scale);
+        z.stun(E.shockStun);
+        this.combat.damage(z, E.shockDamage, 'torso', 1, 'support', 0xa0e0ff);
+      }
+    } else if (id === 'flash') {
+      audio.play('explosion_small', { volume: 1, rate: 1.7 });
+      this.fx.whiteFlash(0.85, 1.5);
+      for (const z of alive) z.stun(E.flashStun);
+    } else if (biggest) {
+      biggest.chestScreen(at);
+      audio.play('explosion', { volume: 0.9, rate: 1.1 });
+      this.cameras.main.shake(320, 0.009);
+      this.fx.explosion(biggest.x, biggest.z, 2.2);
+      this.fx.glow(at.x, at.y, 320, 0xffa040, 0.4);
+      biggest.shatterArmour();
+      biggest.weakLeft = E.breachOpen;
+      this.combat.damage(biggest, biggest.def.boss ? E.breachBossDamage : E.breachDamage, 'torso', 1, 'support', 0xffe0b0);
+    }
+  }
+
   openShop(): void {
     if (this.over || this.scene.isPaused()) return;
     this.trigger = false;
@@ -1324,10 +1418,11 @@ export class GameScene extends Phaser.Scene {
     const target = test ? structuredClone(profile.get()) : profile.get();
     const now = Date.now();
     const m = this.mission;
-    const outcome = m.mode ? applyModeResult(target, m, result, now) : applyResult(target, m, result);
+    const outcome = m.mode === 'side' ? applyQuestResult(target, m.id, result)
+      : m.mode ? applyModeResult(target, m, result, now) : applyResult(target, m, result);
     // Every saved battle also counts toward daily contracts, Field Notes and weapon mastery.
     const rewards = recordRun(target, {
-      mode: m.mode ?? 'campaign', objective: m.objective.kind, victory, kills: s.kills, headshots: s.headshotKills,
+      mode: m.mode === 'side' ? 'campaign' : m.mode ?? 'campaign', objective: m.objective.kind, victory, kills: s.kills, headshots: s.headshotKills,
       stars: outcome.stars, wavesCleared: cleared, enemyKills: this.runEnemyKills, weaponKills: this.runWeaponKills,
       supportCalls: this.supportCalls, bestStreak: this.bestStreak,
     }, now);
@@ -1375,6 +1470,7 @@ export class GameScene extends Phaser.Scene {
     const aimY = this.aimCursorY;
     this.view.fire(def);
     this.night?.muzzleFlash();
+    this.shootDown(aimX, aimY);
     const rate = 1 + (Math.random() * 2 - 1) * def.sound.pitchJitter;
     audio.play(def.sound.shot, { volume: def.id === 'm4' ? 0.85 : def.kind === 'flame' ? 0.5 : 1, rate });
     if (def.shake > 0) this.cameras.main.shake(70, def.shake);
@@ -1486,25 +1582,20 @@ export class GameScene extends Phaser.Scene {
   override update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs / 1000, 0.05);
     const p = this.input.activePointer;
-    // The crosshair is exactly where the mouse is (or where the touch aim stick
-    // has moved it); the gun is then rotated to point its barrel at it.
+    // The crosshair is exactly where the mouse is (or where the aiming thumb has
+    // moved it); the gun is then rotated to point its barrel at it.
     const touchMode = this.touchUi.isEnabled;
     // Until the mouse has been somewhere over the game (a new player lands straight in the
     // fight), the sights rest in the middle of the window.
     const seen = p.moveTime > 0 || p.downTime > 0;
     const mouse = seen ? designPoint(p) : { x: VIEW.centerX, y: 300 };
-    // The stick moves the crosshair for as long as it is pushed, in real time even during Focus.
-    if (touchMode && this.aimPointerId !== null && !this.over) {
-      this.touchCursor = stepStickAim(this.touchCursor, this.stickBase, this.stickKnob, dt);
-    }
     const rawX = Phaser.Math.Clamp(touchMode ? this.touchCursor.x : mouse.x, 0, VIEW.width);
     const rawY = Phaser.Math.Clamp(touchMode ? this.touchCursor.y : mouse.y, 0, VIEW.hudTop);
-    // On touch the crosshair also gets a little aim assistance toward nearby enemies.
-    if (!touchMode) this.assist.reset();
-    const assisted = touchMode ? this.assistAim(rawX, rawY, dt) : { x: rawX, y: rawY };
-    const aimed = this.updateAimZoom(dt, mouse, assisted);
-    const cursorAimX = aimed.x;
-    const cursorAimY = aimed.y;
+    const aimed = this.updateAimZoom(dt, mouse, { x: rawX, y: rawY });
+    // A scream throws the sights about.
+    const jolt = this.gimmicks.jitter;
+    const cursorAimX = Phaser.Math.Clamp(aimed.x + jolt.x, 0, VIEW.width);
+    const cursorAimY = Phaser.Math.Clamp(aimed.y + jolt.y, 0, VIEW.hudTop);
     this.aimCursorX = cursorAimX;
     this.aimCursorY = cursorAimY;
     const gunAimX = cursorAimX;
@@ -1543,6 +1634,9 @@ export class GameScene extends Phaser.Scene {
     this.targetView.sync(this.objective.targets, wdt);
     this.refreshStrip();
     this.abilities.update(dt);
+    this.belt.update(dt);
+    this.toolButtons.update();
+    this.toolButtons.setVisible(!this.over && !this.aimZoomed);
     this.combat.setActiveMods(this.abilities.activeMods(this.activeMods));
     this.bunker.update(dt);
     this.field.raiseShutters(this.bunker.shielded);
@@ -1566,6 +1660,7 @@ export class GameScene extends Phaser.Scene {
     // Through a scope the gun steps out of view and the crosshair stays.
     if (this.aimZoomed && this.weapons.current.def.scopeZoom) this.view.hideGun();
     this.night?.update(dt, cursorAimX, cursorAimY);
+    this.gimmicks.update(wdt, cursorAimX, cursorAimY);
     this.hud.setFocus(this.focusEnabled, this.focusMeter, this.focusLeft / FOCUS_SECONDS);
     this.hud.setStreak(this.streak, GameScene.streakMul(this.streak), this.night ? this.night.flaresLeft : -1);
     this.hud.update(dt);

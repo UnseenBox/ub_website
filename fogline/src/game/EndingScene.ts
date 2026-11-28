@@ -10,7 +10,7 @@ import { VIEW } from './config';
 type Line = { who?: string; text: string };
 
 export interface EndingData {
-  /** The act just finished: 3 (the Heart) leads into Act 4; 4 (the Bloom) is the last word. */
+  /** The act just finished: 3 (the Heart) leads into Act 4, 4 (the Gorger) into Act 5, and 5 is the last word. */
   act?: number;
 }
 
@@ -33,6 +33,16 @@ const ACT4_LINES: Line[] = [
   { who: 'VESNA', text: 'I will miss the mortar. Do not tell anyone I said that.' },
   { who: 'ROOK', text: 'First thing I am doing is sleeping for a week.' },
   { who: 'DOT', text: 'The farm bunker stays, though. I am keeping it oiled. Just in case.' },
+  { who: 'HALE', text: 'Warden, the summit village in the high pass has stopped answering. Pack your rifle.' },
+];
+
+/** After the twin giants: the pass is held, and the campaign is over. */
+const ACT5_LINES: Line[] = [
+  { text: 'It snowed on the pass for three days. When it stopped, there was no fog anywhere between the mountains and the sea.' },
+  { who: 'VARGA', text: 'No spores in the snow. No seeds in the rock. This time I checked twice.' },
+  { who: 'VESNA', text: 'I will miss the mortar. Do not tell anyone I said that.' },
+  { who: 'ROOK', text: 'First thing I am doing is sleeping for a week.' },
+  { who: 'DOT', text: 'The farm bunker stays, though. I am keeping it oiled. Just in case.' },
   { who: 'HALE', text: 'Warden: thank you. Every one of them got home because you held.' },
 ];
 
@@ -42,18 +52,19 @@ export class EndingScene extends Phaser.Scene {
   }
 
   create(data: EndingData = {}): void {
-    const finalAct = (data.act ?? 3) >= 4;
-    const LINES = finalAct ? ACT4_LINES : ACT3_LINES;
+    const act = data.act ?? 3;
+    const finalAct = act >= 5;
+    const LINES = finalAct ? ACT5_LINES : act === 4 ? ACT4_LINES : ACT3_LINES;
     this.input.setDefaultCursor('default');
     backdrop(this, 0x0a0b09);
     // A pale dawn rising behind the text.
     const dawn = backdrop(this, 0xd8c090, 0);
     this.tweens.add({ targets: dawn, fillAlpha: 0.12, duration: 9000 });
-    text(this, VIEW.centerX, 62, finalAct ? 'CLEAR SKIES' : 'THE FOG LIFTS', { size: 56, font: STENCIL, color: C.title }).setOrigin(0.5);
+    text(this, VIEW.centerX, 62, finalAct ? 'THE LINE HOLDS' : act === 4 ? 'CLEAR SKIES' : 'THE FOG LIFTS', { size: 56, font: STENCIL, color: C.title }).setOrigin(0.5);
     const p = profile.get();
     const stars = starTotals(p);
     centreRow([
-      chip(this, { icon: 'check', iconColor: C.ok, text: finalAct ? 'CAMPAIGN' : 'ACT 3', tone: 'green', size: 18 }),
+      chip(this, { icon: 'check', iconColor: C.ok, text: finalAct ? 'CAMPAIGN' : `ACT ${act}`, tone: 'green', size: 18 }),
       chip(this, { icon: 'star', text: `${stars.earned}/${stars.total}`, tone: 'gold', size: 18 }),
     ], VIEW.centerX, 120);
 
@@ -83,7 +94,7 @@ export class EndingScene extends Phaser.Scene {
       shown = true;
       audio.play('wave_clear', { volume: 0.6, rate: 0.8 });
       const next = !finalAct
-        ? chip(this, { icon: 'lock', text: 'ACT 4', tone: 'gold', size: 18 })
+        ? chip(this, { icon: 'lock', text: `ACT ${act + 1}`, tone: 'gold', size: 18 })
         : endlessOpen(p) ? chip(this, { icon: 'wave', text: 'LAST STAND · VETERAN', tone: 'gold', size: 18 }) : null;
       if (next) centreRow([next], VIEW.centerX, VIEW.height - 118);
       pushButton(this, VIEW.centerX - 150, VIEW.height - 56, { w: 260, h: 56, size: 26, icon: 'radio', label: 'HQ', onClick: () => this.scene.start('HQ', { tab: 'endless' }) });

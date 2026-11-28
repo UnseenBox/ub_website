@@ -87,6 +87,25 @@ describe('mission data', () => {
     }
   });
 
+  it('mixes monsters from the very first wave: no early wave is shamblers alone', () => {
+    for (const m of MISSIONS.filter((x) => x.act <= 2)) {
+      m.waves.forEach((w, i) => {
+        const kinds = new Set(w.groups.map((g) => g.enemy));
+        // The very first mission meets its monsters one or two at a time.
+        expect(kinds.size, `${m.id} wave ${i + 1}`).toBeGreaterThanOrEqual(m.id === 'a1m1' ? 2 : 3);
+        const all = w.groups.reduce((n, g) => n + g.count, 0);
+        const plain = w.groups.filter((g) => g.enemy === 'shambler').reduce((n, g) => n + g.count, 0);
+        expect(plain / all, `${m.id} wave ${i + 1}`).toBeLessThanOrEqual(m.id === 'a1m1' ? 0.85 : 0.76);
+      });
+    }
+  });
+
+  it('the Hollow Hound is by far the fastest, and a leg shot barely checks it', () => {
+    const hound = ENEMIES.hollow_hound;
+    for (const other of Object.values(ENEMIES)) if (other !== hound) expect(hound.speed).toBeGreaterThanOrEqual(other.speed * 2);
+    expect(hound.legSlow).toBeGreaterThanOrEqual(0.8);
+  });
+
   it('protect and evacuate objectives sit inside the field', () => {
     for (const m of MISSIONS) {
       const o = m.objective;
@@ -99,8 +118,10 @@ describe('mission data', () => {
   });
 
   it('new-enemy banners count enemies met in earlier missions', () => {
-    expect(newEnemiesInMissionWave('a1m1', 1)).toEqual(['shambler']);
-    expect(newEnemiesInMissionWave('a1m2', 1)).toEqual(['hollow_hound']);
+    expect(newEnemiesInMissionWave('a1m1', 1)).toEqual(['shambler', 'hollow_hound']);
+    expect(newEnemiesInMissionWave('a1m2', 1)).toEqual(['stalker']);
+    expect(newEnemiesInMissionWave('a1m3', 1)).toEqual(['wraith']);
+    expect(newEnemiesInMissionWave('a1m4', 1)).toEqual(['brute']);
     expect(newEnemiesInMissionWave('a1m9', 2)).toEqual(['colossus']);
   });
 });

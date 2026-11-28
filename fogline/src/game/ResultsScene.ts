@@ -18,6 +18,10 @@ import { bonusValue } from '../ui/messages';
 import { ITEM_ICON, WEAPON_ICON, icon, iconWidth, type IconName } from '../ui/icons';
 import { C, STENCIL, centreRow, chip, meter, pushButton, text, type Button, type Part } from '../ui/kit';
 import { isTouchDevice } from './touchControls';
+import { gunPrize, questPrize, showReveals } from '../ui/prizeReveal';
+import { questById } from '../data/quests';
+import { questDone, type QuestOutcome } from '../systems/Quests';
+import { relicById, toolById } from '../data/tools';
 
 export interface ResultsData {
   missionId: string;
@@ -54,6 +58,8 @@ export function gearName(g: GearId | string): string {
 /** Mission results: stars, what earned them, Supplies, unlocks and what comes next. */
 export class ResultsScene extends Phaser.Scene {
   private busy = false;
+  /** A newly won gun is being shown: the buttons beneath wait for it. */
+  private revealing = false;
   private saved = false;
   private suppliesValue: Phaser.GameObjects.Text | null = null;
 
@@ -63,6 +69,7 @@ export class ResultsScene extends Phaser.Scene {
 
   create(data: ResultsData): void {
     this.busy = false;
+    this.revealing = false;
     this.saved = data.saved;
     this.suppliesValue = null;
     const mission = data.mission ?? missionById(data.missionId)!;
@@ -72,7 +79,7 @@ export class ResultsScene extends Phaser.Scene {
     this.input.setDefaultCursor('default');
 
     const title = mode === 'endless' ? 'THE LINE FELL'
-      : win ? (mode === 'surge' ? 'SURGE BROKEN' : 'MISSION COMPLETE')
+      : win ? (mode === 'surge' ? 'SURGE BROKEN' : mode === 'side' ? 'QUEST COMPLETE' : 'MISSION COMPLETE')
       : data.failReason ?? 'BUNKER OVERRUN';
     backdrop(this, win || mode === 'endless' ? C.night : 0x1a100e).setInteractive();
     const heading = text(this, VIEW.centerX, 66, title, {
@@ -81,7 +88,8 @@ export class ResultsScene extends Phaser.Scene {
     if (heading.width > VIEW.width - 80) heading.setScale((VIEW.width - 80) / heading.width);
     if (mission.veteran) centreRow([chip(this, { icon: 'medal', text: 'VETERAN', tone: 'gold', size: 18 })], VIEW.centerX, 116);
 
-    if (mode) this.drawScore(mode, outcome as ModeOutcome, result.wavesCleared);
+    if (mode === 'side') this.drawQuest(mission.id, win);
+    else if (mode) this.drawScore(mode, outcome as ModeOutcome, result.wavesCleared);
     else this.drawStars(mission.bonus, data);
 
     // Battle stats: an icon and a number each. Waves only matter when they were not all cleared.
@@ -101,9 +109,17 @@ export class ResultsScene extends Phaser.Scene {
 
     this.drawActions(data, mission);
 
+    // A gun, tool or keepsake won in this battle gets its own moment, once the stars have landed.
+    const reward = mode === 'side' ? (outcome as QuestOutcome).reward : undefined;
+    const prizes = reward ? [questPrize(reward)] : mode ? [] : (outcome as MissionOutcome).unlockedWeapons.map(gunPrize);
+    if (prizes.length) {
+      this.revealing = true;
+      this.time.delayedCall(1300, () => showReveals(this, prizes, () => { this.revealing = false; }));
+    }
+
     // CrazyGames: the portal's celebration for a boss kill, a finished act, a first three-star result.
     if (data.saved && win) {
-      const proud = mission.objective.kind === 'boss' || (outcome.stars === 3 && outcome.previousStars < 3) || (mode === 'surge' && outcome.firstClear);
+      const proud = mission.objective.kind === 'boss' || (outcome.stars === 3 && outcome.previousStars < 3) || ((mode === 'surge' || mode === 'side') && outcome.firstClear);
       if (proud) portal.happytime();
       portal.reportCompleted(completionPercent(profile.get()));
     }
@@ -111,16 +127,18 @@ export class ResultsScene extends Phaser.Scene {
 
   /** The buttons: the way on at the bottom right, the others at the bottom left. */
   private drawActions(data: ResultsData, mission: MissionDef): void {
-    const mode = mission.mode;
+    // A side quest leads back to the map, like a mission; surges and Last Stand to the HQ.
+    const side = mission.mode === 'side';
+    const mode = mission.mode === 'side' ? undefined : mission.mode;
     const { result, outcome } = data;
     const win = result.victory;
     const p = profile.get();
     // The Heart (Act 3) and the Bloom (Act 4) each end with an epilogue.
-    const finale = win && outcome.firstClear && data.saved && !mode && isActFinale(mission) && mission.act >= 3;
+    const finale = win && outcome.firstClear && data.saved && !mode && !side && isActFinale(mission) && mission.act >= 3;
     const debrief = win && !mode ? mission.debrief : [];
     const toMap = (): void => this.leave(() => (finale
       ? this.scene.start('Ending', { act: mission.act })
-      : this.scene.start('Map', { reveal: win && outcome.firstClear && data.saved ? mission.id : undefined, debrief })));
+      : this.scene.start('Map', side ? { act: mission.act } : { reveal: win && outcome.firstClear && data.saved ? mission.id : undefined, debrief })));
     const retry = (): void => this.leave(() => this.scene.start('Game', { missionId: mission.id, veteran: mission.veteran }));
     const menu = (): void => this.leave(() => this.scene.start('Menu'));
     const y = VIEW.height - 52;
@@ -136,7 +154,7 @@ export class ResultsScene extends Phaser.Scene {
       small({ icon: 'replay', label: 'AGAIN', onClick: () => this.leave(() => this.scene.start('Game', { missionId: mission.id })) });
     } else if (win) {
       primary = toMap;
-      const next = data.saved && !campaignComplete(p) ? nextMission(p) : null;
+      const next = data.saved && !side && !campaignComplete(p) ? nextMission(p) : null;
       const prize = next ? next.firstClear.weapons[0] ?? null : null;
       const gear = next && !prize ? next.firstClear.gear[0] ?? null : null;
       const trail = prize ? WEAPON_ICON[prize] : gear ? ITEM_ICON[gear.split(':')[1]] : undefined;
@@ -233,6 +251,16 @@ export class ResultsScene extends Phaser.Scene {
     });
   }
 
+  /** A side quest: its prize, instead of stars. */
+  private drawQuest(id: string, win: boolean): void {
+    const q = questById(id)!;
+    const def = q.reward.kind === 'tool' ? toolById(q.reward.id)! : relicById(q.reward.id)!;
+    const held = win || questDone(profile.get(), id);
+    const color = q.reward.kind === 'tool' ? toolById(q.reward.id)!.color : C.gold;
+    icon(this, ITEM_ICON[q.reward.id], VIEW.centerX, 164, 86, held ? color : C.lineStrong);
+    centreRow([chip(this, { icon: held ? 'check' : 'lock', text: def.name.toUpperCase(), tone: held ? 'green' : 'muted', size: 20 })], VIEW.centerX, 232);
+  }
+
   /** Fog Surge and Last Stand: the score and today's or all-time best instead of stars. */
   private drawScore(mode: 'surge' | 'endless', o: ModeOutcome, wave: number): void {
     const big = mode === 'surge' ? o.score.toLocaleString('en-US') : `WAVE ${wave}`;
@@ -283,7 +311,7 @@ export class ResultsScene extends Phaser.Scene {
   private rewards(data: ResultsData, mission: MissionDef): Reward[] {
     const p = profile.get();
     const rw = data.rewards;
-    const mode = mission.mode;
+    const mode = mission.mode === 'side' ? undefined : mission.mode;
     const outcome = data.outcome;
     // Last Stand milestones get cards of their own, so the first card shows the rest.
     const milestones = mode ? (outcome as ModeOutcome).milestones : [];
@@ -328,7 +356,7 @@ export class ResultsScene extends Phaser.Scene {
 
   /** Leaves the results; a CrazyGames midgame break may run first (never in the first missions, three minutes apart). */
   private leave(then: () => void, allowBreak = true): void {
-    if (this.busy) return;
+    if (this.busy || this.revealing) return;
     this.busy = true;
     this.scene.stop('Game');
     const wins = Object.values(profile.get().missions).filter((r) => r.wins > 0).length;

@@ -1,4 +1,3 @@
-import { BRUTE_HEIGHT, BRUTE_PARTS, BRUTE_SHEET_TEXTURE } from './bruteFigure';
 import { SHAMBLER_HEIGHT, SHEET_PARTS, SheetPart, ZOMBIE_SHEET_TEXTURE } from './zombieSheetFrames';
 
 export type FigurePartName = 'head' | 'torso' | 'armL' | 'armR' | 'thighL' | 'thighR' | 'shinL' | 'shinR';
@@ -19,7 +18,7 @@ function armReachOf(parts: Record<FigurePartName, SheetPart>): number {
   return parts.armL.h * (1 - parts.armL.oy);
 }
 
-/** Enemy look -> cut figure. Looks not listed here are drawn procedurally. */
+/** Enemy look -> cut figure. Looks not listed here are puppets (or drawn procedurally). */
 export const FIGURES: Record<string, Figure> = {
   shambler: {
     texture: ZOMBIE_SHEET_TEXTURE,
@@ -27,12 +26,5 @@ export const FIGURES: Record<string, Figure> = {
     parts: SHEET_PARTS,
     halfWidth: 135,
     armReach: armReachOf(SHEET_PARTS),
-  },
-  brute: {
-    texture: BRUTE_SHEET_TEXTURE,
-    height: BRUTE_HEIGHT,
-    parts: BRUTE_PARTS,
-    halfWidth: 235,
-    armReach: armReachOf(BRUTE_PARTS),
   },
 };

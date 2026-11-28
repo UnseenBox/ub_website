@@ -53,6 +53,15 @@ export const ICONS = {
   // enemy traits and effects
   acid: sq('M12 3c3 4.5 6 8 6 11a6 6 0 0 1-12 0c0-3 3-6.5 6-11z'),
   bolt: sq('M13 2L4 14h7l-1 8 9-12h-7z'),
+  // special tools and keepsakes
+  lamp: sq('M8 3h8l2 7H6zM12 10v3M7 15l-3 4M12 16v6M17 15l3 4'),
+  wire: sq('M2 20h20M5 20v-5M19 20v-5M13 2l-5 9h4l-2 6 7-9h-4z'),
+  flashbang: sq(circle(12, 14, 5), 'M10 9V6h4v3M12 2v1M4 6l2 2M20 6l-2 2M2 14h2M20 14h2'),
+  charge: sq('M5 9h14v11H5zM9 9V6h6v3M9 14.5h6M12 3v3'),
+  plate: sq('M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6zM8.5 12h7M12 8.5v7'),
+  satchel: sq('M4 9h16v11H4zM8 9V7a4 4 0 0 1 8 0v2M4 13h16M11 13v3h2v-3'),
+  coin: sq(circle(12, 12, 9), circle(12, 12, 5), 'M12 9.5v5'),
+  sight: sq(circle(12, 12, 6), 'M12 2v6M12 16v6M2 12h6M16 12h6'),
   wave: sq('M2 14c2.5 0 2.5-4 5-4s2.5 4 5 4 2.5-4 5-4 2.5 4 5 4'),
   howl: sq('M4 9h3l5-4v14l-5-4H4zM15 9a4 4 0 0 1 0 6M18 6a9 9 0 0 1 0 12'),
   split: sq('M12 21v-7M12 14L5 7M12 14l7-7M5 12V7h5M19 12V7h-5'),
@@ -93,6 +102,7 @@ export const WEAPON_ICON: Record<string, IconName> = {
 
 /** The icon for a HUD or armory item that is not a weapon. */
 export const ITEM_ICON: Record<string, IconName> = {
+  uv: 'lamp', shock: 'wire', flash: 'flashbang', breach: 'charge', plating: 'plate', satchel: 'satchel', coin: 'coin', sight: 'sight',
   double: 'bullet', ap: 'bullet', fire: 'flame', cryo: 'bullet',
   gunship: 'heli', orbital: 'orbital', nuke: 'nuke', repair: 'wrench', wall: 'shutters', reinforce: 'shield',
 };

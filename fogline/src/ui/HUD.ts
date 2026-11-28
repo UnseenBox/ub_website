@@ -127,6 +127,8 @@ export class HUD {
       weaponSlots: string[];
       /** Whether the on-screen touch controls are up (their buttons take the top left corner). */
       touch: () => boolean;
+      /** Room the tool buttons take down the right side, in pixels. */
+      rightInset?: () => number;
     },
     private readonly actions: HudActions,
   ) {
@@ -352,7 +354,8 @@ export class HUD {
     const scale = shown.length > 1 ? 0.8 : 1;
     // On touch screens the cards sit higher, clear of the fire button.
     const top = this.d.touch() ? 22 : shown.length > 1 ? 96 : 156;
-    this.threatBox = s.add.container(VIEW.width - 26 - W * scale, top, cards).setScale(scale).setDepth(DEPTH.banner + 1);
+    const right = VIEW.width - 26 - (this.d.rightInset?.() ?? 0);
+    this.threatBox = s.add.container(right - W * scale, top, cards).setScale(scale).setDepth(DEPTH.banner + 1);
     this.threatLeft = 4.5;
     this.threatBox.x += 40;
     s.tweens.add({ targets: this.threatBox, x: this.threatBox.x - 40, duration: 220, ease: 'Cubic.easeOut' });

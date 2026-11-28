@@ -7,7 +7,7 @@ import { buildSoundBank } from '../audio/SoundBank';
 import { computeViewModelPose, resolveViewModel } from '../entities/viewModelPose';
 import { ECONOMY, VIEW } from '../game/config';
 import { MENU_BG_TEXTURE, MENU_BUTTON_FRAMES, MENU_BUTTONS_TEXTURE } from '../game/textureKeys';
-import { STICK, TOUCH_LAYOUT, isAimTouch, isFireTouch, pushStick, resetTouchPointerIds, stepStickAim, stickVelocity, touchButtonAt } from '../game/touchControls';
+import { STICK, TOUCH_LAYOUT, dragAim, followThumb, isAimTouch, isFireTouch, resetTouchPointerIds, touchButtonAt } from '../game/touchControls';
 import { groundAt, project } from '../game/perspective';
 import { enterFullscreen } from '../game/phoneFullscreen';
 import { Abilities } from './Abilities';
@@ -420,35 +420,41 @@ describe('phone touch controls', () => {
   const base = { x: 200, y: 400 };
   const r = STICK.home.r;
 
-  it('holds the aim still while the stick rests or barely moves', () => {
-    expect(stickVelocity(base, base)).toEqual({ x: 0, y: 0 });
-    expect(stickVelocity(base, { x: base.x + r * STICK.dead * 0.9, y: base.y })).toEqual({ x: 0, y: 0 });
+  const middle = { x: 640, y: 300 };
+
+  it('moves the crosshair the moment the thumb moves, by the same amount every time', () => {
+    // No dead zone and no waiting: one pixel of thumb is already movement.
+    expect(dragAim(middle, base, { x: base.x + 1, y: base.y }).x).toBeCloseTo(640 + STICK.gain);
+    const up = dragAim(middle, base, { x: base.x, y: base.y - 40 });
+    expect(up).toEqual({ x: 640, y: 300 - 40 * STICK.gain });
   });
 
-  it('moves the crosshair the way the stick is pushed, at full speed at the rim', () => {
-    const right = stickVelocity(base, { x: base.x + r, y: base.y });
-    expect(right.x).toBeCloseTo(STICK.speed);
-    expect(right.y).toBeCloseTo(0);
-    const up = stepStickAim({ x: 640, y: 300 }, base, { x: base.x, y: base.y - r }, 0.1);
-    expect(up.x).toBeCloseTo(640);
-    expect(up.y).toBeCloseTo(300 - STICK.speed * 0.1);
+  it('keeps the aim exactly where it is while the thumb holds still, however far it was pushed', () => {
+    const held = { x: base.x + r, y: base.y };
+    expect(dragAim(middle, held, held)).toEqual(middle);
   });
 
-  it('is fine near the middle: half a push is well under half speed', () => {
-    const half = stickVelocity(base, { x: base.x + r / 2, y: base.y }).x;
-    expect(half).toBeGreaterThan(0);
-    expect(half).toBeLessThan(STICK.speed * 0.3);
+  it('goes there and back with the thumb', () => {
+    const out = { x: base.x + 60, y: base.y + 25 };
+    const back = dragAim(dragAim(middle, base, out), out, base);
+    expect(back.x).toBeCloseTo(middle.x);
+    expect(back.y).toBeCloseTo(middle.y);
   });
 
-  it('keeps the knob inside the stick however far the thumb goes', () => {
-    const knob = pushStick(base, { x: base.x + 500, y: base.y + 500 });
-    expect(Math.hypot(knob.x - base.x, knob.y - base.y)).toBeCloseTo(r);
-    expect(pushStick(base, { x: base.x + 10, y: base.y })).toEqual({ x: base.x + 10, y: base.y });
+  it('drags the ring along once the thumb passes its rim, so the knob stays on the thumb', () => {
+    const thumb = { x: base.x + 500, y: base.y };
+    const pad = followThumb(base, thumb);
+    expect(pad.knob).toEqual(thumb);
+    expect(Math.hypot(pad.knob.x - pad.base.x, pad.knob.y - pad.base.y)).toBeCloseTo(r);
+    expect(followThumb(base, { x: base.x + 10, y: base.y })).toEqual({ base, knob: { x: base.x + 10, y: base.y } });
   });
 
-  it('clamps the touch crosshair to the battlefield', () => {
-    expect(stepStickAim({ x: 1270, y: 580 }, base, { x: base.x + r, y: base.y + r }, 1)).toEqual({ x: VIEW.width, y: VIEW.hudTop });
-    expect(stepStickAim({ x: 5, y: 5 }, base, { x: base.x - r, y: base.y - r }, 1)).toEqual({ x: 0, y: 0 });
+  it('clamps the touch crosshair to the battlefield, and turns back at once from an edge', () => {
+    const far = { x: base.x + 900, y: base.y + 900 };
+    const corner = dragAim({ x: 1270, y: 580 }, base, far);
+    expect(corner).toEqual({ x: VIEW.width, y: VIEW.hudTop });
+    expect(dragAim(corner, far, { x: far.x - 10, y: far.y }).x).toBeCloseTo(VIEW.width - 10 * STICK.gain);
+    expect(dragAim({ x: 5, y: 5 }, far, base)).toEqual({ x: 0, y: 0 });
   });
 
   it('the left half above the HUD aims and the right half fires, never both', () => {

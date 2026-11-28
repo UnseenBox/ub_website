@@ -21,16 +21,17 @@ browser-chrome clipping.
 
 | Control | Where | What it does |
 | --- | --- | --- |
-| Aim | Anywhere on the left half above the HUD | Drag to move the crosshair (relative, 1.8× sensitivity). A faint AIM ring fades after the first touch |
-| FIRE | Large round button, bottom right | Hold to fire; release to stop. A reload ring runs around it |
+| Aim | Anywhere on the left half above the HUD | Drag to move the crosshair: it moves with the thumb, at once (relative, 2.2× sensitivity). No aim assistance |
+| FIRE | Large round button, bottom right (or anywhere on the right half) | Hold to fire; release to stop. A reload ring runs around it |
 | RLD | Round button above-left of FIRE | Reload |
 | II | Top left | Pause |
 | SHOP | Top left, next to pause | Armory (pauses combat) |
 | DEPLOY | Pill, bottom centre | Appears between waves; starts the next wave |
 | HUD slots | Bottom panel | Tap weapons, ammo mods, support strikes and bunker defences |
+| Tools | Round buttons down the right edge | Special tools won from side quests |
 
-Only the FIRE button fires. Tapping empty ground on the right does nothing, so a
-stray touch never wastes ammo. Aim and fire work at the same time with two thumbs.
+The right half never aims, so the firing thumb cannot disturb the sights. Aim and
+fire work at the same time with two thumbs.
 
 The on-screen controls show on coarse-pointer devices, or after the first touch on a
 hybrid laptop, and switch off again when a mouse is moved there. Keyboard hints in

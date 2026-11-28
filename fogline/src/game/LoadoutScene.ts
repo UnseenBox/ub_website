@@ -44,7 +44,8 @@ export class LoadoutScene extends Phaser.Scene {
     this.supports = [...lo.supports];
     this.dynamic = [];
     const mission = resolveMission(data.missionId, profile.get(), Date.now())!;
-    this.mode = !!mission.mode;
+    // A side quest is reached from the map, like a mission; a surge or Last Stand from the HQ.
+    this.mode = mission.mode === 'surge' || mission.mode === 'endless';
 
     backdrop(this, C.night);
     const title = text(this, 28, 46, 'LOADOUT', { size: 36, font: STENCIL, color: C.title }).setOrigin(0, 0.5);

@@ -10,7 +10,6 @@ import menuBgUrl from '../assets/main-menu.webp';
 import mapValleyUrl from '../assets/map-valley.webp';
 import menuButtonsUrl from '../assets/menu-buttons.webp';
 import zombieSheetUrl from '../assets/zombie-parts.webp';
-import bruteSheetUrl from '../assets/brute-parts.webp';
 import { audio } from '../audio/AudioManager';
 import { buildEnvironmentTextures } from '../rendering/EnvironmentArt';
 import { buildFxTextures } from '../rendering/FxArt';
@@ -69,7 +68,6 @@ export class BootScene extends Phaser.Scene {
     this.load.image(MAP_VALLEY_ART, mapValleyUrl);
     this.load.image(MENU_BUTTONS_TEXTURE, menuButtonsUrl);
     this.load.image(FIGURES.shambler.texture, zombieSheetUrl);
-    this.load.image(FIGURES.brute.texture, bruteSheetUrl);
     for (const look of Object.keys(CREATURES)) this.load.image(atlasKey(look), puppetAtlases[`../assets/puppets/${look}.webp`]);
   }
 

@@ -183,10 +183,10 @@ describe('playtest numbers', () => {
 });
 
 describe('last stand with Act 3 enemies', () => {
-  it('brings Stalkers and Ravagers late, once they have been met', () => {
+  it('brings Stalkers early and Ravagers late, once they have been met', () => {
     const met = new Set(['shambler', 'hollow_hound', 'brute', 'wraith', 'pumpkin_brood', 'stalker', 'ravager']);
-    expect(endlessWave(7, met).groups.some((g) => g.enemy === 'stalker')).toBe(false);
-    expect(endlessWave(8, met).groups.some((g) => g.enemy === 'stalker')).toBe(true);
+    expect(endlessWave(1, met).groups.some((g) => g.enemy === 'stalker')).toBe(false);
+    expect(endlessWave(2, met).groups.some((g) => g.enemy === 'stalker')).toBe(true);
     expect(endlessWave(16, met).groups.some((g) => g.enemy === 'ravager')).toBe(true);
     expect(endlessWave(16, new Set(['shambler'])).groups.some((g) => g.enemy === 'ravager')).toBe(false);
   });

@@ -101,7 +101,14 @@ export class CombatSystem {
     let confirmed = false;
     hits.forEach((hit, i) => {
       const z = hit.zombie;
-      const res = bulletDamage(def.damage * rangeFalloff(def, z.z), def.headshotMultiplier, hit.zone, z.def, mods);
+      const reach = def.damage * rangeFalloff(def, z.z);
+      const res = bulletDamage(reach, def.headshotMultiplier * this.headshotBoost, hit.zone, z.def, z.armourBroken ? withAp(mods) : mods);
+      // The roaring Brute's belly: soft, whatever the hide is elsewhere.
+      if (hit.zone === 'torso' && z.weakOpen) {
+        res.damage = reach * z.def.special!.roar!.belly * (this.activeMods.has('double') ? MOD_EFFECTS.doubleMultiplier : 1);
+        res.deflected = false;
+        this.onTrick(z, 'weak');
+      }
       const dir = x < z.sx ? 1 : -1;
       const vol = Phaser.Math.Clamp(14 / z.z, 0.25, 1) * (i === 0 ? 1 : 0.6);
       if (res.deflected) {
@@ -135,7 +142,7 @@ export class CombatSystem {
       let next: Zombie | null = null;
       let best = Infinity;
       for (const h of this.enemies.inRadius(from.x, from.z, c.radiusM)) {
-        if (!h.zombie.alive || seen.has(h.zombie) || h.dist >= best) continue;
+        if (!h.zombie.targetable || seen.has(h.zombie) || h.dist >= best) continue;
         best = h.dist;
         next = h.zombie;
       }
@@ -161,7 +168,7 @@ export class CombatSystem {
     const reach = def.flameRange ?? 20;
     let hitCount = 0;
     for (const z of [...this.enemies.live]) {
-      if (!z.alive || z.z > reach) continue;
+      if (!z.targetable || z.z > reach) continue;
       z.chestScreen(tmp);
       const r = def.spread + z.screenWidth * 0.35;
       if (Math.hypot(tmp.x - x, tmp.y - y) > r) continue;
@@ -175,12 +182,16 @@ export class CombatSystem {
     return hitCount;
   }
 
+  /** The Marksman's Sight: headshots hit this much harder. */
+  headshotBoost = 1;
   /** Kill-streak cash multiplier (set by the battle). */
   rewardMul = 1;
   /** The Bloom's pods are up: bosses take a fifth of the damage. */
   bossShielded = false;
   /** Every kill, after it is paid (streaks, Focus, squad lines). */
   onKill: (z: Zombie, headshot: boolean, source: DamageSource) => void = () => {};
+  /** A shot did more than hurt: it cut a move off, broke armour, hit the soft belly, or knocked down. */
+  onTrick: (z: Zombie, what: 'interrupted' | 'shattered' | 'weak' | 'down') => void = () => {};
 
   /** Set by the first pellet that lands, so a blast counts one hit. Reset per shot. */
   private pelletHit = false;
@@ -250,11 +261,22 @@ export class CombatSystem {
     if (this.bossShielded && z.def.boss) amount *= 0.2;
     z.hp -= amount;
     if (zone === 'legs' && z.alive) z.hurtLegs();
+    const broke = z.hp > 0 ? z.takeHurt(amount, zone) : null;
+    if (broke) this.onTrick(z, broke);
     if (react) {
       z.hitReact(dir || 1, Math.min(1, amount / (z.maxHp * 0.6) + 0.35), zone === 'head', flash);
       if (amount >= z.def.staggerThreshold) z.stagger(0.45);
     }
-    if (z.hp <= 0) this.kill(z, zone === 'head' && (source === 'bullet' || source === 'squad'), dir, source);
+    if (z.hp > 0) return;
+    const headshot = zone === 'head' && (source === 'bullet' || source === 'squad');
+    // Some get up again, once, unless the head went: only a finished one counts.
+    const rises = z.def.special?.rises;
+    if (rises && !z.risen && !headshot && (source === 'bullet' || source === 'squad') && Math.random() < rises.chance) {
+      z.collapse(rises.health);
+      this.onTrick(z, 'down');
+      return;
+    }
+    this.kill(z, headshot, dir, source);
   }
 
   private kill(z: Zombie, headshot: boolean, dir: number, source: DamageSource): void {

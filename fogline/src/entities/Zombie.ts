@@ -9,8 +9,16 @@ import { PuppetBody } from '../puppet/body';
 import { CREATURES } from '../puppet/index';
 import { clamp01 } from '../puppet/solve';
 import { clawSlash, screechRing, smokeBurst, smokeWisp, spitPuff, stompDust } from '../rendering/monsterFx';
+import { breakTricks, newTrick, runTricks, startTricks, type Trick } from './tricks';
 
-export type ZombieState = 'emerge' | 'walk' | 'hold' | 'attack' | 'dying' | 'dead';
+/** 'down': knocked over and about to get up again. */
+export type ZombieState = 'emerge' | 'walk' | 'hold' | 'attack' | 'down' | 'dying' | 'dead';
+/** What a monster winds up: a spit or howl, or one of the special moves. */
+export type ChannelKind = 'spit' | 'howl' | 'roar' | 'veil' | 'rush';
+/** Something that happened this frame, for the battle to show. */
+export type ZombieAction = 'charge' | ChannelKind | 'leap' | 'vanish' | 'ambush' | 'burrow' | 'stomp' | 'rise';
+/** How long a knocked-down body takes to fall, lie and stand. */
+export const DOWN = { fall: 0.5, lie: 1.3, rise: 0.7 } as const;
 type DeathStyle = 'side' | 'back' | 'crumple';
 
 /** Shamblers are drawn from the cut figure art, SHAMBLER_HEIGHT units from feet to top of head. */
@@ -100,11 +108,45 @@ export class Zombie {
   holdZ: number | null = null;
   holdsLeft = 0;
   holdCooldown = 0;
-  /** Winding up a spit or a howl. */
+  /** Winding up a spit, a howl or a special move. */
   channelLeft = 0;
-  channelKind: 'spit' | 'howl' | null = null;
+  channelKind: ChannelKind | null = null;
   /** Set for one frame when something happens: read and cleared by EnemyManager. */
-  action: 'charge' | 'spit' | 'howl' | null = null;
+  action: ZombieAction | null = null;
+  /** The monster's special moves (see tricks.ts). */
+  readonly trick: Trick = newTrick();
+  /** Unseen, so it cannot be shot or picked out, unless the lamp is on it. */
+  hidden = false;
+  /** Seconds the lamp keeps showing it. */
+  revealLeft = 0;
+  /** How solid it looks, 0–1. */
+  veil = 1;
+  /** Metres off the ground, in a leap. */
+  lift = 0;
+  /** 0 standing, 1 crouched to spring. */
+  squash = 0;
+  /** The jolt of appearing, 1 fading to 0. */
+  pop = 0;
+  /** Where it would walk without its leaps, and how far to the side of that it is. */
+  laneX = 0;
+  swerve = 0;
+  /** Seconds it stands stunned. */
+  stunLeft = 0;
+  /** Seconds a breaching charge keeps the belly open. */
+  weakLeft = 0;
+  armourBroken = false;
+  /** Running flat out after a rush. */
+  rushing = false;
+  /** The next blow lands twice as hard. */
+  heavyBlow = false;
+  /** The blow that just landed: how much harder than usual. */
+  strikeMul = 1;
+  /** Has already got up once. */
+  risen = false;
+  private downT = 0;
+  /** Damage taken during this wind-up, and to the body since it appeared. */
+  private windupHurt = 0;
+  private bodyHurt = 0;
   /** A Howler's first howl calls extra bodies; only once. */
   summoned = false;
   /** Screen-space info refreshed every frame. */
@@ -146,7 +188,7 @@ export class Zombie {
   private baseTint = 0xffffff;
   private segs: Seg[] = [];
   private headC = { x: 0, y: 0, r: 0 };
-  /** Set for enemies drawn from a cut figure (shambler, brute); null for the procedural looks. */
+  /** Set for enemies drawn from a cut figure (the shambler); null for puppets and procedural looks. */
   private figure: Figure | null = null;
   /** Feet to top of head in figure units: the scale the rig is drawn at. */
   private rigHeight = 0;
@@ -222,8 +264,16 @@ export class Zombie {
       this.stopZ = def.boss.stopZ;
     } else {
       this.targetX = (rng() * 2 - 1) * FIELD.attackHalfWidth;
-      this.stopZ = FIELD.attackZ + rng() * 1.3;
+      this.stopZ = FIELD.attackZ + rng() * 1.3 + (def.standOff ?? 0);
     }
+    this.hidden = false;
+    this.revealLeft = this.stunLeft = this.weakLeft = this.lift = this.squash = this.pop = this.swerve = 0;
+    this.veil = 1;
+    this.laneX = x;
+    this.armourBroken = this.rushing = this.heavyBlow = this.risen = false;
+    this.strikeMul = 1;
+    this.downT = this.windupHurt = this.bodyHurt = 0;
+    startTricks(this, rng);
     this.state = 'emerge';
     // It comes up out of the ground over about a second and a half, not in a single frame.
     this.emergeTotal = this.emergeLeft = 1.1 + rng() * 0.6;
@@ -302,7 +352,7 @@ export class Zombie {
   }
 
   /**
-   * Cut-out figures (shambler, brute): every joint is its own part. Each part rotates about
+   * Cut-out figures (the shambler): every joint is its own part. Each part rotates about
    * its pivot in poseSheet, so the figure is articulated rather than frame-swapped.
    */
   private dressSheet(fig: Figure): void {
@@ -383,12 +433,129 @@ export class Zombie {
   }
 
   get alive(): boolean {
-    return this.active && (this.state === 'emerge' || this.state === 'walk' || this.state === 'hold' || this.state === 'attack');
+    return this.active && (this.state === 'emerge' || this.state === 'walk' || this.state === 'hold' || this.state === 'attack' || this.state === 'down');
+  }
+
+  /** Alive and in sight: what a shot, a gunship or a recruit can pick out. */
+  get targetable(): boolean {
+    return this.alive && (!this.hidden || this.revealLeft > 0);
+  }
+
+  /** The soft spot is showing: a body shot counts like a hit on it. */
+  get weakOpen(): boolean {
+    return this.alive && !!this.def.special?.roar && (this.weakLeft > 0 || (this.channelKind === 'roar' && this.channelLeft > 0));
+  }
+
+  /** Starts winding up a move; it fires `seconds` later unless it is cut off. */
+  windUp(kind: ChannelKind, seconds: number): void {
+    this.channelKind = kind;
+    this.channelLeft = this.channelTotal = seconds;
+    this.releaseLeft = 0;
+    this.windupHurt = 0;
+    this.action = 'charge';
+  }
+
+  /** Cuts off a wind-up. True when there was one to cut off. */
+  interrupt(): boolean {
+    if (this.channelLeft <= 0 || !this.channelKind) return false;
+    // A spit or howl cut off still uses up one of the creature's turns.
+    if (this.channelKind === 'spit' || this.channelKind === 'howl') this.holdCooldown = 2.5;
+    this.channelKind = null;
+    this.channelLeft = 0;
+    this.action = null;
+    return true;
+  }
+
+  /** Frozen where it stands: no walking, no striking, and any move in progress is lost. */
+  stun(seconds: number): void {
+    if (!this.alive) return;
+    this.interrupt();
+    breakTricks(this);
+    this.rushing = false;
+    this.stunLeft = Math.max(this.stunLeft, seconds);
+  }
+
+  /** The lamp picks it out. */
+  reveal(seconds: number): void {
+    this.revealLeft = Math.max(this.revealLeft, seconds);
+    if (this.channelKind === 'veil') this.interrupt();
+  }
+
+  /** The end of a pounce: straight into a bite. */
+  bite(): void {
+    this.state = 'attack';
+    this.attackT = 0.58;
+    this.struck = false;
+  }
+
+  /** Comes up out of the mud again, over `seconds`. */
+  surface(seconds: number): void {
+    this.state = 'emerge';
+    this.emergeTotal = this.emergeLeft = seconds;
+  }
+
+  /** Moves it, and the line it walks along, to `x`. */
+  moveLane(x: number): void {
+    this.x = this.laneX = this.spawnX = x;
+    this.targetX = x;
+  }
+
+  /** Knocked down by what should have killed it: it will get up again with `share` of its health. */
+  collapse(share: number): void {
+    this.interrupt();
+    breakTricks(this);
+    this.risen = true;
+    this.state = 'down';
+    this.downT = 0;
+    this.hp = this.maxHp * share;
+    this.legsHurtLeft = this.staggerLeft = 0;
+  }
+
+  /** How far over a knocked-down body is, 0 standing to 1 flat. */
+  private get fallen(): number {
+    const t = this.downT;
+    if (t < DOWN.fall) return t / DOWN.fall;
+    if (t < DOWN.fall + DOWN.lie) return 1;
+    return Math.max(0, 1 - (t - DOWN.fall - DOWN.lie) / DOWN.rise);
+  }
+
+  /**
+   * What a hit does to the creature's moves. Returns what it broke: a wind-up cut off, or
+   * armour shattered.
+   */
+  takeHurt(amount: number, zone: HitZone): 'interrupted' | 'shattered' | null {
+    const s = this.def.special;
+    if (this.channelLeft > 0 && this.channelKind) {
+      this.windupHurt += amount;
+      const share = this.windupHurt / this.maxHp;
+      const head = zone === 'head' && !this.def.boss;
+      const broken = (this.channelKind === 'howl' && head && !!s?.disrupt)
+        || (this.channelKind === 'veil' && (head || share >= 0.2))
+        || (this.channelKind === 'rush' && (head || share >= 0.1));
+      if (broken) {
+        this.interrupt();
+        return 'interrupted';
+      }
+    }
+    if (s?.shatter && !this.armourBroken && zone !== 'head') {
+      this.bodyHurt += amount;
+      if (this.bodyHurt >= this.maxHp * s.shatter) {
+        this.shatterArmour();
+        return 'shattered';
+      }
+    }
+    return null;
+  }
+
+  shatterArmour(): void {
+    if (this.armourBroken) return;
+    this.armourBroken = true;
+    this.speed *= 1.2;
   }
 
   get slowFactor(): number {
     const cryo = this.slowLeft > 0 ? 0.45 : 1;
-    const legs = this.legsHurtLeft > 0 ? LEG_SLOW.factor : 1;
+    const legs = this.legsHurtLeft > 0 ? this.def.legSlow ?? LEG_SLOW.factor : 1;
     return Math.min(cryo, legs);
   }
 
@@ -401,6 +568,17 @@ export class Zombie {
   update(dt: number): boolean {
     this.time += dt;
     let strike = false;
+    if (this.revealLeft > 0) this.revealLeft = Math.max(0, this.revealLeft - dt);
+    if (this.weakLeft > 0) this.weakLeft = Math.max(0, this.weakLeft - dt);
+    // Stunned, it only sways on the spot.
+    if (this.stunLeft > 0 && this.alive && this.state !== 'down') {
+      this.stunLeft = Math.max(0, this.stunLeft - dt);
+      this.flinch = 0.35 + 0.25 * Math.sin(this.time * 18);
+      if (this.burnLeft > 0) this.burnLeft = Math.max(0, this.burnLeft - dt);
+      this.updateScreen();
+      this.pose();
+      return false;
+    }
     this.flinch = Math.max(0, this.flinch - dt * 5);
     this.hitFlash = Math.max(0, this.hitFlash - dt);
     if (this.burnLeft > 0) this.burnLeft = Math.max(0, this.burnLeft - dt);
@@ -426,14 +604,16 @@ export class Zombie {
         smokeWisp(this.scene, p.x, p.y, this.scale, this.root.depth - 1);
       }
     }
-    // A spit or howl winding up: it stands still, then the action fires.
+    // A move winding up: it stands still, then the action fires.
     if (this.channelLeft > 0 && this.alive) {
       this.channelLeft -= dt;
       this.phase += dt * 4;
       if (this.channelLeft <= 0) this.finishChannel();
     }
 
-    switch (this.state) {
+    const busy = runTricks(this, dt * (this.slowLeft > 0 ? 0.55 : 1), Math.random);
+
+    if (!busy) switch (this.state) {
       case 'emerge':
         this.emergeLeft -= dt;
         this.phase += dt * 1.5;
@@ -445,7 +625,8 @@ export class Zombie {
         if (this.holdCooldown <= 0) this.startChannel();
         break;
       case 'walk': {
-        const v = this.speed * slow * this.rage * this.hasteMul;
+        const rush = this.rushing ? this.def.special?.rush?.speed ?? 1 : 1;
+        const v = this.speed * slow * this.rage * this.hasteMul * rush;
         if (this.channelLeft > 0) break;
         // A boss howls on the move; Spitters and Howlers stop at their distance first.
         if (this.def.boss && this.def.special?.howl && this.holdsLeft > 0) {
@@ -465,7 +646,10 @@ export class Zombie {
           this.phase += dt * 3;
         } else if (this.z > this.stopZ) {
           this.z -= v * dt;
+          const step = Math.floor(this.phase / Math.PI);
           this.phase += (v / STRIDE[this.def.rig]) * Math.PI * dt;
+          // A heavy one's footfalls are felt in the bunker.
+          if (this.def.special?.stomp && this.z < 26 && !this.action && Math.floor(this.phase / Math.PI) !== step) this.action = 'stomp';
         } else if (this.goal) {
           // At the target's distance but beside it (a bus drove on): chase it sideways.
           const dx = this.goal.x - this.x;
@@ -475,7 +659,9 @@ export class Zombie {
         if (this.z <= this.stopZ && (!this.goal || Math.abs(this.goal.x - this.x) < this.goal.halfWidth)) {
           this.z = this.stopZ;
           this.state = 'attack';
-          this.attackT = 0;
+          this.attackT = this.rushing ? 0.45 : 0;
+          this.heavyBlow = this.rushing;
+          this.rushing = false;
           this.struck = false;
         } else if (this.z < this.stopZ) {
           this.z = this.stopZ;
@@ -483,6 +669,7 @@ export class Zombie {
         break;
       }
       case 'attack': {
+        if (this.channelLeft > 0) break;
         if (this.staggerLeft > 0) {
           this.staggerLeft -= dt;
           break;
@@ -496,6 +683,8 @@ export class Zombie {
         if (!this.struck && this.attackT >= 0.68) {
           this.struck = true;
           strike = true;
+          this.strikeMul = this.heavyBlow ? 2 : 1;
+          this.heavyBlow = false;
         }
         if (this.attackT >= 1) {
           this.attackT -= 1;
@@ -504,6 +693,13 @@ export class Zombie {
         this.phase += dt * 2;
         break;
       }
+      case 'down':
+        this.downT += dt;
+        if (this.downT >= DOWN.fall + DOWN.lie + DOWN.rise) {
+          this.state = 'walk';
+          this.downT = 0;
+        }
+        break;
       case 'dying':
         // A puppet's fall is a performance of its own, so it is given the time to play.
         this.deathT += dt / (this.puppet ? 1.5 : this.deathStyle === 'crumple' ? 0.95 : 0.62);
@@ -525,7 +721,7 @@ export class Zombie {
     }
 
     // Lateral path: converge from spawn lane to a slot on the bunker line, with a drifting wander.
-    if (this.state !== 'dying' && this.state !== 'dead') {
+    if (this.state !== 'dying' && this.state !== 'dead' && !busy && this.state !== 'down') {
       // Stay inside the bunker window: it narrows toward the wall, and the body keeps clear of the frame.
       const lim = windowHalfWidth(this.z) - BODY_HALF_M;
       if (this.goal) {
@@ -537,6 +733,7 @@ export class Zombie {
           this.x += (desired - this.x) * Math.min(1, dt * 2);
         }
         this.x = Phaser.Math.Clamp(this.x, -lim - 3, lim + 3);
+        this.laneX = this.x;
       } else {
         // Walk straight in along the spawn ray: the sideways position scales with the distance, so
         // on screen the zombie keeps its column and never slides across the field. It reaches the
@@ -544,7 +741,8 @@ export class Zombie {
         const depth = Phaser.Math.Clamp(this.z / FIELD.spawnZ, 0, 1);
         const wander = Math.sin(this.time * 0.35 + this.wanderSeed) * 1.6 * depth;
         const desired = Phaser.Math.Clamp(this.spawnX * depth + wander, -lim, lim);
-        this.x = Phaser.Math.Clamp(this.x + (desired - this.x) * Math.min(1, dt * 2), -lim, lim);
+        this.laneX = Phaser.Math.Clamp(this.laneX + (desired - this.laneX) * Math.min(1, dt * 2), -lim, lim);
+        this.x = Phaser.Math.Clamp(this.laneX + this.swerve, -lim, lim);
       }
     }
 
@@ -557,11 +755,7 @@ export class Zombie {
 
   private startChannel(): void {
     const ranged = this.def.special?.ranged;
-    this.channelKind = ranged ? 'spit' : 'howl';
-    this.channelLeft = ranged ? ranged.windup : 1.35;
-    this.channelTotal = this.channelLeft;
-    this.releaseLeft = 0;
-    this.action = 'charge';
+    this.windUp(ranged ? 'spit' : 'howl', ranged ? ranged.windup : 1.35);
     if (this.puppet && this.def.look === 'screamer') {
       const p = this.anchorScreen('mouth');
       screechRing(this.scene, p.x, p.y, this.scale, this.root.depth + 1);
@@ -580,7 +774,7 @@ export class Zombie {
     const mouth = this.anchorScreen('mouth');
     if (this.def.look === 'brood') spitPuff(this.scene, mouth.x, mouth.y, this.scale * 1.6, depth);
     if (this.def.look === 'screamer') screechRing(this.scene, mouth.x, mouth.y, this.scale * 1.4, depth);
-    if (this.def.look === 'gorger') stompDust(this.scene, this.sx, this.sy, this.scale * 2.4, depth);
+    if (this.def.look === 'gorger' || this.def.look === 'brute') stompDust(this.scene, this.sx, this.sy, this.scale * 2.4, depth);
   }
 
   /** A melee blow lands: dust, claw marks or smoke where the limb is. */
@@ -596,14 +790,17 @@ export class Zombie {
   }
 
   private finishChannel(): void {
-    this.action = this.channelKind;
+    const kind = this.channelKind;
+    this.action = kind;
     this.channelKind = null;
     this.channelLeft = 0;
-    this.holdsLeft -= 1;
     if (this.puppet) {
       this.releaseLeft = RELEASE_SECONDS;
       this.releaseFired = false;
     }
+    if (kind === 'rush') this.rushing = true;
+    if (kind !== 'spit' && kind !== 'howl') return;
+    this.holdsLeft -= 1;
     const ranged = this.def.special?.ranged;
     const howl = this.def.special?.howl;
     this.holdCooldown = ranged ? ranged.interval : howl ? howl.interval : 0;
@@ -630,7 +827,7 @@ export class Zombie {
     if (goal) {
       this.stopZ = goal.z + 0.9;
     } else {
-      this.stopZ = this.def.boss ? this.def.boss.stopZ : FIELD.attackZ + Math.random() * 1.3;
+      this.stopZ = this.def.boss ? this.def.boss.stopZ : FIELD.attackZ + Math.random() * 1.3 + (this.def.standOff ?? 0);
       if (this.state === 'attack') this.state = 'walk';
     }
   }
@@ -638,6 +835,7 @@ export class Zombie {
   /** Nudge sideways (used by crowd separation). */
   push(dx: number): void {
     this.x += dx;
+    this.laneX += dx;
     this.spawnX += dx;
     this.targetX = Phaser.Math.Clamp(this.targetX + dx, -FIELD.attackHalfWidth, FIELD.attackHalfWidth);
   }
@@ -650,6 +848,8 @@ export class Zombie {
   }
 
   stagger(seconds: number): void {
+    // Nothing shoves a monster out of a full rush.
+    if (this.rushing) return;
     this.staggerLeft = Math.max(this.staggerLeft, seconds);
   }
 
@@ -659,8 +859,13 @@ export class Zombie {
   }
 
   kill(style: 'bullet' | 'headshot' | 'blast', dir: number): void {
+    // One shot while it lies there goes on from where it is, without standing up first.
+    const from = this.state === 'down' ? this.fallen * 0.6 : 0;
+    breakTricks(this);
+    this.channelKind = null;
+    this.channelLeft = 0;
     this.state = 'dying';
-    this.deathT = 0;
+    this.deathT = from;
     this.deathDir = dir || (Math.random() < 0.5 ? -1 : 1);
     if (style === 'headshot') {
       this.deathStyle = 'crumple';
@@ -690,7 +895,7 @@ export class Zombie {
   private updateScreen(): void {
     project(this.x, this.z, tmpP);
     this.sx = tmpP.sx;
-    this.sy = tmpP.sy;
+    this.sy = tmpP.sy - this.lift * tmpP.ppm;
     this.ppm = tmpP.ppm;
     this.scale = (tmpP.ppm * this.def.height) / this.rigHeight;
     this.root.setPosition(this.sx, this.sy);
@@ -743,15 +948,15 @@ export class Zombie {
 
     // Death, as on the procedural rig. A crumple also folds the legs.
     let rootRot = 0, rootSY = 1, buckle = 0;
-    if (this.state === 'dying' || this.state === 'dead') {
-      const d = this.deathT;
-      if (this.deathStyle === 'crumple') {
+    if (this.state === 'dying' || this.state === 'dead' || this.state === 'down') {
+      const d = this.state === 'down' ? this.fallen : this.deathT;
+      if (this.state !== 'down' && this.deathStyle === 'crumple') {
         buckle = Math.min(1, d / 0.45);
         rootSY = 1 - 0.45 * buckle;
         const fall = Math.max(0, (d - 0.4) / 0.6);
         rootRot = this.deathDir * 1.5 * fall * fall;
         torsoRot += this.deathDir * 0.3 * buckle;
-      } else if (this.deathStyle === 'side') {
+      } else if (this.state !== 'down' && this.deathStyle === 'side') {
         const e = d * d;
         rootRot = this.deathDir * (1.52 * e - (d > 0.85 ? Math.sin(((d - 0.85) / 0.15) * Math.PI) * 0.06 : 0));
         torsoRot += this.deathDir * 0.2 * d;
@@ -1039,14 +1244,19 @@ export class Zombie {
     const style = this.def.rig;
     // While emerging the body grows upward out of its feet, as if pushed up through the mud.
     const risen = this.state === 'emerge' ? this.emergeProgress() : 1;
-    this.root.setScale(this.scale, this.scale * rootSY * (0.03 + 0.97 * risen));
+    const jolt = 1 + 0.2 * this.pop;
+    const crouch = 1 - 0.24 * this.squash;
+    this.root.setScale(this.scale * jolt * (1 + 0.08 * this.squash), this.scale * jolt * crouch * rootSY * (0.03 + 0.97 * risen));
     this.root.setRotation(rootRot);
     let alpha = 1;
     if (this.state === 'emerge' || this.z > FIELD.spawnZ - 6) alpha = Math.min(alpha, Phaser.Math.Clamp((FIELD.spawnZ + 0.5 - this.z) / 5, 0.15, 1));
     if (this.state === 'emerge') alpha = Math.min(alpha, 0.25 + 0.75 * risen);
     if (this.state === 'dead' && this.lieLeft < 0.8) alpha = Math.max(0, this.lieLeft / 0.8);
+    alpha *= this.hidden && this.revealLeft > 0 ? 0.75 : this.veil;
     this.root.setAlpha(alpha);
-    this.shadow.setPosition(0, -2).setScale(style === 'bloat' ? 1.6 : style === 'crawl' ? 1.4 : 1.1, 1);
+    // The shadow stays on the ground while the body leaps.
+    const drop = this.lift > 0 && this.root.scaleY > 0 ? (this.lift * this.ppm) / this.root.scaleY : 0;
+    this.shadow.setPosition(0, -2 + drop).setScale(style === 'bloat' ? 1.6 : style === 'crawl' ? 1.4 : 1.1, 1);
     this.shadow.setAlpha(this.state === 'dying' || this.state === 'dead' ? 0.4 : 0.9);
 
     // Distant enemies read as darker, desaturated silhouettes in the haze.
@@ -1061,13 +1271,19 @@ export class Zombie {
     // The tell before a spit (pulsing acid green) or a howl (pulsing pale blue).
     if (this.channelKind) {
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 24);
-      tint = this.channelKind === 'spit'
+      const warm = Phaser.Display.Color.GetColor(255, Math.round(140 + 80 * pulse), Math.round(90 + 60 * pulse));
+      tint = this.channelKind === 'roar' || this.channelKind === 'rush' ? warm
+        : this.channelKind === 'veil' ? Phaser.Display.Color.GetColor(Math.round(150 + 90 * pulse), Math.round(90 + 50 * pulse), 255)
+        : this.channelKind === 'spit'
         // The Gorger winds up a slam rather than a spit, so its tell is a hot red.
         ? this.def.look === 'gorger'
           ? Phaser.Display.Color.GetColor(255, Math.round(150 + 70 * pulse), Math.round(130 + 70 * pulse))
           : Phaser.Display.Color.GetColor(Math.round(120 + 60 * pulse), 255, Math.round(60 + 40 * pulse))
         : Phaser.Display.Color.GetColor(Math.round(190 + 60 * pulse), Math.round(210 + 40 * pulse), 255);
     }
+    if (this.armourBroken && !this.channelKind) tint = Phaser.Display.Color.GetColor(255, Math.round(g * 0.9), Math.round(g * 0.75));
+    if (this.hidden && this.revealLeft > 0) tint = 0x9ab8ff;
+    if (this.stunLeft > 0) tint = 0xd8e8ff;
     if (this.slowLeft > 0) tint = 0x9fd4ff;
     else if (this.burnLeft > 0) tint = Phaser.Display.Color.GetColor(255, Math.round(g * 0.75), Math.round(g * 0.55));
     if (this.hitFlash > 0) tint = this.flashColor;
@@ -1082,7 +1298,7 @@ export class Zombie {
 
   /** Returns the zone hit by a screen point, or null. Head is tested first. */
   hitTest(px: number, py: number): HitZone | null {
-    if (!this.alive) return null;
+    if (!this.targetable) return null;
     const s = this.scale;
     if (s <= 0) return null;
     // quick reject by bounding radius
@@ -1118,6 +1334,13 @@ export class Zombie {
   /** Screen position of the head centre (for gore effects). */
   headScreen(out: { x: number; y: number }): { x: number; y: number } {
     return this.localToScreen(this.headC.x, this.headC.y, out);
+  }
+
+  /** Where the soft belly is on screen. */
+  weakScreen(out: { x: number; y: number }): { x: number; y: number } {
+    if (!this.puppet) return this.chestScreen(out);
+    const [x, y] = this.puppet.anchor('belly');
+    return this.localToScreen(x, y, out);
   }
 
   /** Screen position of the chest (for fire/impact effects). */

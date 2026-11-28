@@ -2,6 +2,7 @@
 // Fog Surge, Last Stand, Field Notes and weapon mastery. Pure functions over the
 // profile and a timestamp, so every rule is unit-tested without Phaser or a clock.
 
+import { questById } from '../data/quests';
 import { ENEMIES } from '../data/enemies';
 import { MISSIONS, MissionDef, missionById, plural } from '../data/missions';
 import {
@@ -365,15 +366,16 @@ export function endlessWave(n: number, met: ReadonlySet<string>): WaveDef {
   const k = n - 1;
   const has = (id: string): boolean => met.has(id);
   const groups: WaveDef['groups'] = [
-    { enemy: 'shambler', count: Math.min(60, 14 + 3 * k), delay: 0, interval: Math.max(0.45, 1.8 - 0.05 * k), burst: k >= 6 ? 2 : undefined },
+    { enemy: 'shambler', count: Math.min(60, 9 + 3 * k), delay: 0, interval: Math.max(0.45, 1.8 - 0.05 * k), burst: k >= 6 ? 2 : undefined },
   ];
-  if (n >= 2) groups.push({ enemy: 'hollow_hound', count: 1 + Math.floor(k * 0.75), delay: 6, interval: Math.max(1.4, 8 - 0.25 * k) });
+  // A mixed field from the first wave: never shamblers alone.
+  groups.push({ enemy: 'hollow_hound', count: 2 + Math.floor(k * 0.75), delay: 6, interval: Math.max(1.4, 8 - 0.25 * k) });
+  groups.push({ enemy: 'wraith', count: 1 + Math.floor((2 * k) / 3), delay: 12, interval: Math.max(2.5, 6 - k * 0.12) });
   if (n >= 3) groups.push({ enemy: 'shambler', count: 3 + 2 * k, delay: 10, interval: 1.6, burst: 2 });
   if (n >= 4) groups.push({ enemy: 'brute', count: 1 + Math.floor(k / 4), delay: 8, interval: Math.max(8, 22 - k * 0.6) });
-  if (n >= 5) groups.push({ enemy: 'wraith', count: 2 + Math.floor((2 * k) / 3), delay: 12, interval: Math.max(2.5, 6 - k * 0.12) });
   if (n >= 6 && has('spitter')) groups.push({ enemy: 'spitter', count: 2 + Math.floor(k / 4), delay: 14, interval: 7 });
   if (n >= 7) groups.push({ enemy: 'pumpkin_brood', count: 1 + Math.floor(k / 12), delay: 16, interval: 12 });
-  if (n >= 8 && has('stalker')) groups.push({ enemy: 'stalker', count: 2 + Math.floor(k / 3), delay: 9, interval: 3 });
+  if (n >= 2 && has('stalker')) groups.push({ enemy: 'stalker', count: 1 + Math.floor(k / 3), delay: 9, interval: Math.max(3, 8 - 0.5 * k) });
   if (n >= 9 && has('carrion_screamer')) groups.push({ enemy: 'carrion_screamer', count: 1 + Math.floor(k / 8), delay: 20, interval: 12 });
   if (n >= 13 && has('lurker')) groups.push({ enemy: 'lurker', count: 2 + Math.floor(k / 3), delay: 11, interval: 2.8 });
   if (n >= 15 && has('ravager')) groups.push({ enemy: 'ravager', count: 1 + Math.floor(k / 10), delay: 26, interval: 16 });
@@ -415,6 +417,8 @@ export function resolveMission(id: string | undefined, p: ProfileData, now: numb
   if (!id) return undefined;
   if (id === SURGE_ID) return surgeMission(p, dayKey(now));
   if (id === ENDLESS_ID) return endlessMission(p);
+  const side = questById(id);
+  if (side) return side.mission;
   return missionById(id);
 }
 

@@ -1,3 +1,6 @@
+import { questById, type SideQuest } from '../data/quests';
+import { relicById, toolById } from '../data/tools';
+import { REPLAY_SHARE, questDone, questsOnMap } from '../systems/Quests';
 import Phaser from 'phaser';
 import { audio } from '../audio/AudioManager';
 import { ACT_NAMES, ACT_STAR_GATE, MISSIONS, MissionDef } from '../data/missions';
@@ -77,6 +80,16 @@ const ACT_MAPS: Record<number, { title: string; headline: string; card: string[]
       'The Fogline moves north. One more push, Warden.',
     ],
   },
+  5: {
+    title: 'THE HIGH PASS',
+    headline: 'The fog went over the mountains. Stop it there.',
+    card: [
+      'The coast is clean, but the summit village of Hochfeld has stopped answering.',
+      'What was left of the fog climbed the pass, and everything that walks in it is climbing too.',
+      '',
+      'Beyond the pass are the cities. There is nowhere to fall back to.',
+    ],
+  },
 };
 
 const MAP_TEXTURE = 'valley_map';
@@ -127,6 +140,7 @@ export class MapScene extends Phaser.Scene {
 
     // Nodes sit under the fog; the fog is cleared around the ones the player has reached.
     for (const m of actMissions(this.act)) this.nodes.set(m.id, this.makeNode(m));
+    for (const q of questsOnMap(p, this.act)) this.nodes.set(q.id, this.makeQuestNode(q));
 
     this.fog = this.add.renderTexture(-BLEED.x, 0, PANEL_X + BLEED.x, VIEW.height + BLEED.y).setOrigin(0);
     this.brush = this.make.image({ key: FOG_BRUSH, add: false });
@@ -248,6 +262,7 @@ export class MapScene extends Phaser.Scene {
       this.brush.setScale(r / 64);
       fog.erase(this.brush, x + BLEED.x, y);
     };
+    for (const q of questsOnMap(p, this.act)) clear(q.mission.map.x, q.mission.map.y, CLEAR_OPEN);
     // A fresh win: the fog rolls back from that node, then opens toward the next one.
     const list = actMissions(this.act);
     const won = list.find((m) => m.id === reveal);
@@ -336,6 +351,11 @@ export class MapScene extends Phaser.Scene {
 
   /** The side panel: name, objective and bonus, the threat gauge, what a win brings, and Deploy. */
   private select(m: MissionDef): void {
+    const side = questById(m.id);
+    if (side) {
+      this.selectQuest(side);
+      return;
+    }
     this.selected = m;
     for (const o of this.panel) o.destroy();
     this.panel = [];
@@ -419,6 +439,86 @@ export class MapScene extends Phaser.Scene {
     } else {
       add(pushButton(this, mid, by, { w, h: 64, size: 31, icon: 'play', label: 'DEPLOY', tone: 'go', onClick: () => this.deploy() }).c);
     }
+  }
+
+  /** A side quest on the map: a diamond showing what it hands over. */
+  private makeQuestNode(q: SideQuest): Phaser.GameObjects.Container {
+    const done = questDone(profile.get(), q.id);
+    const color = done ? 0x4f8a3a : 0x6a48b0;
+    const r = 25;
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    if (!done) {
+      const halo = this.add.rectangle(0, 0, r * 2 + 8, r * 2 + 8, 0xc8a8ff, 0.4).setAngle(45);
+      this.tweens.add({ targets: halo, scale: 1.25, alpha: 0.1, duration: 800, yoyo: true, repeat: -1 });
+      parts.push(halo);
+    }
+    parts.push(this.add.rectangle(0, 0, r * 1.62, r * 1.62, 0x111111).setAngle(45), this.add.rectangle(0, 0, r * 1.38, r * 1.38, color).setAngle(45));
+    parts.push(icon(this, done ? 'check' : ITEM_ICON[q.reward.id], 0, 0, 26, C.text));
+    const name = text(this, 0, r + 15, 'SIDE QUEST', { size: 11, bold: true, color: 0xd8c0ff }).setOrigin(0.5);
+    parts.push(this.add.rectangle(0, r + 15, name.width + 10, 17, C.chip, 0.85), name);
+    const c = this.add.container(q.mission.map.x, q.mission.map.y, parts).setSize(r * 2 + 30, r * 2 + 30);
+    c.setInteractive({ useHandCursor: true });
+    c.on('pointerdown', () => {
+      audio.play('ui_click', { volume: 0.6 });
+      if (this.selected.id === q.id) this.deploy();
+      else this.selectQuest(q);
+    });
+    c.on('pointerover', () => audio.play('ui_hover', { volume: 0.4 }));
+    return c;
+  }
+
+  /** The side panel for a side quest: its twist, how hard it is, what it hands over, Deploy. */
+  private selectQuest(q: SideQuest): void {
+    const m = q.mission;
+    this.selected = m;
+    for (const o of this.panel) o.destroy();
+    this.panel = [];
+    const p = profile.get();
+    const done = questDone(p, q.id);
+    this.pulse?.destroy();
+    this.pulse = this.add.circle(m.map.x, m.map.y, 36).setStrokeStyle(3, 0xc8a8ff, 1).setFillStyle(0, 0);
+    this.tweens.add({ targets: this.pulse, scale: 1.35, alpha: 0.2, duration: 900, yoyo: true, repeat: -1 });
+    const x = PANEL_X + 22, w = VIEW.width - PANEL_X - 44, mid = x + w / 2;
+    const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
+      this.panel.push(o);
+      return o;
+    };
+    let y = 22;
+    add(text(this, x, y, 'SIDE QUEST', { size: 14, color: 0xc8a8ff, bold: true, spacing: 2 }));
+    y += 20;
+    const name = add(text(this, x, y, m.name.toUpperCase(), { size: 34, font: STENCIL, wrap: w }));
+    y += name.height + 10;
+    const hook = chip(this, { icon: 'skull', text: q.hook, size: 18 });
+    add(hook.c);
+    hook.c.setPosition(x, y);
+    y += hook.h + 18;
+    const power = playerPower(p);
+    const rating = threatRating(power, m.threat);
+    const colour = rating === 'ready' ? C.health : rating === 'risky' ? 0xe0b040 : C.goLine;
+    const max = Math.max(power, m.threat) * 1.25;
+    const g = add(this.add.graphics());
+    meter(g, x, y + 6, w, 18, power / max, colour);
+    g.fillStyle(0xff7a5a, 1).fillRect(x + w * (m.threat / max) - 2, y - 2, 5, 34);
+    add(text(this, x, y + 32, `POWER ${power}`, { size: 16, color: 0xc8c2a6, bold: true }));
+    add(text(this, x + w, y + 32, `${m.threat}`, { size: 16, color: 0xff7a5a, bold: true }).setOrigin(1, 0));
+    y += 66;
+    // The prize, large: what it is and what it does.
+    const def = q.reward.kind === 'tool' ? toolById(q.reward.id)! : relicById(q.reward.id)!;
+    const tint = q.reward.kind === 'tool' ? toolById(q.reward.id)!.color : C.gold;
+    const bg = add(this.add.rectangle(x, y, w, 10, C.raised).setOrigin(0).setStrokeStyle(2, done ? C.health : C.brass));
+    add(icon(this, ITEM_ICON[q.reward.id], mid, y + 46, 58, tint));
+    add(text(this, mid, y + 100, def.name.toUpperCase(), { size: 22, font: STENCIL, color: done ? C.green : C.text }).setOrigin(0.5));
+    const about = add(text(this, x + 12, y + 118, def.description, { size: 15, color: C.soft, wrap: w - 24, font: BODY }));
+    const tall = about.y + about.height + 10 - y;
+    bg.setSize(w, tall);
+    if (done) add(icon(this, 'check', x + w - 22, y + 24, 26, C.ok, { stroke: 2.8 }));
+    y += tall + 12;
+    const pay = chip(this, { icon: 'crate', iconColor: C.brass, text: `+${Math.round(m.supplies * (done ? REPLAY_SHARE : 1))}`, size: 19 });
+    add(pay.c);
+    pay.c.setPosition(x, y);
+    y += pay.h + 12;
+    const by = Math.min(y + 40, VIEW.height - 132);
+    add(pushButton(this, mid, by, { w, h: 60, size: 30, icon: done ? 'replay' : 'play', label: done ? 'REPLAY' : 'DEPLOY', tone: 'go', onClick: () => this.deploy() }).c);
   }
 
   /** One reward or loan: its silhouette and short name; `ribbon` marks a loan. */
@@ -557,6 +657,7 @@ function paintValley(act: number): HTMLCanvasElement {
   if (act === 2) return paintMillbrook(canvas, ctx, rng);
   if (act === 3) return paintSource(canvas, ctx, rng);
   if (act === 4) return paintCoast(canvas, ctx, rng);
+  if (act === 5) return paintPass(canvas, ctx, rng);
   const bg = ctx.createLinearGradient(0, 0, W, H);
   bg.addColorStop(0, '#5a5a3e');
   bg.addColorStop(1, '#46482f');
@@ -773,6 +874,42 @@ function paintCoast(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, rn
   return canvas;
 }
 
+/** Act 5's map: the mountains, the road switching back up through them to the summit. */
+function paintPass(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, rng: () => number): HTMLCanvasElement {
+  const W = canvas.width, H = canvas.height;
+  const land = ctx.createLinearGradient(0, H, W, 0);
+  land.addColorStop(0, '#454a3e');
+  land.addColorStop(1, '#6a7074');
+  ctx.fillStyle = land;
+  ctx.fillRect(0, 0, W, H);
+  // Peaks, snow on the higher ones.
+  for (let i = 0; i < 46; i++) {
+    const x = rand(rng, -20, W), y = rand(rng, 90, H - 20), r = rand(rng, 24, 74);
+    ctx.fillStyle = 'rgba(30,32,30,0.45)';
+    ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x, y - r * 1.1); ctx.lineTo(x + r, y); ctx.fill();
+    if (y < 460) {
+      ctx.fillStyle = `rgba(225,232,236,${rand(rng, 0.25, 0.5)})`;
+      ctx.beginPath(); ctx.moveTo(x - r * 0.34, y - r * 0.73); ctx.lineTo(x, y - r * 1.1); ctx.lineTo(x + r * 0.34, y - r * 0.73); ctx.lineTo(x, y - r * 0.62); ctx.fill();
+    }
+  }
+  ctx.strokeStyle = 'rgba(20,20,12,0.22)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  // The switchback road.
+  ctx.strokeStyle = 'rgba(200,190,165,0.35)';
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.moveTo(40, 690); ctx.bezierCurveTo(420, 640, 120, 460, 420, 450); ctx.bezierCurveTo(760, 440, 420, 290, 660, 260); ctx.lineTo(880, 120);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(235,235,225,0.55)';
+  ctx.font = 'bold 15px "Saira", sans-serif';
+  ctx.fillText('LOWER BEND', 60, 690);
+  ctx.fillText('HOCHFELD', 590, 590);
+  ctx.fillText('THE SUMMIT', 760, 100);
+  return canvas;
+}
+
 /** The picture on an act card: sky, ground, a glow in the fog and the act's skyline. */
 function paintActArt(act: number, W: number, H: number): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(W, H);
@@ -837,6 +974,13 @@ function paintActArt(act: number, W: number, H: number): HTMLCanvasElement {
     }
     block(W * 0.74, 90, 28);
     for (let x = W * 0.74; x < W * 0.74 + 90; x += 18) block(x, 10, 36);
+  } else if (act === 5) { // the pass: peaks with snow on them
+    for (const [x, h] of [[W * 0.1, 56], [W * 0.27, 84], [W * 0.47, 62], [W * 0.66, 98], [W * 0.86, 72]]) {
+      ctx.fillStyle = '#383b30';
+      ctx.beginPath(); ctx.moveTo(x - h, horizon); ctx.lineTo(x, horizon - h); ctx.lineTo(x + h, horizon); ctx.fill();
+      ctx.fillStyle = '#d8dedc';
+      ctx.beginPath(); ctx.moveTo(x - h * 0.3, horizon - h * 0.7); ctx.lineTo(x, horizon - h); ctx.lineTo(x + h * 0.3, horizon - h * 0.7); ctx.lineTo(x, horizon - h * 0.6); ctx.fill();
+    }
   } else { // the valley: bare trees and the bunker
     for (let x = 14; x < W; x += rand(rng, 22, 48)) if (x < W * 0.4 || x > W * 0.62) tree(x, rand(rng, 18, 44));
     block(W * 0.46, 66, 20);
